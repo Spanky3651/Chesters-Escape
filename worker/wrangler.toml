@@ -1,0 +1,35 @@
+name = "chester-game"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+# One Durable Object holds the game so every roll is applied in order.
+[[durable_objects.bindings]]
+name = "GAME"
+class_name = "Game"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Game"]
+
+[vars]
+# The game page. Sign-in sends players back here.
+GAME_PAGE = "https://spanky3651.github.io/Chesters-Escape/"
+# Pages allowed to call this server (comma separated).
+ALLOWED_ORIGINS = "https://spanky3651.github.io"
+# Discord user IDs that get the host tools (comma separated).
+HOSTS = "909550896571113492"
+# Optional: only members of this Discord server can sign in. Leave empty to allow anyone.
+GUILD_ID = "933398740008587396"
+# The game starts invite-only. People who sign in land on the host's waiting list
+# (Host tools, Who can play). Optional: Discord IDs let in from the start (comma separated).
+TESTERS = ""
+# Theme for a brand-new game: cemetery or christmas.
+THEME = "cemetery"
+# "1" posts a short "Day N is done" message to the webhook at each cutoff.
+ANNOUNCE_DAYS = "0"
+
+# Secrets (set with: npx wrangler secret put NAME)
+#   DISCORD_CLIENT_ID      from the Discord developer portal, OAuth2 page
+#   DISCORD_CLIENT_SECRET  same page
+#   SESSION_SECRET         any long random string
+#   DISCORD_WEBHOOK_URL    optional, the game channel's webhook for posting results

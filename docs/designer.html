@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Board designer</title>
+<meta name="description" content="Lay out a Chester's Escape board: drop in your art, click the spaces onto it, set the maps and events, and export it for the game.">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%A6%E2%80%8D%E2%AC%9B%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Grenze+Gotisch:wght@500;700;800&family=Mountains+of+Christmas:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/game.css">
+<link rel="stylesheet" href="css/designer.css">
+</head>
+<body data-theme="cemetery">
+<header class="top">
+  <div class="brand">
+    <svg class="brand-crow" viewBox="-36 -42 72 80" aria-hidden="true" id="brandCrow"></svg>
+    <h1>Board designer</h1>
+  </div>
+  <nav class="topnav" aria-label="Designer">
+    <a class="nav-btn" href="index.html">Back to the game</a>
+  </nav>
+</header>
+
+<main class="dz">
+  <section class="dz-board">
+    <div class="tools" role="toolbar" aria-label="Tools">
+      <button type="button" class="tool" data-tool="select" aria-pressed="true" title="Click a space to edit it, drag to move it">Select and move</button>
+      <button type="button" class="tool" data-tool="add" aria-pressed="false" title="Click the board to add a space to the route">Add spaces</button>
+      <button type="button" class="tool" data-tool="start" aria-pressed="false" title="Click the board to place this route's start marker">Place start</button>
+      <label class="check inline"><input type="checkbox" id="snap" checked> <span>Snap to grid</span></label>
+      <label class="check inline"><input type="checkbox" id="showOrder" checked> <span>Show route order</span></label>
+    </div>
+    <div class="board-wrap dz-wrap" id="dzWrap"></div>
+    <p class="why dz-help" id="toolHelp">Click a space to edit it. Drag a space to move it.</p>
+  </section>
+
+  <aside class="dz-side">
+    <section class="panel">
+      <h2>Board</h2>
+      <div class="field"><label for="bTitle">Name</label><input type="text" id="bTitle"></div>
+      <div class="field"><label for="bTheme">Preview with theme</label><select id="bTheme"></select><span class="hint">Themes change the art, event names and cards. The board keeps its maps.</span></div>
+      <div class="field"><label>Background art</label>
+        <div class="row"><label class="btn small ghost file">Upload image<input type="file" id="bgFile" accept="image/*" hidden></label><button type="button" class="btn small link" id="bgClear">Use the theme art</button></div>
+        <span class="hint">Use a square image of the board. Then add a space on top of each square in the art.</span></div>
+      <label class="check"><input type="checkbox" id="artSpaces"> <span>The art already shows the spaces. Only place invisible click areas over them; players see the art.</span></label>
+    </section>
+
+    <section class="panel">
+      <div class="thread-head"><h2>Routes</h2>
+        <div class="seg" role="tablist" aria-label="Route" id="routeTabs"></div></div>
+      <ol class="steps" id="steps"></ol>
+      <div class="row"><button type="button" class="btn small ghost" id="addToRoute" disabled>Add the selected space to this route</button></div>
+      <div class="field"><label for="rName">Route name</label><input type="text" id="rName"></div>
+      <div class="field"><label for="rBlurb">Description on the route picker</label><input type="text" id="rBlurb"></div>
+    </section>
+
+    <section class="panel" id="spacePanel">
+      <h2>Space</h2>
+      <div id="spaceEdit"><p class="empty">Select a space on the board to edit it.</p></div>
+    </section>
+
+    <section class="panel">
+      <h2>Card bonus maps</h2>
+      <div class="field"><label for="bonus">Map keys a task card can hand out</label><input type="text" id="bonus" placeholder="4fdf9, 5013b"><span class="hint">Separate keys with commas. One is picked at random.</span></div>
+    </section>
+
+    <section class="panel">
+      <h2>Check and save</h2>
+      <ul class="problems" id="problems"></ul>
+      <div class="row">
+        <button type="button" class="btn" id="saveGame">Save for the game</button>
+        <button type="button" class="btn ghost" id="exportBtn">Download board file</button>
+        <label class="btn ghost file">Open board file<input type="file" id="importFile" accept=".json,application/json" hidden></label>
+      </div>
+      <p class="why">Save for the game keeps it in this browser. In host tools, choose "Start a new game on the designer board". The board file is what goes into the game repo for the live game.</p>
+      <button type="button" class="btn small danger" id="resetBoard">Start over from Chester's Escape</button>
+    </section>
+  </aside>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="js/content.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/render.js"></script>
+<script src="js/designer.js"></script>
+</body>
+</html>

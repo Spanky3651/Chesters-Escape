@@ -1,0 +1,298 @@
+/*
+ * Chester's Escape - boards, themes and card decks.
+ * A board is the path (which spaces, in which order, with which maps).
+ * A theme is the look and the words (cemetery vs Christmas). The same board
+ * can be played in any theme: event spaces carry a `kind`, and each theme
+ * gives that kind its own name and icon.
+ */
+(function (root) {
+  'use strict';
+
+  var CELL = 64, PAD = 20;
+  function at(c, r) { return { x: PAD + c * CELL + CELL / 2, y: PAD + r * CELL + CELL / 2 }; }
+
+  // ---- Chester's Escape board -------------------------------------------------
+  // Grid is 15 x 15 cells on a 1000 x 1000 board. Each entry: [col, row, type, extra]
+  // Map keys come from the original GENX game board.
+  var LONGER = [
+    [11, 1, 'map', { bsr: ['4f33e', '4f3c2'] }],
+    [10, 1, 'map', { bsr: ['4fde6'] }],
+    [10, 2, 'map', { bsr: ['4fdf9'] }],
+    [10, 3, 'card'],
+    [10, 4, 'map', { bsr: ['4feec'] }],
+    [10, 5, 'map', { bsr: ['4ff41'] }],
+    [10, 6, 'card'],
+    [10, 7, 'map', { bsr: ['4ff40'] }],
+    [10, 8, 'task', { kind: 'terror', bsr: ['20a96'] }],
+    [10, 9, 'map', { bsr: ['4fded'] }],
+    [9, 9, 'map', { bsr: ['4fd41'] }],
+    [8, 9, 'move', { kind: 'flowers', n: 2 }],
+    [7, 9, 'map', { bsr: ['4ffd0'] }],
+    [7, 8, 'map', { bsr: ['4ffeb'] }],
+    [7, 7, 'card'],
+    [7, 6, 'map', { bsr: ['50032'] }],
+    [7, 5, 'task', { kind: 'roadblock', bsr: ['4d135'] }],
+    [7, 4, 'map', { bsr: ['50014'] }],
+    [7, 3, 'map', { bsr: ['5004a'] }],
+    [6, 3, 'map', { bsr: ['4f073'] }],
+    [5, 3, 'card'],
+    [4, 3, 'map', { bsr: ['5009e'] }],
+    [3, 3, 'skip', { kind: 'ghostScare', turns: 1 }],
+    [2, 3, 'map', { bsr: ['500ae'] }],
+    [1, 3, 'task', { kind: 'cat', bsr: ['20848'] }],
+    [1, 4, 'map', { bsr: ['4ffb8'] }],
+    [1, 5, 'map', { bsr: ['5009f'] }],
+    [1, 6, 'map', { bsr: ['4bfde'] }],
+    [2, 6, 'card'],
+    [3, 6, 'map', { bsr: ['5013b'] }],
+    [4, 6, 'map', { bsr: ['5014b'] }],
+    [5, 6, 'task', { kind: 'attack', bsr: ['30155'] }],
+    [5, 7, 'map', { bsr: ['50155'] }],
+    [5, 8, 'move', { kind: 'ghostRun', n: 3 }],
+    [4, 8, 'map', { bsr: ['50166'] }],
+    [3, 8, 'map', { bsr: ['50040'] }],
+    [2, 8, 'card'],
+    [2, 9, 'map', { bsr: ['4fb7e'] }],
+    [2, 10, 'skip', { kind: 'ghostScare', turns: 1 }]
+  ];
+  var RISKIER = [
+    [13, 2, 'map', { bsr: ['4fde6'] }],
+    [13, 3, 'card'],
+    [13, 4, 'map', { bsr: ['4feec'] }],
+    [13, 5, 'start', { kind: 'grave' }],
+    [13, 6, 'task', { kind: 'terror', bsr: ['1f31b'] }],
+    [13, 7, 'card'],
+    [13, 8, 'map', { bsr: ['4ff40'] }],
+    [13, 9, 'skip', { kind: 'pulledUnder', turns: 1, id: 'pulled' }],
+    [13, 10, 'warp', { kind: 'swim', to: 'safe' }],
+    [13, 11, 'map', { bsr: ['5009e'] }],
+    [13, 12, 'task', { kind: 'roadblock', bsr: ['4cd52'] }],
+    [13, 13, 'card'],
+    [12, 13, 'map', { bsr: ['4ffb8'] }],
+    [11, 13, 'map', { bsr: ['4bfde'] }],
+    [10, 13, 'warp', { kind: 'current', to: 'pulled' }],
+    [9, 13, 'safe', { kind: 'safe', id: 'safe' }],
+    [8, 13, 'task', { kind: 'attack', bsr: ['34215'] }],
+    [7, 13, 'map', { bsr: ['50155'] }],
+    [6, 13, 'card'],
+    [5, 13, 'move', { kind: 'evilGhost', n: -5 }],
+    [4, 13, 'map', { bsr: ['50040'] }],
+    [3, 13, 'move', { kind: 'ghostRun', n: 3 }],
+    [2, 13, 'task', { kind: 'cat', bsr: ['19673'] }],
+    [2, 12, 'map', { bsr: ['4bfde'] }]
+  ];
+  var SHARED = [
+    [2, 11, 'card'],
+    [1, 11, 'map', { bsr: ['501cc'] }],
+    [0, 11, 'exit', { kind: 'exit' }]
+  ];
+
+  function buildBoard() {
+    var spaces = {}, routes = {}, n = 0;
+    function add(row, prefix) {
+      var id = (row[3] && row[3].id) || (prefix + (++n));
+      var sp = Object.assign({ id: id, type: row[2] }, at(row[0], row[1]), row[3] || {});
+      delete sp.id; sp.id = id;
+      spaces[id] = sp; return id;
+    }
+    var shared = SHARED.map(function (r) { return add(r, 's'); });
+    n = 0; routes.longer = LONGER.map(function (r) { return add(r, 'L'); }).concat(shared);
+    n = 0; routes.riskier = RISKIER.map(function (r) { return add(r, 'R'); }).concat(shared);
+    return {
+      id: 'chester-escape',
+      title: "Chester's Escape",
+      size: { w: 1000, h: 1000 },
+      cell: CELL,
+      spaces: spaces,
+      routes: routes,
+      routeInfo: {
+        longer: { name: 'Longer route', blurb: 'Safer ground, more maps. ' + routes.longer.length + ' spaces to the gates.' },
+        riskier: { name: 'Riskier route', blurb: 'Shorter, but the river and the graves are waiting. ' + routes.riskier.length + ' spaces.' }
+      },
+      starts: {
+        longer: Object.assign(at(12, 1), { dir: 'left' }),
+        riskier: Object.assign(at(13, 1), { dir: 'down' })
+      },
+      bonusMaps: ['4fdf9', '5013b', '4ffeb', '501cc', '4f073', '5004a'],
+      background: null       // designer can set an uploaded image (data URL); null = theme art
+    };
+  }
+
+  // ---- themes ----------------------------------------------------------------
+  var THEMES = {
+    cemetery: {
+      id: 'cemetery',
+      name: 'Haunted cemetery',
+      title: "Chester's Escape",
+      tagline: 'Help Chester find his way out of the cemetery. If you dare.',
+      goal: 'cemetery gates',
+      font: "'Grenze Gotisch', Georgia, serif",
+      palette: { ground: '#4a6a2c', ground2: '#2f4a1d', stone: '#9aa0a3', stoneDark: '#5d6366', ink: '#2b2f31', accent: '#f2a33a', good: '#3fd04a', bad: '#8b5cf6', water: '#1d4f73' },
+      card: { back: 'Chester’s Escape', treasure: 'Treasure card', trick: 'Trick card', task: 'Task card', fate: 'Fate card' },
+      kinds: {
+        cat:        { title: 'Chased by a cat!', icon: '🐈‍⬛' },
+        roadblock:  { title: 'Road blocked!', icon: '🚧' },
+        terror:     { title: "You've been terrorized!", icon: '👹' },
+        attack:     { title: 'Personal attack!', icon: '😤' },
+        ghostScare: { title: 'Scared by a ghost!', icon: '👻' },
+        ghostRun:   { title: 'Run from the ghost!', icon: '🏃' },
+        flowers:    { title: 'Flowers found!', icon: '💐' },
+        evilGhost:  { title: 'Evil ghost got you!', icon: '☠️' },
+        grave:      { title: 'Fell in a grave!', icon: '⚰️' },
+        pulledUnder:{ title: 'Pulled under by a ghost!', icon: '🫧' },
+        swim:       { title: 'Swim to safety!', icon: '🛟' },
+        current:    { title: 'Taken by the current!', icon: '🌊' },
+        safe:       { title: 'Safe!', icon: '🪨' },
+        exit:       { title: 'Cemetery gates', icon: '🚪' }
+      },
+      words: { card: ['CARD', 'DROP'], start: 'Start', longer: 'Longer route', riskier: 'Riskier route', escaped: 'You escaped!', results: 'Day {n} results' }
+    },
+    christmas: {
+      id: 'christmas',
+      name: 'Snowy Christmas',
+      title: "Chester's Snowy Escape",
+      tagline: 'Chester is snowed in at the North Pole. Get him home to Hazel by Christmas Eve.',
+      goal: 'cottage door',
+      font: "'Mountains of Christmas', Georgia, serif",
+      palette: { ground: '#e9f1f7', ground2: '#c9dbe8', stone: '#ffffff', stoneDark: '#9db4c6', ink: '#24384a', accent: '#d7263d', good: '#2fb35a', bad: '#3a6ea5', water: '#a9d6f0' },
+      card: { back: 'Chester’s Snowy Escape', treasure: 'Gift card', trick: 'Coal card', task: 'Carol card', fate: 'Snow globe' },
+      kinds: {
+        cat:        { title: 'Chased by a snowman!', icon: '⛄' },
+        roadblock:  { title: 'Snowed in!', icon: '🌨️' },
+        terror:     { title: 'Krampus spotted!', icon: '😈' },
+        attack:     { title: 'Grumpy elf!', icon: '🧝' },
+        ghostScare: { title: 'Brain freeze!', icon: '🥶' },
+        ghostRun:   { title: 'Sled downhill!', icon: '🛷' },
+        flowers:    { title: 'Found a candy cane!', icon: '🍬' },
+        evilGhost:  { title: 'Avalanche!', icon: '🏔️' },
+        grave:      { title: 'Fell through the ice!', icon: '🧊' },
+        pulledUnder:{ title: 'Stuck in the slush!', icon: '🫠' },
+        swim:       { title: 'Skate to safety!', icon: '⛸️' },
+        current:    { title: 'Thin ice!', icon: '❄️' },
+        safe:       { title: 'Safe!', icon: '🕯️' },
+        exit:       { title: 'Home for Christmas', icon: '🏡' }
+      },
+      words: { card: ['GIFT', 'DROP'], start: 'Start', longer: 'Longer route', riskier: 'Riskier route', escaped: 'Home for Christmas!', results: 'Day {n} results' }
+    }
+  };
+
+  // ---- cards -------------------------------------------------------------------
+  // Same 20 effects in every theme, so balance stays the same. Only the words change.
+  var EFFECTS = [
+    { id: 'c01', cls: 'treasure', effects: [{ type: 'move', n: 2 }] },
+    { id: 'c02', cls: 'treasure', effects: [{ type: 'move', n: 3 }] },
+    { id: 'c03', cls: 'treasure', effects: [{ type: 'toNext', kind: 'map' }] },
+    { id: 'c04', cls: 'treasure', effects: [{ type: 'again' }] },
+    { id: 'c05', cls: 'treasure', effects: [{ type: 'shield' }] },
+    { id: 'c06', cls: 'treasure', effects: [{ type: 'move', n: 4 }] },
+    { id: 'c07', cls: 'treasure', effects: [{ type: 'move', n: 1 }] },
+    { id: 'c08', cls: 'treasure', effects: [{ type: 'move', n: 2 }] },
+    { id: 'c09', cls: 'trick', effects: [{ type: 'move', n: -3 }] },
+    { id: 'c10', cls: 'trick', effects: [{ type: 'skip', turns: 1 }] },
+    { id: 'c11', cls: 'trick', effects: [{ type: 'move', n: -2 }] },
+    { id: 'c12', cls: 'trick', effects: [{ type: 'skip', turns: 1 }] },
+    { id: 'c13', cls: 'trick', effects: [{ type: 'move', n: -1 }] },
+    { id: 'c14', cls: 'trick', effects: [{ type: 'skip', turns: 2 }] },
+    { id: 'c15', cls: 'trick', effects: [{ type: 'move', n: -2 }] },
+    { id: 'c16', cls: 'task', effects: [{ type: 'task' }] },
+    { id: 'c17', cls: 'task', effects: [{ type: 'task' }] },
+    { id: 'c18', cls: 'task', effects: [{ type: 'move', n: 1 }, { type: 'task' }] },
+    { id: 'c19', cls: 'fate', effects: [] },
+    { id: 'c20', cls: 'fate', effects: [{ type: 'move', n: 2 }, { type: 'skip', turns: 1 }] }
+  ];
+
+  var WORDS = {
+    cemetery: {
+      c01: ['Energized', '⚡', "Chester is feeling energized. He can't wait to see his girlfriend, Hazel."],
+      c02: ['Tailwind', '🌬️', 'A cold gust lifts Chester over three headstones.'],
+      c03: ["Hazel's whistle", '🎵', 'Hazel whistles from the gates. Chester flies straight to the next map.'],
+      c04: ['Lucky wishbone', '🍀', 'Chester finds a wishbone under the cypress tree.'],
+      c05: ['Garlic necklace', '🧄', 'Nothing undead will touch Chester now.'],
+      c06: ['Secret crypt passage', '🗝️', 'A loose stone slides away and opens a shortcut.'],
+      c07: ['Lantern light', '🏮', 'The groundskeeper lights the path for a moment.'],
+      c08: ['Raven escort', '🐦‍⬛', "Chester's cousin shows him a gap in the fence."],
+      c09: ['Ghosts got you', '👻', 'Two ghosts drag Chester back toward the chapel.'],
+      c10: ['Tangled in cobwebs', '🕸️', 'It takes Chester all night to get free.'],
+      c11: ['Black cat', '🐈‍⬛', 'A black cat crosses his path. Chester backs away slowly.'],
+      c12: ['Thick fog', '🌫️', "Chester can't see his own wings. Better wait it out."],
+      c13: ['Tripped on a headstone', '🪦', 'Ouch. That one was not there a minute ago.'],
+      c14: ["Witch's hex", '🧙', 'A curse freezes Chester in place.'],
+      c15: ['Owl ambush', '🦉', 'An owl swoops in and Chester flees the wrong way.'],
+      c16: ["The organist's request", '🎹', "The ghost organist won't let Chester pass until he hears one more song."],
+      c17: ['Skeleton dance-off', '💀', 'The skeletons challenge Chester to a dance. Winner walks out.'],
+      c18: ['Graveyard shift', '⛏️', 'Help the groundskeeper finish his playlist. He walks you one space closer.'],
+      c19: ['Moonlit rest', '🌕', 'Chester perches on a headstone and takes in the view.'],
+      c20: ['Bat swarm', '🦇', 'Bats everywhere! Chester dives ahead, then hides until morning.']
+    },
+    christmas: {
+      c01: ['Hot cocoa', '☕', "Chester warms up with cocoa. He can't wait to see Hazel."],
+      c02: ['Polar wind', '🌬️', 'A north wind carries Chester over three snowbanks.'],
+      c03: ['Northern lights', '🌌', 'The sky lights the way. Chester flies straight to the next map.'],
+      c04: ['Wishbone from the feast', '🍗', 'Chester gets the bigger half. Make another wish.'],
+      c05: ['Knitted scarf', '🧣', "Hazel knitted it. Nothing can chill Chester now."],
+      c06: ['Sleigh ride', '🛷', 'A passing sleigh gives Chester a lift.'],
+      c07: ['Candle in the window', '🕯️', 'A warm glow shows the next step.'],
+      c08: ['Reindeer lift', '🦌', 'A reindeer lets Chester ride between the antlers.'],
+      c09: ['Snowball ambush', '❄️', 'The snowman gang knocks Chester back.'],
+      c10: ['Tangled in lights', '🎄', 'It takes Chester all night to get untangled.'],
+      c11: ['Slipped on ice', '🧊', 'Feet up, tail first, two spaces back.'],
+      c12: ['Whiteout', '🌨️', "Chester can't see his own beak. Better wait it out."],
+      c13: ['Stepped in a snowdrift', '🥾', 'Cold feet. One step back.'],
+      c14: ['Frozen solid', '🥶', 'Chester turns into a crow-sicle for a while.'],
+      c15: ['Runaway snowman', '⛄', 'A rolling snowman chases Chester the wrong way.'],
+      c16: ["The carolers' request", '🎶', "The carolers won't let Chester pass until he plays one more song."],
+      c17: ['Elf dance-off', '🧝', 'The workshop elves challenge Chester to a dance.'],
+      c18: ['Wrap the presents', '🎁', 'Help wrap the last gifts. The elves walk you one space closer.'],
+      c19: ['Quiet snowfall', '🌨️', 'Chester watches the snow fall for a while.'],
+      c20: ['Gingerbread rush', '🍪', 'Too many cookies! Chester zooms ahead, then naps it off.']
+    }
+  };
+
+  function cardsFor(themeId) {
+    var w = WORDS[themeId] || WORDS.cemetery;
+    return EFFECTS.map(function (e) {
+      var x = w[e.id];
+      return { id: e.id, cls: e.cls, title: x[0], art: x[1], text: x[2], effects: JSON.parse(JSON.stringify(e.effects)) };
+    });
+  }
+
+  // Plain description of what a card or space does.
+  function effectText(fx) {
+    switch (fx.type) {
+      case 'move': return fx.n > 0 ? 'Move forward ' + fx.n + (fx.n === 1 ? ' space' : ' spaces') : 'Move back ' + (-fx.n) + (fx.n === -1 ? ' space' : ' spaces');
+      case 'skip': return fx.turns > 1 ? 'Lose ' + fx.turns + ' turns' : 'Lose a turn';
+      case 'again': return 'Roll again today';
+      case 'shield': return 'Ignore the next thing that sets you back';
+      case 'task': return 'Play a bonus map before your next roll';
+      case 'toNext': return 'Fly to the next map space';
+      default: return 'Nothing happens';
+    }
+  }
+  function cardEffectText(card) {
+    if (!card.effects || !card.effects.length) return 'Nothing happens';
+    return card.effects.map(function (fx, i) { var t = effectText(fx); return i ? t.charAt(0).toLowerCase() + t.slice(1) : t; }).join(', then ');
+  }
+  function spaceEffectText(sp) {
+    switch (sp.type) {
+      case 'map': return sp.bsr.length > 1 ? 'Play one of these maps' : 'Play this map';
+      case 'task': return 'Play this map to continue';
+      case 'card': return 'Draw a card';
+      case 'move': return sp.n > 0 ? 'Move ahead ' + sp.n + ' spaces' : 'Back up ' + (-sp.n) + ' spaces';
+      case 'skip': return sp.turns > 1 ? 'Lose ' + sp.turns + ' turns' : 'Lose a turn';
+      case 'start': return 'Return to start';
+      case 'warp': return 'Carried to another space';
+      case 'safe': return 'Catch your breath';
+      case 'exit': return 'Escape!';
+      default: return '';
+    }
+  }
+
+  root.CGContent = {
+    CELL: CELL, PAD: PAD,
+    boards: { 'chester-escape': buildBoard },
+    themes: THEMES,
+    cardsFor: cardsFor,
+    effectText: effectText, cardEffectText: cardEffectText, spaceEffectText: spaceEffectText
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = root.CGContent;
+})(typeof globalThis !== 'undefined' ? globalThis : this);

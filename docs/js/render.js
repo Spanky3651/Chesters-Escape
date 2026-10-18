@@ -1,0 +1,425 @@
+/*
+ * Chester's Escape - board renderer (SVG). Shared by the game and the designer.
+ * CGRender.board(board, theme, opts) returns an SVG string.
+ * CGRender.placeTokens(svgEl, state, theme, opts) positions player tokens.
+ */
+(function (root) {
+  'use strict';
+  var C = root.CGContent;
+
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function rnd(seed) { var s = seed >>> 0; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+
+  // ---- decorations -----------------------------------------------------------
+  function tombstone(x, y, s, v, pal) {
+    var w = 30 * s, h = 38 * s, o = '';
+    o += '<g transform="translate(' + x + ',' + y + ')" opacity=".95">';
+    o += '<ellipse cx="0" cy="' + (h * .5) + '" rx="' + (w * .7) + '" ry="' + (6 * s) + '" fill="#000" opacity=".25"/>';
+    if (v === 0) o += '<path d="M' + (-w / 2) + ',' + (h / 2) + ' V' + (-h / 6) + ' A' + (w / 2) + ',' + (w / 2) + ' 0 0 1 ' + (w / 2) + ',' + (-h / 6) + ' V' + (h / 2) + ' Z" fill="url(#gStone)" stroke="' + pal.stoneDark + '" stroke-width="1.5"/>';
+    else if (v === 1) o += '<path d="M' + (-5 * s) + ',' + (h / 2) + ' V' + (-h * .1) + ' H' + (-14 * s) + ' V' + (-h * .3) + ' H' + (-5 * s) + ' V' + (-h * .55) + ' H' + (5 * s) + ' V' + (-h * .3) + ' H' + (14 * s) + ' V' + (-h * .1) + ' H' + (5 * s) + ' V' + (h / 2) + ' Z" fill="url(#gStone)" stroke="' + pal.stoneDark + '" stroke-width="1.5"/>';
+    else o += '<path d="M' + (-w / 2) + ',' + (h / 2) + ' V' + (-h * .25) + ' L0,' + (-h * .55) + ' L' + (w / 2) + ',' + (-h * .25) + ' V' + (h / 2) + ' Z" fill="url(#gStone)" stroke="' + pal.stoneDark + '" stroke-width="1.5"/>';
+    if (v !== 1) o += '<text x="0" y="' + (2 * s) + '" text-anchor="middle" font-size="' + (8 * s) + '" font-weight="700" fill="' + pal.stoneDark + '" font-family="Georgia,serif">RIP</text>';
+    o += '</g>';
+    return o;
+  }
+  function deadTree(x, y, s) {
+    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')" stroke="#1b1f17" stroke-linecap="round" fill="none">';
+    o += '<ellipse cx="0" cy="4" rx="46" ry="12" fill="#000" opacity=".28" stroke="none"/>';
+    o += '<path d="M0,0 C-2,-30 4,-55 -2,-80" stroke-width="12"/>';
+    o += '<path d="M-1,-48 C-20,-60 -34,-62 -48,-82 M-30,-64 C-36,-70 -34,-80 -40,-90 M1,-62 C18,-72 30,-74 44,-96 M28,-77 C38,-80 46,-78 56,-84 M-2,-80 C-8,-96 2,-104 -4,-118 M-2,-84 C10,-94 16,-102 14,-114" stroke-width="5"/>';
+    o += '<path d="M-48,-82 l-8,-6 M44,-96 l4,-10 M-40,-90 l-10,-2 M14,-114 l6,-6" stroke-width="3"/>';
+    o += '</g>';
+    return o;
+  }
+  function bush(x, y, s, col) {
+    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')">';
+    o += '<ellipse cx="0" cy="14" rx="26" ry="7" fill="#000" opacity=".25"/>';
+    [[-14, 2, 13], [0, -6, 16], [14, 3, 12], [-4, 8, 12], [8, 9, 11]].forEach(function (c) { o += '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + c[2] + '" fill="' + col + '"/>'; });
+    o += '<circle cx="-4" cy="-10" r="6" fill="#fff" opacity=".07"/></g>';
+    return o;
+  }
+  function pine(x, y, s) {
+    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')">';
+    o += '<ellipse cx="0" cy="6" rx="26" ry="7" fill="#24384a" opacity=".18"/>';
+    o += '<rect x="-4" y="-6" width="8" height="12" fill="#6b4a2b"/>';
+    o += '<path d="M0,-70 L22,-34 H12 L28,-8 H-28 L-12,-34 H-22 Z" fill="#1f5a3a"/>';
+    o += '<path d="M0,-70 L10,-54 L4,-56 L0,-50 L-5,-56 L-10,-54 Z M-14,-34 L-6,-30 L0,-36 L7,-30 L14,-34 L10,-40 L-10,-40 Z" fill="#fff" opacity=".9"/>';
+    o += '<circle cx="-8" cy="-20" r="2.6" fill="#d7263d"/><circle cx="10" cy="-26" r="2.6" fill="#f4c542"/><circle cx="2" cy="-46" r="2.4" fill="#d7263d"/></g>';
+    return o;
+  }
+  function present(x, y, s, col) {
+    return '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')"><ellipse cx="0" cy="13" rx="17" ry="4" fill="#24384a" opacity=".18"/>' +
+      '<rect x="-13" y="-10" width="26" height="22" rx="2" fill="' + col + '"/><rect x="-15" y="-14" width="30" height="7" rx="2" fill="' + col + '" stroke="#000" stroke-opacity=".12"/>' +
+      '<rect x="-2.5" y="-14" width="5" height="26" fill="#f4c542"/><path d="M0,-14 C-10,-24 -14,-14 0,-14 C10,-24 14,-14 0,-14" fill="none" stroke="#f4c542" stroke-width="3"/></g>';
+  }
+  function snowman(x, y, s) {
+    return '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')"><ellipse cx="0" cy="18" rx="22" ry="5" fill="#24384a" opacity=".18"/>' +
+      '<circle cx="0" cy="4" r="16" fill="#fff" stroke="#c9dbe8"/><circle cx="0" cy="-20" r="11" fill="#fff" stroke="#c9dbe8"/>' +
+      '<rect x="-9" y="-38" width="18" height="10" fill="#24384a"/><rect x="-13" y="-29" width="26" height="3" fill="#24384a"/>' +
+      '<circle cx="-4" cy="-22" r="1.6" fill="#24384a"/><circle cx="4" cy="-22" r="1.6" fill="#24384a"/><path d="M0,-19 l9,2 -9,2 z" fill="#f08a24"/>' +
+      '<path d="M-10,-11 h20" stroke="#d7263d" stroke-width="4" stroke-linecap="round"/></g>';
+  }
+  // Chester: a small round crow. hat = 'none' | 'santa' | 'party'
+  function chester(x, y, s, hat) {
+    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')">';
+    o += '<ellipse cx="0" cy="30" rx="26" ry="5" fill="#000" opacity=".3"/>';
+    o += '<path d="M-6,26 l-4,6 M6,26 l4,6" stroke="#e8a33c" stroke-width="3" stroke-linecap="round"/>';
+    o += '<path d="M14,8 C34,10 40,22 30,26 C26,20 20,16 14,14 Z" fill="#16181d"/>';
+    o += '<ellipse cx="0" cy="6" rx="22" ry="22" fill="#20232a"/>';
+    o += '<path d="M-20,4 C-30,10 -30,22 -18,24 C-16,16 -16,10 -20,4 Z" fill="#16181d"/>';
+    o += '<g class="eyes"><circle cx="-7" cy="-2" r="6" fill="#fff"/><circle cx="7" cy="-2" r="6" fill="#fff"/>';
+    o += '<circle cx="-6" cy="-1" r="3.2" fill="#111"/><circle cx="8" cy="-1" r="3.2" fill="#111"/><circle cx="-5" cy="-2.4" r="1" fill="#fff"/><circle cx="9" cy="-2.4" r="1" fill="#fff"/></g>';
+    o += '<path d="M-5,5 L5,5 L0,13 Z" fill="#f2a33a"/>';
+    o += '<ellipse cx="-13" cy="8" rx="4" ry="2.5" fill="#ff7b9c" opacity=".55"/><ellipse cx="13" cy="8" rx="4" ry="2.5" fill="#ff7b9c" opacity=".55"/>';
+    if (hat === 'santa') o += '<path d="M-15,-14 C-10,-34 10,-40 22,-30 C14,-30 12,-24 15,-14 Z" fill="#d7263d"/><rect x="-17" y="-17" width="34" height="7" rx="3.5" fill="#fff"/><circle cx="23" cy="-30" r="5" fill="#fff"/>';
+    o += '</g>';
+    return o;
+  }
+
+  function fence(pal, christmas) {
+    var o = '<g>';
+    var col = christmas ? '#d7263d' : '#5e646b', col2 = christmas ? '#fff' : '#8a9097';
+    // rails
+    o += '<rect x="10" y="10" width="980" height="980" fill="none" stroke="' + col2 + '" stroke-width="4" opacity=".75"/>';
+    o += '<rect x="4" y="4" width="992" height="992" fill="none" stroke="' + col + '" stroke-width="6" opacity=".85"/>';
+    for (var i = 0; i <= 15; i++) {
+      var p = 20 + i * 64 - (i === 15 ? 4 : 0);
+      [[p, 6], [p, 994], [6, p], [994, p]].forEach(function (q) {
+        if (christmas) o += '<rect x="' + (q[0] - 5) + '" y="' + (q[1] - 5) + '" width="10" height="10" rx="2" fill="#fff" stroke="#d7263d" stroke-width="3"/>';
+        else o += '<rect x="' + (q[0] - 5) + '" y="' + (q[1] - 5) + '" width="10" height="10" fill="' + col + '" stroke="#2d3135" stroke-width="1.5"/>';
+      });
+    }
+    o += '</g>';
+    return o;
+  }
+
+  function river(christmas, pal) {
+    var d = 'M1012,640 C960,636 905,650 862,700 C815,755 770,800 728,848 C690,892 648,930 622,1012';
+    if (christmas) {
+      return '<g><path d="' + d + '" stroke="#bfe3f7" stroke-width="150" fill="none" stroke-linecap="round" opacity=".95"/>' +
+        '<path d="' + d + '" stroke="#e8f6fd" stroke-width="110" fill="none" stroke-linecap="round"/>' +
+        '<path d="M930,640 l20,26 -14,18 M860,780 l-26,18 8,22 M700,870 l22,10 M640,930 l-16,-20" stroke="#8cc4e2" stroke-width="2" fill="none"/></g>';
+    }
+    return '<g><path d="' + d + '" stroke="#0d2c42" stroke-width="152" fill="none" stroke-linecap="round"/>' +
+      '<path d="' + d + '" stroke="' + pal.water + '" stroke-width="122" fill="none" stroke-linecap="round"/>' +
+      '<path d="' + d + '" stroke="#3f86b3" stroke-width="3" stroke-dasharray="14 22" fill="none" opacity=".8"/>' +
+      '<path d="' + d + '" stroke="#5aa2cf" stroke-width="2" stroke-dasharray="6 30" fill="none" transform="translate(28,8)" opacity=".7"/>' +
+      '<path d="' + d + '" stroke="#5aa2cf" stroke-width="2" stroke-dasharray="6 30" fill="none" transform="translate(-30,-6)" opacity=".7"/></g>';
+  }
+
+  function background(board, theme) {
+    var pal = theme.palette, xmas = theme.id === 'christmas', o = '';
+    if (board.background) {
+      o += '<image href="' + esc(board.background) + '" x="0" y="0" width="1000" height="1000" preserveAspectRatio="xMidYMid slice"/>';
+      return o;
+    }
+    o += '<rect width="1000" height="1000" fill="url(#gGround)"/>';
+    o += '<rect width="1000" height="1000" filter="url(#fGrain)" opacity="' + (xmas ? '.07' : '.35') + '"/>';
+    if (xmas) {
+      var r1 = rnd(7);
+      for (var i = 0; i < 70; i++) o += '<circle cx="' + (r1() * 1000).toFixed(0) + '" cy="' + (r1() * 1000).toFixed(0) + '" r="' + (1 + r1() * 2.4).toFixed(1) + '" fill="#fff" opacity=".9"/>';
+    } else {
+      o += '<circle cx="760" cy="96" r="120" fill="url(#gMoon)"/>';
+    }
+    o += river(xmas, pal);
+    o += '<rect width="1000" height="1000" fill="url(#gVignette)"/>';
+    return o;
+  }
+
+  // Decorations go on free cells only, so they never sit under a space.
+  function decor(board, theme) {
+    var pal = theme.palette, xmas = theme.id === 'christmas', used = {}, o = '';
+    var cell = board.cell || 64, pad = 20;
+    Object.keys(board.spaces).forEach(function (id) { var s = board.spaces[id]; used[Math.floor((s.x - pad) / cell) + ',' + Math.floor((s.y - pad) / cell)] = 1; });
+    // keep the title, tagline, start markers and the river clear
+    for (var c = 0; c < 15; c++) for (var r = 0; r < 15; r++) {
+      if (r <= 2 && c <= 8) used[c + ',' + r] = 1;
+      if (c === 0 && r >= 3 && r <= 10) used[c + ',' + r] = 1;
+      if ((c >= 11 && r <= 1) || (c >= 12 && r <= 2)) used[c + ',' + r] = 1;
+      var cx = pad + c * cell + cell / 2, cy = pad + r * cell + cell / 2;
+      var inRiver = cy > 520 && cx > 560 && (Math.abs((cx - 590) + (cy - 1010) * 0.6) < 160 || (cx > 820 && cy > 560 && cy < 860) || (cy > 790 && cx > 600));
+      if (inRiver && !(c >= 11 && r <= 7)) used[c + ',' + r] = 1;
+    }
+    var spots = [[3, 4], [4, 4], [5, 4], [3, 5], [5, 5], [8, 4], [8, 6], [9, 3], [11, 4], [11, 6], [12, 5], [11, 8], [12, 7], [3, 9], [4, 10], [6, 11], [7, 11], [8, 11], [3, 11], [5, 10], [8, 7], [9, 6], [4, 7], [11, 10], [9, 11]];
+    var g = rnd(xmas ? 21 : 13);
+    spots.forEach(function (q, i) {
+      if (used[q[0] + ',' + q[1]]) return;
+      var x = pad + q[0] * cell + cell / 2 + (g() - .5) * 18, y = pad + q[1] * cell + cell / 2 + (g() - .5) * 14;
+      if (xmas) {
+        if (i % 3 === 0) o += pine(x, y + 18, .8 + g() * .3);
+        else if (i % 3 === 1) o += present(x, y, .9 + g() * .3, ['#d7263d', '#2fb35a', '#3a6ea5', '#f4c542'][i % 4]);
+        else o += pine(x, y + 18, .65 + g() * .2);
+      } else {
+        o += tombstone(x, y, .8 + g() * .35, i % 3, pal);
+      }
+    });
+    if (xmas) {
+      o += pine(560, 400, 1.3) + pine(318, 760, 1.2) + snowman(660, 600, 1.1) + present(440, 610, 1.1, '#d7263d') + pine(890, 330, 1.05);
+    } else {
+      o += deadTree(560, 410, 1.15) + deadTree(330, 770, 1.05) + deadTree(890, 300, .8) + bush(440, 590, 1, '#1f3a17') + bush(650, 610, .9, '#24431b') + bush(820, 400, .8, '#1f3a17');
+    }
+    return o;
+  }
+
+  // Fog drifting low over the ground (under the spaces), and floating lights or snow on top.
+  // Pure CSS animation, switched off by prefers-reduced-motion.
+  function fog(theme) {
+    if (theme.id === 'christmas') return '';
+    return '<g class="atmo fog" aria-hidden="true">' +
+      '<ellipse class="fog1" cx="300" cy="640" rx="420" ry="90" fill="url(#gFog)"/>' +
+      '<ellipse class="fog2" cx="720" cy="360" rx="380" ry="80" fill="url(#gFog)"/>' +
+      '<ellipse class="fog3" cx="520" cy="880" rx="460" ry="70" fill="url(#gFog)"/></g>';
+  }
+  function particles(theme) {
+    var g = rnd(theme.id === 'christmas' ? 5 : 9), o = '<g class="atmo parts" aria-hidden="true">';
+    if (theme.id === 'christmas') {
+      for (var i = 0; i < 46; i++) {
+        var x = (g() * 1000).toFixed(0), r = (1.6 + g() * 2.8).toFixed(1), d = (9 + g() * 9).toFixed(1), dl = (-g() * 18).toFixed(1), sway = (g() * 40 - 20).toFixed(0);
+        o += '<circle class="flake" cx="' + x + '" cy="-12" r="' + r + '" fill="#fff" stroke="#7fa3c0" stroke-opacity=".55" stroke-width="1" style="animation-duration:' + d + 's;animation-delay:' + dl + 's;--sway:' + sway + 'px"/>';
+      }
+    } else {
+      var spots = [[230, 520], [620, 300], [860, 520], [420, 770], [760, 760], [150, 900], [560, 560]];
+      spots.forEach(function (q) {
+        var d = (7 + g() * 6).toFixed(1), dl = (-g() * 10).toFixed(1);
+        o += '<circle class="wisp" cx="' + q[0] + '" cy="' + q[1] + '" r="9" fill="url(#gWisp)" style="animation-duration:' + d + 's;animation-delay:' + dl + 's"/>';
+      });
+    }
+    return o + '</g>';
+  }
+
+  function titleBlock(board, theme) {
+    var o = '', xmas = theme.id === 'christmas';
+    var ink = xmas ? '#24384a' : '#d9dcd5';
+    var parts = splitTitle(theme.title);
+    o += '<g class="title">';
+    o += '<text x="34" y="92" font-family="' + esc(theme.font) + '" font-size="64" font-weight="700" fill="' + (xmas ? '#d7263d' : '#0c0e0b') + '" opacity=".55" transform="translate(4,5)">' + esc(parts[0]) + '</text>';
+    o += '<text x="34" y="92" font-family="' + esc(theme.font) + '" font-size="64" font-weight="700" fill="' + ink + '" stroke="' + (xmas ? '#fff' : '#3b3f3a') + '" stroke-width="1.5" paint-order="stroke">' + esc(parts[0]) + '</text>';
+    o += '<text x="70" y="160" font-family="' + esc(theme.font) + '" font-size="70" font-weight="700" fill="' + (xmas ? '#d7263d' : '#0c0e0b') + '" opacity=".55" transform="translate(4,5)">' + esc(parts[1]) + '</text>';
+    o += '<text x="70" y="160" font-family="' + esc(theme.font) + '" font-size="70" font-weight="700" fill="' + (xmas ? '#d7263d' : '#f2a33a') + '" stroke="' + (xmas ? '#fff' : '#2b1a05') + '" stroke-width="2" paint-order="stroke">' + esc(parts[1]) + '</text>';
+    o += chester(575, 128, 1.05, xmas ? 'santa' : 'none');
+    // tagline down the left edge, one or two words per line like a carved signpost
+    var words = theme.tagline.split(' '), lines = [], cur = '';
+    words.forEach(function (w) { if ((cur + ' ' + w).trim().length > 8) { if (cur) lines.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); });
+    if (cur) lines.push(cur);
+    lines = lines.slice(0, 14);
+    o += '<g font-family="' + esc(theme.font) + '" font-size="19" fill="' + (xmas ? '#24384a' : '#e4e6df') + '" text-anchor="middle">';
+    lines.forEach(function (l, i) { o += '<text x="52" y="' + (230 + i * 24) + '">' + esc(l) + '</text>'; });
+    o += '</g></g>';
+    return o;
+  }
+  function splitTitle(t) {
+    var i = t.lastIndexOf(' ');
+    return i > 0 ? [t.slice(0, i), t.slice(i + 1)] : [t, ''];
+  }
+
+  function startMarkers(board, theme) {
+    var o = '', xmas = theme.id === 'christmas';
+    ['longer', 'riskier'].forEach(function (r) {
+      var st = board.starts && board.starts[r]; if (!st) return;
+      var label = (theme.words && theme.words[r]) || r;
+      var fill = xmas ? '#2fb35a' : '#3fd04a';
+      o += '<g class="start" transform="translate(' + st.x + ',' + st.y + ')">';
+      if (st.dir === 'left') o += '<path d="M24,-14 L-8,-14 L-8,-24 L-28,0 L-8,24 L-8,14 L24,14 Z" fill="#111" stroke="' + fill + '" stroke-width="3"/>';
+      else o += '<path d="M-14,-24 L14,-24 L14,4 L24,4 L0,28 L-24,4 L-14,4 Z" fill="#111" stroke="' + fill + '" stroke-width="3"/>';
+      o += '<text x="0" y="' + (st.dir === 'left' ? -38 : -36) + '" text-anchor="middle" font-family="Atkinson Hyperlegible, Arial, sans-serif" font-weight="700" font-size="12.5" fill="' + fill + '" stroke="#000" stroke-width="3" paint-order="stroke">' + esc(label.split(' ')[0]) + '</text>';
+      o += '</g>';
+    });
+    return o;
+  }
+
+  // ---- spaces ----------------------------------------------------------------
+  function spaceSvg(sp, theme, opts) {
+    var pal = theme.palette, xmas = theme.id === 'christmas', k = sp.kind && theme.kinds[sp.kind];
+    var s = 58, h = s / 2, o = '';
+    var cls = 'sp sp-' + sp.type + (opts.selected === sp.id ? ' sel' : '');
+    o += '<g class="' + cls + '" data-id="' + esc(sp.id) + '" transform="translate(' + sp.x + ',' + sp.y + ')" tabindex="' + (opts.focusable ? 0 : -1) + '" role="button" aria-label="' + esc(label(sp, theme)) + '">';
+    if (opts.artSpaces) {
+      // The background art already shows this space; draw only a hit area (visible in the designer).
+      o += '<rect class="face ghost" x="' + (-h) + '" y="' + (-h) + '" width="' + s + '" height="' + s + '" rx="5" fill="' + (opts.designer ? 'rgba(242,163,58,.18)' : 'transparent') + '" stroke="' + (opts.designer ? '#f2a33a' : 'transparent') + '" stroke-width="2"/>';
+      return o + '</g>';
+    }
+    o += '<rect x="' + (-h + 2) + '" y="' + (-h + 3) + '" width="' + s + '" height="' + s + '" rx="5" fill="#000" opacity=".35"/>';
+    var fill = 'url(#gStone)', stroke = pal.stoneDark, txt = pal.ink;
+    if (sp.type === 'card') { fill = xmas ? 'url(#gGift)' : 'url(#gCard)'; }
+    if (sp.type === 'task') { fill = xmas ? '#24384a' : '#16171a'; stroke = xmas ? '#d7263d' : '#f2a33a'; txt = '#fff'; }
+    if (sp.type === 'move' || sp.type === 'skip' || sp.type === 'start' || sp.type === 'warp' || sp.type === 'safe') { fill = xmas ? '#ffffff' : '#1d201b'; stroke = sp.type === 'move' && sp.n > 0 || sp.type === 'safe' || (sp.type === 'warp' && sp.kind === 'swim') ? (xmas ? '#2fb35a' : '#3fd04a') : (xmas ? '#3a6ea5' : '#a78bfa'); txt = xmas ? '#24384a' : '#f1f1ea'; }
+    if (sp.type === 'exit') { fill = xmas ? '#d7263d' : '#0e100d'; stroke = xmas ? '#f4c542' : '#f2a33a'; txt = '#fff'; }
+    o += '<rect class="face" x="' + (-h) + '" y="' + (-h) + '" width="' + s + '" height="' + s + '" rx="5" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + (sp.type === 'map' || sp.type === 'card' ? 1.5 : 2.5) + '"/>';
+    if (sp.type === 'map' || sp.type === 'card') o += '<rect x="' + (-h + 3) + '" y="' + (-h + 3) + '" width="' + (s - 6) + '" height="' + (s - 6) + '" rx="3" fill="none" stroke="#fff" stroke-opacity=".22"/>';
+    var f = 'Atkinson Hyperlegible, Arial, sans-serif';
+    if (sp.type === 'map') {
+      if (sp.bsr.length > 1) {
+        o += t(0, -14, '!bsr', 10, txt, f, 700, .75) + t(0, -1, sp.bsr[0], 12.5, txt, f, 700) + t(0, 10, 'or', 9, txt, f, 700, .7) + t(0, 22, sp.bsr[1], 12.5, txt, f, 700);
+      } else {
+        o += t(0, -6, '!bsr', 12, txt, f, 700, .75) + t(0, 13, sp.bsr[0], 15.5, txt, f, 700);
+      }
+    } else if (sp.type === 'card') {
+      var w = theme.words.card;
+      o += t(0, -4, w[0], 13.5, xmas ? '#fff' : pal.ink, f, 700, .9) + t(0, 12, w[1], 13.5, xmas ? '#fff' : pal.ink, f, 700, .9);
+    } else if (sp.type === 'exit') {
+      o += t(0, 2, k ? k.icon : '\uD83D\uDEAA', 26, '#fff', 'serif', 400) + t(0, 24, 'EXIT', 10.5, txt, f, 700);
+    } else {
+      o += t(0, sp.type === 'task' ? -10 : -6, k ? k.icon : '?', sp.type === 'task' ? 19 : 21, txt, 'serif', 400);
+      var short = shortLabel(sp, theme);
+      if (sp.type === 'task') o += t(0, 9, short, 8.6, '#f2c46b', f, 700) + t(0, 21, '!bsr ' + sp.bsr[0], 9.6, '#fff', f, 700);
+      else o += t(0, 15, short, 9.4, txt, f, 700);
+    }
+    o += '</g>';
+    return o;
+  }
+  function t(x, y, s, size, fill, font, weight, op) {
+    return '<text x="' + x + '" y="' + y + '" text-anchor="middle" font-family="' + esc(font) + '" font-size="' + size + '" font-weight="' + weight + '" fill="' + fill + '"' + (op ? ' opacity="' + op + '"' : '') + '>' + esc(s) + '</text>';
+  }
+  function shortLabel(sp, theme) {
+    switch (sp.type) {
+      case 'task': return 'to continue';
+      case 'move': return sp.n > 0 ? 'Ahead ' + sp.n : 'Back ' + (-sp.n);
+      case 'skip': return sp.turns > 1 ? 'Lose ' + sp.turns : 'Lose turn';
+      case 'start': return 'To start';
+      case 'warp': return sp.kind === 'swim' ? 'Swim!' : (sp.kind === 'current' ? 'Current' : 'Warp');
+      case 'safe': return 'Safe!';
+      default: return '';
+    }
+  }
+  function label(sp, theme) {
+    var k = sp.kind && theme.kinds[sp.kind];
+    var base = k ? k.title : sp.type === 'card' ? 'Card drop' : sp.type === 'map' ? 'Map space' : sp.type;
+    var maps = sp.bsr && sp.bsr.length ? ' !bsr ' + sp.bsr.join(' or ') : '';
+    return base + maps + '. ' + C.spaceEffectText(sp);
+  }
+
+  function connectors(board, theme) {
+    var o = '', xmas = theme.id === 'christmas';
+    // warp arrows, dotted like the original board
+    Object.keys(board.spaces).forEach(function (id) {
+      var sp = board.spaces[id];
+      if (sp.type !== 'warp' || !board.spaces[sp.to]) return;
+      var to = board.spaces[sp.to], good = sp.kind === 'swim';
+      var col = good ? (xmas ? '#2fb35a' : '#3fd04a') : (xmas ? '#d7263d' : '#ff4b4b');
+      var mx = (sp.x + to.x) / 2 + (good ? 60 : -50), my = (sp.y + to.y) / 2 + (good ? 60 : -40);
+      o += '<path d="M' + sp.x + ',' + sp.y + ' Q' + mx + ',' + my + ' ' + to.x + ',' + to.y + '" fill="none" stroke="' + col + '" stroke-width="5" stroke-dasharray="2 12" stroke-linecap="round" opacity=".95" marker-end="url(#mArrow' + (good ? 'G' : 'R') + ')"/>';
+    });
+    return o;
+  }
+
+  function defs(theme) {
+    var pal = theme.palette, xmas = theme.id === 'christmas';
+    return '<defs>' +
+      '<radialGradient id="gGround" cx="50%" cy="45%" r="75%"><stop offset="0" stop-color="' + pal.ground + '"/><stop offset="1" stop-color="' + pal.ground2 + '"/></radialGradient>' +
+      '<radialGradient id="gVignette" cx="50%" cy="50%" r="72%"><stop offset=".62" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="' + (xmas ? '#24384a' : '#000') + '" stop-opacity="' + (xmas ? '.25' : '.6') + '"/></radialGradient>' +
+      '<radialGradient id="gMoon" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff7d6" stop-opacity=".55"/><stop offset=".22" stop-color="#fff2c2" stop-opacity=".22"/><stop offset="1" stop-color="#fff2c2" stop-opacity="0"/></radialGradient>' +
+      '<linearGradient id="gStone" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + (xmas ? '#ffffff' : '#b3b8ba') + '"/><stop offset="1" stop-color="' + (xmas ? '#dbe8f2' : '#878d90') + '"/></linearGradient>' +
+      '<linearGradient id="gCard" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9dcd7"/><stop offset="1" stop-color="#a9adaa"/></linearGradient>' +
+      '<linearGradient id="gGift" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e2384c"/><stop offset="1" stop-color="#a4142a"/></linearGradient>' +
+      '<radialGradient id="gFog"><stop offset="0" stop-color="#dfe8dc" stop-opacity=".22"/><stop offset="1" stop-color="#dfe8dc" stop-opacity="0"/></radialGradient>' +
+      '<radialGradient id="gWisp"><stop offset="0" stop-color="#e9ffd0"/><stop offset=".25" stop-color="#9dff6a" stop-opacity=".8"/><stop offset="1" stop-color="#5cff3a" stop-opacity="0"/></radialGradient>' +
+      '<filter id="fGrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .9 0"/></filter>' +
+      '<filter id="fGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+      '<marker id="mArrowG" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="' + (xmas ? '#2fb35a' : '#3fd04a') + '"/></marker>' +
+      '<marker id="mArrowR" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="' + (xmas ? '#d7263d' : '#ff4b4b') + '"/></marker>' +
+      '</defs>';
+  }
+
+  function board(b, theme, opts) {
+    opts = opts || {};
+    var o = '<svg class="board-svg" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + esc(theme.title) + ' game board">';
+    o += defs(theme);
+    o += '<g class="bg">' + background(b, theme) + '</g>';
+    if (!b.background) o += '<g class="decor">' + decor(b, theme) + fence(theme.palette, theme.id === 'christmas') + '</g>';
+    if (!b.background || opts.titleOnImage) o += titleBlock(b, theme);
+    if (!(b.background && b.artSpaces)) o += '<g class="links">' + connectors(b, theme) + '</g>';
+    if (!b.background && !opts.still) o += fog(theme);
+    if (!(b.background && b.artSpaces)) o += startMarkers(b, theme);
+    o += '<g class="spaces">';
+    var so = Object.assign({}, opts, { artSpaces: !!(b.background && b.artSpaces) });
+    Object.keys(b.spaces).forEach(function (id) { o += spaceSvg(b.spaces[id], theme, so); });
+    o += '</g>';
+    o += '<g class="hl"></g><g class="tokens"></g>';
+    if (!opts.still) o += particles(theme);
+    o += '</svg>';
+    return o;
+  }
+
+  // ---- tokens ----------------------------------------------------------------
+  var COLORS = ['#f2a33a', '#3fd04a', '#4cc9f0', '#f72585', '#b388ff', '#ffd166', '#ff6b6b', '#06d6a0', '#8ecae6', '#e9c46a', '#ff9f1c', '#c77dff'];
+  function playerColor(s, pid) { var p = s.players[pid]; if (p && p.color) return p.color; return COLORS[s.order.indexOf(pid) % COLORS.length]; }
+
+  function tokenXY(s, p) {
+    var b = s.board;
+    if (p.pos < 0 || !p.route) { var st = b.starts && b.starts[p.route || 'longer']; return st ? { x: st.x + (p.route ? 0 : -40), y: st.y + (p.route === 'riskier' ? 0 : 0), start: true } : { x: 960, y: 40, start: true }; }
+    var id = b.routes[p.route][p.pos], sp = b.spaces[id];
+    return { x: sp.x, y: sp.y, id: id };
+  }
+
+  function initials(name) { return String(name || '?').replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join('').toUpperCase() || '?'; }
+
+  // Lay out all tokens, grouping players on the same space into a small cluster.
+  function layoutTokens(s, overrides) {
+    var groups = {};
+    s.order.forEach(function (pid) {
+      var p = s.players[pid]; if (!p.route) return;
+      var xy = overrides && overrides[pid] ? overrides[pid] : tokenXY(s, p);
+      var key = Math.round(xy.x) + ',' + Math.round(xy.y);
+      (groups[key] = groups[key] || []).push({ pid: pid, x: xy.x, y: xy.y });
+    });
+    var out = {};
+    Object.keys(groups).forEach(function (k) {
+      var g = groups[k], n = g.length;
+      var r = n === 1 ? 23 : n <= 4 ? 15 : 12;
+      g.forEach(function (it, i) {
+        var dx = 0, dy = 0;
+        if (n > 1) {
+          var cols = n <= 4 ? 2 : 3, row = Math.floor(i / cols), col = i % cols;
+          var rows = Math.ceil(n / cols), step = r * 1.55;
+          dx = (col - (Math.min(cols, n - row * cols) - 1) / 2) * step;
+          dy = (row - (rows - 1) / 2) * step;
+        }
+        out[it.pid] = { x: it.x + dx, y: it.y + dy, r: r, n: n };
+      });
+    });
+    return out;
+  }
+
+  function placeTokens(svg, s, theme, opts) {
+    opts = opts || {};
+    var layer = svg.querySelector('.tokens'); if (!layer) return;
+    var pos = layoutTokens(s, opts.overrides);
+    var defsEl = svg.querySelector('defs');
+    s.order.forEach(function (pid) {
+      var p = s.players[pid]; if (!p.route) return;
+      var L = pos[pid]; if (!L) return;
+      var g = layer.querySelector('[data-pid="' + cssEsc(pid) + '"]');
+      var col = playerColor(s, pid), clipId = 'clip-' + pid.replace(/[^a-z0-9]/gi, '');
+      if (!defsEl.querySelector('#' + clipId)) defsEl.insertAdjacentHTML('beforeend', '<clipPath id="' + clipId + '" clipPathUnits="objectBoundingBox"><circle cx=".5" cy=".5" r=".5"/></clipPath>');
+      if (!g) {
+        layer.insertAdjacentHTML('beforeend', '<g class="tok" data-pid="' + esc(pid) + '"><g class="tok-in"></g></g>');
+        g = layer.lastElementChild;
+        g.style.transform = 'translate(' + L.x + 'px,' + L.y + 'px)';
+      }
+      var me = opts.me === pid;
+      var r = L.r * (me ? 1.12 : 1);
+      var inner = '';
+      inner += '<circle r="' + (r + 4) + '" fill="#000" opacity=".45" cy="3"/>';
+      inner += '<circle r="' + (r + 3) + '" fill="' + col + '"/>';
+      inner += '<circle r="' + r + '" fill="#1a1d18"/>';
+      inner += '<text y="' + (r * .36) + '" text-anchor="middle" font-family="Atkinson Hyperlegible, Arial, sans-serif" font-weight="700" font-size="' + (r * .9) + '" fill="#fff">' + esc(initials(p.name)) + '</text>';
+      if (p.avatar) inner += '<image href="' + esc(p.avatar) + '" x="' + (-r) + '" y="' + (-r) + '" width="' + (2 * r) + '" height="' + (2 * r) + '" clip-path="url(#' + clipId + ')" preserveAspectRatio="xMidYMid slice" onerror="this.remove()"/>';
+      if (me) inner += '<circle r="' + (r + 6.5) + '" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4 4" class="me-ring"/>';
+      if (p.finished) inner += '<text y="' + (-r - 6) + '" text-anchor="middle" font-size="' + (r * .9) + '">\uD83C\uDF89</text>';
+      if (L.n === 1 || me) inner += '<g class="tag"><rect x="-34" y="' + (r + 5) + '" width="68" height="15" rx="7.5" fill="#000" opacity=".78"/><text y="' + (r + 16) + '" text-anchor="middle" font-family="Atkinson Hyperlegible, Arial, sans-serif" font-weight="700" font-size="10.5" fill="#fff">' + esc(trunc(p.name, 11)) + '</text></g>';
+      g.querySelector('.tok-in').innerHTML = inner;
+      g.classList.toggle('me', me);
+      if (!opts.noMove) g.style.transform = 'translate(' + L.x + 'px,' + L.y + 'px)';
+      if (me) layer.appendChild(g);  // draw on top
+    });
+    // remove tokens for players who left
+    Array.prototype.forEach.call(layer.querySelectorAll('.tok'), function (g) { if (!s.players[g.getAttribute('data-pid')]) g.remove(); });
+  }
+  function trunc(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '\u2026' : s; }
+  function cssEsc(s) { return String(s).replace(/["\\]/g, '\\$&'); }
+
+  root.CGRender = {
+    board: board, placeTokens: placeTokens, layoutTokens: layoutTokens, tokenXY: tokenXY,
+    playerColor: playerColor, initials: initials, chester: chester, label: label, esc: esc
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);

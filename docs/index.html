@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chester's Escape</title>
+<meta name="description" content="A Beat Saber board game. Roll the d4, play the map on your space, and get Chester out of the cemetery.">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%A6%E2%80%8D%E2%AC%9B%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Grenze+Gotisch:wght@500;700;800&family=Mountains+of+Christmas:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/game.css">
+</head>
+<body data-theme="cemetery">
+<a class="skip" href="#turnPanel">Skip to your turn</a>
+
+<header class="top">
+  <div class="brand">
+    <svg class="brand-crow" viewBox="-36 -42 72 80" aria-hidden="true" id="brandCrow"></svg>
+    <h1 id="gameTitle">Chester's Escape</h1>
+  </div>
+  <div class="daybox" aria-live="polite">
+    <span class="day" id="dayNum">Day 1</span>
+    <span class="clock" id="dayClock"></span>
+  </div>
+  <nav class="topnav" aria-label="Game">
+    <button type="button" class="nav-btn" id="howBtn">How to play</button>
+    <button type="button" class="nav-btn" id="playlistBtn">Get the maps</button>
+    <button type="button" class="nav-btn" id="hostBtn" hidden>Host tools</button>
+    <a class="nav-btn" href="designer.html" id="designerLink">Board designer</a>
+    <button type="button" class="nav-btn icon" id="muteBtn" aria-pressed="false" title="Sound effects">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="slash" d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span class="sr">Sound effects</span>
+    </button>
+  </nav>
+</header>
+
+<div class="demo-bar" id="demoBar" hidden>
+  <p><b>Demo game.</b> It runs in this browser with bot players. Rolls, cards and the BeatLeader check are real; the host tools let you skip ahead.</p>
+  <div class="demo-actions">
+    <label class="playas">Playing as <select id="playAs"></select></label>
+    <button type="button" class="btn small" id="nextDayBtn">Start the next day</button>
+  </div>
+</div>
+
+<main class="layout">
+  <section class="board-col" aria-label="Game board">
+    <div class="board-zone">
+      <div class="board-wrap" id="boardWrap"></div>
+      <button type="button" class="zoom-btn" id="zoomBtn" aria-pressed="false">Zoom in</button>
+      <div class="roll-stage" id="rollStage" hidden aria-hidden="true"><div class="stage-die" id="stageDie"></div><div class="burst" id="burst"></div></div>
+    </div>
+    <section class="standings" id="standings" aria-label="Standings"></section>
+  </section>
+
+  <aside class="side">
+    <section class="panel me" id="mePanel" aria-label="You"></section>
+    <section class="panel turn" id="turnPanel" aria-label="Your turn" tabindex="-1"></section>
+    <section class="panel thread" id="threadPanel" aria-label="Game thread">
+      <div class="thread-head">
+        <h2>Game thread</h2>
+        <div class="seg" role="tablist" aria-label="Show">
+          <button type="button" role="tab" aria-selected="true" data-feed="me">Mine</button>
+          <button type="button" role="tab" aria-selected="false" data-feed="all">Everyone</button>
+        </div>
+      </div>
+      <ol class="feed" id="feed"></ol>
+    </section>
+  </aside>
+</main>
+
+<footer class="foot">
+  <span>Built for the GENX Beat Saber clan by MSploit.</span>
+  <span>Map data from BeatSaver. Scores from BeatLeader.</span>
+</footer>
+
+<!-- card reveal -->
+<div class="overlay card-overlay" id="cardOverlay" hidden>
+  <div class="card-stage">
+    <div class="card3d" id="card3d">
+      <div class="cface cback" id="cardBack"></div>
+      <div class="cface cfront" id="cardFront"></div>
+    </div>
+    <button type="button" class="btn" id="cardOk">Continue</button>
+  </div>
+</div>
+
+<!-- escape celebration -->
+<div class="overlay win-overlay" id="winOverlay" hidden>
+  <div class="win-inner">
+    <div class="confetti" id="confetti" aria-hidden="true"></div>
+    <p class="win-title" id="winTitle">You escaped!</p>
+    <p class="win-sub" id="winSub"></p>
+    <button type="button" class="btn" id="winOk">Back to the board</button>
+  </div>
+</div>
+
+<!-- generic modal -->
+<div class="overlay modal-overlay" id="modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <button type="button" class="x" id="modalX" aria-label="Close">&times;</button>
+    <h2 id="modalTitle"></h2>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<!-- host drawer -->
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="hostDrawer" aria-label="Host tools" hidden>
+  <div class="drawer-head"><h2>Host tools</h2><button type="button" class="x" id="hostX" aria-label="Close host tools">&times;</button></div>
+  <div class="drawer-body" id="hostBody"></div>
+</aside>
+
+<div class="pop" id="spacePop" hidden role="dialog" aria-label="Space details"></div>
+<div class="mbar" id="mbar" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="js/config.js"></script>
+<script src="js/content.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/render.js"></script>
+<script src="js/dice.js"></script>
+<script src="js/services.js"></script>
+<script src="js/store.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
