@@ -4,14 +4,14 @@ A Beat Saber board game for the GENX clan. Roll a d4 once a day, move your token
 
 ## How to play
 
-- Pick the **longer route** (42 spaces, safer) or the **riskier route** (27 spaces, a river and an open grave). You can't switch later.
+- Pick the **longer route** (more spaces, safer) or the **riskier route** (fewer spaces, more ways to get sent back). You can't switch later.
 - Roll once a day. The day turns over at 12:59 AM Eastern.
 - **Map spaces:** play that map. Any difficulty, any modifiers. The game finds your score on BeatLeader and unlocks your next roll.
-- **Blocker spaces** (Chased by a cat, Road blocked, Personal attack, Terrorized): you stop until you play their map.
-- **Card drops:** draw one of 20 cards. Some help, some hurt, some add a bonus map.
-- If a card or event moves you onto a map, play it. It never chains into another card or event.
-- **The river:** the current sweeps you back and costs a turn; swimming to safety carries you ahead.
-- First one to the cemetery gates wins. Everyone else keeps playing for their place.
+- **Blocker spaces:** you stop until you play their map.
+- **Card drops:** draw a card. Some help, some hurt, some add a bonus map.
+- **Event spaces** can push you ahead, send you back or cost you a turn.
+- If a card or event moves you onto a map, play it. By default it never chains into another card or event.
+- First one to the finish wins. Everyone else keeps playing for their place.
 
 If you played a map and it doesn't show up (for example a replay that wasn't a new personal best), tap **I played it** and the host can approve it.
 

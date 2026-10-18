@@ -559,7 +559,7 @@
       '<li>You can\'t roll again until your map is cleared, so play daily to keep up.</li>' +
       '<li>Card drops give you a card on the spot. Some help, some hurt, some add a bonus map.</li>' +
       '<li>Event spaces can push you ahead, send you back, cost you a turn, or block the way until you play their map.</li>' +
-      '<li>If a card or event moves you onto a map, play it. A card or event never chains into another card.</li>' +
+      (s.settings.chainEffects ? '<li>If a card or event moves you onto another space, that space counts too, so one card can set off another.</li>' : '<li>If a card or event moves you onto a map, play it. A card or event never chains into another card.</li>') +
       '<li>First one to the ' + esc(t.goal) + ' wins. Everyone else keeps playing for their place.</li></ol>' +
       '<p class="why">If you played a map and the check can\'t find it (for example a replay that wasn\'t a new personal best), use "I played it" and the host can approve it.</p>');
   }
