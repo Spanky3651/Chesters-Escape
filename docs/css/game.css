@@ -290,7 +290,22 @@ body[data-theme="christmas"] .cback { background: repeating-linear-gradient(45de
 .toast.good { border-color: var(--good); }
 .toast.bad { border-color: var(--warn); }
 
-.foot { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; color: var(--faint); font-size: 13.5px; padding: 26px 20px 34px; }
+.foot { display: flex; flex-direction: column; align-items: center; gap: 14px; color: var(--faint); font-size: 13.5px; padding: 30px 20px 36px; border-top: 1px solid var(--line); margin-top: 18px; }
+.foot-note { margin: 0; text-align: center; }
+.foot-badges { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
+/* developer badge and Ko-fi button, same as MSploit's other tools */
+a.credit { display: inline-flex; align-items: center; gap: 12px; padding: 8px 18px 8px 8px; border: 1px solid var(--line-2); border-radius: 12px; background: #060607; text-decoration: none; transition: .16s; }
+a.credit:hover { border-color: #2f8cff; box-shadow: 0 0 20px rgba(47,140,255,.22); transform: translateY(-2px); }
+a.credit img { width: 42px; height: 42px; border-radius: 10px; border: 1px solid #ffffff1f; box-shadow: 0 0 12px rgba(47,140,255,.28); display: block; }
+a.credit .ctxt { display: flex; flex-direction: column; line-height: 1.3; text-align: left; }
+a.credit .c1 { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 11px; color: #5a6273; text-transform: uppercase; letter-spacing: 1.5px; }
+a.credit .c2 { font-size: 16px; font-weight: 800; color: #2f8cff; text-shadow: 0 0 10px rgba(47,140,255,.4); }
+a.credit .c3 { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 11px; color: #ff2740; }
+a.kofi-support { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 11px; font-family: system-ui, 'Segoe UI', Arial, sans-serif; font-size: 14px; font-weight: 800; letter-spacing: .2px; text-decoration: none; color: #fff; background: #060607; border: 1px solid #2a2a2a; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+a.kofi-support .kofi-heart { font-size: 15px; line-height: 1; display: inline-block; transform-origin: center center; }
+a.kofi-support .kofi-heart.beat, a.kofi-support:hover .kofi-heart { animation: kofiBeat .95s ease-in-out; }
+a.kofi-support:hover { transform: translateY(-2px); border-color: #ff2740; box-shadow: 0 8px 24px -8px rgba(255,39,64,.55); color: #fff; }
+@keyframes kofiBeat { 0% { transform: scale(1); } 14% { transform: scale(1.32); } 28% { transform: scale(1); } 42% { transform: scale(1.22); } 60% { transform: scale(1); } 100% { transform: scale(1); } }
 
 /* ---- responsive ---- */
 @media (max-width: 1100px) {
@@ -337,8 +352,9 @@ body[data-theme="christmas"] .cback { background: repeating-linear-gradient(45de
 @media (max-width: 760px) { .zoom-btn { display: inline-flex; } }
 
 /* invite-only screen */
-body.gated .topnav, body.gated .daybox, body.gated .demo-bar, body.gated .foot { display: none !important; }
-.gate { min-height: calc(100vh - 90px); display: grid; place-items: center; padding: 24px 16px; }
+body.gated .topnav, body.gated .daybox, body.gated .demo-bar, body.gated .foot-note { display: none !important; }
+body.gated .foot { border-top: 0; margin-top: 0; }
+.gate { min-height: calc(100vh - 230px); display: grid; place-items: center; padding: 24px 16px; }
 .gate-card { width: min(520px, 100%); text-align: center; border: 1px solid var(--line); border-radius: 18px; background: var(--raise); padding: 34px 26px; }
 .gate-crow { width: 120px; height: 132px; }
 .gate-card h2 { font: 700 40px/1.05 var(--display); margin: 10px 0 10px; }

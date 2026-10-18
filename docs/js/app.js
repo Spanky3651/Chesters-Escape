@@ -825,6 +825,15 @@
     $('muteBtn').onclick = function () { muted = !muted; try { localStorage.setItem('cg.muted', muted ? '1' : '0'); } catch (e) {} renderHeader(); if (!muted) sfx.hop(); };
   }
 
+  // Ko-fi heart beats once when the footer scrolls into view (hover beat is CSS only).
+  (function () {
+    var h = document.querySelector('a.kofi-support .kofi-heart');
+    if (!h || !('IntersectionObserver' in window)) return;
+    h.addEventListener('animationend', function () { h.classList.remove('beat'); });
+    var io = new IntersectionObserver(function (ents) { ents.forEach(function (e) { if (e.isIntersecting) { void h.offsetWidth; h.classList.add('beat'); io.disconnect(); } }); }, { threshold: 0.9 });
+    io.observe(h);
+  })();
+
   // ---- start -----------------------------------------------------------------------------------
   // ---- closed door ---------------------------------------------------------------------------
   function renderGate(g) {
