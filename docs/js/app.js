@@ -834,6 +834,30 @@
     io.observe(h);
   })();
 
+  // Footer visit counter from GoatCounter's public counter (needs "Allow adding visitor counts
+  // on your website" on in the GoatCounter site settings). Falls back to the SVG counter if the
+  // JSON is blocked, and stays hidden if neither loads.
+  (function () {
+    var box = document.getElementById('footCount'); if (!box) return;
+    var BASE = 'https://chesters-escape.goatcounter.com/counter/TOTAL';
+    function showText(n) {
+      box.title = n + " total visits to Chester's Escape";
+      box.innerHTML = '<span class="fc-dot">&#9670;</span><span class="fc-n">' + esc(String(n)) + '</span> visits';
+      box.hidden = false;
+    }
+    function showImg() {
+      var img = new Image(); img.className = 'fc-img'; img.alt = 'total visits'; img.title = "Total visits to Chester's Escape";
+      img.onload = function () { box.innerHTML = '<span class="fc-dot">&#9670;</span>'; box.appendChild(img); box.hidden = false; };
+      img.onerror = function () {};
+      img.src = BASE + '.svg?no_branding=1';
+    }
+    if (location.protocol === 'file:') return;   // nothing to count on your own PC
+    if (!window.fetch) { showImg(); return; }
+    fetch(BASE + '.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { var n = d && (d.count || d.count_unique); if (n) showText(n); else showImg(); })
+      .catch(showImg);
+  })();
+
   // ---- start -----------------------------------------------------------------------------------
   // ---- closed door ---------------------------------------------------------------------------
   function renderGate(g) {

@@ -292,6 +292,10 @@ body[data-theme="christmas"] .cback { background: repeating-linear-gradient(45de
 
 .foot { display: flex; flex-direction: column; align-items: center; gap: 14px; color: var(--faint); font-size: 13.5px; padding: 30px 20px 36px; border-top: 1px solid var(--line); margin-top: 18px; }
 .foot-note { margin: 0; text-align: center; }
+.foot-count { display: inline-flex; align-items: center; font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 12.5px; color: var(--faint); letter-spacing: .3px; white-space: nowrap; }
+.foot-count .fc-n { color: #cfe0ff; font-weight: 700; text-shadow: 0 0 8px rgba(30,107,255,.45); margin: 0 4px; }
+.foot-count .fc-dot { color: #ff2740; margin-right: 4px; }
+.foot-count .fc-img { height: 15px; vertical-align: middle; filter: invert(1) brightness(1.5); opacity: .9; }
 .foot-badges { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
 /* developer badge and Ko-fi button, same as MSploit's other tools */
 a.credit { display: inline-flex; align-items: center; gap: 12px; padding: 8px 18px 8px 8px; border: 1px solid var(--line-2); border-radius: 12px; background: #060607; text-decoration: none; transition: .16s; }
