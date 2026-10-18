@@ -142,6 +142,7 @@
     $('brandCrow').innerHTML = R.chester(0, 0, 1, t.id === 'christmas' ? 'santa' : 'none');
     $('dayNum').textContent = s.status === 'finished' ? 'Game over' : 'Day ' + s.day;
     $('hostBtn').hidden = !store.isHost;
+    $('designerLink').hidden = !store.isHost;   // host only, like Host tools
     $('muteBtn').setAttribute('aria-pressed', muted ? 'true' : 'false');
     var demo = store.mode === 'demo';
     $('demoBar').hidden = !demo;
