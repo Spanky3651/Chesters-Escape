@@ -20,6 +20,7 @@
   var toastT;
   function toast(msg, kind) { var t = $('toast'); t.textContent = msg; t.className = 'toast show' + (kind ? ' ' + kind : ''); clearTimeout(toastT); toastT = setTimeout(function () { t.className = 'toast'; }, 3500); }
   function theme() { return C.themes[themeId]; }
+  function track(name) { try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: 'designer/' + name, title: name, event: true }); } catch (e) {} }
   function newId() { var id; do { id = 'x' + (++seq); } while (board.spaces[id]); return id; }
   function snapXY(x, y) {
     if (!$('snap').checked) return { x: Math.round(x), y: Math.round(y) };
@@ -217,7 +218,7 @@
     });
     $('bgFile').onchange = function () {
       var f = this.files && this.files[0]; if (!f) return;
-      shrink(f).then(function (url) { board.background = url; changed(); toast('Background added. Now place a space on each square of the art.', 'good'); }, function () { toast("That image couldn't be read.", 'bad'); });
+      shrink(f).then(function (url) { track('upload-art'); board.background = url; changed(); toast('Background added. Now place a space on each square of the art.', 'good'); }, function () { toast("That image couldn't be read.", 'bad'); });
       this.value = '';
     };
     $('bgClear').onclick = function () { board.background = null; board.artSpaces = false; changed(); };
@@ -226,10 +227,11 @@
       var probs = E.checkBoard(board);
       if (probs.length) { toast('Fix the problems listed first: ' + probs[0], 'bad'); return; }
       board.routeInfo.longer.blurb = board.routeInfo.longer.blurb || '';
-      try { localStorage.setItem(SAVED, JSON.stringify(board)); toast('Saved. In the game, open Host tools and start a new game on the designer board.', 'good'); }
+      try { localStorage.setItem(SAVED, JSON.stringify(board)); track('save-for-game'); toast('Saved. In the game, open Host tools and start a new game on the designer board.', 'good'); }
       catch (e) { toast('This browser is out of room. Use a smaller background image.', 'bad'); }
     };
     $('exportBtn').onclick = function () {
+      track('download-board');
       var blob = new Blob([JSON.stringify(board, null, 1)], { type: 'application/json' });
       var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (board.title || 'board').replace(/[^A-Za-z0-9]+/g, '-') + '.board.json'; a.click();
     };
@@ -238,7 +240,7 @@
       f.text().then(function (txt) {
         var b = JSON.parse(txt);
         if (!b.spaces || !b.routes) throw new Error('not a board');
-        board = b; sel = null; route = Object.keys(b.routes)[0]; changed(); toast('Board opened.', 'good');
+        board = b; sel = null; route = Object.keys(b.routes)[0]; changed(); track('open-board'); toast('Board opened.', 'good');
       }).catch(function () { toast("That file isn't a board file from this designer.", 'bad'); });
       this.value = '';
     };

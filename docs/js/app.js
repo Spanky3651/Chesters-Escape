@@ -12,6 +12,8 @@
   try { muted = localStorage.getItem('cg.muted') === '1'; } catch (e) {}
 
   function st() { return store.state; }
+  // GoatCounter events (show up under app/... in the dashboard). Never sends names or IDs.
+  function track(name) { try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: 'app/' + name, title: name, event: true }); } catch (e) {} }
   function theme() { return C.themes[st().themeId] || C.themes.cemetery; }
   function me() { return store.me && st().players[store.me] ? st().players[store.me] : null; }
 
@@ -392,8 +394,10 @@
     var hl = svgEl.querySelector('.hl'); if (hl) Array.prototype.forEach.call(hl.querySelectorAll('.prev'), function (x) { x.remove(); });
     var zone = document.querySelector('.board-zone'); zone.classList.add('busy');
     if (isPhone()) zone.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    track('roll');
     store.act('roll').then(function (res) {
       var pp = st().players[store.me];
+      res.events.forEach(function (e) { if (e.pid !== pp.id) return; if (e.t === 'card') track('card-' + e.card); if (e.t === 'escaped') track('escaped'); if (e.t === 'warp' || e.t === 'start') track('space-' + e.t); });
       // keep the token where it was until the animation walks it
       var o = {}; o[pp.id] = posXY(pp, startPos); placeTokens(o);
       var stage = $('rollStage'); stage.hidden = false; void stage.offsetWidth; stage.classList.add('on');
@@ -489,8 +493,10 @@
   function doVerify(btn) {
     btn.disabled = true; var label = btn.textContent; btn.textContent = 'Checking BeatLeader';
     animating = true;   // hold the re-render so the cleared stamp can show first
+    track('check-beatleader');
     store.act('verify').then(function (r) {
       var n = (r && r.cleared || []).length;
+      track(n ? 'map-cleared' : 'map-not-found-yet');
       if (n) { celebrateClear(r.cleared); }
       else { animating = false; renderAll(); toast('No new score on that map yet. BeatLeader can take a minute after you finish.', ''); }
     }).catch(function (e) { animating = false; renderAll(); if (/Link your BeatLeader/.test(e.message)) openJoin(true); else fail(e); });
@@ -505,6 +511,7 @@
 
   // ---- space popover -------------------------------------------------------------------------
   function openSpace(id, anchor) {
+    track('space-details');
     var s = st(), sp = s.board.spaces[id], t = theme(), pop = $('spacePop');
     var k = sp.kind && t.kinds[sp.kind];
     var title = k ? k.title : sp.type === 'card' ? 'Card drop' : sp.type === 'map' ? 'Map space' : 'Space';
@@ -543,6 +550,7 @@
 
   function openHow() {
     var t = theme(), s = st();
+    track('how-to-play');
     modal('How to play', '<p class="lede">' + esc(t.tagline) + '</p><ol class="rules">' +
       '<li>Pick a route. The ' + esc(s.board.routeInfo.longer.name.toLowerCase()) + ' is safer but has more spaces. The ' + esc(s.board.routeInfo.riskier.name.toLowerCase()) + ' is shorter, with more ways to get sent back.</li>' +
       '<li>Roll the d4 once a day and move that many spaces.</li>' +
@@ -573,7 +581,7 @@
               if (existing) return store.act('playAs', { pid: existing });
               return store.act('join', { name: pl.name, avatar: pl.avatar, blId: pl.id });
             });
-          go2.then(function () { closeModal(); toast('Welcome to the escape.', 'good'); }, function (e) {
+          go2.then(function () { track('join'); closeModal(); toast('Welcome to the escape.', 'good'); }, function (e) {
             go.disabled = false; go.textContent = linkOnly ? 'Link profile' : 'Join the game';
             var er = body.querySelector('#joinErr'); er.hidden = false; er.textContent = e.message;
           });
@@ -593,6 +601,7 @@
       body.querySelector('#plGo').addEventListener('click', function () {
         var b = this; b.disabled = true; b.textContent = 'Building playlist';
         crowCover().then(function (img) { return S.playlist(theme().title, keys, img); }).then(function (pl) {
+          track('get-maps');
           var blob = new Blob([JSON.stringify(pl, null, 2)], { type: 'application/json' });
           var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = theme().title.replace(/[^A-Za-z0-9]+/g, '-').replace(/-+$/, '') + '.bplist'; a.click();
           b.disabled = false; b.textContent = 'Download playlist';
@@ -662,6 +671,7 @@
     });
   }
   function openResults() {
+    track('host-results-image');
     modal('Day ' + st().day + ' results', '<p class="lede">The board with everyone\'s token, ready to post in the game channel.</p><div id="resBox"><p class="why">Drawing the board</p></div>', function (body) {
       makeResults().then(function (blob) {
         var url = URL.createObjectURL(blob), name = theme().title.replace(/[^A-Za-z0-9]+/g, '-') + '-day-' + st().day + '.png';
@@ -671,7 +681,7 @@
         var post = body.querySelector('#resPost');
         if (post) post.addEventListener('click', function () {
           post.disabled = true; post.textContent = 'Posting';
-          store.postResults(blob, '**' + theme().words.results.replace('{n}', st().day) + '!!**').then(function () { post.textContent = 'Posted'; toast('Posted to Discord.', 'good'); }, function (e) { post.disabled = false; post.textContent = 'Post to Discord'; fail(e); });
+          store.postResults(blob, '**' + theme().words.results.replace('{n}', st().day) + '!!**').then(function () { track('host-results-posted'); post.textContent = 'Posted'; toast('Posted to Discord.', 'good'); }, function (e) { post.disabled = false; post.textContent = 'Post to Discord'; fail(e); });
         });
       }, function (e) { body.querySelector('#resBox').innerHTML = '<p class="err">' + esc(e.message) + '</p>'; });
     });
@@ -729,7 +739,7 @@
   function designerBoard() { try { return JSON.parse(localStorage.getItem('cg.designer.board') || 'null'); } catch (e) { return null; } }
   function hostAction(btn) {
     var h = btn.dataset.h, pid = btn.dataset.pid;
-    var run = function (name, args, msg) { return store.act(name, args).then(function () { if (msg) toast(msg, 'good'); }, fail); };
+    var run = function (name, args, msg) { return store.act(name, args).then(function () { track('host-' + h); if (msg) toast(msg, 'good'); }, fail); };
     switch (h) {
       case 'advance': run('advance', {}, 'Day ' + (st().day + 1) + ' has started.'); break;
       case 'simulate': run('simulate', { days: 3 }, 'Skipped ahead 3 days.'); break;
@@ -760,18 +770,19 @@
       if (e.target.closest('#mGo')) { $('turnPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('turnPanel').focus({ preventScroll: true }); return; }
       var rc = e.target.closest('.route-card'); if (rc) {
         var info = st().board.routeInfo[rc.dataset.route];
-        if (confirm('Take the ' + info.name.toLowerCase() + '? You can\'t switch later.')) store.act('route', { route: rc.dataset.route }).then(function () { toast('Good luck out there.', 'good'); }, fail);
+        if (confirm('Take the ' + info.name.toLowerCase() + '? You can\'t switch later.')) store.act('route', { route: rc.dataset.route }).then(function () { track('route-' + rc.dataset.route); toast('Good luck out there.', 'good'); }, fail);
         return;
       }
       var v = e.target.closest('[data-verify]'); if (v) { doVerify(v); return; }
       var cl = e.target.closest('[data-claim]'); if (cl) { var f = cl.closest('.task').querySelector('[data-claimform]'); f.hidden = !f.hidden; if (!f.hidden) f.querySelector('input').focus(); return; }
       var cs = e.target.closest('[data-claimsend]'); if (cs) {
         var art = cs.closest('.task'), url = art.querySelector('input').value.trim();
-        store.act('claim', { task: art.dataset.task, url: url }).then(function () { toast('Sent to the host.', 'good'); }, fail); return;
+        store.act('claim', { task: art.dataset.task, url: url }).then(function () { track('played-it-claim'); toast('Sent to the host.', 'good'); }, fail); return;
       }
       var ps = e.target.closest('[data-pass]'); if (ps) { animating = true; store.act('pass', { task: ps.closest('.task').dataset.task }).then(function (r) { celebrateClear(r.cleared || []); }, function (er) { animating = false; fail(er); }); return; }
       if (e.target.closest('#joinBtn')) { openJoin(false); return; }
-      if (e.target.closest('#logoutBtn')) { store.logout(); return; }
+      if (e.target.closest('a[href*="/auth/login"]')) track('sign-in');
+      if (e.target.closest('#logoutBtn')) { track('sign-out'); store.logout(); return; }
       if (e.target.closest('#checkAgain')) { location.reload(); return; }
       var stb = e.target.closest('.st[data-pid]'); if (stb) {
         var tok = svgEl.querySelector('.tok[data-pid="' + stb.dataset.pid + '"]');
@@ -793,8 +804,8 @@
       if (t.dataset.pos) { store.act('setpos', { pid: t.dataset.pos, pos: parseInt(t.value, 10) - 1, apply: $('applyMove') && $('applyMove').checked }).catch(fail); return; }
       if (t.dataset.cardfor && t.value) { var pid = t.dataset.cardfor, cid = t.value; store.act('card', { pid: pid, card: cid }).then(function () { toast('Gave ' + st().players[pid].name + ' a card.', 'good'); }, fail); return; }
       if (t.dataset.set) { var patch = {}; patch[t.dataset.set] = t.checked; store.act('settings', { patch: patch }).catch(fail); return; }
-      if (t.name === 'acmode') { store.act('accessMode', { mode: t.value }).then(function () { toast(t.value === 'open' ? 'Anyone who signs in can play now.' : 'Invite-only again.', 'good'); }, fail); return; }
-      if (t.id === 'themeSel') { store.act('theme', { theme: t.value }).then(function () { renderBoard(true); }, fail); }
+      if (t.name === 'acmode') { store.act('accessMode', { mode: t.value }).then(function () { track('host-access-' + t.value); toast(t.value === 'open' ? 'Anyone who signs in can play now.' : 'Invite-only again.', 'good'); }, fail); return; }
+      if (t.id === 'themeSel') { store.act('theme', { theme: t.value }).then(function () { track('host-theme-' + t.value); renderBoard(true); }, fail); }
     });
     $('howBtn').onclick = openHow;
     $('playlistBtn').onclick = openPlaylist;
@@ -806,6 +817,7 @@
     $('nextDayBtn').onclick = function () { store.act('advance', {}).then(function () { toast('Day ' + st().day + ' has started. The bots made their moves.', 'good'); }, fail); };
     $('zoomBtn').onclick = function () {
       var w = $('boardWrap'), on = !w.classList.contains('zoomed');
+      if (on) track('zoom-in');
       w.classList.toggle('zoomed', on); this.setAttribute('aria-pressed', on ? 'true' : 'false'); this.textContent = on ? 'Zoom out' : 'Zoom in';
       if (on) centerOnMe();
     };
@@ -816,6 +828,8 @@
   // ---- closed door ---------------------------------------------------------------------------
   function renderGate(g) {
     var t = C.themes.cemetery;
+    track('gate-' + g.kind);
+    document.addEventListener('click', function (e) { if (e.target.closest('a[href*="/auth/login"]')) track('sign-in'); });
     document.body.classList.add('gated');
     $('brandCrow').innerHTML = R.chester(0, 0, 1, 'none');
     var msg = {
@@ -841,6 +855,7 @@
     return store.load();
   }).then(function () {
     bind();
+    if (store.mode === 'live') track(store.canPlay ? (store.me ? 'visit-player' : 'visit-not-joined') : 'visit-waiting-list');
     store.on(function () { if (!animating) renderAll(); });
     renderAll();
     if (store.mode === 'live') { setInterval(function () { if (!animating && document.visibilityState === 'visible') store.poll(); }, 20000); }
