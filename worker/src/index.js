@@ -108,8 +108,13 @@ export default {
     const url = new URL(req.url);
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors(env, req) });
     try {
-      if (url.pathname === '/auth/login') return authLogin(env, req, url);
-      if (url.pathname === '/auth/callback') return authCallback(env, req, url);
+      if (url.pathname.startsWith('/auth/')) {
+        // Say plainly which setting is missing instead of crashing.
+        const missing = ['DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'SESSION_SECRET'].filter((k) => !env[k]);
+        if (missing.length) return new Response('Sign-in is not set up yet. Missing secret: ' + missing.join(', ') + '\nSet it with: npx wrangler secret put ' + missing[0], { status: 500 });
+      }
+      if (url.pathname === '/auth/login') return await authLogin(env, req, url);
+      if (url.pathname === '/auth/callback') return await authCallback(env, req, url);
       if (url.pathname === '/dev/login' && env.DEV_LOGIN === '1') {
         // Local testing only: wrangler dev --var DEV_LOGIN:1
         const id = url.searchParams.get('id') || 'dev'; const name = url.searchParams.get('name') || 'Dev player';
@@ -146,6 +151,7 @@ export default {
       }
       return json(env, req, { error: 'Not found' }, 404);
     } catch (e) {
+      if (url.pathname.startsWith('/auth/')) return new Response('Sign-in failed: ' + (e.message || 'server error') + '\nGo back to the game and try again.', { status: 500 });
       return json(env, req, { error: e.message || 'Server error' }, 500);
     }
   }
