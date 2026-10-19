@@ -858,7 +858,7 @@
       .catch(showImg);
   })();
 
-  // Footer "Last updated": bump data-updated in index.html whenever the site changes.
+  // Footer "Site updated": bump data-updated in index.html whenever the site changes.
   (function () {
     var el = document.getElementById('footUpdated'); if (!el) return;
     var then = new Date(el.getAttribute('data-updated')).getTime(); if (isNaN(then)) return;
@@ -871,7 +871,7 @@
       var n = Math.floor(v); if (n < 1) n = 1;
       return n + ' ' + unit + (n === 1 ? '' : 's') + ' ago';
     }
-    function tick() { el.textContent = 'Last updated ' + rel(); }
+    function tick() { el.textContent = 'Site updated ' + rel(); }
     try { el.title = new Date(then).toLocaleString(); } catch (e) {}
     tick(); setInterval(tick, 60000);
   })();
