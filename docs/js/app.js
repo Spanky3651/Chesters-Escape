@@ -291,7 +291,8 @@
   }
   function taskHtml(p, task) {
     var s = st(), why = '';
-    if (task.card) { var cd = E.cardById(s, task.card); why = (cd ? cd.title : 'Card') + ' card'; }
+    if (task.bonus) why = 'Bonus map';
+    else if (task.card) { var cd = E.cardById(s, task.card); why = (cd ? cd.title : 'Card') + ' card'; }
     else if (task.space) { var sp = s.board.spaces[task.space]; why = sp && sp.kind ? theme().kinds[sp.kind].title : 'Your space'; }
     var claimed = p.claims.some(function (c) { return c.task === task.id; });
     var keys = task.bsr.map(function (k) { return '<button type="button" class="key" data-copy="!bsr ' + esc(k) + '" title="Copy !bsr ' + esc(k) + '">!bsr ' + esc(k) + '</button>'; }).join(task.bsr.length > 1 ? '<span class="why">or</span>' : '');
@@ -327,7 +328,7 @@
     switch (e.t) {
       case 'roll': return { html: (e.bonus ? 'Bonus roll: ' : 'Rolled a ') + '<b>' + e.n + '</b>' };
       case 'land': return null;
-      case 'task': return { html: 'Play <b>!bsr ' + esc(e.bsr.join(' or ')) + '</b>' + (sp && sp.kind ? ' (' + esc(t.kinds[sp.kind].title) + ')' : card ? ' (' + esc(card.title) + ')' : '') };
+      case 'task': return { html: 'Play <b>!bsr ' + esc(e.bsr.join(' or ')) + '</b>' + (e.bonus ? ' (bonus map)' : sp && sp.kind ? ' (' + esc(t.kinds[sp.kind].title) + ')' : card ? ' (' + esc(card.title) + ')' : '') };
       case 'card': return { html: 'Drew <b>' + esc(card ? card.title : 'a card') + '</b>: ' + esc(card ? C.cardEffectText(card) : ''), cls: card && card.cls === 'trick' ? 'bad' : card && card.cls === 'treasure' ? 'good' : '' };
       case 'move': return { html: (e.n > 0 ? 'Moved ahead ' + e.n : 'Pushed back ' + (-e.n)) + (sp && sp.kind ? ': ' + esc(t.kinds[sp.kind].title) : ''), cls: e.n > 0 ? 'good' : 'bad' };
       case 'skip': return { html: (sp && sp.kind ? esc(t.kinds[sp.kind].title) + ' ' : '') + (e.turns > 1 ? 'Loses ' + e.turns + ' turns' : 'Loses a turn'), cls: 'bad' };
@@ -626,6 +627,7 @@
       '<li>Card drops give you a card on the spot. Some help, some hurt, some add a bonus map.</li>' +
       '<li>Event spaces can push you ahead, send you back, cost you a turn, or block the way until you play their map.</li>' +
       '<li>If a card or event moves you onto a map, play it. A card or event never chains into another card.</li>' +
+      '<li>Every roll ends with a map. If your turn stops on a space without one, you get a bonus map. A Safe space is the only break.</li>' +
       '<li>First one to the ' + esc(t.goal) + ' wins. Everyone else keeps playing for their place.</li></ol>' +
       '<p class="why">If you played a map and the check can\'t find it (for example a replay that wasn\'t a new personal best), use "I played it" and the host can approve it.</p>');
   }

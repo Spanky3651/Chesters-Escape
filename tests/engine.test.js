@@ -57,23 +57,29 @@ assert.strictEqual(cardsSeen.size, 20);
 {
   const s = newGame('cemetery', seeded(9));
   E.addPlayer(s, { id: 'x', name: 'x' }); E.chooseRoute(s, 'x', 'riskier');
+  const clear = () => s.players.x.tasks.slice().forEach((t) => E.completeTask(s, 'x', t.id, { by: 'test' }));
   // land on the grave (index 3) -> back to start
   let r = E.roll(s, 'x', { forced: 4 });
   assert.strictEqual(s.players.x.pos, -1, 'grave sends to start');
+  assert.strictEqual(E.canRoll(s, 'x').code, 'task', 'back to start still gets a map');
+  assert(s.players.x.tasks[0].bonus, 'it is a bonus map');
+  clear();
   assert.strictEqual(E.canRoll(s, 'x').code, 'rolled');
   E.advanceDay(s);
   // shield blocks the grave
   s.players.x.shield = true; r = E.roll(s, 'x', { forced: 4 });
   assert.strictEqual(s.players.x.pos, 3, 'shield blocks grave'); assert(!s.players.x.shield);
-  E.advanceDay(s);
+  clear(); E.advanceDay(s);
   // swim to safety warps to SAFE
   E.setPosition(s, 'x', 6); E.roll(s, 'x', { forced: 2 });
   assert.strictEqual(E.routeOf(s, s.players.x)[s.players.x.pos], 'safe', 'swim warps to safe');
+  assert.strictEqual(s.players.x.tasks.length, 0, 'safe is the one stop with no map');
   E.advanceDay(s);
   // current sends back to pulled under, which costs a turn
   E.setPosition(s, 'x', 12); E.roll(s, 'x', { forced: 2 });
   assert.strictEqual(E.routeOf(s, s.players.x)[s.players.x.pos], 'pulled');
   assert.strictEqual(s.players.x.skip, 1);
+  assert(s.players.x.tasks.length, 'losing a turn still gets a map today'); clear();
   E.advanceDay(s);
   assert.strictEqual(E.canRoll(s, 'x').code, 'skip', 'lost turn');
   E.advanceDay(s);
@@ -99,12 +105,42 @@ assert.strictEqual(cardsSeen.size, 20);
   const s3 = newGame('cemetery'); s3.settings.exactFinish = true;
   E.addPlayer(s3, { id: 'z' }); E.chooseRoute(s3, 'z', 'longer'); E.setPosition(s3, 'z', E.exitIndex(s3, s3.players.z) - 2);
   E.roll(s3, 'z', { forced: 4 }); assert(!s3.players.z.finished, 'overshoot stays');
+  assert(s3.players.z.tasks.length, 'overshoot still gets a map'); s3.players.z.tasks.slice().forEach((t) => E.completeTask(s3, 'z', t.id, { by: 'test' }));
   E.advanceDay(s3); E.roll(s3, 'z', { forced: 2 }); assert(s3.players.z.finished, 'exact roll escapes');
   // cutoff calc
   const nc = E.nextCutoff({ cutoffHour: 0, cutoffMinute: 59, timeZone: 'America/New_York' }, Date.UTC(2026, 9, 18, 17, 0));
   console.log('next cutoff from 2026-10-18 13:00 ET ->', new Date(nc).toISOString(), '(expect 2026-10-19T04:59Z)');
   assert.strictEqual(new Date(nc).toISOString(), '2026-10-19T04:59:00.000Z');
 }
+// every roll ends with a map, except on Safe, on escaping, or with a bonus roll waiting
+{
+  let rolls = 0, bonus = 0, safe = 0, why = {};
+  for (let g = 0; g < 300; g++) {
+    const rng = seeded(1000 + g);
+    const s = newGame(g % 2 ? 'christmas' : 'cemetery', rng);
+    ['a', 'b', 'c'].forEach((id, i) => { E.addPlayer(s, { id, name: id }); E.chooseRoute(s, id, i % 2 ? 'longer' : 'riskier'); });
+    for (let d = 0; d < 80 && s.finishOrder.length < 3; d++) {
+      for (const id of s.order) {
+        const p = s.players[id];
+        let guard = 0;
+        while (E.canRoll(s, id).ok && guard++ < 5) {
+          const before = s.events.length;
+          E.roll(s, id, { rng });
+          rolls++;
+          const sp = p.pos >= 0 ? s.board.spaces[E.routeOf(s, p)[p.pos]] : null;
+          if (!p.finished && !p.extraRoll && !(sp && sp.type === 'safe')) assert(p.tasks.length > 0, 'roll ended without a map on ' + (sp ? sp.type : 'start'));
+          if (sp && sp.type === 'safe' && !p.tasks.length) safe++;
+          const b = s.events.slice(before).find((e) => e.t === 'task' && e.bonus);
+          if (b) { bonus++; const k = sp ? sp.type : 'start'; why[k] = (why[k] || 0) + 1; }
+        }
+        p.tasks.slice().forEach((t) => E.completeTask(s, id, t.id, { by: 'test' }));
+      }
+      E.advanceDay(s);
+    }
+  }
+  console.log('every roll has a map: ' + rolls + ' rolls, ' + bonus + ' bonus maps (' + Object.entries(why).map(([k, v]) => k + ' ' + v).join(', ') + '), ' + safe + ' safe stops');
+}
+
 // sign-ups before a scheduled start
 {
   const board = C.boards['chester-escape']();

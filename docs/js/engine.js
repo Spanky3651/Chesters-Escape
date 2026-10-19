@@ -153,11 +153,24 @@
     var target = p.pos + n, last = exitIndex(s, p);
     if (target > last && s.settings.exactFinish) {
       emit(s, p, { t: 'overshoot', need: last - p.pos });
+      mustPlay(s, p, ctx);
       return result(s, p, n, start.id, steps);
     }
     walk(s, p, Math.min(target, last), ctx);
     land(s, p, 'roll', ctx);
+    mustPlay(s, p, ctx);
     return result(s, p, n, start.id, steps);
+  }
+
+  // Every roll ends with a map to play. If the turn stops on a space without one
+  // (a card, an event, lose a turn, back to start), the player gets a bonus map.
+  // Exceptions: a Safe space, escaping, or a bonus roll still to take today.
+  function mustPlay(s, p, ctx) {
+    if (p.finished || p.tasks.length || p.extraRoll) return;
+    var sp = spaceAt(s, p);
+    if (sp && (sp.type === 'safe' || sp.type === 'exit')) return;
+    var keys = pickBonus(s, ctx && ctx.rng, p);
+    if (keys.length) addTask(s, p, { bsr: keys, space: sp ? sp.id : null, bonus: true, source: 'bonus' });
   }
 
   function result(s, p, n, fromId, steps) {
@@ -251,7 +264,7 @@
     task.since = now();
     task.day = s.day;
     p.tasks.push(task);
-    emit(s, p, { t: 'task', task: task.id, bsr: task.bsr, space: task.space || null, card: task.card || null });
+    emit(s, p, { t: 'task', task: task.id, bsr: task.bsr, space: task.space || null, card: task.card || null, bonus: task.bonus || undefined });
     return task;
   }
 
@@ -282,7 +295,7 @@
       case 'again': p.extraRoll = true; emit(s, p, { t: 'again', card: card.id }); break;
       case 'shield': p.shield = true; emit(s, p, { t: 'shield', card: card.id }); break;
       case 'task':
-        var keys = fx.bsr && fx.bsr.length ? fx.bsr : pickBonus(s, ctx && ctx.rng);
+        var keys = fx.bsr && fx.bsr.length ? fx.bsr : pickBonus(s, ctx && ctx.rng, p);
         addTask(s, p, { bsr: keys, card: card.id, source: 'card' });
         break;
       case 'toNext':
@@ -296,9 +309,17 @@
     }
   }
 
-  function pickBonus(s, rng) {
+  // A bonus map, preferring ones this player has not been given yet.
+  function pickBonus(s, rng, p) {
     var pool = s.board.bonusMaps || [];
     if (!pool.length) return [];
+    if (p) {
+      var had = {};
+      s.events.forEach(function (e) { if (e.t === 'task' && e.pid === p.id) (e.bsr || []).forEach(function (k) { had[String(k).toLowerCase()] = 1; }); });
+      p.tasks.forEach(function (t) { (t.bsr || []).forEach(function (k) { had[String(k).toLowerCase()] = 1; }); });
+      var fresh = pool.filter(function (k) { return !had[String(k).toLowerCase()]; });
+      if (fresh.length) pool = fresh;
+    }
     return [pool[rngInt(rng, pool.length)]];
   }
 

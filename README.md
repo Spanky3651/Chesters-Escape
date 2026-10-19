@@ -16,6 +16,7 @@ A Beat Saber board game. Roll a d4 once a day, move your token, and play the map
 - **Card drops:** draw a card. Some help, some hurt, some add a bonus map.
 - **Event spaces** can push you ahead, send you back or cost you a turn.
 - If a card or event moves you onto a map, play it. It never chains into another card or event.
+- Every roll ends with a map. If your turn stops on a space without one, you get a bonus map. A Safe space is the only break.
 - First one to the finish wins. Everyone else keeps playing for their place.
 
 If you played a map and it doesn't show up (for example a replay that wasn't a new personal best), tap **I played it** and the host can approve it.
