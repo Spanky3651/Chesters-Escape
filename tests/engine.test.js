@@ -203,6 +203,9 @@ assert.strictEqual(cardsSeen.size, 20);
   if (p.tasks.length) { assert(/!bsr/.test(E.reminderFor(s, 'r1').body)); E.claimTask(s, 'r1', p.tasks[0].id, {}); }
   assert.strictEqual(E.reminderFor(s, 'r1'), null, 'rolled and nothing open (or waiting on the host)');
   assert.strictEqual(E.localHour(Date.UTC(2026, 9, 19, 23, 30), 'America/New_York'), 19);
+  assert.strictEqual(E.remindHour({ settings: {} }), 19, 'old games get the default');
+  assert.strictEqual(E.remindHour({ settings: { remindHour: null } }), null, 'off');
+  assert.strictEqual(E.remindHour({ settings: { remindHour: 21 } }), 21);
   console.log('reminders ok');
 }
 

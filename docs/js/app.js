@@ -273,7 +273,7 @@
     el.innerHTML = '<div class="me-row">' + avatarHtml(p, 'me-ava') + '<div><div class="me-name">' + esc(p.name) + '</div><div class="me-sub">' + esc(route) +
       (p.blId ? ' &middot; <a href="https://beatleader.com/u/' + encodeURIComponent(p.blId) + '" target="_blank" rel="noopener">BeatLeader</a>' : '') + '</div></div></div>' +
       (stats.length ? '<div class="me-stats">' + stats.join('') + '</div>' : '') +
-      (store.mode === 'live' && store.canPlay && !p.finished && s.status !== 'finished' && s.settings.remindHour != null && s.settings.remindHour !== '' ? '<div class="push-box me-push" data-kind="player"></div>' : '');
+      (store.mode === 'live' && store.canPlay && !p.finished && s.status !== 'finished' && E.remindHour(s) != null ? '<div class="push-box me-push" data-kind="player"></div>' : '');
     el.style.setProperty('--c', col);
     fillPush();
   }
@@ -1025,8 +1025,8 @@
     html += '<section class="hsec"><h3>Rules</h3>' +
       '<label class="check"><input type="checkbox" data-set="exactFinish"' + (s.settings.exactFinish ? ' checked' : '') + '> <span>Exact roll needed to escape</span></label>' +
       '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label>' +
-      '<label class="start-field"><span>Roll reminder for players who turn on notifications</span><select id="remindSel"><option value="">Off</option>' +
-      [17, 18, 19, 20, 21, 22].map(function (h) { return '<option value="' + h + '"' + (String(s.settings.remindHour) === String(h) ? ' selected' : '') + '>' + hourLabel(h) + ' Eastern</option>'; }).join('') + '</select></label></section>';
+      '<label class="start-field"><span>Roll reminder for players who turn on notifications</span><select id="remindSel"><option value=""' + (E.remindHour(s) == null ? ' selected' : '') + '>Off</option>' +
+      [17, 18, 19, 20, 21, 22].map(function (h) { return '<option value="' + h + '"' + (E.remindHour(s) === h ? ' selected' : '') + '>' + hourLabel(h) + ' Eastern</option>'; }).join('') + '</select></label></section>';
     html += '<section class="hsec"><h3>Theme and board</h3><div class="row"><label>Theme <select id="themeSel">' + Object.keys(C.themes).map(function (k) { return '<option value="' + k + '"' + (k === s.themeId ? ' selected' : '') + '>' + esc(C.themes[k].name) + '</option>'; }).join('') + '</select></label></div>' +
       '<p style="margin-top:10px">Changing the theme keeps everyone where they are. Starting a new game puts everyone back at the start.</p>' +
       '<label class="start-field"><span>Start time for the new game (optional)</span><input type="datetime-local" id="newStart"></label>' +
@@ -1068,7 +1068,7 @@
     if (!pushSupported()) { set(function (k) { return k === 'host' ? '<p>This browser can\'t do push notifications. Chrome on Android or on your PC can.</p>' : ''; }); return; }
     if (!store.vapidKey) { set(function (k) { return k === 'host' ? '<p>Notifications are not set up on the server yet. Add the two VAPID keys to the Worker.</p>' : ''; }); return; }
     if (Notification.permission === 'denied') { set('<p class="why">Notifications are blocked for this site. Allow them in the browser\'s site settings.</p>'); return; }
-    var at = hourLabel(st().settings.remindHour == null ? 19 : st().settings.remindHour);
+    var at = hourLabel(E.remindHour(st()) == null ? 19 : E.remindHour(st()));
     currentSub().then(function (sub) {
       var on = sub && Notification.permission === 'granted';
       set(function (k) {

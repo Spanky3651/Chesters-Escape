@@ -454,8 +454,8 @@ export class Game extends DurableObject {
   // Once a game day, at the reminder hour: nudge players who turned notifications on and still
   // have a roll or an open map. Runs from the alarm, so it lands within 15 minutes of the hour.
   async remind(now) {
-    const s = this.state, h = s.settings.remindHour;
-    if (s.status !== 'running' || h == null || h === '' || this.meta.remindedDay === s.day) return;
+    const s = this.state, h = E.remindHour(s);
+    if (s.status !== 'running' || h == null || this.meta.remindedDay === s.day) return;
     if (E.localHour(now, s.settings.timeZone) < Number(h)) return;
     this.meta.remindedDay = s.day;
     const byUid = {};
