@@ -858,6 +858,24 @@
       .catch(showImg);
   })();
 
+  // Footer "Last updated": bump data-updated in index.html whenever the site changes.
+  (function () {
+    var el = document.getElementById('footUpdated'); if (!el) return;
+    var then = new Date(el.getAttribute('data-updated')).getTime(); if (isNaN(then)) return;
+    function rel() {
+      var s = Math.floor(Math.max(0, Date.now() - then) / 1000);
+      if (s < 45) return 'just now';
+      var u = [[60, 'minute'], [60, 'hour'], [24, 'day'], [7, 'week'], [4.35, 'month'], [12, 'year']];
+      var v = s / 60, i = 0, unit = 'minute';
+      for (; i < u.length; i++) { unit = u[i][1]; if (i + 1 >= u.length || v < u[i + 1][0]) break; v = v / u[i + 1][0]; }
+      var n = Math.floor(v); if (n < 1) n = 1;
+      return n + ' ' + unit + (n === 1 ? '' : 's') + ' ago';
+    }
+    function tick() { el.textContent = 'Last updated ' + rel(); }
+    try { el.title = new Date(then).toLocaleString(); } catch (e) {}
+    tick(); setInterval(tick, 60000);
+  })();
+
   // ---- start -----------------------------------------------------------------------------------
   // ---- closed door ---------------------------------------------------------------------------
   function renderGate(g) {
