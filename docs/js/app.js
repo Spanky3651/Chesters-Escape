@@ -79,10 +79,32 @@
       $('boardWrap').innerHTML = R.board(s.board, t, { focusable: true });
       svgEl = $('boardWrap').querySelector('svg');
       builtKey = key;
+      addCovers();
     }
     placeTokens();
     markMine();
     previewMoves();
+  }
+  // Song covers on the map tiles, under the !bsr text. Skipped when the board art shows the spaces.
+  function addCovers() {
+    var s = st(), svg = svgEl; if (!svg || (s.board.background && s.board.artSpaces)) return;
+    var keys = [];
+    Object.keys(s.board.spaces).forEach(function (id) { var sp = s.board.spaces[id]; if (sp.type === 'map' && sp.bsr && sp.bsr[0]) keys.push(sp.bsr[0]); });
+    S.maps(keys).then(function (found) {
+      if (svg !== svgEl) return;   // the board was rebuilt meanwhile
+      var NS = 'http://www.w3.org/2000/svg';
+      Array.prototype.forEach.call(svg.querySelectorAll('.sp-map'), function (g) {
+        var sp = s.board.spaces[g.getAttribute('data-id')], m = sp && sp.bsr && found[String(sp.bsr[0]).toLowerCase()];
+        if (!m || !m.cover || g.querySelector('.cover')) return;
+        var img = document.createElementNS(NS, 'image'), shade = document.createElementNS(NS, 'rect');
+        [['class', 'cover'], ['href', m.cover], ['x', -27], ['y', -27], ['width', 54], ['height', 54], ['preserveAspectRatio', 'xMidYMid slice']].forEach(function (a) { img.setAttribute(a[0], a[1]); });
+        [['class', 'cover-shade'], ['x', -27], ['y', -27], ['width', 54], ['height', 54], ['rx', 4]].forEach(function (a) { shade.setAttribute(a[0], a[1]); });
+        img.addEventListener('error', function () { img.remove(); shade.remove(); g.classList.remove('has-cover'); });
+        var first = g.querySelector('text');
+        g.insertBefore(img, first); g.insertBefore(shade, first);
+        g.classList.add('has-cover');
+      });
+    });
   }
   function placeTokens(overrides) { R.placeTokens(svgEl, st(), theme(), { me: store.me, overrides: overrides }); }
   function markMine() {

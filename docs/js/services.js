@@ -27,7 +27,11 @@
     if (mem[key]) return mem[key];
     var cached = cacheGet('cg.bs.' + key);
     if (cached && cached.hash) return (mem[key] = Promise.resolve(cached));
-    mem[key] = getJson(BS + '/maps/id/' + key).catch(function () { return viaRelay(BS + '/maps/id/' + key); }).then(function (j) {
+    mem[key] = getJson(BS + '/maps/id/' + key).catch(function () { return viaRelay(BS + '/maps/id/' + key); }).then(function (j) { return remember(key, j); });
+    mem[key].catch(function () { delete mem[key]; });
+    return mem[key];
+  }
+  function remember(key, j) {
       var v = (j.versions || [])[0] || {};
       var m = {
         key: key, hash: String(v.hash || '').toUpperCase(),
@@ -42,10 +46,26 @@
         diffs: (v.diffs || []).map(function (d) { return { name: d.difficulty, characteristic: d.characteristic, nps: d.nps, stars: d.stars || null }; })
       };
       cacheSet('cg.bs.' + key, m);
+      mem[key] = Promise.resolve(m);
       return m;
+  }
+
+  // Many maps at once (the board's covers): one BeatSaver request per 50 keys, cache first.
+  // Resolves to { key: map } with whatever could be found; never rejects.
+  function maps(keys) {
+    var want = [], out = {};
+    keys.forEach(function (k) {
+      k = String(k || '').toLowerCase().trim(); if (!k || out[k] || want.indexOf(k) >= 0) return;
+      var c = cacheGet('cg.bs.' + k);
+      if (c && c.hash) { out[k] = c; mem[k] = mem[k] || Promise.resolve(c); } else want.push(k);
     });
-    mem[key].catch(function () { delete mem[key]; });
-    return mem[key];
+    var chunks = []; for (var i = 0; i < want.length; i += 50) chunks.push(want.slice(i, i + 50));
+    return Promise.all(chunks.map(function (ch) {
+      var url = BS + '/maps/ids/' + ch.join(',');
+      return getJson(url).catch(function () { return viaRelay(url); }).then(function (j) {
+        Object.keys(j || {}).forEach(function (id) { var k = String(id).toLowerCase(); if (j[id] && j[id].versions) out[k] = remember(k, j[id]); });
+      }, function () {});
+    })).then(function () { return out; });
   }
 
   // ---- BeatLeader ---------------------------------------------------------------
@@ -105,5 +125,5 @@
     });
   }
 
-  root.CGServices = { map: map, player: player, parsePlayer: parsePlayer, recentScores: recentScores, checkTasks: checkTasks, replayUrl: replayUrl, playlist: playlist, RELAY: RELAY };
+  root.CGServices = { map: map, maps: maps, player: player, parsePlayer: parsePlayer, recentScores: recentScores, checkTasks: checkTasks, replayUrl: replayUrl, playlist: playlist, RELAY: RELAY };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

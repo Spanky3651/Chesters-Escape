@@ -383,6 +383,12 @@ body.gated .foot { border-top: 0; margin-top: 0; }
 .gate-card .countdown { margin: 0 0 22px; }
 .countdown + p { margin-top: 0; }
 .push-on { color: var(--good) !important; }
+/* song covers on map tiles */
+.sp .cover { clip-path: inset(0 round 4px); opacity: 0; animation: coverIn .5s ease-out forwards; }
+.sp .cover-shade { fill: rgba(0,0,0,.45); pointer-events: none; }
+@keyframes coverIn { to { opacity: .95; } }
+.sp.has-cover text { fill: #fff; paint-order: stroke; stroke: rgba(0,0,0,.85); stroke-width: 3px; stroke-linejoin: round; }
+@media (prefers-reduced-motion: reduce) { .sp .cover { animation: none; opacity: .95; } }
 .start-field { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; font-size: 14px; color: var(--muted); }
 .start-field input { max-width: 260px; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: #000; color: var(--text); font: inherit; color-scheme: dark; }
 @media (max-width: 420px) { .cd-seg { min-width: 54px; } .cd-seg b { font-size: 26px; } }
