@@ -134,14 +134,29 @@
   }
 
   // ---- header ----------------------------------------------------------------
+  // Things waiting on the host: runs to approve and people waiting to get in.
+  var lastTodo = 0;
+  function hostTodo() {
+    var s = st(), claims = 0;
+    s.order.forEach(function (pid) { claims += s.players[pid].claims.length; });
+    var pending = store.access && store.access.pending ? store.access.pending.length : 0;
+    return { claims: claims, pending: pending, total: claims + pending };
+  }
   function renderHeader() {
     var s = st(), t = theme();
     document.body.setAttribute('data-theme', t.id);
     $('gameTitle').textContent = t.title;
-    document.title = t.title;
     $('brandCrow').innerHTML = R.chester(0, 0, 1, t.id === 'christmas' ? 'santa' : 'none');
     $('dayNum').textContent = s.status === 'finished' ? 'Game over' : 'Day ' + s.day;
     $('hostBtn').hidden = !store.isHost;
+    var todo = store.isHost ? hostTodo() : { total: 0 };
+    document.title = (todo.total ? '(' + todo.total + ') ' : '') + t.title;
+    var hb = $('hostBtn');
+    hb.innerHTML = 'Host tools' + (todo.total ? '<span class="nav-badge" aria-hidden="true">' + todo.total + '</span>' : '');
+    hb.setAttribute('aria-label', todo.total ? 'Host tools, ' + todo.total + ' waiting on you' : 'Host tools');
+    hb.title = todo.total ? [todo.claims ? todo.claims + ' run' + (todo.claims === 1 ? '' : 's') + ' to approve' : '', todo.pending ? todo.pending + ' waiting to get in' : ''].filter(Boolean).join(', ') : '';
+    if (todo.total > lastTodo) { var nb = hb.querySelector('.nav-badge'); if (nb) { void nb.offsetWidth; nb.classList.add('bump'); } }
+    lastTodo = todo.total;
     $('designerLink').hidden = !store.isHost;   // host only, like Host tools
     $('muteBtn').setAttribute('aria-pressed', muted ? 'true' : 'false');
     var demo = store.mode === 'demo';
@@ -698,14 +713,14 @@
     html += '<section class="hsec"><h3>Day ' + s.day + '</h3><p>' + (demo ? 'Starting the next day lets every bot clear maps and roll.' : 'The day turns over by itself at the cutoff. Use this only to fix a missed rollover.') + '</p><div class="row">' +
       '<button type="button" class="btn small" data-h="advance">Start the next day</button>' + (demo ? '<button type="button" class="btn small ghost" data-h="simulate">Skip ahead 3 days</button>' : '') +
       '<button type="button" class="btn small ghost" data-h="results">Make the results image</button></div></section>';
-    html += '<section class="hsec"><h3>Runs waiting for approval</h3>' + (claims.length ? claims.map(function (x) {
+    html += '<section class="hsec' + (claims.length ? ' attn' : '') + '"><h3>Runs waiting for approval' + (claims.length ? ' <span class="nav-badge">' + claims.length + '</span>' : '') + '</h3>' + (claims.length ? claims.map(function (x) {
       var t = x.p.tasks.filter(function (k) { return k.id === x.c.task; })[0];
       return '<div class="claim"><b>' + esc(x.p.name) + '</b> says they played <b>!bsr ' + esc(t ? t.bsr.join(' or ') : '?') + '</b>' + (x.c.url ? ' (<a href="' + esc(x.c.url) + '" target="_blank" rel="noopener">replay</a>)' : '') +
         '<div class="row" style="margin-top:8px"><button type="button" class="btn small good" data-h="approve" data-pid="' + esc(x.p.id) + '" data-task="' + esc(x.c.task) + '">Approve</button><button type="button" class="btn small ghost" data-h="reject" data-pid="' + esc(x.p.id) + '" data-task="' + esc(x.c.task) + '">Reject</button></div></div>';
     }).join('') : '<p>Nothing waiting.</p>') + '</section>';
     if (!demo && store.access) {
       var ac = store.access, names = ac.names || {};
-      html += '<section class="hsec"><h3>Who can play</h3>' +
+      html += '<section class="hsec' + (ac.pending.length ? ' attn' : '') + '"><h3>Who can play' + (ac.pending.length ? ' <span class="nav-badge">' + ac.pending.length + '</span>' : '') + '</h3>' +
         '<label class="check"><input type="radio" name="acmode" value="testers"' + (ac.mode !== 'open' ? ' checked' : '') + '> <span>Only people I let in</span></label>' +
         '<label class="check"><input type="radio" name="acmode" value="open"' + (ac.mode === 'open' ? ' checked' : '') + '> <span>Anyone who signs in with Discord' + '</span></label>';
       html += '<p style="margin-top:10px">' + (ac.pending.length ? 'Waiting to get in:' : 'Nobody is waiting. When someone signs in, they show up here.') + '</p>';
