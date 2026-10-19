@@ -113,7 +113,11 @@
         longer: Object.assign(at(12, 1), { dir: 'left' }),
         riskier: Object.assign(at(13, 1), { dir: 'down' })
       },
-      bonusMaps: ['4fdf9', '5013b', '4ffeb', '501cc', '4f073', '5004a'],
+      // Bonus maps: every roll that stops without a map draws one of these. All have an
+      // easier difficulty than Expert+, so anyone can clear them.
+      bonusMaps: ['4fdf9', '5013b', '4ffeb', '501cc', '4f073', '5004a',
+        '551d8', '54b78', '53c54', '54b7e', '551b9', '54f58', '54568',
+        '54b4d', '550b7', '544cc', '55036', '53a2d', '54b7a'],
       background: null       // designer can set an uploaded image (data URL); null = theme art
     };
   }

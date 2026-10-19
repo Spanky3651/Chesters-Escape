@@ -309,6 +309,16 @@
     }
   }
 
+  // A board still on (part of) the built-in bonus list picks up newer built-in maps.
+  // A board whose designer chose their own bonus maps is left alone.
+  function upgradeBonus(board, builtIn) {
+    var cur = (board && board.bonusMaps) || [];
+    if (!board || !builtIn || cur.length >= builtIn.length) return false;
+    if (!cur.every(function (k) { return builtIn.indexOf(k) >= 0; })) return false;
+    board.bonusMaps = builtIn.slice();
+    return true;
+  }
+
   // A bonus map, preferring ones this player has not been given yet.
   function pickBonus(s, rng, p) {
     var pool = s.board.bonusMaps || [];
@@ -487,7 +497,7 @@
     setPosition: setPosition, hostCard: hostCard, resetPlayer: resetPlayer,
     routeOf: routeOf, spaceAt: spaceAt, progress: progress, remaining: remaining, exitIndex: exitIndex,
     cardById: cardById, publicState: publicState, allMapKeys: allMapKeys, checkBoard: checkBoard,
-    nextCutoff: nextCutoff, shuffle: shuffle, clone: clone, startGame: startGame
+    nextCutoff: nextCutoff, shuffle: shuffle, clone: clone, startGame: startGame, upgradeBonus: upgradeBonus
   };
   root.CGEngine = E;
   if (typeof module !== 'undefined' && module.exports) module.exports = E;

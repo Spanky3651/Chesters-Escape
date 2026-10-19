@@ -141,6 +141,15 @@ assert.strictEqual(cardsSeen.size, 20);
   console.log('every roll has a map: ' + rolls + ' rolls, ' + bonus + ' bonus maps (' + Object.entries(why).map(([k, v]) => k + ' ' + v).join(', ') + '), ' + safe + ' safe stops');
 }
 
+// bonus map upgrade only touches boards still on the built-in list
+{
+  const built = C.boards['chester-escape']().bonusMaps;
+  const old = { bonusMaps: built.slice(0, 6) }; assert(E.upgradeBonus(old, built)); assert.strictEqual(old.bonusMaps.length, built.length);
+  const custom = { bonusMaps: ['aaaa1', built[0]] }; assert(!E.upgradeBonus(custom, built)); assert.deepStrictEqual(custom.bonusMaps, ['aaaa1', built[0]]);
+  const same = { bonusMaps: built.slice() }; assert(!E.upgradeBonus(same, built));
+  console.log('bonus pool ' + built.length + ' maps, upgrade ok');
+}
+
 // sign-ups before a scheduled start
 {
   const board = C.boards['chester-escape']();

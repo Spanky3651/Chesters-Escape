@@ -175,6 +175,8 @@ export class Game extends DurableObject {
     this.state = null;
     ctx.blockConcurrencyWhile(async () => {
       this.state = (await ctx.storage.get('state')) || null;
+      // A game already running picks up new built-in bonus maps.
+      if (this.state) E.upgradeBonus(this.state.board, C.boards['chester-escape']().bonusMaps);
       this.meta = (await ctx.storage.get('meta')) || {};
     });
   }

@@ -33,7 +33,10 @@
     this.user = null;
     var saved = null;
     try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
-    if (saved && saved.state && saved.state.v === E.VERSION) { this.state = saved.state; this.me = saved.me; }
+    if (saved && saved.state && saved.state.v === E.VERSION) {
+      this.state = saved.state; this.me = saved.me;
+      E.upgradeBonus(this.state.board, C.boards['chester-escape']().bonusMaps);
+    }
     else this.fresh('cemetery', null, true);
   }
 
