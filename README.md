@@ -18,6 +18,9 @@ A Beat Saber board game. Roll a d4 once a day, move your token, and play the map
 - If a card or event moves you onto a map, play it. It never chains into another card or event.
 - Every roll ends with a map. If your turn stops on a space without one, you get a bonus map. A Safe space is the only break.
 - First one to the finish wins. Everyone else keeps playing for their place.
+- A game can have an end date. When it hits, the standings freeze: escaped players by place, then everyone else by how close they got.
+
+Turn on roll reminders on your phone and the game nudges you in the evening if your roll or map is still waiting. Missed a day? Hit **Replay** on the board to watch everyone's moves from the last day, and the page tells you what happened while you were away.
 
 If you played a map and it doesn't show up (for example a replay that wasn't a new personal best), tap **I played it** and the host can approve it.
 
