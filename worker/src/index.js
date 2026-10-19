@@ -55,6 +55,8 @@ function cors(env, req) {
 function json(env, req, data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', ...cors(env, req) } });
 }
+// A time zone name the runtime knows (e.g. America/Los_Angeles), or null.
+function validZone(tz) { try { if (!tz) return null; new Intl.DateTimeFormat('en-US', { timeZone: String(tz) }); return String(tz).slice(0, 64); } catch { return null; } }
 function hosts(env) { return String(env.HOSTS || '').split(',').map((s) => s.trim()).filter(Boolean); }
 function rng() { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] / 4294967296; }
 
@@ -387,7 +389,7 @@ export class Game extends DurableObject {
     if (op === 'subscribe') {
       if (!sub || !/^https:\/\//.test(sub.endpoint || '') || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) return { error: 'That device did not give a usable subscription.' };
       this.meta.push = list.filter((x) => x.endpoint !== sub.endpoint);
-      this.meta.push.push({ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth }, uid: user.id, name: user.name, label: String(body.label || 'Device').slice(0, 60), at: Date.now() });
+      this.meta.push.push({ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth }, uid: user.id, name: user.name, label: String(body.label || 'Device').slice(0, 60), tz: validZone(body.tz), at: Date.now() });
       if (this.meta.push.length > 100) this.meta.push.shift();
       await this.save();
       return { ok: true, devices: this.meta.push.filter((x) => x.uid === user.id).length };
@@ -451,19 +453,23 @@ export class Game extends DurableObject {
     await fetch(this.env.DISCORD_WEBHOOK_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
   }
 
-  // Once a game day, at the reminder hour: nudge players who turned notifications on and still
-  // have a roll or an open map. Runs from the alarm, so it lands within 15 minutes of the hour.
+  // Once a game day per device, at the reminder hour in that device's own time zone: nudge
+  // players who still have a roll or an open map. Runs from the alarm, so it lands within
+  // 15 minutes of the time. Devices from before time zones were sent use the game's zone.
   async remind(now) {
-    const s = this.state, h = E.remindHour(s);
-    if (s.status !== 'running' || h == null || this.meta.remindedDay === s.day) return;
-    if (E.localHour(now, s.settings.timeZone) < Number(h)) return;
-    this.meta.remindedDay = s.day;
+    const s = this.state, h = E.remindHour(s), cutoff = this.meta.nextCutoff;
+    if (s.status !== 'running' || h == null || !cutoff) return;
+    const done = (this.meta.reminded = this.meta.reminded || {});
+    const due = (this.meta.push || []).filter((sub) => done[sub.endpoint] !== s.day && now >= E.reminderTime(cutoff, h, sub.tz || s.settings.timeZone));
+    if (!due.length) return;
     const byUid = {};
-    for (const sub of this.meta.push || []) (byUid[sub.uid] = byUid[sub.uid] || []).push(sub);
+    for (const sub of due) { done[sub.endpoint] = s.day; (byUid[sub.uid] = byUid[sub.uid] || []).push(sub); }
     for (const uid of Object.keys(byUid)) {
       const msg = E.reminderFor(s, 'd' + uid);
       if (msg) await this.pushTo(byUid[uid], { ...msg, tag: 'remind-' + s.day });
     }
+    const live = new Set((this.meta.push || []).map((x) => x.endpoint));
+    for (const k of Object.keys(done)) if (!live.has(k)) delete done[k];
   }
 
   async announceEnd() {

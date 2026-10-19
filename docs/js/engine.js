@@ -448,6 +448,17 @@
     if (h === undefined) return DEFAULTS.remindHour;
     return h === null || h === '' ? null : Number(h);
   }
+  // When a player in time zone `tz` gets today's reminder: the last `hour`:00 their time that is
+  // at least 2 hours before the cutoff. If that lands within 2 hours of the day starting (the
+  // cutoff is evening for them, say Hawaii), it goes 2 hours before the cutoff instead.
+  function reminderTime(cutoff, hour, tz) {
+    var HOUR = 3600000, latest = cutoff - 2 * HOUR, dayStart = cutoff - 24 * HOUR;
+    for (var t = Math.floor(latest / HOUR) * HOUR; t > dayStart; t -= HOUR) {
+      var p = zoneParts(new Date(t), tz || DEFAULTS.timeZone);
+      if (p.h === Number(hour)) { var at = t - p.mi * 60000; return at - dayStart >= 2 * HOUR ? at : latest; }
+    }
+    return latest;
+  }
   function localHour(ts, tz) { return zoneParts(new Date(ts), tz || DEFAULTS.timeZone).h; }
 
   // Where every token was just before event `firstId`, worked out backwards from now.
@@ -564,7 +575,7 @@
     routeOf: routeOf, spaceAt: spaceAt, progress: progress, remaining: remaining, exitIndex: exitIndex,
     cardById: cardById, publicState: publicState, allMapKeys: allMapKeys, checkBoard: checkBoard,
     nextCutoff: nextCutoff, shuffle: shuffle, clone: clone, startGame: startGame, upgradeBonus: upgradeBonus,
-    endGame: endGame, ranking: ranking, positionsBefore: positionsBefore, reminderFor: reminderFor, localHour: localHour, remindHour: remindHour
+    endGame: endGame, ranking: ranking, positionsBefore: positionsBefore, reminderFor: reminderFor, localHour: localHour, remindHour: remindHour, reminderTime: reminderTime
   };
   root.CGEngine = E;
   if (typeof module !== 'undefined' && module.exports) module.exports = E;

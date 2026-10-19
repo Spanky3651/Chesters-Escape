@@ -206,6 +206,18 @@ assert.strictEqual(cardsSeen.size, 20);
   assert.strictEqual(E.remindHour({ settings: {} }), 19, 'old games get the default');
   assert.strictEqual(E.remindHour({ settings: { remindHour: null } }), null, 'off');
   assert.strictEqual(E.remindHour({ settings: { remindHour: 21 } }), 21);
+  // reminders land at 7 PM in each player's own zone, or 2 hours before the cutoff when 7 PM is right at the day's start
+  const cutoff = E.nextCutoff({ cutoffHour: 0, cutoffMinute: 59, timeZone: 'America/New_York' }, Date.UTC(2026, 9, 19, 14, 0));
+  const fmt = (ts, tz) => new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(ts));
+  const want = { 'America/New_York': 'Mon 7:00 PM', 'America/Chicago': 'Mon 7:00 PM', 'America/Los_Angeles': 'Mon 7:00 PM', 'Pacific/Honolulu': 'Mon 4:59 PM', 'Europe/London': 'Mon 7:00 PM', 'Asia/Kolkata': 'Mon 7:00 PM', 'Asia/Tokyo': 'Mon 7:00 PM', 'Australia/Sydney': 'Mon 7:00 PM' };
+  const seen = [];
+  for (const tz of Object.keys(want)) {
+    const at = E.reminderTime(cutoff, 19, tz);
+    assert(at < cutoff - 2 * 3600000 + 1 && at > cutoff - 24 * 3600000, tz + ' reminder inside the game day');
+    assert.strictEqual(fmt(at, tz), want[tz], tz);
+    seen.push(tz.split('/')[1] + ' ' + fmt(at, tz));
+  }
+  console.log('reminder times: ' + seen.join(', '));
   console.log('reminders ok');
 }
 

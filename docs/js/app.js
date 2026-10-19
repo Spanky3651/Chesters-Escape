@@ -1032,7 +1032,7 @@
       '<label class="check"><input type="checkbox" data-set="exactFinish"' + (s.settings.exactFinish ? ' checked' : '') + '> <span>Exact roll needed to escape</span></label>' +
       '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label>' +
       '<label class="start-field"><span>Roll reminder for players who turn on notifications</span><select id="remindSel"><option value=""' + (E.remindHour(s) == null ? ' selected' : '') + '>Off</option>' +
-      [17, 18, 19, 20, 21, 22].map(function (h) { return '<option value="' + h + '"' + (E.remindHour(s) === h ? ' selected' : '') + '>' + hourLabel(h) + ' Eastern</option>'; }).join('') + '</select></label></section>';
+      [17, 18, 19, 20, 21, 22].map(function (h) { return '<option value="' + h + '"' + (E.remindHour(s) === h ? ' selected' : '') + '>' + hourLabel(h) + ' in each player\'s own time</option>'; }).join('') + '</select></label></section>';
     html += '<section class="hsec"><h3>Theme and board</h3><div class="row"><label>Theme <select id="themeSel">' + Object.keys(C.themes).map(function (k) { return '<option value="' + k + '"' + (k === s.themeId ? ' selected' : '') + '>' + esc(C.themes[k].name) + '</option>'; }).join('') + '</select></label></div>' +
       '<p style="margin-top:10px">Changing the theme keeps everyone where they are. Starting a new game puts everyone back at the start.</p>' +
       '<label class="start-field"><span>Start time for the new game (optional)</span><input type="datetime-local" id="newStart"></label>' +
@@ -1058,6 +1058,19 @@
     for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
     return out;
   }
+  function myZone() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { return ''; } }
+  // When this player's reminder goes out today, in their own time (e.g. "7 PM" or "4:59 PM").
+  function reminderLabel() {
+    var s = st(), h = E.remindHour(s); if (h == null) return '';
+    var at = E.reminderTime(E.nextCutoff(s.settings), h, myZone() || s.settings.timeZone), d = new Date(at);
+    return d.getMinutes() ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : d.toLocaleTimeString([], { hour: 'numeric' }).replace(/\s+/g, ' ');
+  }
+  // Devices that turned reminders on before time zones were sent: send theirs once per visit.
+  var zoneSent = false;
+  function refreshZone(sub) {
+    if (zoneSent || !sub || store.mode !== 'live') return; zoneSent = true;
+    store.post('/api/push/subscribe', { subscription: sub.toJSON(), label: deviceLabel(), tz: myZone() }).catch(function () {});
+  }
   function deviceLabel() {
     var ua = navigator.userAgent;
     var os = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iPhone' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'Device';
@@ -1074,9 +1087,10 @@
     if (!pushSupported()) { set(function (k) { return k === 'host' ? '<p>This browser can\'t do push notifications. Chrome on Android or on your PC can.</p>' : ''; }); return; }
     if (!store.vapidKey) { set(function (k) { return k === 'host' ? '<p>Notifications are not set up on the server yet. Add the two VAPID keys to the Worker.</p>' : ''; }); return; }
     if (Notification.permission === 'denied') { set('<p class="why">Notifications are blocked for this site. Allow them in the browser\'s site settings.</p>'); return; }
-    var at = hourLabel(E.remindHour(st()) == null ? 19 : E.remindHour(st()));
+    var at = reminderLabel() || hourLabel(19);
     currentSub().then(function (sub) {
       var on = sub && Notification.permission === 'granted';
+      if (on) refreshZone(sub);
       set(function (k) {
         if (k === 'host') return on
           ? '<p class="push-on">On for this device. You\'ll get a notification when someone is waiting to get in or asks you to approve a run, plus your own roll reminders.</p><div class="row"><button type="button" class="btn small" data-push="test">Send a test</button><button type="button" class="btn small ghost" data-push="off">Turn off</button></div>'
@@ -1098,7 +1112,7 @@
       return reg.pushManager.getSubscription().then(function (old) { return old ? old.unsubscribe() : null; })
         .then(function () { return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }); });
     }).then(function (sub) {
-      return store.post('/api/push/subscribe', { subscription: sub.toJSON(), label: deviceLabel() });
+      return store.post('/api/push/subscribe', { subscription: sub.toJSON(), label: deviceLabel(), tz: myZone() });
     }).then(function () { track('push-on'); toast('Notifications are on for this device.', 'good'); pushTest(); fillPush(); }, function (e) { fail(e); fillPush(); });
   }
   function pushOff() {
