@@ -686,7 +686,67 @@
   function maybeFinale() {
     var s = st(); if (!s || s.status !== 'finished') return;
     var seen = false; try { seen = localStorage.getItem('cg.finale.' + s.id) === '1'; } catch (e) {}
-    if (!seen) openFinale();
+    if (!seen) { openFinale(); return true; }
+    return false;
+  }
+
+  // ---- while you were away ---------------------------------------------------------------------
+  // Remembers the last event you saw (per game, in this browser) and sums up what changed since.
+  function seenKey() { return 'cg.seen.' + st().id; }
+  function readSeen() { try { return JSON.parse(localStorage.getItem(seenKey()) || 'null'); } catch (e) { return null; } }
+  function myPlace() { var r = store.me && E.ranking(st()).filter(function (x) { return x.pid === store.me; })[0]; return r ? r.place : null; }
+  function writeSeen() {
+    var s = st(); if (!s) return;
+    var last = s.events.length ? s.events[s.events.length - 1].id : 0;
+    try { localStorage.setItem(seenKey(), JSON.stringify({ id: last, at: Date.now(), day: s.day, place: myPlace() })); } catch (e) {}
+  }
+  function agoText(ms) {
+    var h = Math.round(ms / 3600000), d = Math.floor(ms / 86400000);
+    return d >= 1 ? d + (d === 1 ? ' day' : ' days') : h >= 1 ? h + (h === 1 ? ' hour' : ' hours') : 'a little while';
+  }
+  function maybeAway() {
+    var s = st(), prev = readSeen();
+    if (!prev || Date.now() - prev.at < 30 * 60000) return false;
+    var evs = s.events.filter(function (e) { return e.id > prev.id; });
+    if (!evs.length) return false;
+    var t = theme(), mine = [], others = [], cards = 0, cleared = [];
+    var who = function (e) { var p = s.players[e.pid]; return p ? esc(p.name) : 'Someone'; };
+    evs.forEach(function (e) {
+      var meEv = e.pid && e.pid === store.me;
+      if (meEv) {
+        if (e.t === 'cleared') cleared.push((e.bsr || [])[0]);
+        else if (e.t === 'claim-rejected') mine.push('❌ The host could not confirm your run');
+        else if (e.t === 'lost-turn') mine.push('💤 You sat out day ' + e.day);
+        else if (e.t === 'host-move' || e.t === 'host-reset') mine.push('🧹 The host moved your token');
+        return;
+      }
+      if (e.t === 'card') cards++;
+      if (e.t === 'escaped') others.push('🎉 <b>' + who(e) + '</b> escaped, ' + ordinal(e.place) + ' place');
+      else if (e.t === 'start') others.push('↩️ <b>' + who(e) + '</b> got sent back to the start');
+      else if (e.t === 'move' && e.n <= -3) others.push('⬅️ <b>' + who(e) + '</b> got pushed back ' + (-e.n));
+      else if (e.t === 'move' && e.n >= 4) others.push('➡️ <b>' + who(e) + '</b> jumped ahead ' + e.n);
+      else if (e.t === 'join') others.push('👋 <b>' + who(e) + '</b> joined');
+      else if (e.t === 'begin') others.push('🏁 The game started');
+      else if (e.t === 'end') others.push('🏆 The game ended');
+    });
+    if (cleared.length) mine.unshift(cleared.length === 1 ? '✅ Your map <b>!bsr ' + esc(cleared[0]) + '</b> was cleared' : '✅ ' + cleared.length + ' of your maps were cleared: <b>!bsr ' + cleared.map(esc).join(', ') + '</b>');
+    if (cards) others.push('🃏 ' + cards + (cards === 1 ? ' card was' : ' cards were') + ' drawn');
+    var now = myPlace(), lines = mine.slice();
+    if (now && prev.place && now !== prev.place) lines.unshift(now < prev.place ? '⬆️ You moved up to <b>' + ordinal(now) + '</b> (you were ' + ordinal(prev.place) + ')' : '⬇️ You dropped to <b>' + ordinal(now) + '</b> (you were ' + ordinal(prev.place) + ')');
+    var more = others.length > 7 ? others.length - 7 : 0;
+    lines = lines.concat(others.slice(0, 7));
+    if (!lines.length) return false;
+    var p = me(), next = '';
+    if (p && s.status === 'running') {
+      var c = E.canRoll(s, p.id);
+      next = p.finished ? '' : c.ok ? 'Your roll is ready.' : p.tasks.length ? 'Next up: play <b>!bsr ' + esc(p.tasks[0].bsr[0]) + '</b>.' : '';
+    }
+    var days = s.day > prev.day ? ' The game went from day ' + prev.day + ' to day ' + s.day + '.' : '';
+    track('away-summary');
+    modal('While you were away', '<p class="lede">You were gone ' + agoText(Date.now() - prev.at) + '.' + days + '</p><ul class="away">' + lines.map(function (l) { return '<li>' + l + '</li>'; }).join('') + '</ul>' +
+      (more ? '<p class="why">' + more + ' more in the game thread.</p>' : '') + (next ? '<p class="away-next">' + next + '</p>' : '') +
+      '<div class="row"><button type="button" class="btn" data-away-close>Back to the game</button></div>', function (body) { body.querySelector('[data-away-close]').onclick = closeModal; });
+    return true;
   }
 
   function openHow() {
@@ -1165,7 +1225,10 @@
     setInterval(tickClock, 30000);
     setInterval(tickCountdowns, 1000);
     var seen = false; try { seen = localStorage.getItem('cg.seenHow') === '1'; localStorage.setItem('cg.seenHow', '1'); } catch (e) {}
-    if (!seen) openHow(); else maybeFinale();
+    if (!seen) openHow(); else if (!maybeFinale()) maybeAway();
+    writeSeen();
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') writeSeen(); });
+    window.addEventListener('pagehide', writeSeen);
   }).catch(function (e) {
     if (e === 'gated') return;
     console.error(e);

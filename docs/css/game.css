@@ -409,6 +409,10 @@ body.gated .foot { border-top: 0; margin-top: 0; }
 .finale-rest .place { min-width: 34px; font-weight: 800; color: var(--gold); }
 .finale-rest .why { margin-left: auto; }
 .finale-me { font-size: 17px; margin: 6px 0 16px; }
+/* while you were away */
+.away { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; }
+.away li { padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--raise-2); font-size: 16px; }
+.away-next { font-size: 17px; margin: 0 0 16px; color: var(--gold) !important; }
 .start-field { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; font-size: 14px; color: var(--muted); }
 .start-field input { max-width: 260px; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: #000; color: var(--text); font: inherit; color-scheme: dark; }
 @media (max-width: 420px) { .cd-seg { min-width: 54px; } .cd-seg b { font-size: 26px; } }
