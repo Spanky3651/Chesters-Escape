@@ -94,7 +94,7 @@
   function playlist(title, keys, image) {
     return Promise.all(keys.map(function (k) { return map(k).catch(function () { return null; }); })).then(function (maps) {
       return {
-        playlistTitle: title, playlistAuthor: 'GENX', image: image || '',
+        playlistTitle: title, playlistAuthor: 'MSploit', image: image || '',
         songs: maps.filter(Boolean).map(function (m) {
           var diffs = m.diffs.filter(function (d) { return d.characteristic === 'Standard'; });
           if (!diffs.length) diffs = m.diffs;

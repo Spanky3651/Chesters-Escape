@@ -1,6 +1,6 @@
 # Chester's Escape
 
-A Beat Saber board game for the GENX clan. Roll a d4 once a day, move your token, and play the map on the space you land on. BeatLeader confirms the clear, so there are no replays to post and nobody moves tokens by hand.
+A Beat Saber board game. Roll a d4 once a day, move your token, and play the map on the space you land on. BeatLeader confirms the clear, so there are no replays to post and nobody moves tokens by hand.
 
 **Play it here: [spanky3651.github.io/Chesters-Escape](https://spanky3651.github.io/Chesters-Escape/?utm_source=github&utm_campaign=readme)**
 

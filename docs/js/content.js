@@ -13,7 +13,7 @@
 
   // ---- Chester's Escape board -------------------------------------------------
   // Grid is 15 x 15 cells on a 1000 x 1000 board. Each entry: [col, row, type, extra]
-  // Map keys come from the original GENX game board.
+  // Map keys come from the original game board.
   var LONGER = [
     [11, 1, 'map', { bsr: ['4f33e', '4f3c2'] }],
     [10, 1, 'map', { bsr: ['4fde6'] }],
