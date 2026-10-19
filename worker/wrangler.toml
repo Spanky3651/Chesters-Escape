@@ -33,3 +33,5 @@ ANNOUNCE_DAYS = "0"
 #   DISCORD_CLIENT_SECRET  same page
 #   SESSION_SECRET         any long random string
 #   DISCORD_WEBHOOK_URL    optional, the game channel's webhook for posting results
+#   VAPID_PUBLIC_KEY       optional, push notifications for hosts (see the key command in the setup notes)
+#   VAPID_PRIVATE_KEY      optional, the matching private key

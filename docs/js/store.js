@@ -149,6 +149,7 @@
     this.isHost = !!cfg.isHost;
     this.me = cfg.pid || null;
     this.cfg = cfg;
+    this.vapidKey = cfg.vapidKey || '';
     this.canPlay = cfg.access === 'ok';
     this.state = null;
     this._seq = -1;
@@ -159,6 +160,9 @@
     var t = token(); if (t) h.authorization = 'Bearer ' + t;
     opts.headers = h;
     return fetch(this.api + path, opts).then(json);
+  };
+  LiveStore.prototype.post = function (path, data) {
+    return this._fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data || {}) });
   };
   LiveStore.prototype.loginUrl = function () { return this.api + '/auth/login?return=' + encodeURIComponent(location.origin + location.pathname); };
   LiveStore.prototype.logout = function () { setToken(''); location.reload(); };

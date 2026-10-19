@@ -799,6 +799,7 @@
       }).join('');
       html += '</section>';
     }
+    html += '<section class="hsec"><h3>Notifications on this device</h3><div id="pushBox"><p>Checking this device.</p></div></section>';
     html += '<section class="hsec"><h3>Players</h3><p>Space 0 is the start. Moving a token does not apply the space unless you tick the box.</p><table class="ptable"><tbody>';
     s.order.forEach(function (pid) {
       var p = s.players[pid];
@@ -817,7 +818,68 @@
       '<label class="start-field"><span>Start time for the new game (optional)</span><input type="datetime-local" id="newStart"></label>' +
       '<p class="why">Leave it empty to start right away. With a time set, sign-ups open now, people pick their routes, and the first roll unlocks at that time. Day 1 lasts until the next ' + esc(cutoffLabel(s)) + ' cutoff, so a ' + esc(cutoffLabel(s)) + ' start gives everyone a full first day.</p><div class="row">' +
       '<button type="button" class="btn small ghost" data-h="newgame">Start a new game</button>' + (designerBoard() ? '<button type="button" class="btn small ghost" data-h="loadboard">Start a new game on the designer board</button>' : '') + '</div></section>';
+    var keep = {}; ['newStart', 'startEdit'].forEach(function (id) { var el = $(id); if (el && el.value && el.dataset.touched) keep[id] = el.value; });
     $('hostBody').innerHTML = html;
+    Object.keys(keep).forEach(function (id) { var el = $(id); if (el) { el.value = keep[id]; el.dataset.touched = '1'; } });
+    ['newStart', 'startEdit'].forEach(function (id) { var el = $(id); if (el) el.addEventListener('input', function () { el.dataset.touched = '1'; }); });
+    fillPush();
+  }
+
+  // ---- push notifications (hosts) ------------------------------------------------
+  function pushSupported() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+  function currentSub() {
+    if (!pushSupported()) return Promise.resolve(null);
+    return navigator.serviceWorker.getRegistration().then(function (reg) { return reg ? reg.pushManager.getSubscription() : null; }).catch(function () { return null; });
+  }
+  function urlKey(k) {
+    var s = String(k).replace(/-/g, '+').replace(/_/g, '/'); s += '==='.slice((s.length + 3) % 4);
+    var bin = atob(s), out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function deviceLabel() {
+    var ua = navigator.userAgent;
+    var os = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iPhone' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'Device';
+    var br = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : 'browser';
+    return os + ' ' + br;
+  }
+  function fillPush() {
+    var box = $('pushBox'); if (!box) return;
+    if (store.mode !== 'live') { box.innerHTML = '<p>Push notifications work on the live site.</p>'; return; }
+    if (!pushSupported()) { box.innerHTML = '<p>This browser can\'t do push notifications. Chrome on Android or on your PC can.</p>'; return; }
+    if (!store.vapidKey) { box.innerHTML = '<p>Notifications are not set up on the server yet. Add the two VAPID keys to the Worker.</p>'; return; }
+    if (Notification.permission === 'denied') { box.innerHTML = '<p>Notifications are blocked for this site. Allow them in the browser\'s site settings, then reopen Host tools.</p>'; return; }
+    currentSub().then(function (sub) {
+      box = $('pushBox'); if (!box) return;
+      box.innerHTML = sub && Notification.permission === 'granted'
+        ? '<p class="push-on">On for this device. You\'ll get a notification when someone is waiting to get in or asks you to approve a run.</p><div class="row"><button type="button" class="btn small" data-h="pushtest">Send a test</button><button type="button" class="btn small ghost" data-h="pushoff">Turn off</button></div>'
+        : '<p>Get a notification on this device when someone is waiting to get in or asks you to approve a run, even with the game closed.</p><div class="row"><button type="button" class="btn small" data-h="pushon">Turn on notifications</button></div>';
+    });
+  }
+  function pushOn() {
+    var key = urlKey(store.vapidKey);
+    Notification.requestPermission().then(function (perm) {
+      if (perm !== 'granted') throw new Error('Notifications were not allowed. You can allow them in the browser\'s site settings.');
+      return navigator.serviceWorker.register('sw.js').then(function () { return navigator.serviceWorker.ready; });
+    }).then(function (reg) {
+      return reg.pushManager.getSubscription().then(function (old) { return old ? old.unsubscribe() : null; })
+        .then(function () { return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }); });
+    }).then(function (sub) {
+      return store.post('/api/push/subscribe', { subscription: sub.toJSON(), label: deviceLabel() });
+    }).then(function () { track('push-on'); toast('Notifications are on for this device.', 'good'); fillPush(); }, function (e) { fail(e); fillPush(); });
+  }
+  function pushOff() {
+    currentSub().then(function (sub) {
+      if (!sub) return null;
+      var ep = sub.endpoint;
+      return sub.unsubscribe().then(function () { return store.post('/api/push/unsubscribe', { endpoint: ep }); });
+    }).then(function () { track('push-off'); toast('Notifications are off for this device.'); fillPush(); }, fail);
+  }
+  function pushTest() {
+    currentSub().then(function (sub) {
+      if (!sub) throw new Error('Turn on notifications on this device first.');
+      return store.post('/api/push/test', { endpoint: sub.endpoint });
+    }).then(function () { track('push-test'); toast('Test sent. It should pop up in a few seconds.', 'good'); }, fail);
   }
   function designerBoard() { try { return JSON.parse(localStorage.getItem('cg.designer.board') || 'null'); } catch (e) { return null; } }
   function hostAction(btn) {
@@ -837,6 +899,9 @@
         break;
       }
       case 'reschedule': { var rs = readStart('startEdit'); if (!rs) { if (rs === null) toast('Pick a start time first.', 'bad'); break; } run('schedule', { startsAt: rs }, 'Start time saved.'); break; }
+      case 'pushon': pushOn(); break;
+      case 'pushoff': pushOff(); break;
+      case 'pushtest': pushTest(); break;
       case 'startnow': if (confirm('Start the game now? Everyone can roll right away.')) run('startNow', {}, 'The game has started.'); break;
       case 'letin': run('letIn', { id: btn.dataset.id }, 'Let in.'); break;
       case 'dismiss': run('dismiss', { id: btn.dataset.id }); break;
@@ -1000,6 +1065,8 @@
     if (store.mode === 'live') track(store.canPlay ? (store.me ? 'visit-player' : 'visit-not-joined') : 'visit-waiting-list');
     store.on(function () { if (!animating) renderAll(); });
     renderAll();
+    if (/^#host$/.test(location.hash)) { history.replaceState(null, '', location.pathname + location.search); if (store.isHost) openHost(); }
+    if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', function (e) { if (e.data && e.data.type === 'open-host' && store.isHost) { openHost(); store.poll && store.poll(); } });
     if (store.mode === 'live') { setInterval(function () { if (!animating && document.visibilityState === 'visible') store.poll(); }, 20000); }
     setInterval(tickClock, 30000);
     setInterval(tickCountdowns, 1000);

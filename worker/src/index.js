@@ -7,12 +7,14 @@
  *   - BeatLeader checks on the server (no relay needed here)
  *   - the day turns over by itself at the cutoff, and open maps get re-checked every 15 minutes
  *   - the host can post the results image to the game channel through a Discord webhook
+ *   - hosts can get push notifications when someone is waiting to get in or asks for a run approval
  *
  * The rules are the exact same engine the page uses (docs/js/engine.js).
  */
 import { DurableObject } from 'cloudflare:workers';
 import '../../docs/js/content.js';
 import '../../docs/js/engine.js';
+import { sendPush } from './push.js';
 
 const E = globalThis.CGEngine;
 const C = globalThis.CGContent;
@@ -125,7 +127,8 @@ export default {
       const user = await userFrom(env, req);
       if (url.pathname === '/api/config') {
         const r = await gameStub(env).whoAmI(user);
-        return json(env, req, { live: true, access: r.access, startsAt: r.startsAt, user: user && { id: user.id, name: user.name, avatar: user.avatar }, isHost: !!(user && user.isHost), pid: r.pid });
+        const vapidKey = user && user.isHost && env.VAPID_PUBLIC_KEY ? String(env.VAPID_PUBLIC_KEY).trim() : undefined;
+        return json(env, req, { live: true, access: r.access, startsAt: r.startsAt, vapidKey, user: user && { id: user.id, name: user.name, avatar: user.avatar }, isHost: !!(user && user.isHost), pid: r.pid });
       }
       if (url.pathname === '/api/state' && req.method === 'GET') {
         const r = await gameStub(env).getState(user, Number(url.searchParams.get('since') ?? -1));
@@ -137,6 +140,12 @@ export default {
         const r = await gameStub(env).act(user, String(body.action || ''), body.args || {});
         if (r.error && r.code === 'no-access') r.status = 403;
         return json(env, req, r, r.error ? (r.status || 400) : 200);
+      }
+      if (url.pathname.startsWith('/api/push/') && req.method === 'POST') {
+        if (!user || !user.isHost) return json(env, req, { error: 'Only hosts get notifications.' }, 403);
+        const body = await req.json().catch(() => ({}));
+        const r = await gameStub(env).pushOp(user, url.pathname.slice('/api/push/'.length), body);
+        return json(env, req, r, r.error ? 400 : 200);
       }
       if (url.pathname === '/api/host/results' && req.method === 'POST') {
         if (!user || !user.isHost) return json(env, req, { error: 'Only the host can post results.' }, 403);
@@ -215,6 +224,7 @@ export class Game extends DurableObject {
         a.pending.push({ id: user.id, name: String(user.name || '').slice(0, 60), avatar: user.avatar || '', at: Date.now() });
         if (a.pending.length > 100) a.pending.shift();
         s.seq++;
+        await this.notifyHosts({ title: (user.name || 'Someone') + ' is waiting to get in', body: 'Open Host tools to let them in.', tag: 'wait-' + user.id });
         await this.save();
       }
     }
@@ -252,7 +262,12 @@ export class Game extends DurableObject {
         case 'route': result = this.mine(s, pid) && E.chooseRoute(s, pid, a.route); break;
         case 'roll': this.mine(s, pid); result = E.roll(s, pid, { rng }); delete result.player; break;
         case 'verify': this.mine(s, pid); result = { cleared: await this.check(pid) }; break;
-        case 'claim': this.mine(s, pid); result = E.claimTask(s, pid, a.task, { url: String(a.url || '').slice(0, 300) }); break;
+        case 'claim': {
+          this.mine(s, pid); result = E.claimTask(s, pid, a.task, { url: String(a.url || '').slice(0, 300) });
+          const p = s.players[pid], t = p.tasks.find((x) => x.id === a.task);
+          await this.notifyHosts({ title: p.name + ' played a map', body: 'Says they played !bsr ' + (t ? t.bsr.join(' or ') : '?') + '. Approve it in Host tools.', tag: 'claim-' + pid + '-' + a.task });
+          break;
+        }
         // host
         case 'advance': if (s.status !== 'running') return { error: 'The game has not started yet.' }; E.advanceDay(s); this.meta.nextCutoff = E.nextCutoff(s.settings); result = { day: s.day }; break;
         case 'approve': result = E.completeTask(s, a.pid, a.task, { by: 'host' }); break;
@@ -319,6 +334,54 @@ export class Game extends DurableObject {
     const out = { result, state: E.publicState(this.state), me: this.state.players[pid] ? pid : null, canPlay: true };
     if (user.isHost) out.access = this.access();
     return out;
+  }
+
+  // --- push notifications for hosts ---
+  pushKeys() {
+    const pub = String(this.env.VAPID_PUBLIC_KEY || '').trim(), priv = String(this.env.VAPID_PRIVATE_KEY || '').trim();
+    return pub && priv ? { publicKey: pub, privateKey: priv, subject: this.env.GAME_PAGE || 'https://spanky3651.github.io/Chesters-Escape/' } : null;
+  }
+  async notifyHosts(msg, only) {
+    const keys = this.pushKeys(), subs = (this.meta.push || []).filter((x) => !only || only(x));
+    if (!keys || !subs.length) return { sent: 0, failed: 0 };
+    const payload = { title: msg.title, body: msg.body || '', tag: msg.tag || 'chester', url: (this.env.GAME_PAGE || '') + '#host' };
+    const gone = new Set(); let sent = 0, failed = 0;
+    await Promise.all(subs.map(async (sub) => {
+      try {
+        const st = await sendPush(sub, payload, keys);
+        if (st === 404 || st === 410) gone.add(sub.endpoint);
+        if (st >= 200 && st < 300) sent++; else failed++;
+      } catch { failed++; }
+    }));
+    if (gone.size) this.meta.push = (this.meta.push || []).filter((x) => !gone.has(x.endpoint));
+    return { sent, failed };
+  }
+  async pushOp(user, op, body) {
+    this.game();
+    if (!this.pushKeys()) return { error: 'Notifications are not set up on the server yet.' };
+    const list = (this.meta.push = this.meta.push || []);
+    const sub = body && body.subscription;
+    if (op === 'subscribe') {
+      if (!sub || !/^https:\/\//.test(sub.endpoint || '') || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) return { error: 'That device did not give a usable subscription.' };
+      this.meta.push = list.filter((x) => x.endpoint !== sub.endpoint);
+      this.meta.push.push({ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth }, uid: user.id, name: user.name, label: String(body.label || 'Device').slice(0, 60), at: Date.now() });
+      if (this.meta.push.length > 20) this.meta.push.shift();
+      await this.save();
+      return { ok: true, devices: this.meta.push.filter((x) => x.uid === user.id).length };
+    }
+    if (op === 'unsubscribe') {
+      this.meta.push = list.filter((x) => x.endpoint !== String(body && body.endpoint || ''));
+      await this.save();
+      return { ok: true };
+    }
+    if (op === 'test') {
+      const ep = String(body && body.endpoint || '');
+      const r = await this.notifyHosts({ title: 'Notifications are on', body: 'This device will hear about sign-ins and runs to approve.', tag: 'test' }, (x) => x.uid === user.id && (!ep || x.endpoint === ep));
+      await this.save();
+      if (r.sent) return { ok: true, sent: r.sent };
+      return { error: r.failed ? 'The push did not go through. Turn notifications off and on again on this device.' : 'Turn on notifications on this device first.' };
+    }
+    return { error: 'Unknown notification action.' };
   }
 
   mine(s, pid) { if (!s.players[pid]) { const e = new Error('Join the game first.'); e.code = 'no-player'; throw e; } return true; }
