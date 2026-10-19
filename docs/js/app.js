@@ -298,7 +298,7 @@
       el.innerHTML = '<h2>Pick your route</h2>' + pre + '<p class="why">You can\'t change it later.</p><div class="routes">' +
         ['longer', 'riskier'].map(function (r) {
           var info = s.board.routeInfo[r];
-          return '<button type="button" class="route-card' + (r === 'riskier' ? ' risk' : '') + '" data-route="' + r + '"><b>' + esc(info.name) + '</b><span>' + esc(info.blurb) + '</span></button>';
+          return '<button type="button" class="route-card' + (r === 'riskier' ? ' risk' : '') + '" data-route="' + r + '"><b>' + esc(info.name) + '</b><span>' + esc(routeBlurb(r)) + '</span></button>';
         }).join('') + '</div>';
       return;
     }
@@ -317,6 +317,12 @@
     var slot = $('dieSlot');
     if (slot) { if (!die || !document.body.contains(die.el)) die = new window.CGDice.Die(slot); else slot.replaceWith(die.el); die.el.classList.toggle('disabled', !can.ok); }
     p.tasks.forEach(function (task) { fillTask(task); });
+  }
+  // The built-in board's route blurbs follow the theme. A designer board keeps its own words.
+  function routeBlurb(r) {
+    var s = st(), t = theme(), info = s.board.routeInfo[r] || {}, builtIn = C.boards['chester-escape']().routeInfo[r] || {};
+    if (t.routes && t.routes[r] && (!info.blurb || info.blurb === builtIn.blurb)) return t.routes[r].replace('{n}', (s.board.routes[r] || []).length);
+    return info.blurb || '';
   }
   function rollTitle(c) { return { task: 'Play your map', rolled: 'Rolled for today', skip: 'Turn lost', 'not-running': 'Waiting', finished: 'Escaped' }[c.code] || 'Not yet'; }
   function rollWhy(c, p) {

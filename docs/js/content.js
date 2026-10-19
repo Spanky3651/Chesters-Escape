@@ -149,17 +149,19 @@
         safe:       { title: 'Safe!', icon: '🪨' },
         exit:       { title: 'Cemetery gates', icon: '🚪' }
       },
-      words: { card: ['CARD', 'DROP'], start: 'Start', longer: 'Longer route', riskier: 'Riskier route', escaped: 'You escaped!', results: 'Day {n} results' }
+      words: { card: ['CARD', 'DROP'], start: 'Start', longer: 'Longer route', riskier: 'Riskier route', escaped: 'You escaped!', results: 'Day {n} results' },
+      routes: { longer: 'Safer ground, more maps. {n} spaces to the gates.', riskier: 'Shorter, but the river and the graves are waiting. {n} spaces.' }
     },
     christmas: {
       id: 'christmas',
       name: 'Snowy Christmas',
-      title: "Chester's Snowy Escape",
-      tagline: 'Chester is snowed in at the North Pole. Get him home to Hazel by Christmas Eve.',
-      goal: 'cottage door',
+      title: "Chester's Christmas",
+      tagline: "Help Santa reach Chester's tombstone home with shiny crow gifts.",
+      goal: 'tombstone home',
       font: "'Mountains of Christmas', Georgia, serif",
+      taglineSize: 16,
       palette: { ground: '#e9f1f7', ground2: '#c9dbe8', stone: '#ffffff', stoneDark: '#9db4c6', ink: '#24384a', accent: '#d7263d', good: '#2fb35a', bad: '#3a6ea5', water: '#a9d6f0' },
-      card: { back: 'Chester’s Snowy Escape', treasure: 'Gift card', trick: 'Coal card', task: 'Carol card', fate: 'Snow globe' },
+      card: { back: 'Chester’s Christmas', treasure: 'Gift card', trick: 'Coal card', task: 'Carol card', fate: 'Snow globe' },
       kinds: {
         cat:        { title: 'Chased by a snowman!', icon: '⛄' },
         roadblock:  { title: 'Snowed in!', icon: '🌨️' },
@@ -169,14 +171,15 @@
         ghostRun:   { title: 'Sled downhill!', icon: '🛷' },
         flowers:    { title: 'Found a candy cane!', icon: '🍬' },
         evilGhost:  { title: 'Avalanche!', icon: '🏔️' },
-        grave:      { title: 'Fell through the ice!', icon: '🧊' },
+        grave:      { title: 'Stuck in a snowy grave!', icon: '🪦' },
         pulledUnder:{ title: 'Stuck in the slush!', icon: '🫠' },
         swim:       { title: 'Skate to safety!', icon: '⛸️' },
         current:    { title: 'Thin ice!', icon: '❄️' },
         safe:       { title: 'Safe!', icon: '🕯️' },
-        exit:       { title: 'Home for Christmas', icon: '🏡' }
+        exit:       { title: "Chester's tombstone home", icon: '🪦' }
       },
-      words: { card: ['GIFT', 'DROP'], start: 'Start', longer: 'Longer route', riskier: 'Riskier route', escaped: 'Home for Christmas!', results: 'Day {n} results' }
+      words: { card: ['GIFT', 'DROP'], start: 'Start', longer: 'Longer route', riskier: 'Riskier route', escaped: 'Gifts delivered!', results: 'Day {n} results' },
+      routes: { longer: "Plowed paths, more maps. {n} spaces to Chester's tombstone.", riskier: 'Shorter, but the frozen river and the snowy graves are waiting. {n} spaces.' }
     }
   };
 
@@ -229,26 +232,26 @@
       c20: ['Bat swarm', '🦇', 'Bats everywhere! Chester dives ahead, then hides until morning.']
     },
     christmas: {
-      c01: ['Hot cocoa', '☕', "Chester warms up with cocoa. He can't wait to see Hazel."],
-      c02: ['Polar wind', '🌬️', 'A north wind carries Chester over three snowbanks.'],
-      c03: ['Northern lights', '🌌', 'The sky lights the way. Chester flies straight to the next map.'],
-      c04: ['Wishbone from the feast', '🍗', 'Chester gets the bigger half. Make another wish.'],
-      c05: ['Knitted scarf', '🧣', "Hazel knitted it. Nothing can chill Chester now."],
-      c06: ['Sleigh ride', '🛷', 'A passing sleigh gives Chester a lift.'],
-      c07: ['Candle in the window', '🕯️', 'A warm glow shows the next step.'],
-      c08: ['Reindeer lift', '🦌', 'A reindeer lets Chester ride between the antlers.'],
-      c09: ['Snowball ambush', '❄️', 'The snowman gang knocks Chester back.'],
-      c10: ['Tangled in lights', '🎄', 'It takes Chester all night to get untangled.'],
-      c11: ['Slipped on ice', '🧊', 'Feet up, tail first, two spaces back.'],
-      c12: ['Whiteout', '🌨️', "Chester can't see his own beak. Better wait it out."],
-      c13: ['Stepped in a snowdrift', '🥾', 'Cold feet. One step back.'],
-      c14: ['Frozen solid', '🥶', 'Chester turns into a crow-sicle for a while.'],
-      c15: ['Runaway snowman', '⛄', 'A rolling snowman chases Chester the wrong way.'],
-      c16: ["The carolers' request", '🎶', "The carolers won't let Chester pass until he plays one more song."],
-      c17: ['Elf dance-off', '🧝', 'The workshop elves challenge Chester to a dance.'],
-      c18: ['Wrap the presents', '🎁', 'Help wrap the last gifts. The elves walk you one space closer.'],
-      c19: ['Quiet snowfall', '🌨️', 'Chester watches the snow fall for a while.'],
-      c20: ['Gingerbread rush', '🍪', 'Too many cookies! Chester zooms ahead, then naps it off.']
+      c01: ['Extra cocoa', '☕', 'Santa downs a mug of cocoa and picks up the pace.'],
+      c02: ['Polar tailwind', '🌬️', 'A north wind pushes the sleigh over three snowy headstones.'],
+      c03: ["Rudolph's nose", '🔴', 'A bright red glow lights the way straight to the next map.'],
+      c04: ['Wishbone from the feast', '🍗', 'Santa gets the bigger half. Roll again today.'],
+      c05: ["Chester's lookout", '🐦‍⬛', 'Chester keeps watch from his tombstone. The next setback misses you.'],
+      c06: ['Sleigh shortcut', '🛷', 'The reindeer find a gap in the cemetery fence.'],
+      c07: ['Lantern on the path', '🏮', 'A glowing lantern shows the next step.'],
+      c08: ['Reindeer sprint', '🦌', 'The reindeer hit top speed over the snow.'],
+      c09: ['Snowball ambush', '❄️', 'The snowman gang pelts the sleigh back three spaces.'],
+      c10: ['Tangled in lights', '🎄', 'It takes all night to get the sleigh untangled.'],
+      c11: ['Slipped on ice', '🧊', 'The sleigh spins out and slides back two spaces.'],
+      c12: ['Whiteout', '🌨️', "Santa can't see past the reindeer. Better wait it out."],
+      c13: ['Dropped a shiny gift', '🎁', 'A shiny present for Chester falls off the sleigh. Back one space to grab it.'],
+      c14: ['Frozen runners', '🥶', 'The sleigh is frozen to the ground for a while.'],
+      c15: ['Krampus on the road', '😈', 'Krampus blocks the path and the sleigh doubles back.'],
+      c16: ["The ghost carolers' request", '🎶', "The graveyard carolers won't let the sleigh pass until you play one more song."],
+      c17: ['Elf dance-off', '🧝', 'The elves challenge Santa to a dance. Winner keeps the sleigh.'],
+      c18: ['Polish the shiny gifts', '✨', "Help polish Chester's gifts until they sparkle. The elves move you one space closer."],
+      c19: ['Quiet snowfall', '🌨️', 'Snow settles on the headstones. Santa enjoys the view.'],
+      c20: ['Cookie rush', '🍪', 'Too many cookies! Santa zooms ahead, then naps it off.']
     }
   };
 

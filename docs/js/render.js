@@ -22,6 +22,12 @@
     o += '</g>';
     return o;
   }
+  // A grey headstone with a cap of snow, for the Christmas board's snowy cemetery.
+  function snowyGrave(x, y, s, v, pal) {
+    var h = 38 * s, w = 30 * s, top = v === 1 ? -h * .55 : v === 0 ? -h / 6 - w / 2 : -h * .55;
+    var cap = '<path d="M' + (-w * .42) + ',' + (top + 6 * s) + ' Q0,' + (top - 7 * s) + ' ' + (w * .42) + ',' + (top + 6 * s) + ' Q0,' + (top + 1 * s) + ' ' + (-w * .42) + ',' + (top + 6 * s) + 'Z" fill="#fff" stroke="#c9dbe8" stroke-width="1"/>';
+    return tombstone(x, y, s, v, pal).replace(/url\(#gStone\)/g, 'url(#gGrave)').replace(/<\/g>$/, cap + '</g>');
+  }
   function deadTree(x, y, s) {
     var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')" stroke="#1b1f17" stroke-linecap="round" fill="none">';
     o += '<ellipse cx="0" cy="4" rx="46" ry="12" fill="#000" opacity=".28" stroke="none"/>';
@@ -148,13 +154,14 @@
       if (xmas) {
         if (i % 3 === 0) o += pine(x, y + 18, .8 + g() * .3);
         else if (i % 3 === 1) o += present(x, y, .9 + g() * .3, ['#d7263d', '#2fb35a', '#3a6ea5', '#f4c542'][i % 4]);
-        else o += pine(x, y + 18, .65 + g() * .2);
+        else o += snowyGrave(x, y, .8 + g() * .3, i % 3 === 2 ? (i % 2) : 2, { stoneDark: '#4f6476' });
       } else {
         o += tombstone(x, y, .8 + g() * .35, i % 3, pal);
       }
     });
     if (xmas) {
-      o += pine(560, 400, 1.3) + pine(318, 760, 1.2) + snowman(660, 600, 1.1) + present(440, 610, 1.1, '#d7263d') + pine(890, 330, 1.05);
+      o += pine(560, 400, 1.3) + pine(318, 760, 1.2) + snowman(660, 600, 1.1) + present(440, 610, 1.1, '#d7263d') + pine(890, 330, 1.05) +
+        snowyGrave(600, 470, .95, 0, { stoneDark: '#4f6476' }) + snowyGrave(820, 410, .85, 1, { stoneDark: '#4f6476' });
     } else {
       o += deadTree(560, 410, 1.15) + deadTree(330, 770, 1.05) + deadTree(890, 300, .8) + bush(440, 590, 1, '#1f3a17') + bush(650, 610, .9, '#24431b') + bush(820, 400, .8, '#1f3a17');
     }
@@ -202,8 +209,9 @@
     words.forEach(function (w) { if ((cur + ' ' + w).trim().length > 8) { if (cur) lines.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); });
     if (cur) lines.push(cur);
     lines = lines.slice(0, 14);
-    o += '<g font-family="' + esc(theme.font) + '" font-size="19" fill="' + (xmas ? '#24384a' : '#e4e6df') + '" text-anchor="middle">';
-    lines.forEach(function (l, i) { o += '<text x="52" y="' + (230 + i * 24) + '">' + esc(l) + '</text>'; });
+    var tsize = theme.taglineSize || 19;   // wide display fonts set a smaller size
+    o += '<g font-family="' + esc(theme.font) + '" font-size="' + tsize + '" fill="' + (xmas ? '#24384a' : '#e4e6df') + '" text-anchor="middle">';
+    lines.forEach(function (l, i) { o += '<text x="52" y="' + (230 + i * (tsize + 5)) + '">' + esc(l) + '</text>'; });
     o += '</g></g>';
     return o;
   }
@@ -308,6 +316,7 @@
       '<radialGradient id="gGround" cx="50%" cy="45%" r="75%"><stop offset="0" stop-color="' + pal.ground + '"/><stop offset="1" stop-color="' + pal.ground2 + '"/></radialGradient>' +
       '<radialGradient id="gVignette" cx="50%" cy="50%" r="72%"><stop offset=".62" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="' + (xmas ? '#24384a' : '#000') + '" stop-opacity="' + (xmas ? '.25' : '.6') + '"/></radialGradient>' +
       '<radialGradient id="gMoon" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff7d6" stop-opacity=".55"/><stop offset=".22" stop-color="#fff2c2" stop-opacity=".22"/><stop offset="1" stop-color="#fff2c2" stop-opacity="0"/></radialGradient>' +
+      '<linearGradient id="gGrave" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9c6d1"/><stop offset="1" stop-color="#7d90a1"/></linearGradient>' +
       '<linearGradient id="gStone" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + (xmas ? '#ffffff' : '#b3b8ba') + '"/><stop offset="1" stop-color="' + (xmas ? '#dbe8f2' : '#878d90') + '"/></linearGradient>' +
       '<linearGradient id="gCard" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9dcd7"/><stop offset="1" stop-color="#a9adaa"/></linearGradient>' +
       '<linearGradient id="gGift" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e2384c"/><stop offset="1" stop-color="#a4142a"/></linearGradient>' +
