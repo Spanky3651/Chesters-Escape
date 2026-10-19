@@ -28,7 +28,6 @@
   var DEFAULTS = {
     dieSides: 4,
     exactFinish: false,      // true = you need the exact roll to reach the exit
-    chainEffects: false,     // false = a space reached by a card or move space only applies if it has a map
     oneRollPerDay: true,
     cutoffHour: 0,           // local hour the day rolls over (0 = midnight)
     cutoffMinute: 59,
@@ -181,7 +180,7 @@
     if (p.pos < 0) { p.pos = -1; return; }
     var sp = spaceAt(s, p);
     if (!sp) return;
-    var chained = via === 'effect' && !s.settings.chainEffects;
+    var chained = via === 'effect';   // a space reached by a card or event only applies if it has a map
     emit(s, p, { t: 'land', space: sp.id, via: via });
     switch (sp.type) {
       case 'map':

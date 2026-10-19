@@ -574,7 +574,7 @@
       '<li>You can\'t roll again until your map is cleared, so play daily to keep up.</li>' +
       '<li>Card drops give you a card on the spot. Some help, some hurt, some add a bonus map.</li>' +
       '<li>Event spaces can push you ahead, send you back, cost you a turn, or block the way until you play their map.</li>' +
-      (s.settings.chainEffects ? '<li>If a card or event moves you onto another space, that space counts too, so one card can set off another.</li>' : '<li>If a card or event moves you onto a map, play it. A card or event never chains into another card.</li>') +
+      '<li>If a card or event moves you onto a map, play it. A card or event never chains into another card.</li>' +
       '<li>First one to the ' + esc(t.goal) + ' wins. Everyone else keeps playing for their place.</li></ol>' +
       '<p class="why">If you played a map and the check can\'t find it (for example a replay that wasn\'t a new personal best), use "I played it" and the host can approve it.</p>');
   }
@@ -745,7 +745,6 @@
     html += '</tbody></table><label class="check"><input type="checkbox" id="applyMove"> <span>Apply the space after moving a token</span></label></section>';
     html += '<section class="hsec"><h3>Rules</h3>' +
       '<label class="check"><input type="checkbox" data-set="exactFinish"' + (s.settings.exactFinish ? ' checked' : '') + '> <span>Exact roll needed to escape</span></label>' +
-      '<label class="check"><input type="checkbox" data-set="chainEffects"' + (s.settings.chainEffects ? ' checked' : '') + '> <span>Cards and events chain (a card can move you onto another card or event)</span></label>' +
       '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label></section>';
     html += '<section class="hsec"><h3>Theme and board</h3><div class="row"><label>Theme <select id="themeSel">' + Object.keys(C.themes).map(function (k) { return '<option value="' + k + '"' + (k === s.themeId ? ' selected' : '') + '>' + esc(C.themes[k].name) + '</option>'; }).join('') + '</select></label></div>' +
       '<p style="margin-top:10px">Changing the theme keeps everyone where they are. Starting a new game puts everyone back at the start.</p><div class="row">' +
