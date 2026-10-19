@@ -40,9 +40,9 @@
     else this.fresh('cemetery', null, true);
   }
 
-  DemoStore.prototype.fresh = function (themeId, board, withHistory, startsAt) {
+  DemoStore.prototype.fresh = function (themeId, board, withHistory, startsAt, endsAt) {
     var b = board || C.boards['chester-escape']();
-    var s = E.createGame({ board: b, cards: C.cardsFor(themeId), themeId: themeId, title: C.themes[themeId].title, status: startsAt ? 'signup' : 'running', startsAt: startsAt || null });
+    var s = E.createGame({ board: b, cards: C.cardsFor(themeId), themeId: themeId, title: C.themes[themeId].title, status: startsAt ? 'signup' : 'running', startsAt: startsAt || null, endsAt: endsAt || null });
     DEMO_PLAYERS.forEach(function (p) { E.addPlayer(s, p); });
     // bots pick routes; you pick yours in the app
     var picks = { hummingbird: 'riskier', wisp: 'longer', pumpkin: 'riskier', moth: 'longer', bramble: 'longer', nyx: 'riskier', gravel: 'longer' };
@@ -103,6 +103,14 @@
           if (s.status !== 'signup') return Promise.reject(new Error('The game has already started.'));
           if (!(a.startsAt > Date.now() + 60000)) return Promise.reject(new Error('Pick a start time in the future.'));
           s.startsAt = a.startsAt; s.seq++; return Promise.resolve(done({}));
+        case 'setEnd':
+          if (s.status === 'finished') return Promise.reject(new Error('The game is already over.'));
+          if (a.endsAt == null) { s.endsAt = null; s.seq++; return Promise.resolve(done({})); }
+          if (!(a.endsAt > Date.now() + 60000)) return Promise.reject(new Error('Pick an end time in the future, after the start.'));
+          s.endsAt = a.endsAt; s.seq++; return Promise.resolve(done({}));
+        case 'endNow':
+          if (!E.endGame(s, Date.now())) return Promise.reject(new Error('The game is not running.'));
+          return Promise.resolve(done({}));
         case 'startNow':
           if (!E.startGame(s, Date.now())) return Promise.reject(new Error('The game has already started.'));
           return Promise.resolve(done({}));
@@ -122,7 +130,8 @@
           return Promise.resolve(done({}));
         case 'newGame': {
           var keepMe = self.me;
-          self.fresh(a.theme || s.themeId, a.board || null, !!a.history, a.startsAt > Date.now() + 60000 ? a.startsAt : null);
+          var st0 = a.startsAt > Date.now() + 60000 ? a.startsAt : null;
+          self.fresh(a.theme || s.themeId, a.board || null, !!a.history, st0, a.endsAt > (st0 || Date.now()) + 3600000 ? a.endsAt : null);
           if (keepMe && !self.state.players[keepMe]) self.me = 'msploit';
           return Promise.resolve(done({}));
         }

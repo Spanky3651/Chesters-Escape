@@ -193,12 +193,13 @@
     var s = st(); if (!s) return;
     var el = $('dayClock');
     if (s.status === 'signup') { el.textContent = s.startsAt ? 'Starts in ' + fmtLeft(s.startsAt - Date.now(), true) : 'Starting soon'; return; }
-    if (store.mode === 'demo') { el.textContent = 'The host starts each new day'; return; }
+    if (s.status === 'finished') { el.textContent = 'Final standings are in'; return; }
+    if (store.mode === 'demo') { el.textContent = 'The host starts each new day' + (s.endsAt ? ' · ends in ' + fmtLeft(s.endsAt - Date.now(), true) : ''); return; }
     var at = E.nextCutoff(s.settings), left = at - Date.now();
     if (left < 0) left = 0;
     var h = Math.floor(left / 3600000), m = Math.floor(left % 3600000 / 60000);
     var when = new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    el.textContent = 'Next day in ' + (h ? h + 'h ' : '') + m + 'm (' + when + ')';
+    el.textContent = 'Next day in ' + (h ? h + 'h ' : '') + m + 'm (' + when + ')' + (s.endsAt && s.status === 'running' ? ' · ends in ' + fmtLeft(s.endsAt - Date.now(), true) : '');
   }
 
   // ---- countdown to the start ----------------------------------------------------
@@ -232,6 +233,11 @@
       else el.textContent = left > 0 ? fmtLeft(left) : 'now';
     });
     var s = store && store.state;
+    if (s && s.status === 'running' && s.endsAt && Date.now() >= s.endsAt) {
+      if (store.mode === 'demo') { if (!starting) { starting = true; store.act('endNow').catch(function () {}).then(function () { starting = false; }); } }
+      else if (store.mode === 'live' && Date.now() - kickAt > 5000) { kickAt = Date.now(); store.poll(); }
+      return;
+    }
     if (!s || s.status !== 'signup') return;
     tickClock();
     if (!s.startsAt || Date.now() < s.startsAt) return;
@@ -273,6 +279,12 @@
   // ---- turn panel --------------------------------------------------------------
   function renderTurn() {
     var p = me(), el = $('turnPanel'), s = st(), t = theme();
+    if (s.status === 'finished') {
+      var mine = p && (s.final || []).filter(function (r) { return r.pid === p.id; })[0];
+      el.innerHTML = '<h2>Game over</h2><p class="lede">' + (mine ? (mine.escaped ? 'You escaped on day ' + mine.day + ' and finished ' + ordinal(mine.place) + '.' : 'You finished ' + ordinal(mine.place) + ', ' + mine.left + ' spaces from the ' + esc(t.goal) + '.') : 'The final standings are in.') + '</p>' +
+        '<button type="button" class="btn" id="finaleBtn">See the final standings</button>';
+      return;
+    }
     var pre = s.status === 'signup' ? countdownHtml(s.startsAt) : '';
     if (pre && p && p.route) {
       el.innerHTML = '<h2>You\'re signed up</h2>' + pre + '<p class="why">You\'re on the ' + esc(s.board.routeInfo[p.route].name.toLowerCase()) + '. Your first roll unlocks when the countdown ends. Come back then and roll the d4.</p>';
@@ -401,17 +413,14 @@
   // ---- standings -----------------------------------------------------------------
   function renderStandings() {
     var s = st();
-    var ids = s.order.filter(function (pid) { return s.players[pid].route; });
-    ids.sort(function (a, b) {
-      var A = s.players[a], B = s.players[b];
-      if (A.finished || B.finished) return (A.finished ? A.finished.place : 999) - (B.finished ? B.finished.place : 999);
-      return E.remaining(s, A) - E.remaining(s, B);
-    });
-    var html = '<h2>Standings</h2><ol class="st-list">';
+    var rank = s.status === 'finished' && s.final ? s.final : E.ranking(s);
+    var ids = rank.map(function (r) { return r.pid; }).filter(function (pid) { return s.players[pid]; });
+    var placeOf = {}; rank.forEach(function (r) { placeOf[r.pid] = r.place; });
+    var html = '<h2>' + (s.status === 'finished' ? 'Final standings' : 'Standings') + '</h2><ol class="st-list">';
     ids.forEach(function (pid, i) {
       var p = s.players[pid], col = R.playerColor(s, pid), pct = Math.round(E.progress(s, p) * 100);
       html += '<li><button type="button" class="st' + (pid === store.me ? ' me' : '') + (p.finished ? ' done' : '') + '" data-pid="' + esc(pid) + '" style="--c:' + col + '">' +
-        '<span class="place">' + (p.finished ? ordinal(p.finished.place) : i + 1) + '</span>' + avatarHtml(p, 'ava') +
+        '<span class="place">' + (p.finished ? ordinal(p.finished.place) : s.status === 'finished' ? ordinal(placeOf[pid]) : placeOf[pid] || i + 1) + '</span>' + avatarHtml(p, 'ava') +
         '<span style="min-width:0"><span class="nm">' + esc(p.name) + '</span> <span class="chip ' + (p.route === 'riskier' ? 'risk' : 'long') + '">' + (p.route === 'riskier' ? 'Riskier' : 'Longer') + '</span>' +
         '<span class="sub" style="display:block">' + esc(statusLine(p)) + '</span><span class="bar"><i style="width:' + pct + '%"></i></span></span></button></li>';
     });
@@ -421,6 +430,7 @@
     var s = st();
     if (p.finished) return 'Escaped on day ' + p.finished.day;
     if (s.status === 'signup') return 'Signed up, waiting for the start';
+    if (s.status === 'finished') return E.remaining(s, p) + ' spaces to go at the end';
     if (p.tasks.length) return 'Playing !bsr ' + p.tasks.map(function (t) { return t.bsr[0]; }).join(', ');
     if (p.skippedDay === s.day) return 'Sitting out today';
     var c = E.canRoll(s, p.id);
@@ -435,6 +445,7 @@
     if (!p) { bar.hidden = true; document.body.classList.remove('has-mbar'); return; }
     var ava = avatarHtml(p, 'mb-ava');
     if (!p.route) html = ava + '<span class="mb-txt"><b>Pick your route</b><span>Longer or riskier</span></span><button type="button" class="btn small" id="mGo">Choose</button>';
+    else if (s.status === 'finished') { var fr = (s.final || []).filter(function (r) { return r.pid === p.id; })[0]; html = ava + '<span class="mb-txt"><b>Game over</b><span>' + (fr ? 'You finished ' + ordinal(fr.place) : 'Final standings are in') + '</span></span><button type="button" class="btn small" id="mFinale">Standings</button>'; }
     else if (s.status === 'signup') html = ava + '<span class="mb-txt"><b>' + (s.startsAt ? 'Starts in <span data-countdown="' + s.startsAt + '">' + fmtLeft(s.startsAt - Date.now()) + '</span>' : 'Starting soon') + '</b><span>You\'re signed up</span></span>';
     else if (p.finished) html = ava + '<span class="mb-txt"><b>Escaped!</b><span>' + ordinal(p.finished.place) + ' place on day ' + p.finished.day + '</span></span>';
     else if (p.tasks.length) {
@@ -453,6 +464,7 @@
   function renderAll() {
     if (!st()) return;
     if (lastStatus === 'signup' && st().status === 'running') toast('The game has started! Roll your first d4.', 'good');
+    if (lastStatus && lastStatus !== 'finished' && st().status === 'finished') setTimeout(maybeFinale, 400);
     lastStatus = st().status;
     renderHeader(); renderBoard(); renderMe(); renderTurn(); renderFeed(); renderStandings(); renderBar();
     if (!$('hostDrawer').hidden) renderHost();
@@ -638,6 +650,45 @@
   }
   function closeModal() { $('modal').hidden = true; if (lastFocus && lastFocus.focus) lastFocus.focus(); }
 
+  // ---- the end of the game ------------------------------------------------------------------
+  function openFinale() {
+    var s = st(), t = theme(), fin = s.final || E.ranking(s);
+    track('finale');
+    try { localStorage.setItem('cg.finale.' + s.id, '1'); } catch (e) {}
+    var line = function (r) { return r.escaped ? 'Escaped day ' + r.day : r.left + ' to go'; };
+    var podium = [fin[1], fin[0], fin[2]].map(function (r, i) {
+      if (!r) return '<div class="pod empty"></div>';
+      var p = s.players[r.pid], rank = [2, 1, 3][i];
+      return '<div class="pod pod' + rank + '" style="--c:' + R.playerColor(s, r.pid) + '">' + avatarHtml(p, 'pod-ava') + '<b>' + esc(p.name) + '</b><span>' + esc(line(r)) + '</span><div class="pod-step">' + ordinal(r.place) + '</div></div>';
+    }).join('');
+    var rest = fin.slice(3).map(function (r) { var p = s.players[r.pid]; return '<li' + (r.pid === store.me ? ' class="me"' : '') + '><span class="place">' + ordinal(r.place) + '</span>' + esc(p.name) + '<span class="why">' + esc(line(r)) + '</span></li>'; }).join('');
+    var mine = fin.filter(function (r) { return r.pid === store.me; })[0];
+    var winner = fin[0] && s.players[fin[0].pid];
+    modal('Game over', '<div class="finale"><p class="lede">' + (winner ? esc(winner.name) + (fin[0].escaped ? ' reached the ' + esc(t.goal) + ' first.' : ' got closest to the ' + esc(t.goal) + '.') : 'The final standings are in.') + '</p>' +
+      '<div class="podium">' + podium + '</div>' + (rest ? '<ol class="finale-rest">' + rest + '</ol>' : '') +
+      (mine ? '<p class="finale-me">You finished <b>' + ordinal(mine.place) + '</b>' + (mine.escaped ? ', escaping on day ' + mine.day : ', ' + mine.left + ' spaces out') + '.</p>' : '') +
+      '<div class="row"><button type="button" class="btn" data-finale-close>Back to the board</button>' + (store.isHost ? '<button type="button" class="btn ghost" data-finale-results>Make the results image</button>' : '') + '</div></div>',
+      function (body) {
+        body.querySelector('[data-finale-close]').onclick = closeModal;
+        var rb = body.querySelector('[data-finale-results]'); if (rb) rb.onclick = function () { closeModal(); openResults(); };
+      });
+    confettiBurst();
+    if (sfx && sfx.win) sfx.win();
+  }
+  function confettiBurst() {
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var box = document.createElement('div'), cols = ['#3fd04a', '#f2a33a', '#a78bfa', '#ffffff', '#ff6b5a', '#4cc9f0'], html = '';
+    box.className = 'confetti burst'; box.setAttribute('aria-hidden', 'true');
+    for (var i = 0; i < 110; i++) html += '<i style="left:' + (Math.random() * 100) + '%;background:' + cols[i % cols.length] + ';animation-duration:' + (2.4 + Math.random() * 2.4) + 's;animation-delay:' + (Math.random() * .9) + 's"></i>';
+    box.innerHTML = html; document.body.appendChild(box);
+    setTimeout(function () { box.remove(); }, 6500);
+  }
+  function maybeFinale() {
+    var s = st(); if (!s || s.status !== 'finished') return;
+    var seen = false; try { seen = localStorage.getItem('cg.finale.' + s.id) === '1'; } catch (e) {}
+    if (!seen) openFinale();
+  }
+
   function openHow() {
     var t = theme(), s = st();
     track('how-to-play');
@@ -742,7 +793,7 @@
       return toDataUrl(href).then(function (d) { im.setAttribute('href', d); }, function () { im.remove(); });
     }))).then(function (r) {
       var css = r[0];
-      var words = t.words.results.replace('{n}', s.day).split(' '), l1 = words.slice(0, 2).join(' '), l2 = words.slice(2).join(' ');
+      var words = resultsTitle().split(' '), l1 = words.length > 2 ? words.slice(0, 2).join(' ') : words[0], l2 = words.length > 2 ? words.slice(2).join(' ') : words.slice(1).join(' ');
       var bfill = t.id === 'christmas' ? '#d7263d' : '#3fd04a', bstroke = t.id === 'christmas' ? '#fff' : '#3b2208';
       var banner = '<g transform="translate(40,40) rotate(-7)" font-family="' + esc(t.font) + '" font-weight="700" fill="' + bfill + '" stroke="' + bstroke + '" stroke-width="14" paint-order="stroke">' +
         '<text x="0" y="100" font-size="118">' + esc(l1) + '</text><text x="40" y="205" font-size="118">' + esc(l2) + '</text></g>';
@@ -761,9 +812,10 @@
       });
     });
   }
+  function resultsTitle() { return st().status === 'finished' ? 'Final results' : theme().words.results.replace('{n}', st().day); }
   function openResults() {
     track('host-results-image');
-    modal('Day ' + st().day + ' results', '<p class="lede">The board with everyone\'s token, ready to post in the game channel.</p><div id="resBox"><p class="why">Drawing the board</p></div>', function (body) {
+    modal(resultsTitle(), '<p class="lede">The board with everyone\'s token, ready to post in the game channel.</p><div id="resBox"><p class="why">Drawing the board</p></div>', function (body) {
       makeResults().then(function (blob) {
         var url = URL.createObjectURL(blob), name = theme().title.replace(/[^A-Za-z0-9]+/g, '-') + '-day-' + st().day + '.png';
         body.querySelector('#resBox').innerHTML = '<img class="result-img" src="' + url + '" alt="Board with every player\'s position">' +
@@ -772,7 +824,7 @@
         var post = body.querySelector('#resPost');
         if (post) post.addEventListener('click', function () {
           post.disabled = true; post.textContent = 'Posting';
-          store.postResults(blob, '**' + theme().words.results.replace('{n}', st().day) + '!!**').then(function () { track('host-results-posted'); post.textContent = 'Posted'; toast('Posted to Discord.', 'good'); }, function (e) { post.disabled = false; post.textContent = 'Post to Discord'; fail(e); });
+          store.postResults(blob, '**' + resultsTitle() + '!!**').then(function () { track('host-results-posted'); post.textContent = 'Posted'; toast('Posted to Discord.', 'good'); }, function (e) { post.disabled = false; post.textContent = 'Post to Discord'; fail(e); });
         });
       }, function (e) { body.querySelector('#resBox').innerHTML = '<p class="err">' + esc(e.message) + '</p>'; });
     });
@@ -786,8 +838,15 @@
   function readStart(id) {
     var el = $(id), v = el && el.value; if (!v) return null;
     var ts = new Date(v).getTime();
-    if (isNaN(ts) || ts < Date.now() + 60000) { toast('Pick a start time in the future.', 'bad'); return false; }
+    if (isNaN(ts) || ts < Date.now() + 60000) { toast('Pick a time in the future.', 'bad'); return false; }
     return ts;
+  }
+  function endSection(s) {
+    var running = s.status === 'running';
+    return '<section class="hsec"><h3>End of the game</h3><p>' + (s.endsAt ? 'The game locks <b>' + esc(startWhen(s.endsAt)) + '</b>, in <span data-countdown="' + s.endsAt + '">' + fmtLeft(s.endsAt - Date.now()) + '</span>. Standings freeze then.' : 'No end time. The game runs until everyone escapes.') + '</p>' +
+      '<label class="start-field"><span>End time</span><input type="datetime-local" id="endEdit" value="' + (s.endsAt ? toLocalInput(s.endsAt) : '') + '"></label>' +
+      '<div class="row"><button type="button" class="btn small" data-h="setend">Save end time</button>' + (s.endsAt ? '<button type="button" class="btn small ghost" data-h="clearend">Clear end time</button>' : '') +
+      (running ? '<button type="button" class="btn small danger" data-h="endnow">End the game now</button>' : '') + '</div></section>';
   }
   function startSection(s) {
     return '<section class="hsec"><h3>Sign-ups are open</h3><p>' + (s.startsAt ? 'The first roll unlocks <b>' + esc(startWhen(s.startsAt)) + '</b>, in <span data-countdown="' + s.startsAt + '">' + fmtLeft(s.startsAt - Date.now()) + '</span>.' : 'No start time is set yet.') +
@@ -799,10 +858,12 @@
     var s = st(), demo = store.mode === 'demo', html = '';
     var claims = [];
     s.order.forEach(function (pid) { s.players[pid].claims.forEach(function (c) { claims.push({ p: s.players[pid], c: c }); }); });
-    if (s.status === 'signup') html += startSection(s); else
+    if (s.status === 'finished') html += '<section class="hsec"><h3>Game over</h3><p>The standings are frozen. Start a new game below when you\'re ready.</p><div class="row"><button type="button" class="btn small" data-h="results">Make the results image</button><button type="button" class="btn small ghost" data-h="finale">Show the final standings</button></div></section>';
+    else if (s.status === 'signup') html += startSection(s); else
     html += '<section class="hsec"><h3>Day ' + s.day + '</h3><p>' + (demo ? 'Starting the next day lets every bot clear maps and roll.' : 'The day turns over by itself at the cutoff. Use this only to fix a missed rollover.') + '</p><div class="row">' +
       '<button type="button" class="btn small" data-h="advance">Start the next day</button>' + (demo ? '<button type="button" class="btn small ghost" data-h="simulate">Skip ahead 3 days</button>' : '') +
       '<button type="button" class="btn small ghost" data-h="results">Make the results image</button></div></section>';
+    if (s.status !== 'finished') html += endSection(s);
     html += '<section class="hsec' + (claims.length ? ' attn' : '') + '"><h3>Runs waiting for approval' + (claims.length ? ' <span class="nav-badge">' + claims.length + '</span>' : '') + '</h3>' + (claims.length ? claims.map(function (x) {
       var t = x.p.tasks.filter(function (k) { return k.id === x.c.task; })[0];
       return '<div class="claim"><b>' + esc(x.p.name) + '</b> says they played <b>!bsr ' + esc(t ? t.bsr.join(' or ') : '?') + '</b>' + (x.c.url ? ' (<a href="' + esc(x.c.url) + '" target="_blank" rel="noopener">replay</a>)' : '') +
@@ -840,12 +901,13 @@
     html += '<section class="hsec"><h3>Theme and board</h3><div class="row"><label>Theme <select id="themeSel">' + Object.keys(C.themes).map(function (k) { return '<option value="' + k + '"' + (k === s.themeId ? ' selected' : '') + '>' + esc(C.themes[k].name) + '</option>'; }).join('') + '</select></label></div>' +
       '<p style="margin-top:10px">Changing the theme keeps everyone where they are. Starting a new game puts everyone back at the start.</p>' +
       '<label class="start-field"><span>Start time for the new game (optional)</span><input type="datetime-local" id="newStart"></label>' +
-      '<p class="why">Leave it empty to start right away. With a time set, sign-ups open now, people pick their routes, and the first roll unlocks at that time. Day 1 lasts until the next ' + esc(cutoffLabel(s)) + ' cutoff, so a ' + esc(cutoffLabel(s)) + ' start gives everyone a full first day.</p><div class="row">' +
+      '<label class="start-field"><span>End time (optional)</span><input type="datetime-local" id="newEnd"></label>' +
+      '<p class="why">With an end time, the game locks then and the standings freeze: escaped players by place, everyone else by spaces left. Without one it runs until everyone escapes. Leave the start empty to start right away. With a start time set, sign-ups open now, people pick their routes, and the first roll unlocks at that time. Day 1 lasts until the next ' + esc(cutoffLabel(s)) + ' cutoff, so a ' + esc(cutoffLabel(s)) + ' start gives everyone a full first day.</p><div class="row">' +
       '<button type="button" class="btn small ghost" data-h="newgame">Start a new game</button>' + (designerBoard() ? '<button type="button" class="btn small ghost" data-h="loadboard">Start a new game on the designer board</button>' : '') + '</div></section>';
-    var keep = {}; ['newStart', 'startEdit'].forEach(function (id) { var el = $(id); if (el && el.value && el.dataset.touched) keep[id] = el.value; });
+    var keep = {}; ['newStart', 'startEdit', 'newEnd', 'endEdit'].forEach(function (id) { var el = $(id); if (el && el.value && el.dataset.touched) keep[id] = el.value; });
     $('hostBody').innerHTML = html;
     Object.keys(keep).forEach(function (id) { var el = $(id); if (el) { el.value = keep[id]; el.dataset.touched = '1'; } });
-    ['newStart', 'startEdit'].forEach(function (id) { var el = $(id); if (el) el.addEventListener('input', function () { el.dataset.touched = '1'; }); });
+    ['newStart', 'startEdit', 'newEnd', 'endEdit'].forEach(function (id) { var el = $(id); if (el) el.addEventListener('input', function () { el.dataset.touched = '1'; }); });
     fillPush();
   }
 
@@ -919,10 +981,16 @@
       case 'reset': if (confirm('Send ' + st().players[pid].name + ' back to the start and clear their maps?')) run('resetPlayer', { pid: pid }); break;
       case 'newgame': {
         var ns = readStart('newStart'); if (ns === false) break;
-        if (confirm(ns ? 'Start a new game with sign-ups open until ' + startWhen(ns) + '? Everyone goes back to the start.' : 'Start a new game now? Everyone goes back to the start.')) run('newGame', { theme: st().themeId, startsAt: ns }, ns ? 'Sign-ups are open.' : 'New game started.');
+        var ne = readStart('newEnd'); if (ne === false) break;
+        if (ne && ne < (ns || Date.now()) + 3600000) { toast('The end time needs to be at least an hour after the start.', 'bad'); break; }
+        if (confirm((ns ? 'Start a new game with sign-ups open until ' + startWhen(ns) + '?' : 'Start a new game now?') + (ne ? ' It ends ' + startWhen(ne) + '.' : '') + ' Everyone goes back to the start.')) run('newGame', { theme: st().themeId, startsAt: ns, endsAt: ne }, ns ? 'Sign-ups are open.' : 'New game started.');
         break;
       }
       case 'reschedule': { var rs = readStart('startEdit'); if (!rs) { if (rs === null) toast('Pick a start time first.', 'bad'); break; } run('schedule', { startsAt: rs }, 'Start time saved.'); break; }
+      case 'setend': { var se = readStart('endEdit'); if (!se) { if (se === null) toast('Pick an end time first.', 'bad'); break; } run('setEnd', { endsAt: se }, 'End time saved.'); break; }
+      case 'finale': closeHost(); openFinale(); break;
+      case 'clearend': run('setEnd', { endsAt: null }, 'End time cleared.'); break;
+      case 'endnow': if (confirm('End the game now? The standings freeze and nobody can roll again.')) run('endNow', {}, 'The game is over.'); break;
       case 'pushon': pushOn(); break;
       case 'pushoff': pushOff(); break;
       case 'pushtest': pushTest(); break;
@@ -934,7 +1002,8 @@
         var b = designerBoard(), probs = E.checkBoard(b);
         if (probs.length) { toast(probs[0], 'bad'); break; }
         var ls = readStart('newStart'); if (ls === false) break;
-        if (confirm('Start a new game on "' + (b.title || 'the designer board') + '"' + (ls ? ' with sign-ups open until ' + startWhen(ls) : '') + '?')) run('newGame', { theme: st().themeId, board: b, startsAt: ls }, ls ? 'Sign-ups are open on your board.' : 'New game started on your board.');
+        var le = readStart('newEnd'); if (le === false) break;
+        if (confirm('Start a new game on "' + (b.title || 'the designer board') + '"' + (ls ? ' with sign-ups open until ' + startWhen(ls) : '') + '?')) run('newGame', { theme: st().themeId, board: b, startsAt: ls, endsAt: le && le > (ls || Date.now()) + 3600000 ? le : null }, ls ? 'Sign-ups are open on your board.' : 'New game started on your board.');
         break;
       }
     }
@@ -945,6 +1014,7 @@
     document.addEventListener('click', function (e) {
       var c = e.target.closest('[data-copy]'); if (c) { copy(c.dataset.copy); return; }
       if (e.target.closest('#rollBtn') || e.target.closest('#mRoll')) { doRoll(); return; }
+      if (e.target.closest('#finaleBtn') || e.target.closest('#mFinale')) { openFinale(); return; }
       var mv = e.target.closest('#mVerify'); if (mv) { doVerify(mv); return; }
       if (e.target.closest('#mGo')) { $('turnPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('turnPanel').focus({ preventScroll: true }); return; }
       var rc = e.target.closest('.route-card'); if (rc) {
@@ -1095,7 +1165,7 @@
     setInterval(tickClock, 30000);
     setInterval(tickCountdowns, 1000);
     var seen = false; try { seen = localStorage.getItem('cg.seenHow') === '1'; localStorage.setItem('cg.seenHow', '1'); } catch (e) {}
-    if (!seen) openHow();
+    if (!seen) openHow(); else maybeFinale();
   }).catch(function (e) {
     if (e === 'gated') return;
     console.error(e);

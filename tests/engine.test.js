@@ -39,7 +39,7 @@ for (let g = 0; g < 400; g++) {
         p.tasks.slice().forEach(t => E.completeTask(s, id, t.id, { by: 'sim' }));
         c = E.canRoll(s, id);
       }
-      assert(['rolled', 'skip', 'finished'].includes(c.code), 'unexpected block ' + c.code);
+      assert(['rolled', 'skip', 'finished', 'not-running'].includes(c.code), 'unexpected block ' + c.code);
     }
     E.advanceDay(s);
   }
@@ -148,6 +148,25 @@ assert.strictEqual(cardsSeen.size, 20);
   const custom = { bonusMaps: ['aaaa1', built[0]] }; assert(!E.upgradeBonus(custom, built)); assert.deepStrictEqual(custom.bonusMaps, ['aaaa1', built[0]]);
   const same = { bonusMaps: built.slice() }; assert(!E.upgradeBonus(same, built));
   console.log('bonus pool ' + built.length + ' maps, upgrade ok');
+}
+
+// end of the game: ranking, end time, everyone escaped
+{
+  const s = newGame('cemetery', seeded(21));
+  ['a', 'b', 'c', 'd'].forEach((id) => { E.addPlayer(s, { id, name: id }); E.chooseRoute(s, id, 'longer'); });
+  E.setPosition(s, 'a', 30); E.setPosition(s, 'b', 35); E.setPosition(s, 'c', 30); E.setPosition(s, 'd', E.exitIndex(s, s.players.d), { apply: true });
+  assert(s.players.d.finished, 'd escaped');
+  const r = E.ranking(s);
+  assert.deepStrictEqual(r.map((x) => x.pid), ['d', 'b', 'a', 'c']);
+  assert.deepStrictEqual(r.map((x) => x.place), [1, 2, 3, 3], 'ties share a place');
+  assert(E.endGame(s, 123)); assert.strictEqual(s.status, 'finished'); assert.strictEqual(s.final[0].pid, 'd');
+  assert.strictEqual(E.canRoll(s, 'a').code, 'not-running'); assert(!E.endGame(s));
+  // everyone out ends it by itself
+  const s2 = newGame('cemetery', seeded(22));
+  ['x', 'y'].forEach((id) => { E.addPlayer(s2, { id, name: id }); E.chooseRoute(s2, id, 'riskier'); });
+  E.setPosition(s2, 'x', E.exitIndex(s2, s2.players.x), { apply: true }); assert.strictEqual(s2.status, 'running');
+  E.setPosition(s2, 'y', E.exitIndex(s2, s2.players.y), { apply: true }); assert.strictEqual(s2.status, 'finished', 'last escape ends the game');
+  console.log('end of game ok');
 }
 
 // sign-ups before a scheduled start

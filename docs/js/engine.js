@@ -60,6 +60,7 @@
       day: 1,
       status: opts.status || 'running',     // signup | running | finished
       startsAt: opts.startsAt || null,      // signup only: when the first roll unlocks (ms)
+      endsAt: opts.endsAt || null,          // optional: when the game locks and the standings freeze (ms)
       startedAt: opts.startedAt || now(),
       players: {},
       order: [],          // join order
@@ -407,6 +408,36 @@
     s.finishOrder.push(p.id);
     p.finished = { day: s.day, place: s.finishOrder.length, at: now() };
     emit(s, p, { t: 'escaped', place: p.finished.place });
+    // Everyone on the board is out: the game is over.
+    var racing = s.order.filter(function (pid) { return s.players[pid].route; });
+    if (racing.length && racing.every(function (pid) { return s.players[pid].finished; })) endGame(s);
+  }
+
+  // Standings: escaped players by place, then everyone else by spaces left (fewest first).
+  function ranking(s) {
+    var ids = s.order.filter(function (pid) { return s.players[pid].route; });
+    ids.sort(function (a, b) {
+      var A = s.players[a], B = s.players[b];
+      if (A.finished || B.finished) return (A.finished ? A.finished.place : 1e6) - (B.finished ? B.finished.place : 1e6);
+      return remaining(s, A) - remaining(s, B) || s.order.indexOf(a) - s.order.indexOf(b);
+    });
+    var out = [], place = 0, prevLeft = null;
+    ids.forEach(function (pid, i) {
+      var p = s.players[pid], left = p.finished ? 0 : remaining(s, p);
+      if (p.finished) place = p.finished.place; else if (left !== prevLeft) place = i + 1;
+      prevLeft = p.finished ? null : left;
+      out.push({ pid: pid, place: place, escaped: !!p.finished, left: left, day: p.finished ? p.finished.day : null });
+    });
+    return out;
+  }
+
+  // Lock the game and freeze the standings.
+  function endGame(s, at) {
+    if (s.status !== 'running') return false;
+    s.status = 'finished'; s.endedAt = at || now();
+    s.final = ranking(s);
+    emit(s, null, { t: 'end', winner: s.final[0] ? s.final[0].pid : null });
+    return true;
   }
 
   // ---- host tools ------------------------------------------------------------
@@ -497,7 +528,8 @@
     setPosition: setPosition, hostCard: hostCard, resetPlayer: resetPlayer,
     routeOf: routeOf, spaceAt: spaceAt, progress: progress, remaining: remaining, exitIndex: exitIndex,
     cardById: cardById, publicState: publicState, allMapKeys: allMapKeys, checkBoard: checkBoard,
-    nextCutoff: nextCutoff, shuffle: shuffle, clone: clone, startGame: startGame, upgradeBonus: upgradeBonus
+    nextCutoff: nextCutoff, shuffle: shuffle, clone: clone, startGame: startGame, upgradeBonus: upgradeBonus,
+    endGame: endGame, ranking: ranking
   };
   root.CGEngine = E;
   if (typeof module !== 'undefined' && module.exports) module.exports = E;

@@ -389,6 +389,26 @@ body.gated .foot { border-top: 0; margin-top: 0; }
 @keyframes coverIn { to { opacity: .95; } }
 .sp.has-cover text { fill: #fff; paint-order: stroke; stroke: rgba(0,0,0,.85); stroke-width: 3px; stroke-linejoin: round; }
 @media (prefers-reduced-motion: reduce) { .sp .cover { animation: none; opacity: .95; } }
+/* end of the game */
+.confetti.burst { z-index: 70; }
+.finale .lede { font-size: 17px; }
+.podium { display: grid; grid-template-columns: repeat(3, 1fr); align-items: end; gap: 10px; margin: 18px 0 14px; }
+.pod { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; min-width: 0; }
+.pod b { font-size: 16px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pod > span { font-size: 13px; color: var(--muted); }
+.pod-ava { width: 64px; height: 64px; border-radius: 50%; border: 3px solid var(--c); object-fit: cover; display: grid; place-items: center; font-weight: 800; font-size: 22px; background: #1a1d18; color: #fff; box-shadow: 0 0 18px color-mix(in srgb, var(--c) 50%, transparent); }
+.pod1 .pod-ava { width: 84px; height: 84px; font-size: 28px; }
+.pod-step { width: 100%; margin-top: 8px; border-radius: 10px 10px 0 0; display: grid; place-items: center; font: 700 26px/1 var(--display); color: var(--accent-ink); background: linear-gradient(180deg, var(--gold), color-mix(in srgb, var(--gold) 55%, #000)); }
+.pod1 .pod-step { height: 96px; font-size: 34px; }
+.pod2 .pod-step { height: 70px; background: linear-gradient(180deg, #d7dbe0, #7c8188); }
+.pod3 .pod-step { height: 52px; background: linear-gradient(180deg, #e0a36a, #7a4a22); }
+.pod.empty { visibility: hidden; }
+.finale-rest { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
+.finale-rest li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--raise-2); }
+.finale-rest li.me { border-color: var(--accent); }
+.finale-rest .place { min-width: 34px; font-weight: 800; color: var(--gold); }
+.finale-rest .why { margin-left: auto; }
+.finale-me { font-size: 17px; margin: 6px 0 16px; }
 .start-field { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; font-size: 14px; color: var(--muted); }
 .start-field input { max-width: 260px; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: #000; color: var(--text); font: inherit; color-scheme: dark; }
 @media (max-width: 420px) { .cd-seg { min-width: 54px; } .cd-seg b { font-size: 26px; } }

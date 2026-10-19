@@ -209,8 +209,8 @@ export class Game extends DurableObject {
     await this.ctx.storage.put('state', this.state);
     await this.ctx.storage.put('meta', this.meta);
     const s = this.state;
-    const next = s && s.status === 'signup' ? s.startsAt : this.meta.nextCutoff;
-    const want = Math.max(Date.now() + 1000, Math.min(next || Date.now() + CHECK_EVERY, Date.now() + CHECK_EVERY));
+    const next = !s ? null : s.status === 'signup' ? s.startsAt : s.status === 'running' ? Math.min(this.meta.nextCutoff || Infinity, s.endsAt || Infinity) : null;
+    const want = Math.max(Date.now() + 1000, Math.min(next && isFinite(next) ? next : Date.now() + CHECK_EVERY, Date.now() + CHECK_EVERY));
     const cur = await this.ctx.storage.getAlarm();
     if (!cur || cur > want) await this.ctx.storage.setAlarm(want);
   }
@@ -248,8 +248,10 @@ export class Game extends DurableObject {
   async act(user, action, a) {
     const s = this.game(); const pid = this.pidFor(user);
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
-    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess'];
+    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess'];
     if (hostOnly.includes(action) && !user.isHost) return { error: 'Only the host can do that.', status: 403 };
+    if (s.status === 'finished' && ['join', 'route', 'roll', 'verify', 'claim'].includes(action)) return { error: 'The game is over.' };
+    const wasRunning = s.status === 'running';
     let result = {};
     try {
       switch (action) {
@@ -298,7 +300,8 @@ export class Game extends DurableObject {
           if (probs.length) return { error: probs[0] };
           const keep = s.order.map((id) => s.players[id]);
           const startsAt = Number(a.startsAt) > Date.now() + 60000 ? Number(a.startsAt) : null;
-          this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.themes[themeId].title, settings: s.settings, rng, status: startsAt ? 'signup' : 'running', startsAt });
+          const endsAt = Number(a.endsAt) > (startsAt || Date.now()) + 3600000 ? Number(a.endsAt) : null;
+          this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.themes[themeId].title, settings: s.settings, rng, status: startsAt ? 'signup' : 'running', startsAt, endsAt });
           keep.forEach((p) => E.addPlayer(this.state, { id: p.id, discordId: p.discordId, name: p.name, avatar: p.avatar, blId: p.blId }));
           this.meta.nextCutoff = startsAt ? null : E.nextCutoff(this.state.settings);
           break;
@@ -308,6 +311,18 @@ export class Game extends DurableObject {
           const at = Number(a.startsAt);
           if (!(at > Date.now() + 60000)) return { error: 'Pick a start time in the future.' };
           s.startsAt = at; s.seq++; break;
+        }
+        case 'setEnd': {
+          if (s.status === 'finished') return { error: 'The game is already over.' };
+          if (a.endsAt == null) { s.endsAt = null; s.seq++; break; }
+          const at = Number(a.endsAt);
+          if (!(at > Date.now() + 60000) || (s.startsAt && s.status === 'signup' && at <= s.startsAt)) return { error: 'Pick an end time in the future, after the start.' };
+          s.endsAt = at; s.seq++; break;
+        }
+        case 'endNow': {
+          if (!E.endGame(s, Date.now())) return { error: 'The game is not running.' };
+          await this.announceEnd();
+          break;
         }
         case 'startNow': {
           if (!E.startGame(s, Date.now())) return { error: 'The game has already started.' };
@@ -332,6 +347,7 @@ export class Game extends DurableObject {
     } catch (e) {
       return { error: e.message || 'That did not work.', code: e.code };
     }
+    if (wasRunning && this.state.status === 'finished' && action !== 'endNow') await this.announceEnd();
     await this.save();
     const out = { result, state: E.publicState(this.state), me: this.state.players[pid] ? pid : null, canPlay: true };
     if (user.isHost) out.access = this.access();
@@ -430,9 +446,19 @@ export class Game extends DurableObject {
     await fetch(this.env.DISCORD_WEBHOOK_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
   }
 
+  async announceEnd() {
+    const s = this.state;
+    if (!this.env.DISCORD_WEBHOOK_URL || this.env.ANNOUNCE_DAYS !== '1' || !s.final) return;
+    const medal = ['🥇', '🥈', '🥉'];
+    const top = s.final.slice(0, 3).map((r, i) => `${medal[i]} ${s.players[r.pid].name}` + (r.escaped ? ` (escaped day ${r.day})` : ` (${r.left} to go)`)).join('\n');
+    const content = `**${s.title} is over!**\n${top}` + (this.env.GAME_PAGE ? `\n${this.env.GAME_PAGE}` : '');
+    await fetch(this.env.DISCORD_WEBHOOK_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content, allowed_mentions: { parse: [] } }) }).catch(() => {});
+  }
+
   async alarm() {
     const s = this.game();
     const now = Date.now();
+    if (s.status === 'running' && s.endsAt && now >= s.endsAt - 1000) { E.endGame(s, now); await this.announceEnd(); }
     if (s.status === 'signup' && s.startsAt && now >= s.startsAt - 1000) {
       E.startGame(s, now);
       this.meta.nextCutoff = E.nextCutoff(s.settings, now + 1000);
@@ -446,7 +472,7 @@ export class Game extends DurableObject {
         await fetch(this.env.DISCORD_WEBHOOK_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
       }
     }
-    for (const pid of s.order.slice(0, 60)) {
+    for (const pid of s.status === 'running' ? s.order.slice(0, 60) : []) {
       const p = s.players[pid];
       if (p.tasks.length && p.blId && !p.finished) { try { await this.check(pid); } catch { /* try again next sweep */ } }
     }
