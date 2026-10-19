@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Grenze+Gotisch:wght@500;700;800&family=Mountains+of+Christmas:wght@700&family=Cherry+Swash:wght@700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/game.css?v=20261019k">
-<link rel="stylesheet" href="css/designer.css?v=20261019k">
+<link rel="stylesheet" href="css/game.css?v=20261019l">
+<link rel="stylesheet" href="css/designer.css?v=20261019l">
 <script data-goatcounter="https://chesters-escape.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
 </head>
@@ -32,6 +32,10 @@
       <button type="button" class="tool" data-tool="select" aria-pressed="true" title="Click a space to edit it, drag to move it">Select and move</button>
       <button type="button" class="tool" data-tool="add" aria-pressed="false" title="Click the board to add a space to the route">Add spaces</button>
       <button type="button" class="tool" data-tool="start" aria-pressed="false" title="Click the board to place this route's start marker">Place start</button>
+      <span class="undo-group">
+        <button type="button" class="tool icon" id="undoBtn" title="Undo (Ctrl+Z)" aria-label="Undo" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+        <button type="button" class="tool icon" id="redoBtn" title="Redo (Ctrl+Y or Ctrl+Shift+Z)" aria-label="Redo" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+      </span>
       <label class="check inline"><input type="checkbox" id="snap" checked> <span>Snap to grid</span></label>
       <label class="check inline"><input type="checkbox" id="showOrder" checked> <span>Show route order</span></label>
     </div>
@@ -85,9 +89,9 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="js/content.js?v=20261019k"></script>
-<script src="js/engine.js?v=20261019k"></script>
-<script src="js/render.js?v=20261019k"></script>
-<script src="js/designer.js?v=20261019k"></script>
+<script src="js/content.js?v=20261019l"></script>
+<script src="js/engine.js?v=20261019l"></script>
+<script src="js/render.js?v=20261019l"></script>
+<script src="js/designer.js?v=20261019l"></script>
 </body>
 </html>

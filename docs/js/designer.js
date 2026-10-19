@@ -108,6 +108,40 @@
   }
   function changed() { persist(); render(); }
 
+  // ---- undo and redo -------------------------------------------------------------
+  // A snapshot is taken just before each change. The background image is kept by reference
+  // (strings are shared), so a big upload is not copied into every step.
+  var past = [], future = [], LIMIT = 100, typing = null;
+  function snap() {
+    var bg = board.background;
+    board.background = null;
+    var json = JSON.stringify(board);
+    board.background = bg;
+    return { json: json, bg: bg, sel: sel, route: route };
+  }
+  function restore(x) {
+    board = JSON.parse(x.json); board.background = x.bg;
+    sel = x.sel && board.spaces[x.sel] ? x.sel : null;
+    route = board.routes[x.route] ? x.route : Object.keys(board.routes)[0];
+  }
+  function checkpoint() {
+    past.push(snap()); if (past.length > LIMIT) past.shift();
+    future = []; updateUndo();
+  }
+  function undo() {
+    if (!past.length) return;
+    future.push(snap()); restore(past.pop()); typing = null; changed(); updateUndo();
+  }
+  function redo() {
+    if (!future.length) return;
+    past.push(snap()); restore(future.pop()); typing = null; changed(); updateUndo();
+  }
+  function updateUndo() {
+    $('undoBtn').disabled = !past.length; $('redoBtn').disabled = !future.length;
+  }
+  // Typing in a text box counts as one step per visit to the box, not one per letter.
+  function typed(id) { if (typing !== id) { checkpoint(); typing = id; } }
+
   // ---- board pointer -----------------------------------------------------------
   function onDown(ev) {
     var svg = $('dzWrap').querySelector('svg'); if (!svg || !svg.contains(ev.target)) return;
@@ -116,6 +150,7 @@
       var xy = snapXY(p.x, p.y);
       var clash = Object.keys(board.spaces).filter(function (id) { var s = board.spaces[id]; return Math.abs(s.x - xy.x) < 20 && Math.abs(s.y - xy.y) < 20; })[0];
       if (clash) { sel = clash; addToRoute(clash); return; }
+      checkpoint();
       var id = newId();
       board.spaces[id] = { id: id, type: 'map', bsr: [''], x: xy.x, y: xy.y };
       insertIntoRoute(id); sel = id; changed();
@@ -123,6 +158,7 @@
     }
     if (tool === 'start') {
       var sxy = snapXY(p.x, p.y);
+      checkpoint();
       board.starts = board.starts || {};
       board.starts[route] = Object.assign({}, board.starts[route] || {}, { x: sxy.x, y: sxy.y });
       changed(); toast('Start marker placed for the ' + board.routeInfo[route].name.toLowerCase() + '.', 'good');
@@ -145,7 +181,7 @@
   }
   function onUp() {
     if (!drag) return;
-    if (drag.moved) { var xy = snapXY(drag.x, drag.y), sp = board.spaces[drag.id]; sp.x = xy.x; sp.y = xy.y; changed(); }
+    if (drag.moved) { var xy = snapXY(drag.x, drag.y), sp = board.spaces[drag.id]; if (sp.x !== xy.x || sp.y !== xy.y) { checkpoint(); sp.x = xy.x; sp.y = xy.y; } changed(); }
     drag = null;
   }
   function insertIntoRoute(id) {
@@ -159,7 +195,7 @@
   }
   function addToRoute(id) {
     if (board.routes[route].indexOf(id) >= 0) { render(); return; }
-    insertIntoRoute(id); changed();
+    checkpoint(); insertIntoRoute(id); changed();
   }
 
   // ---- side panel events ----------------------------------------------------------
@@ -168,10 +204,10 @@
     wrap.addEventListener('pointerdown', onDown);
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
-    document.querySelectorAll('.tool').forEach(function (b) {
+    document.querySelectorAll('.tool[data-tool]').forEach(function (b) {
       b.addEventListener('click', function () {
         tool = b.dataset.tool;
-        document.querySelectorAll('.tool').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+        document.querySelectorAll('.tool[data-tool]').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
         $('toolHelp').textContent = { select: 'Click a space to edit it. Drag a space to move it.', add: 'Click the board to add a space after the selected one on this route. Clicking an existing space adds it to this route.', start: "Click where this route's start arrow should go." }[tool];
         render();
       });
@@ -179,22 +215,24 @@
     $('snap').onchange = render; $('showOrder').onchange = render;
     $('bTheme').innerHTML = Object.keys(C.themes).map(function (k) { return '<option value="' + k + '">' + esc(C.themes[k].name) + '</option>'; }).join('');
     $('bTheme').onchange = function () { themeId = this.value; render(); };
-    $('bTitle').oninput = function () { board.title = this.value; persist(); };
-    $('rName').oninput = function () { board.routeInfo[route].name = this.value; persist(); };
-    $('rBlurb').oninput = function () { board.routeInfo[route].blurb = this.value; persist(); };
-    $('bonus').onchange = function () { board.bonusMaps = this.value.split(/[\s,]+/).map(function (k) { return k.replace(/^!bsr/i, '').trim().toLowerCase(); }).filter(Boolean); changed(); };
+    $('bTitle').oninput = function () { typed('bTitle'); board.title = this.value; persist(); };
+    $('rName').oninput = function () { typed('rName:' + route); board.routeInfo[route].name = this.value; persist(); };
+    $('rBlurb').oninput = function () { typed('rBlurb:' + route); board.routeInfo[route].blurb = this.value; persist(); };
+    ['bTitle', 'rName', 'rBlurb'].forEach(function (id) { $(id).addEventListener('blur', function () { typing = null; }); });
+    $('bonus').onchange = function () { checkpoint(); board.bonusMaps = this.value.split(/[\s,]+/).map(function (k) { return k.replace(/^!bsr/i, '').trim().toLowerCase(); }).filter(Boolean); changed(); };
     $('routeTabs').addEventListener('click', function (e) { var b = e.target.closest('[data-route]'); if (b) { route = b.dataset.route; render(); } });
     $('addToRoute').onclick = function () { if (sel) addToRoute(sel); };
     $('steps').addEventListener('click', function (e) {
       var mv = e.target.closest('[data-mv]'), rm = e.target.closest('[data-rm]'), li = e.target.closest('li[data-id]');
       var list = board.routes[route];
-      if (mv) { var i = +mv.dataset.i, j = i + (+mv.dataset.mv); if (j < 0 || j >= list.length) return; var t = list[i]; list[i] = list[j]; list[j] = t; changed(); return; }
-      if (rm) { list.splice(+rm.dataset.rm, 1); changed(); return; }
+      if (mv) { var i = +mv.dataset.i, j = i + (+mv.dataset.mv); if (j < 0 || j >= list.length) return; checkpoint(); var t = list[i]; list[i] = list[j]; list[j] = t; changed(); return; }
+      if (rm) { checkpoint(); list.splice(+rm.dataset.rm, 1); changed(); return; }
       if (li) { sel = li.dataset.id; render(); }
     });
     $('spaceEdit').addEventListener('change', function (e) {
       var sp = board.spaces[sel]; if (!sp) return;
       var t = e.target;
+      checkpoint();
       if (t.id === 'sType') {
         sp.type = t.value;
         ['bsr', 'n', 'turns', 'to'].forEach(function (k) { delete sp[k]; });
@@ -213,16 +251,17 @@
     });
     $('spaceEdit').addEventListener('click', function (e) {
       if (e.target.id !== 'sDelete' || !sel) return;
+      checkpoint();
       Object.keys(board.routes).forEach(function (r) { board.routes[r] = board.routes[r].filter(function (x) { return x !== sel; }); });
       delete board.spaces[sel]; sel = null; changed();
     });
     $('bgFile').onchange = function () {
       var f = this.files && this.files[0]; if (!f) return;
-      shrink(f).then(function (url) { track('upload-art'); board.background = url; changed(); toast('Background added. Now place a space on each square of the art.', 'good'); }, function () { toast("That image couldn't be read.", 'bad'); });
+      shrink(f).then(function (url) { track('upload-art'); checkpoint(); board.background = url; changed(); toast('Background added. Now place a space on each square of the art.', 'good'); }, function () { toast("That image couldn't be read.", 'bad'); });
       this.value = '';
     };
-    $('bgClear').onclick = function () { board.background = null; board.artSpaces = false; changed(); };
-    $('artSpaces').onchange = function () { board.artSpaces = this.checked; changed(); };
+    $('bgClear').onclick = function () { if (!board.background) return; checkpoint(); board.background = null; board.artSpaces = false; changed(); };
+    $('artSpaces').onchange = function () { checkpoint(); board.artSpaces = this.checked; changed(); };
     $('saveGame').onclick = function () {
       var probs = E.checkBoard(board);
       if (probs.length) { toast('Fix the problems listed first: ' + probs[0], 'bad'); return; }
@@ -240,12 +279,21 @@
       f.text().then(function (txt) {
         var b = JSON.parse(txt);
         if (!b.spaces || !b.routes) throw new Error('not a board');
-        board = b; sel = null; route = Object.keys(b.routes)[0]; changed(); track('open-board'); toast('Board opened.', 'good');
+        checkpoint(); board = b; sel = null; route = Object.keys(b.routes)[0]; changed(); track('open-board'); toast('Board opened. Undo goes back to the board you had.', 'good');
       }).catch(function () { toast("That file isn't a board file from this designer.", 'bad'); });
       this.value = '';
     };
-    $('resetBoard').onclick = function () { if (confirm('Throw away this board and start from Chester\'s Escape?')) { board = C.boards['chester-escape'](); sel = null; changed(); } };
+    $('resetBoard').onclick = function () { if (confirm('Throw away this board and start from Chester\'s Escape?')) { checkpoint(); board = C.boards['chester-escape'](); sel = null; route = 'longer'; changed(); toast('Started over. Undo brings your board back.', 'good'); } };
+    $('undoBtn').onclick = undo; $('redoBtn').onclick = redo;
     document.addEventListener('keydown', function (e) {
+      var inField = /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
+      var mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+      // In a text box, Ctrl+Z stays the browser's own text undo.
+      if (mod && !e.altKey && !inField && (k === 'z' || k === 'y')) {
+        e.preventDefault();
+        if (k === 'y' || e.shiftKey) redo(); else undo();
+        return;
+      }
       if ((e.key === 'Delete' || e.key === 'Backspace') && sel && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); $('spaceEdit').querySelector('#sDelete') && $('spaceEdit').querySelector('#sDelete').click(); }
     });
   }
@@ -264,5 +312,5 @@
     });
   }
 
-  bind(); render();
+  bind(); render(); updateUndo();
 })();
