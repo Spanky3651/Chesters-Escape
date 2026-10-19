@@ -191,6 +191,21 @@ assert.strictEqual(cardsSeen.size, 20);
   console.log('replay rewind matches real positions on ' + checked + ' days');
 }
 
+// roll reminders
+{
+  const s = newGame('cemetery', seeded(31));
+  E.addPlayer(s, { id: 'r1', name: 'r1' }); E.chooseRoute(s, 'r1', 'longer');
+  E.addPlayer(s, { id: 'r2', name: 'r2' });
+  assert.strictEqual(E.reminderFor(s, 'r1').title, 'Your roll is waiting');
+  assert.strictEqual(E.reminderFor(s, 'r2'), null, 'no route yet, no reminder');
+  E.roll(s, 'r1', { forced: 1 });
+  const p = s.players.r1;
+  if (p.tasks.length) { assert(/!bsr/.test(E.reminderFor(s, 'r1').body)); E.claimTask(s, 'r1', p.tasks[0].id, {}); }
+  assert.strictEqual(E.reminderFor(s, 'r1'), null, 'rolled and nothing open (or waiting on the host)');
+  assert.strictEqual(E.localHour(Date.UTC(2026, 9, 19, 23, 30), 'America/New_York'), 19);
+  console.log('reminders ok');
+}
+
 // sign-ups before a scheduled start
 {
   const board = C.boards['chester-escape']();

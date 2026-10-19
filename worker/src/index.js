@@ -127,7 +127,7 @@ export default {
       const user = await userFrom(env, req);
       if (url.pathname === '/api/config') {
         const r = await gameStub(env).whoAmI(user);
-        const vapidKey = user && user.isHost && env.VAPID_PUBLIC_KEY ? String(env.VAPID_PUBLIC_KEY).trim() : undefined;
+        const vapidKey = user && env.VAPID_PUBLIC_KEY ? String(env.VAPID_PUBLIC_KEY).trim() : undefined;
         return json(env, req, { live: true, access: r.access, startsAt: r.startsAt, vapidKey, user: user && { id: user.id, name: user.name, avatar: user.avatar }, isHost: !!(user && user.isHost), pid: r.pid });
       }
       if (url.pathname === '/api/state' && req.method === 'GET') {
@@ -142,7 +142,7 @@ export default {
         return json(env, req, r, r.error ? (r.status || 400) : 200);
       }
       if (url.pathname.startsWith('/api/push/') && req.method === 'POST') {
-        if (!user || !user.isHost) return json(env, req, { error: 'Only hosts get notifications.' }, 403);
+        if (!user) return json(env, req, { error: 'Sign in with Discord first.' }, 401);
         const body = await req.json().catch(() => ({}));
         const r = await gameStub(env).pushOp(user, url.pathname.slice('/api/push/'.length), body);
         return json(env, req, r, r.error ? 400 : 200);
@@ -282,7 +282,7 @@ export class Game extends DurableObject {
         case 'removePlayer': E.removePlayer(s, a.pid); break;
         case 'clearRoute': { const p = s.players[a.pid]; p.route = null; p.pos = -1; p.tasks = []; break; }
         case 'settings': {
-          const allowed = ['exactFinish', 'oneRollPerDay', 'cutoffHour', 'cutoffMinute', 'timeZone'];
+          const allowed = ['exactFinish', 'oneRollPerDay', 'cutoffHour', 'cutoffMinute', 'timeZone', 'remindHour'];
           for (const k of Object.keys(a.patch || {})) if (allowed.includes(k)) s.settings[k] = a.patch[k];
           this.meta.nextCutoff = E.nextCutoff(s.settings); result = s.settings; break;
         }
@@ -360,9 +360,13 @@ export class Game extends DurableObject {
     return pub && priv ? { publicKey: pub, privateKey: priv, subject: this.env.GAME_PAGE || 'https://spanky3651.github.io/Chesters-Escape/' } : null;
   }
   async notifyHosts(msg, only) {
-    const keys = this.pushKeys(), subs = (this.meta.push || []).filter((x) => !only || only(x));
+    const hostIds = String(this.env.HOSTS || '').split(',').map((x) => x.trim());
+    return this.pushTo((this.meta.push || []).filter((x) => (only ? only(x) : hostIds.includes(x.uid))), { ...msg, url: (this.env.GAME_PAGE || '') + '#host' });
+  }
+  async pushTo(subs, msg) {
+    const keys = this.pushKeys();
     if (!keys || !subs.length) return { sent: 0, failed: 0 };
-    const payload = { title: msg.title, body: msg.body || '', tag: msg.tag || 'chester', url: (this.env.GAME_PAGE || '') + '#host' };
+    const payload = { title: msg.title, body: msg.body || '', tag: msg.tag || 'chester', url: msg.url || this.env.GAME_PAGE || '' };
     const gone = new Set(); let sent = 0, failed = 0;
     await Promise.all(subs.map(async (sub) => {
       try {
@@ -377,13 +381,14 @@ export class Game extends DurableObject {
   async pushOp(user, op, body) {
     this.game();
     if (!this.pushKeys()) return { error: 'Notifications are not set up on the server yet.' };
+    if (!this.canUse(user)) return { error: 'The host has to let you in first.' };
     const list = (this.meta.push = this.meta.push || []);
     const sub = body && body.subscription;
     if (op === 'subscribe') {
       if (!sub || !/^https:\/\//.test(sub.endpoint || '') || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) return { error: 'That device did not give a usable subscription.' };
       this.meta.push = list.filter((x) => x.endpoint !== sub.endpoint);
       this.meta.push.push({ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth }, uid: user.id, name: user.name, label: String(body.label || 'Device').slice(0, 60), at: Date.now() });
-      if (this.meta.push.length > 20) this.meta.push.shift();
+      if (this.meta.push.length > 100) this.meta.push.shift();
       await this.save();
       return { ok: true, devices: this.meta.push.filter((x) => x.uid === user.id).length };
     }
@@ -394,7 +399,7 @@ export class Game extends DurableObject {
     }
     if (op === 'test') {
       const ep = String(body && body.endpoint || '');
-      const r = await this.notifyHosts({ title: 'Notifications are on', body: 'This device will hear about sign-ins and runs to approve.', tag: 'test' }, (x) => x.uid === user.id && (!ep || x.endpoint === ep));
+      const r = await this.pushTo((this.meta.push || []).filter((x) => x.uid === user.id && (!ep || x.endpoint === ep)), { title: 'Notifications are on', body: user.isHost ? 'This device will hear about sign-ins, runs to approve, and your roll reminders.' : 'This device will remind you when your roll or map is waiting.', tag: 'test' });
       await this.save();
       if (r.sent) return { ok: true, sent: r.sent };
       return { error: r.failed ? 'The push did not go through. Turn notifications off and on again on this device.' : 'Turn on notifications on this device first.' };
@@ -446,6 +451,21 @@ export class Game extends DurableObject {
     await fetch(this.env.DISCORD_WEBHOOK_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
   }
 
+  // Once a game day, at the reminder hour: nudge players who turned notifications on and still
+  // have a roll or an open map. Runs from the alarm, so it lands within 15 minutes of the hour.
+  async remind(now) {
+    const s = this.state, h = s.settings.remindHour;
+    if (s.status !== 'running' || h == null || h === '' || this.meta.remindedDay === s.day) return;
+    if (E.localHour(now, s.settings.timeZone) < Number(h)) return;
+    this.meta.remindedDay = s.day;
+    const byUid = {};
+    for (const sub of this.meta.push || []) (byUid[sub.uid] = byUid[sub.uid] || []).push(sub);
+    for (const uid of Object.keys(byUid)) {
+      const msg = E.reminderFor(s, 'd' + uid);
+      if (msg) await this.pushTo(byUid[uid], { ...msg, tag: 'remind-' + s.day });
+    }
+  }
+
   async announceEnd() {
     const s = this.state;
     if (!this.env.DISCORD_WEBHOOK_URL || this.env.ANNOUNCE_DAYS !== '1' || !s.final) return;
@@ -472,6 +492,7 @@ export class Game extends DurableObject {
         await fetch(this.env.DISCORD_WEBHOOK_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
       }
     }
+    await this.remind(now);
     for (const pid of s.status === 'running' ? s.order.slice(0, 60) : []) {
       const p = s.players[pid];
       if (p.tasks.length && p.blId && !p.finished) { try { await this.check(pid); } catch { /* try again next sweep */ } }

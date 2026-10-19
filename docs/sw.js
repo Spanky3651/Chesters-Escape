@@ -11,17 +11,17 @@ self.addEventListener('push', function (e) {
     renotify: true,
     icon: 'img/icon-192.png',
     badge: 'img/badge.png',
-    data: { url: d.url || self.registration.scope + '#host' }
+    data: { url: d.url || self.registration.scope }
   }));
 });
 
-// Tapping a notification opens Host tools, reusing an open game tab when there is one.
+// Tapping a notification opens the game (Host tools for host alerts), reusing an open tab when there is one.
 self.addEventListener('notificationclick', function (e) {
   e.notification.close();
-  var url = (e.notification.data && e.notification.data.url) || self.registration.scope + '#host';
+  var url = (e.notification.data && e.notification.data.url) || self.registration.scope;
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
     for (var i = 0; i < list.length; i++) {
-      if (list[i].url.indexOf(self.registration.scope) === 0) { list[i].postMessage({ type: 'open-host' }); return list[i].focus(); }
+      if (list[i].url.indexOf(self.registration.scope) === 0) { if (/#host$/.test(url)) list[i].postMessage({ type: 'open-host' }); return list[i].focus(); }
     }
     return self.clients.openWindow(url);
   }));

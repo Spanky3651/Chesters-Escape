@@ -31,7 +31,8 @@
     oneRollPerDay: true,
     cutoffHour: 0,           // local hour the day rolls over (0 = midnight)
     cutoffMinute: 59,
-    timeZone: 'America/New_York'
+    timeZone: 'America/New_York',
+    remindHour: 19           // roll reminders for players who turned them on (null = off)
   };
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -431,6 +432,17 @@
     return out;
   }
 
+  // A roll reminder for this player today, or null if they are all set.
+  function reminderFor(s, pid) {
+    var p = s.players[pid];
+    if (!p || !p.route || p.finished || s.status !== 'running') return null;
+    var open = p.tasks.filter(function (t) { return !p.claims.some(function (c) { return c.task === t.id; }); });
+    if (open.length) return { title: 'Your map is still open', body: 'Play !bsr ' + open[0].bsr.join(' or ') + ' to unlock your next roll.' };
+    if (canRoll(s, pid).ok) return { title: 'Your roll is waiting', body: 'You haven\'t rolled today. The day turns over at the cutoff.' };
+    return null;
+  }
+  function localHour(ts, tz) { return zoneParts(new Date(ts), tz || DEFAULTS.timeZone).h; }
+
   // Where every token was just before event `firstId`, worked out backwards from now.
   function positionsBefore(s, firstId) {
     var pos = {}, b = s.board;
@@ -545,7 +557,7 @@
     routeOf: routeOf, spaceAt: spaceAt, progress: progress, remaining: remaining, exitIndex: exitIndex,
     cardById: cardById, publicState: publicState, allMapKeys: allMapKeys, checkBoard: checkBoard,
     nextCutoff: nextCutoff, shuffle: shuffle, clone: clone, startGame: startGame, upgradeBonus: upgradeBonus,
-    endGame: endGame, ranking: ranking, positionsBefore: positionsBefore
+    endGame: endGame, ranking: ranking, positionsBefore: positionsBefore, reminderFor: reminderFor, localHour: localHour
   };
   root.CGEngine = E;
   if (typeof module !== 'undefined' && module.exports) module.exports = E;

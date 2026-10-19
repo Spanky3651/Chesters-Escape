@@ -422,6 +422,11 @@ body.gated .foot { border-top: 0; margin-top: 0; }
 .replay-cap #replayText { min-width: 0; }
 .replay-cap button { flex: none; padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,.3); background: none; color: #fff; font-weight: 700; cursor: pointer; }
 .board-zone.replaying .zoom-btn { visibility: hidden; }
+/* roll reminders in the player panel */
+.me-push:empty { display: none; }
+.me-push { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 14.5px; color: var(--muted); }
+.me-push .push-on { color: var(--good); }
+.start-field select { max-width: 260px; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: #000; color: var(--text); font: inherit; color-scheme: dark; }
 .start-field { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; font-size: 14px; color: var(--muted); }
 .start-field input { max-width: 260px; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: #000; color: var(--text); font: inherit; color-scheme: dark; }
 @media (max-width: 420px) { .cd-seg { min-width: 54px; } .cd-seg b { font-size: 26px; } }

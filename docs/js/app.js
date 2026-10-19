@@ -272,8 +272,10 @@
     if (p.finished) stats.push('<span class="stat good">Escaped on day ' + p.finished.day + ', ' + ordinal(p.finished.place) + ' place</span>');
     el.innerHTML = '<div class="me-row">' + avatarHtml(p, 'me-ava') + '<div><div class="me-name">' + esc(p.name) + '</div><div class="me-sub">' + esc(route) +
       (p.blId ? ' &middot; <a href="https://beatleader.com/u/' + encodeURIComponent(p.blId) + '" target="_blank" rel="noopener">BeatLeader</a>' : '') + '</div></div></div>' +
-      (stats.length ? '<div class="me-stats">' + stats.join('') + '</div>' : '');
+      (stats.length ? '<div class="me-stats">' + stats.join('') + '</div>' : '') +
+      (store.mode === 'live' && store.canPlay && !p.finished && s.status !== 'finished' && s.settings.remindHour != null && s.settings.remindHour !== '' ? '<div class="push-box me-push" data-kind="player"></div>' : '');
     el.style.setProperty('--c', col);
+    fillPush();
   }
 
   // ---- turn panel --------------------------------------------------------------
@@ -1009,7 +1011,7 @@
       }).join('');
       html += '</section>';
     }
-    html += '<section class="hsec"><h3>Notifications on this device</h3><div id="pushBox"><p>Checking this device.</p></div></section>';
+    html += '<section class="hsec"><h3>Notifications on this device</h3><div id="pushBox" class="push-box" data-kind="host"><p>Checking this device.</p></div></section>';
     html += '<section class="hsec"><h3>Players</h3><p>Space 0 is the start. Moving a token does not apply the space unless you tick the box.</p><table class="ptable"><tbody>';
     s.order.forEach(function (pid) {
       var p = s.players[pid];
@@ -1022,7 +1024,9 @@
     html += '</tbody></table><label class="check"><input type="checkbox" id="applyMove"> <span>Apply the space after moving a token</span></label></section>';
     html += '<section class="hsec"><h3>Rules</h3>' +
       '<label class="check"><input type="checkbox" data-set="exactFinish"' + (s.settings.exactFinish ? ' checked' : '') + '> <span>Exact roll needed to escape</span></label>' +
-      '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label></section>';
+      '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label>' +
+      '<label class="start-field"><span>Roll reminder for players who turn on notifications</span><select id="remindSel"><option value="">Off</option>' +
+      [17, 18, 19, 20, 21, 22].map(function (h) { return '<option value="' + h + '"' + (String(s.settings.remindHour) === String(h) ? ' selected' : '') + '>' + hourLabel(h) + ' Eastern</option>'; }).join('') + '</select></label></section>';
     html += '<section class="hsec"><h3>Theme and board</h3><div class="row"><label>Theme <select id="themeSel">' + Object.keys(C.themes).map(function (k) { return '<option value="' + k + '"' + (k === s.themeId ? ' selected' : '') + '>' + esc(C.themes[k].name) + '</option>'; }).join('') + '</select></label></div>' +
       '<p style="margin-top:10px">Changing the theme keeps everyone where they are. Starting a new game puts everyone back at the start.</p>' +
       '<label class="start-field"><span>Start time for the new game (optional)</span><input type="datetime-local" id="newStart"></label>' +
@@ -1054,17 +1058,27 @@
     var br = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : 'browser';
     return os + ' ' + br;
   }
+  // One switch per device. Hosts hear about sign-ins and runs to approve; players (hosts too,
+  // if they play) get the evening reminder when a roll or map is still waiting.
+  function hourLabel(h) { h = Number(h); return ((h % 12) || 12) + ' ' + (h < 12 ? 'AM' : 'PM'); }
   function fillPush() {
-    var box = $('pushBox'); if (!box) return;
-    if (store.mode !== 'live') { box.innerHTML = '<p>Push notifications work on the live site.</p>'; return; }
-    if (!pushSupported()) { box.innerHTML = '<p>This browser can\'t do push notifications. Chrome on Android or on your PC can.</p>'; return; }
-    if (!store.vapidKey) { box.innerHTML = '<p>Notifications are not set up on the server yet. Add the two VAPID keys to the Worker.</p>'; return; }
-    if (Notification.permission === 'denied') { box.innerHTML = '<p>Notifications are blocked for this site. Allow them in the browser\'s site settings, then reopen Host tools.</p>'; return; }
+    var boxes = document.querySelectorAll('.push-box'); if (!boxes.length) return;
+    var set = function (html, kind) { Array.prototype.forEach.call(document.querySelectorAll('.push-box'), function (b) { if (!kind || b.dataset.kind === kind) b.innerHTML = typeof html === 'function' ? html(b.dataset.kind) : html; }); };
+    if (store.mode !== 'live') { set('<p>Push notifications work on the live site.</p>'); return; }
+    if (!pushSupported()) { set(function (k) { return k === 'host' ? '<p>This browser can\'t do push notifications. Chrome on Android or on your PC can.</p>' : ''; }); return; }
+    if (!store.vapidKey) { set(function (k) { return k === 'host' ? '<p>Notifications are not set up on the server yet. Add the two VAPID keys to the Worker.</p>' : ''; }); return; }
+    if (Notification.permission === 'denied') { set('<p class="why">Notifications are blocked for this site. Allow them in the browser\'s site settings.</p>'); return; }
+    var at = hourLabel(st().settings.remindHour == null ? 19 : st().settings.remindHour);
     currentSub().then(function (sub) {
-      box = $('pushBox'); if (!box) return;
-      box.innerHTML = sub && Notification.permission === 'granted'
-        ? '<p class="push-on">On for this device. You\'ll get a notification when someone is waiting to get in or asks you to approve a run.</p><div class="row"><button type="button" class="btn small" data-h="pushtest">Send a test</button><button type="button" class="btn small ghost" data-h="pushoff">Turn off</button></div>'
-        : '<p>Get a notification on this device when someone is waiting to get in or asks you to approve a run, even with the game closed.</p><div class="row"><button type="button" class="btn small" data-h="pushon">Turn on notifications</button></div>';
+      var on = sub && Notification.permission === 'granted';
+      set(function (k) {
+        if (k === 'host') return on
+          ? '<p class="push-on">On for this device. You\'ll get a notification when someone is waiting to get in or asks you to approve a run, plus your own roll reminders.</p><div class="row"><button type="button" class="btn small" data-push="test">Send a test</button><button type="button" class="btn small ghost" data-push="off">Turn off</button></div>'
+          : '<p>Get a notification on this device when someone is waiting to get in or asks you to approve a run, even with the game closed.</p><div class="row"><button type="button" class="btn small" data-push="on">Turn on notifications</button></div>';
+        return on
+          ? '<span class="push-on">&#128276; Roll reminders are on (' + esc(at) + ')</span><button type="button" class="btn small link" data-push="off">Turn off</button>'
+          : '<span>&#128276; Get a reminder at ' + esc(at) + ' if your roll or map is still waiting</span><button type="button" class="btn small ghost" data-push="on">Remind me</button>';
+      });
     });
   }
   function pushOn() {
@@ -1077,7 +1091,7 @@
         .then(function () { return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }); });
     }).then(function (sub) {
       return store.post('/api/push/subscribe', { subscription: sub.toJSON(), label: deviceLabel() });
-    }).then(function () { track('push-on'); toast('Notifications are on for this device.', 'good'); fillPush(); }, function (e) { fail(e); fillPush(); });
+    }).then(function () { track('push-on'); toast('Notifications are on for this device.', 'good'); pushTest(); fillPush(); }, function (e) { fail(e); fillPush(); });
   }
   function pushOff() {
     currentSub().then(function (sub) {
@@ -1116,9 +1130,6 @@
       case 'finale': closeHost(); openFinale(); break;
       case 'clearend': run('setEnd', { endsAt: null }, 'End time cleared.'); break;
       case 'endnow': if (confirm('End the game now? The standings freeze and nobody can roll again.')) run('endNow', {}, 'The game is over.'); break;
-      case 'pushon': pushOn(); break;
-      case 'pushoff': pushOff(); break;
-      case 'pushtest': pushTest(); break;
       case 'startnow': if (confirm('Start the game now? Everyone can roll right away.')) run('startNow', {}, 'The game has started.'); break;
       case 'letin': run('letIn', { id: btn.dataset.id }, 'Let in.'); break;
       case 'dismiss': run('dismiss', { id: btn.dataset.id }); break;
@@ -1140,6 +1151,7 @@
       var c = e.target.closest('[data-copy]'); if (c) { copy(c.dataset.copy); return; }
       if (e.target.closest('#rollBtn') || e.target.closest('#mRoll')) { doRoll(); return; }
       if (e.target.closest('#finaleBtn') || e.target.closest('#mFinale')) { openFinale(); return; }
+      var pb = e.target.closest('[data-push]'); if (pb) { ({ on: pushOn, off: pushOff, test: pushTest })[pb.dataset.push](); return; }
       var mv = e.target.closest('#mVerify'); if (mv) { doVerify(mv); return; }
       if (e.target.closest('#mGo')) { $('turnPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('turnPanel').focus({ preventScroll: true }); return; }
       var rc = e.target.closest('.route-card'); if (rc) {
@@ -1179,6 +1191,7 @@
       if (t.dataset.cardfor && t.value) { var pid = t.dataset.cardfor, cid = t.value; store.act('card', { pid: pid, card: cid }).then(function () { toast('Gave ' + st().players[pid].name + ' a card.', 'good'); }, fail); return; }
       if (t.dataset.set) { var patch = {}; patch[t.dataset.set] = t.checked; store.act('settings', { patch: patch }).catch(fail); return; }
       if (t.name === 'acmode') { store.act('accessMode', { mode: t.value }).then(function () { track('host-access-' + t.value); toast(t.value === 'open' ? 'Anyone who signs in can play now.' : 'Invite-only again.', 'good'); }, fail); return; }
+      if (t.id === 'remindSel') { store.act('settings', { patch: { remindHour: t.value === '' ? null : Number(t.value) } }).then(function () { track('host-reminder-' + (t.value || 'off')); toast(t.value === '' ? 'Roll reminders are off.' : 'Roll reminders go out at ' + hourLabel(t.value) + '.', 'good'); }, fail); return; }
       if (t.id === 'themeSel') { store.act('theme', { theme: t.value }).then(function () { track('host-theme-' + t.value); renderBoard(true); }, fail); }
     });
     $('howBtn').onclick = openHow;
