@@ -165,7 +165,7 @@ assert.strictEqual(cardsSeen.size, 20);
   const s2 = newGame('cemetery', seeded(22));
   ['x', 'y'].forEach((id) => { E.addPlayer(s2, { id, name: id }); E.chooseRoute(s2, id, 'riskier'); });
   E.setPosition(s2, 'x', E.exitIndex(s2, s2.players.x), { apply: true }); assert.strictEqual(s2.status, 'running');
-  E.setPosition(s2, 'y', E.exitIndex(s2, s2.players.y), { apply: true }); assert.strictEqual(s2.status, 'finished', 'last escape ends the game');
+  E.advanceDay(s2); E.setPosition(s2, 'y', E.exitIndex(s2, s2.players.y), { apply: true }); assert.strictEqual(s2.status, 'finished', 'last escape ends the game');
   console.log('end of game ok');
 }
 
@@ -219,6 +219,33 @@ assert.strictEqual(cardsSeen.size, 20);
   }
   console.log('reminder times: ' + seen.join(', '));
   console.log('reminders ok');
+}
+
+// only one escape per day: the second player waits at the gate and walks out on the next roll
+{
+  const s = newGame('cemetery', seeded(41));
+  ['a', 'b', 'c'].forEach((id) => { E.addPlayer(s, { id, name: id }); E.chooseRoute(s, id, 'longer'); });
+  const last = E.exitIndex(s, s.players.a);
+  E.setPosition(s, 'a', last - 1); E.setPosition(s, 'b', last - 2); E.setPosition(s, 'c', last - 1);
+  E.roll(s, 'a', { forced: 2 }); assert(s.players.a.finished, 'a escapes');
+  E.roll(s, 'b', { forced: 4 });
+  assert(!s.players.b.finished, 'b cannot escape the same day');
+  assert.strictEqual(s.players.b.pos, last - 1, 'b waits one space short');
+  assert(s.events.some((e) => e.t === 'gate-closed' && e.pid === 'b'));
+  assert(s.players.b.tasks.length, 'b still gets a map (the space it waits on, or a bonus)');
+  s.players.b.tasks.slice().forEach((t) => E.completeTask(s, 'b', t.id, { by: 't' }));
+  E.advanceDay(s);
+  E.roll(s, 'b', { forced: 1 }); assert(s.players.b.finished && s.players.b.finished.day === s.day, 'b walks out the next day');
+  E.roll(s, 'c', { forced: 3 }); assert(!s.players.c.finished, 'still one per day');
+  // the host can switch it off
+  const s2 = newGame('cemetery', seeded(42)); s2.settings.oneFinishPerDay = false;
+  ['x', 'y'].forEach((id) => { E.addPlayer(s2, { id, name: id }); E.chooseRoute(s2, id, 'longer'); E.setPosition(s2, id, E.exitIndex(s2, s2.players[id]) - 1); });
+  E.roll(s2, 'x', { forced: 1 }); E.roll(s2, 'y', { forced: 1 }); assert(s2.players.x.finished && s2.players.y.finished, 'both escape with the rule off');
+  // a game saved before the rule existed gets it
+  const s3 = newGame('cemetery', seeded(43)); delete s3.settings.oneFinishPerDay;
+  ['x', 'y'].forEach((id) => { E.addPlayer(s3, { id, name: id }); E.chooseRoute(s3, id, 'longer'); E.setPosition(s3, id, E.exitIndex(s3, s3.players[id]) - 1); });
+  E.roll(s3, 'x', { forced: 1 }); E.roll(s3, 'y', { forced: 1 }); assert(s3.players.x.finished && !s3.players.y.finished, 'old games follow the rule');
+  console.log('one escape per day ok');
 }
 
 // sign-ups before a scheduled start

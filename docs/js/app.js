@@ -63,7 +63,7 @@
   }
   function avatarHtml(p, cls) {
     var col = R.playerColor(st(), p.id);
-    if (p.avatar) return '<img class="' + cls + '" style="--c:' + col + '" src="' + esc(p.avatar) + '" alt="" onerror="this.outerHTML=\'<span class=&quot;' + cls + '&quot; style=&quot;--c:' + col + '&quot;>' + esc(R.initials(p.name)) + '</span>\'">';
+    if (p.avatar) return '<img class="' + cls + '" style="--c:' + col + '" src="' + esc(p.avatar) + '" alt="" onerror="if(this.parentNode)this.outerHTML=\'<span class=&quot;' + cls + '&quot; style=&quot;--c:' + col + '&quot;>' + esc(R.initials(p.name)) + '</span>\'">';
     return '<span class="' + cls + '" style="--c:' + col + '">' + esc(R.initials(p.name)) + '</span>';
   }
   function copy(text) {
@@ -364,7 +364,7 @@
   }
 
   // ---- feed --------------------------------------------------------------------
-  var ICON = { roll: '🎲', land: '📍', task: '🎵', card: '🃏', move: '➡️', skip: '⏸️', start: '↩️', warp: '🌀', cleared: '✅', claim: '📨', 'claim-rejected': '❌', 'lost-turn': '💤', escaped: '🎉', route: '🧭', join: '👋', shield: '🛡️', 'shield-used': '🛡️', again: '🎲', overshoot: '🎯', 'host-move': '🧹', 'host-reset': '🧹', reshuffle: '🔀', begin: '🏁' };
+  var ICON = { roll: '🎲', land: '📍', task: '🎵', card: '🃏', move: '➡️', skip: '⏸️', start: '↩️', warp: '🌀', cleared: '✅', claim: '📨', 'claim-rejected': '❌', 'lost-turn': '💤', escaped: '🎉', route: '🧭', join: '👋', shield: '🛡️', 'shield-used': '🛡️', again: '🎲', overshoot: '🎯', 'gate-closed': '🔒', 'host-move': '🧹', 'host-reset': '🧹', reshuffle: '🔀', begin: '🏁' };
   function evText(e) {
     var s = st(), t = theme(), sp = e.space ? s.board.spaces[e.space] : null, card = e.card ? E.cardById(s, e.card) : null;
     switch (e.t) {
@@ -392,6 +392,7 @@
       case 'shield-used': return { html: 'Protection used up. The setback missed', cls: 'good' };
       case 'again': return { html: 'Gets another roll today', cls: 'good' };
       case 'overshoot': return { html: 'Needs exactly ' + e.need + ' to escape' };
+      case 'gate-closed': return { html: 'Reached the ' + esc(t.goal) + ', but someone already escaped today. Waits at the gate and walks out on the next roll.', cls: 'bad' };
       case 'host-move': return { html: 'The host moved this token' };
       case 'host-reset': return { html: 'The host reset this token' };
       case 'rest': return null;
@@ -548,6 +549,7 @@
         if (e.t === 'move') { if (x) cap(name + x.html); return walkTo(e.pid, e.from, e.to); }
         if (e.t === 'warp' && e.to) { if (x) cap(name + x.html); var wi = idx(p, e.to); return wi >= 0 ? hop(e.pid, wi, true) : null; }
         if (e.t === 'start') { cap(name + 'went back to the start'); return hop(e.pid, -1, true); }
+        if (e.t === 'gate-closed') { cap(name + 'found the gate closed for today'); return hop(e.pid, last - 1); }
         if (e.t === 'host-move') { cap(name + 'was moved by the host'); return hop(e.pid, e.to, true); }
         if (e.t === 'host-reset') { cap(name + 'was reset by the host'); return hop(e.pid, -1, true); }
         if (e.t === 'card' || e.t === 'escaped' || e.t === 'skip' || (e.t === 'task' && e.bonus)) { if (x) { cap(name + x.html); return wait(e.t === 'escaped' ? 1400 : 900); } }
@@ -834,7 +836,8 @@
       '<li>Event spaces can push you ahead, send you back, cost you a turn, or block the way until you play their map.</li>' +
       '<li>If a card or event moves you onto a map, play it. A card or event never chains into another card.</li>' +
       '<li>Every roll ends with a map. If your turn stops on a space without one, you get a bonus map. A Safe space is the only break.</li>' +
-      '<li>First one to the ' + esc(t.goal) + ' wins. Everyone else keeps playing for their place.</li></ol>' +
+      '<li>First one to the ' + esc(t.goal) + ' wins. Everyone else keeps playing for their place.</li>' +
+      (s.settings.oneFinishPerDay !== false ? '<li>Only one player can escape per day. If someone already got out today, you wait at the gate and walk out on your next roll.</li>' : '') + '</ol>' +
       '<p class="why">If you played a map and the check can\'t find it (for example a replay that wasn\'t a new personal best), use "I played it" and the host can approve it.</p>');
   }
 
@@ -1030,6 +1033,7 @@
     html += '</tbody></table><label class="check"><input type="checkbox" id="applyMove"> <span>Apply the space after moving a token</span></label></section>';
     html += '<section class="hsec"><h3>Rules</h3>' +
       '<label class="check"><input type="checkbox" data-set="exactFinish"' + (s.settings.exactFinish ? ' checked' : '') + '> <span>Exact roll needed to escape</span></label>' +
+      '<label class="check"><input type="checkbox" data-set="oneFinishPerDay"' + (s.settings.oneFinishPerDay !== false ? ' checked' : '') + '> <span>Only one player can escape per day</span></label>' +
       '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label>' +
       '<label class="start-field"><span>Roll reminder for players who turn on notifications</span><select id="remindSel"><option value=""' + (E.remindHour(s) == null ? ' selected' : '') + '>Off</option>' +
       [17, 18, 19, 20, 21, 22].map(function (h) { return '<option value="' + h + '"' + (E.remindHour(s) === h ? ' selected' : '') + '>' + hourLabel(h) + ' in each player\'s own time</option>'; }).join('') + '</select></label></section>';

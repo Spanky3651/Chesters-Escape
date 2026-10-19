@@ -28,6 +28,7 @@
   var DEFAULTS = {
     dieSides: 4,
     exactFinish: false,      // true = you need the exact roll to reach the exit
+    oneFinishPerDay: true,   // only one player can escape each day; the next one waits at the gate
     oneRollPerDay: true,
     cutoffHour: 0,           // local hour the day rolls over (0 = midnight)
     cutoffMinute: 59,
@@ -193,7 +194,7 @@
     ctx.depth++;
     if (ctx.depth > 8) return;
     var last = exitIndex(s, p);
-    if (p.pos >= last) { p.pos = last; return finish(s, p); }
+    if (p.pos >= last) { p.pos = last; return finish(s, p, ctx); }
     if (p.pos < 0) { p.pos = -1; return; }
     var sp = spaceAt(s, p);
     if (!sp) return;
@@ -231,7 +232,7 @@
         land(s, p, 'warp', ctx);
         break;
       case 'exit':
-        finish(s, p);
+        finish(s, p, ctx);
         break;
       default:
         break;
@@ -403,8 +404,18 @@
     return s.day;
   }
 
-  function finish(s, p) {
+  function finish(s, p, ctx) {
     if (p.finished) return;
+    // One escape per day: if someone already got out today, wait one space short of the exit.
+    // Games made before this rule have no setting saved, so they get it too.
+    if (s.settings.oneFinishPerDay !== false && s.finishOrder.some(function (pid) { var q = s.players[pid]; return q && q.finished && q.finished.day === s.day; })) {
+      p.pos = Math.max(-1, exitIndex(s, p) - 1);
+      if (ctx && ctx.steps) ctx.steps.push(p.pos);
+      emit(s, p, { t: 'gate-closed' });
+      var wait = spaceAt(s, p);   // waiting on a map space: play that map today
+      if (wait && (wait.type === 'map' || wait.type === 'task') && wait.bsr && wait.bsr.length) addTask(s, p, { bsr: wait.bsr, space: wait.id, kind: wait.kind || null, source: 'space' });
+      return;
+    }
     p.tasks = []; p.claims = [];
     s.finishOrder.push(p.id);
     p.finished = { day: s.day, place: s.finishOrder.length, at: now() };

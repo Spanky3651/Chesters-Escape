@@ -284,7 +284,7 @@ export class Game extends DurableObject {
         case 'removePlayer': E.removePlayer(s, a.pid); break;
         case 'clearRoute': { const p = s.players[a.pid]; p.route = null; p.pos = -1; p.tasks = []; break; }
         case 'settings': {
-          const allowed = ['exactFinish', 'oneRollPerDay', 'cutoffHour', 'cutoffMinute', 'timeZone', 'remindHour'];
+          const allowed = ['exactFinish', 'oneFinishPerDay', 'oneRollPerDay', 'cutoffHour', 'cutoffMinute', 'timeZone', 'remindHour'];
           for (const k of Object.keys(a.patch || {})) if (allowed.includes(k)) s.settings[k] = a.patch[k];
           this.meta.nextCutoff = E.nextCutoff(s.settings); result = s.settings; break;
         }
