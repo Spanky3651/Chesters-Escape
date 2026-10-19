@@ -1075,9 +1075,11 @@
         if (k === 'host') return on
           ? '<p class="push-on">On for this device. You\'ll get a notification when someone is waiting to get in or asks you to approve a run, plus your own roll reminders.</p><div class="row"><button type="button" class="btn small" data-push="test">Send a test</button><button type="button" class="btn small ghost" data-push="off">Turn off</button></div>'
           : '<p>Get a notification on this device when someone is waiting to get in or asks you to approve a run, even with the game closed.</p><div class="row"><button type="button" class="btn small" data-push="on">Turn on notifications</button></div>';
-        return on
-          ? '<span class="push-on">&#128276; Roll reminders are on (' + esc(at) + ')</span><button type="button" class="btn small link" data-push="off">Turn off</button>'
-          : '<span>&#128276; Get a reminder at ' + esc(at) + ' if your roll or map is still waiting</span><button type="button" class="btn small ghost" data-push="on">Remind me</button>';
+        var bell = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a6 6 0 0 0-6 6v3.4L4.3 15a1 1 0 0 0 .9 1.5h13.6a1 1 0 0 0 .9-1.5L18 11.9V8.5a6 6 0 0 0-6-6Z"/><path d="M9.5 18.5a2.5 2.5 0 0 0 5 0"/></svg>';
+        return '<div class="rem' + (on ? ' on' : '') + '"><span class="rem-bell">' + bell + '</span>' +
+          '<span class="rem-txt"><b>Roll reminders</b><span>' + (on ? 'On. You\'ll get a nudge at ' + esc(at) + ' if your roll or map is still waiting.' : 'Get a nudge at ' + esc(at) + ' if your roll or map is still waiting.') + '</span>' +
+          (on ? '<button type="button" class="rem-test" data-push="test">Send a test</button>' : '') + '</span>' +
+          '<button type="button" class="rem-switch" role="switch" aria-checked="' + (on ? 'true' : 'false') + '" aria-label="Roll reminders" data-push="' + (on ? 'off' : 'on') + '"><i></i></button></div>';
       });
     });
   }
