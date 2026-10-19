@@ -413,6 +413,15 @@ body.gated .foot { border-top: 0; margin-top: 0; }
 .away { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; }
 .away li { padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--raise-2); font-size: 16px; }
 .away-next { font-size: 17px; margin: 0 0 16px; color: var(--gold) !important; }
+/* replay of the day */
+.replay-btn { position: absolute; right: 10px; bottom: 10px; z-index: 5; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25); background: rgba(0,0,0,.72); color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
+.replay-btn:hover { border-color: var(--accent); }
+.replay-btn span { color: var(--accent); }
+.board-zone.busy .replay-btn { visibility: hidden; }
+.replay-cap { position: absolute; left: 12px; right: 12px; bottom: 12px; margin: 0 auto; z-index: 6; display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 620px; padding: 10px 10px 10px 16px; border-radius: 12px; background: rgba(0,0,0,.84); border: 1px solid var(--line-2); color: #fff; font-size: 15px; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.replay-cap #replayText { min-width: 0; }
+.replay-cap button { flex: none; padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,.3); background: none; color: #fff; font-weight: 700; cursor: pointer; }
+.board-zone.replaying .zoom-btn { visibility: hidden; }
 .start-field { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; font-size: 14px; color: var(--muted); }
 .start-field input { max-width: 260px; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: #000; color: var(--text); font: inherit; color-scheme: dark; }
 @media (max-width: 420px) { .cd-seg { min-width: 54px; } .cd-seg b { font-size: 26px; } }

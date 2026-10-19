@@ -169,6 +169,28 @@ assert.strictEqual(cardsSeen.size, 20);
   console.log('end of game ok');
 }
 
+// replay: rewinding the event log gives the real positions at the start of each day
+{
+  let checked = 0;
+  for (let g = 0; g < 60; g++) {
+    const rng = seeded(500 + g), s = newGame('cemetery', rng), snaps = {};
+    ['a', 'b', 'c', 'd'].forEach((id, i) => { E.addPlayer(s, { id, name: id }); E.chooseRoute(s, id, i % 2 ? 'longer' : 'riskier'); });
+    for (let d = 1; d < 40 && s.status === 'running'; d++) {
+      snaps[s.day] = { first: s.seq + 1, pos: Object.fromEntries(s.order.map((id) => [id, s.players[id].pos])) };
+      if (d === 5) { E.setPosition(s, 'a', 10); E.resetPlayer(s, 'b'); }
+      for (const id of s.order) { let k = 0; while (E.canRoll(s, id).ok && k++ < 5) E.roll(s, id, { rng }); s.players[id].tasks.slice().forEach((t) => E.completeTask(s, id, t.id, { by: 't' })); }
+      E.advanceDay(s);
+    }
+    for (const day of Object.keys(snaps)) {
+      const sn = snaps[day]; if (!s.events.length || s.events[0].id > sn.first) continue;
+      const got = E.positionsBefore(s, sn.first);
+      for (const id of s.order) assert.strictEqual(got[id], sn.pos[id], 'game ' + g + ' day ' + day + ' player ' + id);
+      checked++;
+    }
+  }
+  console.log('replay rewind matches real positions on ' + checked + ' days');
+}
+
 // sign-ups before a scheduled start
 {
   const board = C.boards['chester-escape']();

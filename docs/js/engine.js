@@ -431,6 +431,22 @@
     return out;
   }
 
+  // Where every token was just before event `firstId`, worked out backwards from now.
+  function positionsBefore(s, firstId) {
+    var pos = {}, b = s.board;
+    var idx = function (p, spaceId) { return b.routes[p.route] ? b.routes[p.route].indexOf(spaceId) : -1; };
+    s.order.forEach(function (pid) { var p = s.players[pid]; if (p.route) pos[pid] = p.finished ? exitIndex(s, p) : p.pos; });
+    for (var i = s.events.length - 1; i >= 0; i--) {
+      var e = s.events[i]; if (e.id < firstId) break;
+      var p = s.players[e.pid]; if (!p || !p.route) continue;
+      if (e.t === 'roll' || e.t === 'move') pos[e.pid] = e.from;
+      else if ((e.t === 'warp' || e.t === 'start') && e.space) { var k = idx(p, e.space); if (k >= 0) pos[e.pid] = k; }
+      else if ((e.t === 'host-move' || e.t === 'host-reset') && e.from != null) pos[e.pid] = e.from;
+      else if (e.t === 'route') pos[e.pid] = -1;
+    }
+    return pos;
+  }
+
   // Lock the game and freeze the standings.
   function endGame(s, at) {
     if (s.status !== 'running') return false;
@@ -443,10 +459,10 @@
   // ---- host tools ------------------------------------------------------------
   function setPosition(s, pid, pos, opts) {
     var p = need(s, pid);
-    var last = exitIndex(s, p);
+    var last = exitIndex(s, p), from = p.pos;
     p.pos = Math.max(-1, Math.min(last, pos));
     if (p.finished && p.pos < last) { p.finished = null; s.finishOrder = s.finishOrder.filter(function (x) { return x !== pid; }); }
-    emit(s, p, { t: 'host-move', to: p.pos });
+    emit(s, p, { t: 'host-move', from: from, to: p.pos });
     if (opts && opts.apply) { var ctx = { steps: [], depth: 0 }; land(s, p, 'roll', ctx); }
     return p;
   }
@@ -454,10 +470,10 @@
   function hostCard(s, pid, cardId) { var p = need(s, pid); return drawCard(s, p, { steps: [], depth: 0 }, cardId); }
 
   function resetPlayer(s, pid) {
-    var p = need(s, pid);
+    var p = need(s, pid), from = p.pos;
     p.pos = -1; p.tasks = []; p.claims = []; p.skip = 0; p.skippedDay = 0; p.rolledDay = 0; p.extraRoll = false; p.shield = false; p.finished = null;
     s.finishOrder = s.finishOrder.filter(function (x) { return x !== pid; });
-    emit(s, p, { t: 'host-reset' });
+    emit(s, p, { t: 'host-reset', from: from });
   }
 
   // State a player is allowed to see (live mode strips nothing secret today, but keep one place for it).
@@ -529,7 +545,7 @@
     routeOf: routeOf, spaceAt: spaceAt, progress: progress, remaining: remaining, exitIndex: exitIndex,
     cardById: cardById, publicState: publicState, allMapKeys: allMapKeys, checkBoard: checkBoard,
     nextCutoff: nextCutoff, shuffle: shuffle, clone: clone, startGame: startGame, upgradeBonus: upgradeBonus,
-    endGame: endGame, ranking: ranking
+    endGame: endGame, ranking: ranking, positionsBefore: positionsBefore
   };
   root.CGEngine = E;
   if (typeof module !== 'undefined' && module.exports) module.exports = E;

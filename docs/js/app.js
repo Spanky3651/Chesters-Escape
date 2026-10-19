@@ -466,7 +466,7 @@
     if (lastStatus === 'signup' && st().status === 'running') toast('The game has started! Roll your first d4.', 'good');
     if (lastStatus && lastStatus !== 'finished' && st().status === 'finished') setTimeout(maybeFinale, 400);
     lastStatus = st().status;
-    renderHeader(); renderBoard(); renderMe(); renderTurn(); renderFeed(); renderStandings(); renderBar();
+    renderHeader(); renderBoard(); renderMe(); renderTurn(); renderFeed(); renderStandings(); renderBar(); renderReplayBtn();
     if (!$('hostDrawer').hidden) renderHost();
   }
 
@@ -484,6 +484,71 @@
     var chain = Promise.resolve(), dir = to >= from ? 1 : -1;
     for (var i = from + dir; dir > 0 ? i <= to : i >= to; i += dir) (function (i) { chain = chain.then(function () { return hopTo(pid, p, i); }); })(i);
     return chain;
+  }
+
+  // ---- replay of the day ----------------------------------------------------------------------
+  // Rewinds every token to the start of the last full day from the event log, then plays
+  // that day's moves back in order with a caption. Nothing is changed in the game.
+  function replayDayNum() {
+    var s = st(); if (!s || s.status === 'signup') return 0;
+    var d = s.status === 'finished' ? s.day : s.day - 1;
+    return d >= 1 && s.events.some(function (e) { return e.day === d && e.t === 'roll' && !e.pre; }) ? d : 0;
+  }
+  function renderReplayBtn() {
+    var b = $('replayBtn'); if (!b) return;
+    var d = replayDayNum(); b.hidden = !d || replaying;
+    if (d) b.innerHTML = '<span aria-hidden="true">&#9654;</span> Replay day ' + d;
+  }
+  var replaying = false, replayStop = false;
+  function replayDay() {
+    var s = st(), d = replayDayNum(); if (!d || animating || replaying) return;
+    track('replay-day');
+    var b = s.board, idx = function (p, spaceId) { return b.routes[p.route] ? b.routes[p.route].indexOf(spaceId) : -1; };
+    var dayEvs = s.events.filter(function (e) { return e.day === d; });
+    if (!dayEvs.length) return;
+    var firstId = dayEvs[0].id;
+    var pos = E.positionsBefore(s, firstId);   // rewind to the start of that day
+    var at = {}, xy = function () { var o = {}; Object.keys(at).forEach(function (pid) { o[pid] = posXY(s.players[pid], at[pid]); }); return o; };
+    Object.keys(pos).forEach(function (pid) { at[pid] = pos[pid]; });
+    replaying = true; replayStop = false; animating = true; closeSpace();
+    var zone = document.querySelector('.board-zone'); zone.classList.add('replaying');
+    $('replayBtn').hidden = true; $('replayCap').hidden = false;
+    var cap = function (html) { $('replayText').innerHTML = html; };
+    cap('Day ' + d + ' replay');
+    placeTokens(xy());
+    var hop = function (pid, to, fly) {
+      if (replayStop) return Promise.resolve();
+      at[pid] = to; var tok = svgEl.querySelector('.tok[data-pid="' + pid + '"]');
+      if (tok) { tok.classList.toggle('fly', !!fly); tok.classList.remove('hop'); void tok.getBBox(); if (!fly) tok.classList.add('hop'); }
+      placeTokens(xy()); var o = xy(); followToken(o[pid]);
+      if (fly) sfx.land(); else sfx.hop();
+      return wait(fly ? 520 : 170);
+    };
+    var walkTo = function (pid, from, to) {
+      var chain = Promise.resolve(), dir = to >= from ? 1 : -1;
+      for (var i = from + dir; dir > 0 ? i <= to : i >= to; i += dir) (function (i) { chain = chain.then(function () { return hop(pid, i); }); })(i);
+      return chain;
+    };
+    var chain = wait(700);
+    dayEvs.forEach(function (e) {
+      var p = s.players[e.pid];
+      chain = chain.then(function () {
+        if (replayStop || !p || !p.route) return;
+        var x = evText(e), name = '<b>' + esc(p.name) + '</b> ';
+        var last = E.exitIndex(s, p);
+        if (e.t === 'roll') { cap(name + (e.bonus ? 'took a bonus roll: ' : 'rolled a ') + '<b>' + e.n + '</b>'); return wait(350).then(function () { return walkTo(e.pid, e.from, Math.min(e.from + e.n, last)); }); }
+        if (e.t === 'move') { if (x) cap(name + x.html); return walkTo(e.pid, e.from, e.to); }
+        if (e.t === 'warp' && e.to) { if (x) cap(name + x.html); var wi = idx(p, e.to); return wi >= 0 ? hop(e.pid, wi, true) : null; }
+        if (e.t === 'start') { cap(name + 'went back to the start'); return hop(e.pid, -1, true); }
+        if (e.t === 'host-move') { cap(name + 'was moved by the host'); return hop(e.pid, e.to, true); }
+        if (e.t === 'host-reset') { cap(name + 'was reset by the host'); return hop(e.pid, -1, true); }
+        if (e.t === 'card' || e.t === 'escaped' || e.t === 'skip' || (e.t === 'task' && e.bonus)) { if (x) { cap(name + x.html); return wait(e.t === 'escaped' ? 1400 : 900); } }
+      });
+    });
+    chain.then(function () { if (!replayStop) { cap('That was day ' + d + '.'); return wait(1100); } }).then(function () {
+      replaying = false; animating = false; zone.classList.remove('replaying'); $('replayCap').hidden = true;
+      renderAll();
+    });
   }
 
   var stageDie = null;
@@ -1124,6 +1189,8 @@
     $('modalX').onclick = closeModal;
     $('modal').addEventListener('click', function (e) { if (e.target === $('modal')) closeModal(); });
     $('nextDayBtn').onclick = function () { store.act('advance', {}).then(function () { toast('Day ' + st().day + ' has started. The bots made their moves.', 'good'); }, fail); };
+    $('replayBtn').onclick = replayDay;
+    $('replaySkip').onclick = function () { replayStop = true; };
     $('zoomBtn').onclick = function () {
       var w = $('boardWrap'), on = !w.classList.contains('zoomed');
       if (on) track('zoom-in');
