@@ -356,7 +356,10 @@ a.kofi-support:hover { transform: translateY(-2px); border-color: #ff2740; box-s
 }
 
 /* board zoom (phones) */
-.board-zone { position: relative; min-width: 0; }
+/* the zone is exactly the board, so the buttons and the roll stage sit on its edges */
+.board-zone { position: relative; min-width: 300px; width: 100%; max-width: min(100%, calc(100vh - 120px)); margin: 0 auto; }
+@media (max-width: 1100px) { .board-zone { max-width: 860px; } }
+@media (max-width: 640px) { .board-zone { min-width: 0; } }
 .board-zone.busy .zoom-btn { visibility: hidden; }
 .zoom-btn { display: none; position: absolute; left: 10px; bottom: 10px; z-index: 5; align-items: center; gap: 6px; min-height: 40px; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25); background: rgba(0,0,0,.72); color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
 .board-wrap.zoomed { overflow: auto; aspect-ratio: 1; -webkit-overflow-scrolling: touch; }
