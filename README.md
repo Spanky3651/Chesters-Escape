@@ -9,6 +9,7 @@ A Beat Saber board game. Roll a d4 once a day, move your token, and play the map
 ## How to play
 
 - Pick the **longer route** (more spaces, safer) or the **riskier route** (fewer spaces, more ways to get sent back). You can't switch later.
+- A new game can open for sign-ups early. Join and pick your route, and the page counts down to the first roll.
 - Roll once a day. The day turns over at 12:59 AM Eastern.
 - **Map spaces:** play that map. Any difficulty, any modifiers. The game finds your score on BeatLeader and unlocks your next roll.
 - **Blocker spaces:** you stop until you play their map.

@@ -59,6 +59,7 @@
       settings: Object.assign({}, DEFAULTS, opts.settings || {}),
       day: 1,
       status: opts.status || 'running',     // signup | running | finished
+      startsAt: opts.startsAt || null,      // signup only: when the first roll unlocks (ms)
       startedAt: opts.startedAt || now(),
       players: {},
       order: [],          // join order
@@ -117,6 +118,7 @@
 
   function emit(s, p, ev) {
     ev.id = ++s.seq; ev.pid = p ? p.id : null; ev.day = s.day; ev.at = ev.at || now();
+    if (s.status === 'signup') ev.pre = true;
     s.events.push(ev);
     if (s.events.length > 800) s.events.splice(0, s.events.length - 800);
     return ev;
@@ -347,7 +349,16 @@
   }
 
   // ---- days ------------------------------------------------------------------
+  // Sign-ups are open: players can join and pick a route, but nobody rolls until the start.
+  function startGame(s, at) {
+    if (s.status !== 'signup') return false;
+    s.status = 'running'; s.day = 1; s.startedAt = at || now();
+    emit(s, null, { t: 'begin' });
+    return true;
+  }
+
   function advanceDay(s) {
+    if (s.status !== 'running') return s.day;
     s.day++;
     s.order.forEach(function (pid) {
       var p = s.players[pid];
@@ -455,7 +466,7 @@
     setPosition: setPosition, hostCard: hostCard, resetPlayer: resetPlayer,
     routeOf: routeOf, spaceAt: spaceAt, progress: progress, remaining: remaining, exitIndex: exitIndex,
     cardById: cardById, publicState: publicState, allMapKeys: allMapKeys, checkBoard: checkBoard,
-    nextCutoff: nextCutoff, shuffle: shuffle, clone: clone
+    nextCutoff: nextCutoff, shuffle: shuffle, clone: clone, startGame: startGame
   };
   root.CGEngine = E;
   if (typeof module !== 'undefined' && module.exports) module.exports = E;

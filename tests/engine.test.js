@@ -105,4 +105,22 @@ assert.strictEqual(cardsSeen.size, 20);
   console.log('next cutoff from 2026-10-18 13:00 ET ->', new Date(nc).toISOString(), '(expect 2026-10-19T04:59Z)');
   assert.strictEqual(new Date(nc).toISOString(), '2026-10-19T04:59:00.000Z');
 }
+// sign-ups before a scheduled start
+{
+  const board = C.boards['chester-escape']();
+  const at = Date.now() + 3 * 86400000;
+  const s = E.createGame({ board, cards: C.cardsFor('cemetery'), status: 'signup', startsAt: at, rng: seeded(7) });
+  assert.strictEqual(s.status, 'signup'); assert.strictEqual(s.startsAt, at);
+  E.addPlayer(s, { id: 'a', name: 'a' }); E.chooseRoute(s, 'a', 'longer');
+  assert.strictEqual(E.canRoll(s, 'a').code, 'not-running', 'no rolls during sign-ups');
+  assert(s.events.every((e) => e.pre), 'sign-up events are marked');
+  assert.strictEqual(E.advanceDay(s), 1, 'days do not advance before the start');
+  assert(E.startGame(s, Date.now()));
+  assert.strictEqual(s.status, 'running'); assert.strictEqual(s.day, 1);
+  assert(E.canRoll(s, 'a').ok, 'can roll after the start');
+  assert(!E.startGame(s, Date.now()), 'start only once');
+  assert.strictEqual(s.events[s.events.length - 1].t, 'begin');
+  console.log('sign-up phase ok');
+}
+
 console.log('all engine tests passed');

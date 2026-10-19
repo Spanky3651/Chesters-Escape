@@ -371,6 +371,20 @@ body.gated .foot { border-top: 0; margin-top: 0; }
 .gate-crow { width: 120px; height: 132px; }
 .gate-card h2 { font: 700 40px/1.05 var(--display); margin: 10px 0 10px; }
 .gate-card p { color: var(--muted); max-width: 42ch; margin: 0 auto 22px; }
+/* countdown to the start (sign-ups open) */
+.countdown { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 6px 0 16px; padding: 18px 14px 16px; border: 1px solid var(--line-2); border-radius: 14px; background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%), var(--raise-2); text-align: center; }
+.cd-label { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.cd-time { display: flex; justify-content: center; gap: 8px; min-height: 64px; align-items: center; }
+.cd-seg { display: flex; flex-direction: column; align-items: center; min-width: 62px; padding: 8px 6px 6px; border-radius: 10px; background: #000; border: 1px solid var(--line); }
+.cd-seg b { font: 700 32px/1 var(--display); color: var(--gold); font-variant-numeric: tabular-nums; text-shadow: 0 0 14px color-mix(in srgb, var(--accent) 45%, transparent); }
+.cd-seg i { font-style: normal; font-size: 12px; color: var(--muted); margin-top: 4px; letter-spacing: .06em; }
+.cd-now { font: 700 28px/1 var(--display); color: var(--good); }
+.cd-date { font-size: 15px; color: var(--text); }
+.gate-card .countdown { margin: 0 0 22px; }
+.countdown + p { margin-top: 0; }
+.start-field { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; font-size: 14px; color: var(--muted); }
+.start-field input { max-width: 260px; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: #000; color: var(--text); font: inherit; color-scheme: dark; }
+@media (max-width: 420px) { .cd-seg { min-width: 54px; } .cd-seg b { font-size: 26px; } }
 
 /* ---- atmosphere ---- */
 .board-svg .fog1 { animation: drift 38s ease-in-out infinite alternate; }

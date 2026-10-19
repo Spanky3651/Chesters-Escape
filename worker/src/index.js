@@ -125,7 +125,7 @@ export default {
       const user = await userFrom(env, req);
       if (url.pathname === '/api/config') {
         const r = await gameStub(env).whoAmI(user);
-        return json(env, req, { live: true, access: r.access, user: user && { id: user.id, name: user.name, avatar: user.avatar }, isHost: !!(user && user.isHost), pid: r.pid });
+        return json(env, req, { live: true, access: r.access, startsAt: r.startsAt, user: user && { id: user.id, name: user.name, avatar: user.avatar }, isHost: !!(user && user.isHost), pid: r.pid });
       }
       if (url.pathname === '/api/state' && req.method === 'GET') {
         const r = await gameStub(env).getState(user, Number(url.searchParams.get('since') ?? -1));
@@ -197,7 +197,9 @@ export class Game extends DurableObject {
   async save() {
     await this.ctx.storage.put('state', this.state);
     await this.ctx.storage.put('meta', this.meta);
-    const want = Math.min(this.meta.nextCutoff || Date.now() + CHECK_EVERY, Date.now() + CHECK_EVERY);
+    const s = this.state;
+    const next = s && s.status === 'signup' ? s.startsAt : this.meta.nextCutoff;
+    const want = Math.max(Date.now() + 1000, Math.min(next || Date.now() + CHECK_EVERY, Date.now() + CHECK_EVERY));
     const cur = await this.ctx.storage.getAlarm();
     if (!cur || cur > want) await this.ctx.storage.setAlarm(want);
   }
@@ -216,7 +218,7 @@ export class Game extends DurableObject {
         await this.save();
       }
     }
-    return { pid: status === 'ok' && pid && s.players[pid] ? pid : null, access: status };
+    return { pid: status === 'ok' && pid && s.players[pid] ? pid : null, access: status, startsAt: s.status === 'signup' ? s.startsAt || null : null };
   }
 
   async getState(user, since) {
@@ -234,7 +236,7 @@ export class Game extends DurableObject {
   async act(user, action, a) {
     const s = this.game(); const pid = this.pidFor(user);
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
-    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearRoute', 'settings', 'theme', 'newGame', 'accessMode', 'letIn', 'dismiss', 'removeAccess'];
+    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess'];
     if (hostOnly.includes(action) && !user.isHost) return { error: 'Only the host can do that.', status: 403 };
     let result = {};
     try {
@@ -252,7 +254,7 @@ export class Game extends DurableObject {
         case 'verify': this.mine(s, pid); result = { cleared: await this.check(pid) }; break;
         case 'claim': this.mine(s, pid); result = E.claimTask(s, pid, a.task, { url: String(a.url || '').slice(0, 300) }); break;
         // host
-        case 'advance': E.advanceDay(s); this.meta.nextCutoff = E.nextCutoff(s.settings); result = { day: s.day }; break;
+        case 'advance': if (s.status !== 'running') return { error: 'The game has not started yet.' }; E.advanceDay(s); this.meta.nextCutoff = E.nextCutoff(s.settings); result = { day: s.day }; break;
         case 'approve': result = E.completeTask(s, a.pid, a.task, { by: 'host' }); break;
         case 'reject': E.rejectClaim(s, a.pid, a.task); break;
         case 'setpos': E.setPosition(s, a.pid, Number(a.pos), { apply: !!a.apply }); break;
@@ -278,9 +280,22 @@ export class Game extends DurableObject {
           const probs = E.checkBoard(board);
           if (probs.length) return { error: probs[0] };
           const keep = s.order.map((id) => s.players[id]);
-          this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.themes[themeId].title, settings: s.settings, rng });
+          const startsAt = Number(a.startsAt) > Date.now() + 60000 ? Number(a.startsAt) : null;
+          this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.themes[themeId].title, settings: s.settings, rng, status: startsAt ? 'signup' : 'running', startsAt });
           keep.forEach((p) => E.addPlayer(this.state, { id: p.id, discordId: p.discordId, name: p.name, avatar: p.avatar, blId: p.blId }));
-          this.meta.nextCutoff = E.nextCutoff(this.state.settings);
+          this.meta.nextCutoff = startsAt ? null : E.nextCutoff(this.state.settings);
+          break;
+        }
+        case 'schedule': {
+          if (s.status !== 'signup') return { error: 'The game has already started.' };
+          const at = Number(a.startsAt);
+          if (!(at > Date.now() + 60000)) return { error: 'Pick a start time in the future.' };
+          s.startsAt = at; s.seq++; break;
+        }
+        case 'startNow': {
+          if (!E.startGame(s, Date.now())) return { error: 'The game has already started.' };
+          this.meta.nextCutoff = E.nextCutoff(s.settings);
+          await this.announceStart();
           break;
         }
         // who can play
@@ -344,10 +359,20 @@ export class Game extends DurableObject {
   }
 
   // Day rollover at the cutoff, plus a BeatLeader sweep for everyone still on a map.
+  async announceStart() {
+    if (!this.env.DISCORD_WEBHOOK_URL || this.env.ANNOUNCE_DAYS !== '1') return;
+    const content = `**${this.state.title} has started!** Day 1 is open, go roll your first d4.` + (this.env.GAME_PAGE ? `\n${this.env.GAME_PAGE}` : '');
+    await fetch(this.env.DISCORD_WEBHOOK_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
+  }
+
   async alarm() {
     const s = this.game();
     const now = Date.now();
-    if (this.meta.nextCutoff && now >= this.meta.nextCutoff - 1000) {
+    if (s.status === 'signup' && s.startsAt && now >= s.startsAt - 1000) {
+      E.startGame(s, now);
+      this.meta.nextCutoff = E.nextCutoff(s.settings, now + 1000);
+      await this.announceStart();
+    } else if (s.status === 'running' && this.meta.nextCutoff && now >= this.meta.nextCutoff - 1000) {
       E.advanceDay(s);
       this.meta.nextCutoff = E.nextCutoff(s.settings, now + 1000);
       if (this.env.DISCORD_WEBHOOK_URL && this.env.ANNOUNCE_DAYS === '1') {

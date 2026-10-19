@@ -147,7 +147,7 @@
     document.body.setAttribute('data-theme', t.id);
     $('gameTitle').textContent = t.title;
     $('brandCrow').innerHTML = R.chester(0, 0, 1, t.id === 'christmas' ? 'santa' : 'none');
-    $('dayNum').textContent = s.status === 'finished' ? 'Game over' : 'Day ' + s.day;
+    $('dayNum').textContent = s.status === 'finished' ? 'Game over' : s.status === 'signup' ? 'Sign-ups open' : 'Day ' + s.day;
     $('hostBtn').hidden = !store.isHost;
     var todo = store.isHost ? hostTodo() : { total: 0 };
     document.title = (todo.total ? '(' + todo.total + ') ' : '') + t.title;
@@ -170,12 +170,51 @@
   function tickClock() {
     var s = st(); if (!s) return;
     var el = $('dayClock');
+    if (s.status === 'signup') { el.textContent = s.startsAt ? 'Starts in ' + fmtLeft(s.startsAt - Date.now(), true) : 'Starting soon'; return; }
     if (store.mode === 'demo') { el.textContent = 'The host starts each new day'; return; }
     var at = E.nextCutoff(s.settings), left = at - Date.now();
     if (left < 0) left = 0;
     var h = Math.floor(left / 3600000), m = Math.floor(left % 3600000 / 60000);
     var when = new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     el.textContent = 'Next day in ' + (h ? h + 'h ' : '') + m + 'm (' + when + ')';
+  }
+
+  // ---- countdown to the start ----------------------------------------------------
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function fmtLeft(ms, short) {
+    ms = Math.max(0, ms);
+    var d = Math.floor(ms / 86400000), h = Math.floor(ms % 86400000 / 3600000), m = Math.floor(ms % 3600000 / 60000), sec = Math.floor(ms % 60000 / 1000);
+    if (d) return d + 'd ' + h + 'h' + (short ? '' : ' ' + m + 'm');
+    if (h) return h + 'h ' + m + 'm';
+    return m + 'm ' + pad2(sec) + 's';
+  }
+  function startWhen(ts) { return new Date(ts).toLocaleString([], { weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+  function cdSegments(ms) {
+    ms = Math.max(0, ms);
+    var parts = [[Math.floor(ms / 86400000), 'days'], [Math.floor(ms % 86400000 / 3600000), 'hours'], [Math.floor(ms % 3600000 / 60000), 'min'], [Math.floor(ms % 60000 / 1000), 'sec']];
+    return parts.map(function (x) { return '<span class="cd-seg"><b>' + pad2(x[0]) + '</b><i>' + x[1] + '</i></span>'; }).join('');
+  }
+  function countdownHtml(ts, label) {
+    if (!ts) return '<div class="countdown"><span class="cd-label">' + esc(label || 'The game starts soon') + '</span><span class="cd-date">The host will set the start time.</span></div>';
+    return '<div class="countdown"><span class="cd-label">' + esc(label || 'The escape starts in') + '</span>' +
+      '<div class="cd-time" data-countdown="' + ts + '" role="timer" aria-label="Starts ' + esc(startWhen(ts)) + '">' + cdSegments(ts - Date.now()) + '</div>' +
+      '<span class="cd-date">' + esc(startWhen(ts)) + '</span></div>';
+  }
+  // Runs every second while sign-ups are open. At zero, start the demo or ask the server.
+  var kickAt = 0, starting = false;
+  function tickCountdowns() {
+    var els = document.querySelectorAll('[data-countdown]');
+    Array.prototype.forEach.call(els, function (el) {
+      var left = Number(el.dataset.countdown) - Date.now();
+      if (el.classList.contains('cd-time')) el.innerHTML = left > 0 ? cdSegments(left) : '<span class="cd-now">Starting now</span>';
+      else el.textContent = left > 0 ? fmtLeft(left) : 'now';
+    });
+    var s = store && store.state;
+    if (!s || s.status !== 'signup') return;
+    tickClock();
+    if (!s.startsAt || Date.now() < s.startsAt) return;
+    if (store.mode === 'demo') { if (!starting) { starting = true; store.act('startNow').catch(function () {}).then(function () { starting = false; }); } }
+    else if (store.mode === 'live' && Date.now() - kickAt > 5000) { kickAt = Date.now(); store.poll(); }
   }
 
   // ---- me panel ----------------------------------------------------------------
@@ -212,9 +251,15 @@
   // ---- turn panel --------------------------------------------------------------
   function renderTurn() {
     var p = me(), el = $('turnPanel'), s = st(), t = theme();
+    var pre = s.status === 'signup' ? countdownHtml(s.startsAt) : '';
+    if (pre && p && p.route) {
+      el.innerHTML = '<h2>You\'re signed up</h2>' + pre + '<p class="why">You\'re on the ' + esc(s.board.routeInfo[p.route].name.toLowerCase()) + '. Your first roll unlocks when the countdown ends. Come back then and roll the d4.</p>';
+      return;
+    }
+    if (pre && !p) { el.innerHTML = '<h2>Sign-ups are open</h2>' + pre + '<p class="empty">' + (store.mode === 'live' && !store.canPlay ? 'Once the host lets you in, you can join and pick your route before the start.' : 'Join now and pick your route. Everyone rolls for the first time when the countdown ends.') + '</p>'; return; }
     if (!p) { el.innerHTML = '<h2>Your turn</h2><p class="empty">' + (store.mode === 'live' && !store.canPlay ? 'Once the host lets you in, you can join and get a token on the board.' : 'Join the game to get a token on the board.') + '</p>'; return; }
     if (!p.route) {
-      el.innerHTML = '<h2>Pick your route</h2><p class="why">You can\'t change it later.</p><div class="routes">' +
+      el.innerHTML = '<h2>Pick your route</h2>' + pre + '<p class="why">You can\'t change it later.</p><div class="routes">' +
         ['longer', 'riskier'].map(function (r) {
           var info = s.board.routeInfo[r];
           return '<button type="button" class="route-card' + (r === 'riskier' ? ' risk' : '') + '" data-route="' + r + '"><b>' + esc(info.name) + '</b><span>' + esc(info.blurb) + '</span></button>';
@@ -276,7 +321,7 @@
   }
 
   // ---- feed --------------------------------------------------------------------
-  var ICON = { roll: '🎲', land: '📍', task: '🎵', card: '🃏', move: '➡️', skip: '⏸️', start: '↩️', warp: '🌀', cleared: '✅', claim: '📨', 'claim-rejected': '❌', 'lost-turn': '💤', escaped: '🎉', route: '🧭', join: '👋', shield: '🛡️', 'shield-used': '🛡️', again: '🎲', overshoot: '🎯', 'host-move': '🧹', 'host-reset': '🧹', reshuffle: '🔀' };
+  var ICON = { roll: '🎲', land: '📍', task: '🎵', card: '🃏', move: '➡️', skip: '⏸️', start: '↩️', warp: '🌀', cleared: '✅', claim: '📨', 'claim-rejected': '❌', 'lost-turn': '💤', escaped: '🎉', route: '🧭', join: '👋', shield: '🛡️', 'shield-used': '🛡️', again: '🎲', overshoot: '🎯', 'host-move': '🧹', 'host-reset': '🧹', reshuffle: '🔀', begin: '🏁' };
   function evText(e) {
     var s = st(), t = theme(), sp = e.space ? s.board.spaces[e.space] : null, card = e.card ? E.cardById(s, e.card) : null;
     switch (e.t) {
@@ -317,12 +362,13 @@
     for (var i = 0; i < evs.length && shown < 120; i++) {
       var e = evs[i];
       if (e.t === 'day') { if (feedMode === 'all') html += '<li class="dayline">Day ' + e.day + ' begins</li>'; continue; }
+      if (e.t === 'begin') { html += '<li class="dayline">🏁 The game starts. Day 1 begins</li>'; continue; }
       if (feedMode === 'me' && e.pid !== store.me) continue;
       var x = evText(e); if (!x) continue;
       var p = s.players[e.pid];
       html += '<li><span class="ic" aria-hidden="true">' + (ICON[e.t] || '•') + '</span><span>' +
         (feedMode === 'all' && p ? '<span class="who">' + esc(p.name) + '</span> ' : '') +
-        '<span class="' + (x.cls || '') + '">' + x.html + '</span> <span class="when">day ' + e.day + '</span></span></li>';
+        '<span class="' + (x.cls || '') + '">' + x.html + '</span> <span class="when">' + (e.pre ? 'sign-up' : 'day ' + e.day) + '</span></span></li>';
       shown++;
     }
     list.innerHTML = html || '<li class="empty" style="display:block">' + (feedMode === 'me' ? 'Your moves show up here.' : 'Nothing has happened yet.') + '</li>';
@@ -351,6 +397,7 @@
   function statusLine(p) {
     var s = st();
     if (p.finished) return 'Escaped on day ' + p.finished.day;
+    if (s.status === 'signup') return 'Signed up, waiting for the start';
     if (p.tasks.length) return 'Playing !bsr ' + p.tasks.map(function (t) { return t.bsr[0]; }).join(', ');
     if (p.skippedDay === s.day) return 'Sitting out today';
     var c = E.canRoll(s, p.id);
@@ -365,6 +412,7 @@
     if (!p) { bar.hidden = true; document.body.classList.remove('has-mbar'); return; }
     var ava = avatarHtml(p, 'mb-ava');
     if (!p.route) html = ava + '<span class="mb-txt"><b>Pick your route</b><span>Longer or riskier</span></span><button type="button" class="btn small" id="mGo">Choose</button>';
+    else if (s.status === 'signup') html = ava + '<span class="mb-txt"><b>' + (s.startsAt ? 'Starts in <span data-countdown="' + s.startsAt + '">' + fmtLeft(s.startsAt - Date.now()) + '</span>' : 'Starting soon') + '</b><span>You\'re signed up</span></span>';
     else if (p.finished) html = ava + '<span class="mb-txt"><b>Escaped!</b><span>' + ordinal(p.finished.place) + ' place on day ' + p.finished.day + '</span></span>';
     else if (p.tasks.length) {
       var claimed = p.claims.length >= p.tasks.length;
@@ -378,8 +426,11 @@
     bar.innerHTML = html; bar.hidden = false; document.body.classList.add('has-mbar');
   }
 
+  var lastStatus = null;
   function renderAll() {
     if (!st()) return;
+    if (lastStatus === 'signup' && st().status === 'running') toast('The game has started! Roll your first d4.', 'good');
+    lastStatus = st().status;
     renderHeader(); renderBoard(); renderMe(); renderTurn(); renderFeed(); renderStandings(); renderBar();
     if (!$('hostDrawer').hidden) renderHost();
   }
@@ -706,10 +757,25 @@
   // ---- host tools ------------------------------------------------------------------------------
   function openHost() { $('hostDrawer').hidden = false; $('scrim').hidden = false; renderHost(); $('hostX').focus(); }
   function closeHost() { $('hostDrawer').hidden = true; $('scrim').hidden = true; $('hostBtn').focus(); }
+  function cutoffLabel(s) { var h = s.settings.cutoffHour || 0, m = s.settings.cutoffMinute || 0; return ((h % 12) || 12) + ':' + pad2(m) + ' ' + (h < 12 ? 'AM' : 'PM'); }
+  function toLocalInput(ts) { var d = new Date(ts); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+  function readStart(id) {
+    var el = $(id), v = el && el.value; if (!v) return null;
+    var ts = new Date(v).getTime();
+    if (isNaN(ts) || ts < Date.now() + 60000) { toast('Pick a start time in the future.', 'bad'); return false; }
+    return ts;
+  }
+  function startSection(s) {
+    return '<section class="hsec"><h3>Sign-ups are open</h3><p>' + (s.startsAt ? 'The first roll unlocks <b>' + esc(startWhen(s.startsAt)) + '</b>, in <span data-countdown="' + s.startsAt + '">' + fmtLeft(s.startsAt - Date.now()) + '</span>.' : 'No start time is set yet.') +
+      ' Until then people can join and pick a route, but nobody rolls.</p>' +
+      '<label class="start-field"><span>Start time</span><input type="datetime-local" id="startEdit" value="' + (s.startsAt ? toLocalInput(s.startsAt) : '') + '"></label>' +
+      '<div class="row"><button type="button" class="btn small" data-h="reschedule">Save start time</button><button type="button" class="btn small ghost" data-h="startnow">Start now</button></div></section>';
+  }
   function renderHost() {
     var s = st(), demo = store.mode === 'demo', html = '';
     var claims = [];
     s.order.forEach(function (pid) { s.players[pid].claims.forEach(function (c) { claims.push({ p: s.players[pid], c: c }); }); });
+    if (s.status === 'signup') html += startSection(s); else
     html += '<section class="hsec"><h3>Day ' + s.day + '</h3><p>' + (demo ? 'Starting the next day lets every bot clear maps and roll.' : 'The day turns over by itself at the cutoff. Use this only to fix a missed rollover.') + '</p><div class="row">' +
       '<button type="button" class="btn small" data-h="advance">Start the next day</button>' + (demo ? '<button type="button" class="btn small ghost" data-h="simulate">Skip ahead 3 days</button>' : '') +
       '<button type="button" class="btn small ghost" data-h="results">Make the results image</button></div></section>';
@@ -729,7 +795,7 @@
           '<button type="button" class="btn small good" data-h="letin" data-id="' + esc(w.id) + '">Let in</button><button type="button" class="btn small ghost" data-h="dismiss" data-id="' + esc(w.id) + '">Dismiss</button></span></div>';
       });
       if (ac.allowed.length) html += '<p style="margin-top:12px">Let in:</p>' + ac.allowed.map(function (id) {
-        return '<div class="claim row" style="justify-content:space-between"><span><b>' + esc(names[id] || 'Tester') + '</b> <span class="why">' + esc(id) + '</span></span><button type="button" class="btn small danger" data-h="unallow" data-id="' + esc(id) + '">Remove</button></div>';
+        return '<div class="claim row" style="justify-content:space-between"><span><b>' + esc(names[id] || 'Player') + '</b> <span class="why">' + esc(id) + '</span></span><button type="button" class="btn small danger" data-h="unallow" data-id="' + esc(id) + '">Remove</button></div>';
       }).join('');
       html += '</section>';
     }
@@ -747,7 +813,9 @@
       '<label class="check"><input type="checkbox" data-set="exactFinish"' + (s.settings.exactFinish ? ' checked' : '') + '> <span>Exact roll needed to escape</span></label>' +
       '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label></section>';
     html += '<section class="hsec"><h3>Theme and board</h3><div class="row"><label>Theme <select id="themeSel">' + Object.keys(C.themes).map(function (k) { return '<option value="' + k + '"' + (k === s.themeId ? ' selected' : '') + '>' + esc(C.themes[k].name) + '</option>'; }).join('') + '</select></label></div>' +
-      '<p style="margin-top:10px">Changing the theme keeps everyone where they are. Starting a new game puts everyone back at the start.</p><div class="row">' +
+      '<p style="margin-top:10px">Changing the theme keeps everyone where they are. Starting a new game puts everyone back at the start.</p>' +
+      '<label class="start-field"><span>Start time for the new game (optional)</span><input type="datetime-local" id="newStart"></label>' +
+      '<p class="why">Leave it empty to start right away. With a time set, sign-ups open now, people pick their routes, and the first roll unlocks at that time. Day 1 lasts until the next ' + esc(cutoffLabel(s)) + ' cutoff, so a ' + esc(cutoffLabel(s)) + ' start gives everyone a full first day.</p><div class="row">' +
       '<button type="button" class="btn small ghost" data-h="newgame">Start a new game</button>' + (designerBoard() ? '<button type="button" class="btn small ghost" data-h="loadboard">Start a new game on the designer board</button>' : '') + '</div></section>';
     $('hostBody').innerHTML = html;
   }
@@ -763,14 +831,21 @@
       case 'reject': run('reject', { pid: pid, task: btn.dataset.task }); break;
       case 'clearmap': { var p = st().players[pid]; run('approve', { pid: pid, task: p.tasks[0].id }, 'Map cleared for ' + p.name + '.'); break; }
       case 'reset': if (confirm('Send ' + st().players[pid].name + ' back to the start and clear their maps?')) run('resetPlayer', { pid: pid }); break;
-      case 'newgame': if (confirm('Start a new game? Everyone goes back to the start.')) run('newGame', { theme: st().themeId }, 'New game started.'); break;
+      case 'newgame': {
+        var ns = readStart('newStart'); if (ns === false) break;
+        if (confirm(ns ? 'Start a new game with sign-ups open until ' + startWhen(ns) + '? Everyone goes back to the start.' : 'Start a new game now? Everyone goes back to the start.')) run('newGame', { theme: st().themeId, startsAt: ns }, ns ? 'Sign-ups are open.' : 'New game started.');
+        break;
+      }
+      case 'reschedule': { var rs = readStart('startEdit'); if (!rs) { if (rs === null) toast('Pick a start time first.', 'bad'); break; } run('schedule', { startsAt: rs }, 'Start time saved.'); break; }
+      case 'startnow': if (confirm('Start the game now? Everyone can roll right away.')) run('startNow', {}, 'The game has started.'); break;
       case 'letin': run('letIn', { id: btn.dataset.id }, 'Let in.'); break;
       case 'dismiss': run('dismiss', { id: btn.dataset.id }); break;
       case 'unallow': if (confirm('Remove their access? They will see the invite-only screen.')) run('removeAccess', { id: btn.dataset.id }); break;
       case 'loadboard': {
         var b = designerBoard(), probs = E.checkBoard(b);
         if (probs.length) { toast(probs[0], 'bad'); break; }
-        if (confirm('Start a new game on "' + (b.title || 'the designer board') + '"?')) run('newGame', { theme: st().themeId, board: b }, 'New game started on your board.');
+        var ls = readStart('newStart'); if (ls === false) break;
+        if (confirm('Start a new game on "' + (b.title || 'the designer board') + '"' + (ls ? ' with sign-ups open until ' + startWhen(ls) : '') + '?')) run('newGame', { theme: st().themeId, board: b, startsAt: ls }, ls ? 'Sign-ups are open on your board.' : 'New game started on your board.');
         break;
       }
     }
@@ -901,11 +976,11 @@
     var msg = {
       closed: ['Coming soon', "Chester's Escape isn't open yet. Watch the clan Discord for the start."],
       down: ["Can't reach the game", 'The game server is not answering right now. Try again in a minute.'],
-      signin: ['Private test', 'Sign in with Discord to watch the game. The host lets players in while it is being tested.'],
+      signin: ['Private game', 'Sign in with Discord to see the board. The host lets players in.'],
       pending: ["You're on the list", 'Thanks' + (g.user ? ', ' + g.user.name : '') + '. The host has your request and will let you in. Check back soon.']
     }[g.kind];
     var html = '<section class="gate-card"><svg class="gate-crow" viewBox="-36 -42 72 80" aria-hidden="true">' + R.chester(0, 0, 1, 'none') + '</svg>' +
-      '<h2>' + esc(msg[0]) + '</h2><p>' + esc(msg[1]) + '</p><div class="row" style="justify-content:center">';
+      '<h2>' + esc(msg[0]) + '</h2><p>' + esc(msg[1]) + '</p>' + (g.startsAt && g.startsAt > Date.now() ? countdownHtml(g.startsAt) : '') + '<div class="row" style="justify-content:center">';
     if (g.kind === 'signin') html += '<a class="btn" href="' + esc(g.loginUrl()) + '">Sign in with Discord</a>';
     if (g.kind === 'pending') html += '<button type="button" class="btn ghost" id="gateRetry">Check again</button><button type="button" class="btn link" id="gateOut">Sign out</button>';
     if (g.kind === 'down') html += '<button type="button" class="btn ghost" id="gateRetry">Try again</button>';
@@ -913,6 +988,7 @@
     document.querySelector('main.layout').outerHTML = '<main class="gate">' + html + '</main>';
     var r = $('gateRetry'); if (r) r.onclick = function () { location.reload(); };
     var o = $('gateOut'); if (o) o.onclick = function () { g.logout(); };
+    if (g.startsAt) setInterval(tickCountdowns, 1000);
   }
 
   window.CGStore.detect().then(function (s) {
@@ -926,6 +1002,7 @@
     renderAll();
     if (store.mode === 'live') { setInterval(function () { if (!animating && document.visibilityState === 'visible') store.poll(); }, 20000); }
     setInterval(tickClock, 30000);
+    setInterval(tickCountdowns, 1000);
     var seen = false; try { seen = localStorage.getItem('cg.seenHow') === '1'; localStorage.setItem('cg.seenHow', '1'); } catch (e) {}
     if (!seen) openHow();
   }).catch(function (e) {

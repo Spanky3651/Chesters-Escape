@@ -37,15 +37,15 @@
     else this.fresh('cemetery', null, true);
   }
 
-  DemoStore.prototype.fresh = function (themeId, board, withHistory) {
+  DemoStore.prototype.fresh = function (themeId, board, withHistory, startsAt) {
     var b = board || C.boards['chester-escape']();
-    var s = E.createGame({ board: b, cards: C.cardsFor(themeId), themeId: themeId, title: C.themes[themeId].title });
+    var s = E.createGame({ board: b, cards: C.cardsFor(themeId), themeId: themeId, title: C.themes[themeId].title, status: startsAt ? 'signup' : 'running', startsAt: startsAt || null });
     DEMO_PLAYERS.forEach(function (p) { E.addPlayer(s, p); });
     // bots pick routes; you pick yours in the app
     var picks = { hummingbird: 'riskier', wisp: 'longer', pumpkin: 'riskier', moth: 'longer', bramble: 'longer', nyx: 'riskier', gravel: 'longer' };
     Object.keys(picks).forEach(function (id) { E.chooseRoute(s, id, picks[id]); });
     this.state = s; this.me = 'msploit';
-    if (withHistory) { for (var d = 0; d < 4; d++) this._botsPlay(true); s.events = s.events.slice(-120); }
+    if (withHistory && !startsAt) { for (var d = 0; d < 4; d++) this._botsPlay(true); s.events = s.events.slice(-120); }
     this._save();
   };
 
@@ -95,7 +95,14 @@
           return Promise.resolve(done({ cleared: [E.completeTask(s, p.id, t.id, { by: 'beatleader', demo: true, diff: 'Expert', acc: 0.913 })] }));
         }
         // host tools
-        case 'advance': self._botsPlay(true); return Promise.resolve(done({ day: s.day }));
+        case 'advance': if (s.status !== 'running') return Promise.reject(new Error('The game has not started yet.')); self._botsPlay(true); return Promise.resolve(done({ day: s.day }));
+        case 'schedule':
+          if (s.status !== 'signup') return Promise.reject(new Error('The game has already started.'));
+          if (!(a.startsAt > Date.now() + 60000)) return Promise.reject(new Error('Pick a start time in the future.'));
+          s.startsAt = a.startsAt; s.seq++; return Promise.resolve(done({}));
+        case 'startNow':
+          if (!E.startGame(s, Date.now())) return Promise.reject(new Error('The game has already started.'));
+          return Promise.resolve(done({}));
         case 'simulate': for (var i = 0; i < (a.days || 3); i++) self._botsPlay(true); return Promise.resolve(done({ day: s.day }));
         case 'approve': return Promise.resolve(done(E.completeTask(s, a.pid, a.task, { by: 'host' })));
         case 'reject': return Promise.resolve(done(E.rejectClaim(s, a.pid, a.task)));
@@ -112,7 +119,7 @@
           return Promise.resolve(done({}));
         case 'newGame': {
           var keepMe = self.me;
-          self.fresh(a.theme || s.themeId, a.board || null, !!a.history);
+          self.fresh(a.theme || s.themeId, a.board || null, !!a.history, a.startsAt > Date.now() + 60000 ? a.startsAt : null);
           if (keepMe && !self.state.players[keepMe]) self.me = 'msploit';
           return Promise.resolve(done({}));
         }
@@ -192,7 +199,7 @@
 
   // A closed door instead of the game: not signed in, waiting to be let in, or server not reachable.
   function Gate(kind, api, cfg) {
-    this.mode = 'gate'; this.kind = kind; this.api = api ? api.replace(/\/+$/, '') : ''; this.user = (cfg && cfg.user) || null;
+    this.mode = 'gate'; this.kind = kind; this.api = api ? api.replace(/\/+$/, '') : ''; this.user = (cfg && cfg.user) || null; this.startsAt = (cfg && cfg.startsAt) || null;
   }
   Gate.prototype.loginUrl = LiveStore.prototype.loginUrl;
   Gate.prototype.logout = LiveStore.prototype.logout;
