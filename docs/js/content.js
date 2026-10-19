@@ -160,6 +160,9 @@
       goal: 'tombstone home',
       font: "'Mountains of Christmas', Georgia, serif",
       taglineSize: 16,
+      fontQuery: 'Mountains+of+Christmas:wght@700',
+      hat: 'santa',
+      banner: ['#d7263d', '#fff'],
       palette: { ground: '#e9f1f7', ground2: '#c9dbe8', stone: '#ffffff', stoneDark: '#9db4c6', ink: '#24384a', accent: '#d7263d', good: '#2fb35a', bad: '#3a6ea5', water: '#a9d6f0' },
       card: { back: 'Chester’s Christmas', treasure: 'Gift card', trick: 'Coal card', task: 'Carol card', fate: 'Snow globe' },
       kinds: {
@@ -180,6 +183,39 @@
       },
       words: { card: ['GIFT', 'DROP'], start: 'Start', longer: 'Longer route', riskier: 'Riskier route', escaped: 'Gifts delivered!', results: 'Day {n} results' },
       routes: { longer: "Plowed paths, more maps. {n} spaces to Chester's tombstone.", riskier: 'Shorter, but the frozen river and the snowy graves are waiting. {n} spaces.' }
+    },
+    thanksgiving: {
+      id: 'thanksgiving',
+      name: 'Harvest Thanksgiving',
+      title: "Chester's Thanksgiving",
+      tagline: 'Help Chester reach the harvest feast before the pie is gone.',
+      goal: 'feast table',
+      font: "'Cherry Swash', Georgia, serif",
+      fontQuery: 'Cherry+Swash:wght@700',
+      hat: 'pilgrim',
+      titleSize: 60,
+      taglineSize: 17,
+      banner: ['#d9661f', '#fff4dc'],
+      palette: { ground: '#e6bd6e', ground2: '#b07a34', stone: '#fff7e6', stoneDark: '#9a6a2e', ink: '#4a2a10', accent: '#d9661f', good: '#4f8a2b', bad: '#b23a1c', water: '#5f9bbd' },
+      card: { back: 'Chester’s Thanksgiving', treasure: 'Harvest card', trick: 'Leftovers card', task: 'Chore card', fate: 'Wishbone card' },
+      kinds: {
+        cat:        { title: 'Chased by the farm cat!', icon: '🐈' },
+        roadblock:  { title: 'Hay bales block the road!', icon: '🌾' },
+        terror:     { title: 'The farmer saw you!', icon: '🧑‍🌾' },
+        attack:     { title: 'Angry turkey!', icon: '🦃' },
+        ghostScare: { title: 'Spooked by a scarecrow!', icon: '👒' },
+        ghostRun:   { title: 'Ride the hay wagon!', icon: '🚜' },
+        flowers:    { title: 'Found a corn cob!', icon: '🌽' },
+        evilGhost:  { title: 'Cow stampede!', icon: '🐄' },
+        grave:      { title: 'Fell in the mud pit!', icon: '🐖' },
+        pulledUnder:{ title: 'Stuck in the cranberry bog!', icon: '🥾' },
+        swim:       { title: 'Paddle to safety!', icon: '🛶' },
+        current:    { title: 'Swept down the creek!', icon: '🌊' },
+        safe:       { title: 'Safe!', icon: '🍂' },
+        exit:       { title: 'The feast table', icon: '🍽️' }
+      },
+      words: { card: ['PIE', 'DROP'], start: 'Start', longer: 'Longer route', riskier: 'Riskier route', escaped: 'Made it to the feast!', results: 'Day {n} results' },
+      routes: { longer: 'Through the fields, more maps. {n} spaces to the feast table.', riskier: 'Shorter, but the creek and the scarecrows are waiting. {n} spaces.' }
     }
   };
 
@@ -252,6 +288,28 @@
       c18: ['Polish the shiny gifts', '✨', "Help polish Chester's gifts until they sparkle. The elves move you one space closer."],
       c19: ['Quiet snowfall', '🌨️', 'Snow settles on the headstones. Santa enjoys the view.'],
       c20: ['Cookie rush', '🍪', 'Too many cookies! Santa zooms ahead, then naps it off.']
+    },
+    thanksgiving: {
+      c01: ['Pumpkin spice latte', '☕', 'Chester sips a pumpkin spice latte and picks up the pace.'],
+      c02: ['Autumn gust', '🍂', 'A gust of wind blows Chester three rows down the field.'],
+      c03: ['Dinner bell', '🔔', 'The dinner bell rings. Chester flies straight to the next map.'],
+      c04: ['Lucky wishbone', '🍗', 'Chester gets the bigger half. Roll again today.'],
+      c05: ["Grandma's quilt", '🧶', 'Chester is wrapped up warm. The next setback misses you.'],
+      c06: ['Hay wagon ride', '🚜', 'Chester hops on the hay wagon and rides four spaces.'],
+      c07: ['Porch light', '🕯️', 'The farmhouse porch light shows the next step.'],
+      c08: ['Flock of geese', '🦆', 'Chester joins the geese flying south for two spaces.'],
+      c09: ['Scarecrow standoff', '👒', 'The scarecrow flaps its arms and Chester backs off three spaces.'],
+      c10: ['Food coma', '😴', 'One plate too many. Chester sleeps through the next turn.'],
+      c11: ['Slipped on leaves', '🍁', 'A wet leaf pile sends Chester sliding back two spaces.'],
+      c12: ['Lost in the corn maze', '🌽', 'Every row looks the same. Better wait it out.'],
+      c13: ['Dropped the pie', '🥧', 'The pie slips off the windowsill. Back one space to save it.'],
+      c14: ['Dish duty', '🧽', 'Somebody has to wash all those dishes. Chester is stuck for a while.'],
+      c15: ['Turkey chase', '🦃', 'An angry turkey chases Chester back two spaces.'],
+      c16: ["Grandma's request", '👵', 'Grandma wants one more song before anyone touches dessert.'],
+      c17: ['Pie-eating contest', '🏆', 'The cousins say the last slice goes to whoever wins this map.'],
+      c18: ['Set the table', '🍴', 'Chester helps set the table and hops one space closer.'],
+      c19: ['Count your blessings', '🌅', 'The sun sets over the fields. Chester takes a moment to be thankful.'],
+      c20: ['Seconds on stuffing', '🥘', 'Chester zooms ahead for seconds, then naps it off.']
     }
   };
 

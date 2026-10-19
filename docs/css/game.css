@@ -40,6 +40,24 @@ body[data-theme="christmas"] {
   --die-hi: #ff7a8a; --die-mid: #d7263d; --die-lo: #7d0e1d;
   --treasure: #3cc46a; --trick: #7fb2ff; --task: #f4c542; --fate: #c9d6e3;
 }
+body[data-theme="thanksgiving"] {
+  --bg: #0b0704;
+  --raise: #1a110a;
+  --raise-2: #251810;
+  --line: #3a2716;
+  --line-2: #523720;
+  --text: #f6ecdc;
+  --muted: #cdb595;
+  --faint: #8f7658;
+  --accent: #e8792a;
+  --accent-ink: #1a0a00;
+  --good: #8cc152;
+  --bad: #ff8a65;
+  --gold: #f2c046;
+  --display: 'Cherry Swash', Georgia, serif;
+  --die-hi: #ffb067; --die-mid: #d9661f; --die-lo: #7a3410;
+  --treasure: #8cc152; --trick: #ff8a65; --task: #f2c046; --fate: #d9c3a3;
+}
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -59,6 +77,7 @@ img { max-width: 100%; }
 .brand-crow { width: 42px; height: 46px; flex: none; }
 .brand h1 { margin: 0; font: 700 34px/1 var(--display); letter-spacing: .5px; white-space: nowrap; }
 body[data-theme="christmas"] .brand h1 { color: #ff5a6e; }
+body[data-theme="thanksgiving"] .brand h1 { color: #f39a4a; }
 .daybox { display: flex; align-items: baseline; gap: 12px; padding: 6px 14px; border: 1px solid var(--line-2); border-radius: 999px; }
 .day { font: 700 22px/1 var(--display); color: var(--gold); }
 .clock { font-size: 14px; color: var(--muted); }
@@ -79,6 +98,7 @@ body[data-theme="christmas"] .brand h1 { color: #ff5a6e; }
 
 .demo-bar { display: flex; align-items: center; gap: 16px; justify-content: space-between; flex-wrap: wrap; padding: 10px 22px; background: #0d0a03; border-bottom: 1px solid #3a2a0e; color: #e9d3ab; font-size: 14.5px; }
 body[data-theme="christmas"] .demo-bar { background: #0b1220; border-color: #23395a; color: #c9dcf2; }
+body[data-theme="thanksgiving"] .demo-bar { background: #160c04; border-color: #4a2c12; color: #f0d6b0; }
 .demo-bar p { margin: 0; max-width: 80ch; }
 .demo-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .playas { display: flex; align-items: center; gap: 8px; }
@@ -144,6 +164,7 @@ input::placeholder { color: var(--faint); }
 .chip.risk { border-color: #6b3b3b; color: #ffb0a6; }
 .chip.long { border-color: #3d5a2a; color: #b9e3a3; }
 body[data-theme="christmas"] .chip.long { border-color: #23506a; color: #a9d8f5; }
+body[data-theme="thanksgiving"] .chip.long { border-color: #4a6a2a; color: #c8e3a3; }
 
 /* ---- me panel ---- */
 .me-row { display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 12px; align-items: center; }
@@ -201,6 +222,7 @@ body[data-theme="christmas"] .chip.long { border-color: #23506a; color: #a9d8f5;
 .route-card span { color: var(--muted); font-size: 14.5px; }
 .route-card.risk b { color: #ff9a8a; }
 body[data-theme="christmas"] .route-card.risk b { color: #ff8090; }
+body[data-theme="thanksgiving"] .route-card.risk b { color: #ff9a6a; }
 
 /* ---- feed ---- */
 .thread-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
@@ -228,6 +250,7 @@ body[data-theme="christmas"] .route-card.risk b { color: #ff8090; }
 .cface { position: absolute; inset: 0; border-radius: 18px; backface-visibility: hidden; overflow: hidden; box-shadow: 0 30px 70px rgba(0,0,0,.7); }
 .cback { transform: rotateY(180deg); background: radial-gradient(circle at 50% 40%, #2c3a22, #0f150b 70%); border: 6px solid #3a4434; display: grid; place-items: center; text-align: center; }
 body[data-theme="christmas"] .cback { background: repeating-linear-gradient(45deg, #b0182d 0 18px, #d7263d 18px 36px); border-color: #fff; }
+body[data-theme="thanksgiving"] .cback { background: repeating-linear-gradient(90deg, #8a3a12 0 14px, #b4501a 14px 28px, #8a3a12 28px 30px), #8a3a12; border-color: #f2c046; }
 .cback .crow { width: 52%; }
 .cback p { margin: 0; font: 700 26px/1 var(--display); color: #e9e4d6; padding: 0 16px; }
 .cfront { background: #f3eee2; color: #1d1b16; border: 7px solid var(--cc, var(--treasure)); display: flex; flex-direction: column; }
@@ -460,6 +483,8 @@ body.gated .foot { border-top: 0; margin-top: 0; }
 .board-svg .wisp { animation: wisp 9s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes wisp { 0%,100% { transform: translate(0,0) scale(.7); opacity: .15; } 25% { transform: translate(14px,-18px) scale(1); opacity: .9; } 50% { transform: translate(-6px,-34px) scale(.8); opacity: .4; } 75% { transform: translate(-16px,-12px) scale(1.05); opacity: .85; } }
 .board-svg .flake { animation: snow 12s linear infinite; }
+.board-svg .leaf { animation: leaf 16s linear infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes leaf { from { transform: translate(0, 0) rotate(0); } 25% { transform: translate(var(--sway, 20px), 260px) rotate(110deg); } 50% { transform: translate(calc(var(--sway, 20px) * -1), 520px) rotate(200deg); } 75% { transform: translate(var(--sway, 20px), 780px) rotate(290deg); } to { transform: translate(0, 1060px) rotate(380deg); } }
 @keyframes snow { from { transform: translate(0, 0); } 50% { transform: translate(var(--sway, 10px), 520px); } to { transform: translate(0, 1040px); } }
 .board-svg .eyes, .brand-crow .eyes, .gate-crow .eyes, .cback .eyes { animation: blink 5.5s infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes blink { 0%,94%,100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
@@ -501,6 +526,7 @@ body.gated .foot { border-top: 0; margin-top: 0; }
   .mbar { position: fixed; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); z-index: 25; display: grid; grid-template-columns: 40px minmax(0,1fr) auto; gap: 10px; align-items: center;
     padding: 10px 10px 10px 12px; border-radius: 16px; background: rgba(18,20,16,.94); border: 1px solid var(--line-2); box-shadow: 0 14px 40px rgba(0,0,0,.7); backdrop-filter: blur(8px); }
   body[data-theme="christmas"] .mbar { background: rgba(12,23,38,.94); }
+  body[data-theme="thanksgiving"] .mbar { background: rgba(26,17,10,.94); }
   .mbar[hidden] { display: none !important; }
   .mb-ava { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 3px solid var(--c, var(--accent)); background: var(--raise-2); display: grid; place-items: center; font-weight: 700; font-size: 13px; }
   .mb-txt { min-width: 0; line-height: 1.25; }

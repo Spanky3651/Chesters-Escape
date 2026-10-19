@@ -168,7 +168,7 @@
     var s = st(), t = theme();
     document.body.setAttribute('data-theme', t.id);
     $('gameTitle').textContent = t.title;
-    $('brandCrow').innerHTML = R.chester(0, 0, 1, t.id === 'christmas' ? 'santa' : 'none');
+    $('brandCrow').innerHTML = R.chester(0, 0, 1, R.hatFor(t));
     $('dayNum').textContent = s.status === 'finished' ? 'Game over' : s.status === 'signup' ? 'Sign-ups open' : 'Day ' + s.day;
     $('hostBtn').hidden = !store.isHost;
     var todo = store.isHost ? hostTodo() : { total: 0 };
@@ -637,7 +637,7 @@
   function showCard(card) {
     return new Promise(function (resolve) {
       var t = theme(), ov = $('cardOverlay'), c3 = $('card3d');
-      $('cardBack').innerHTML = '<div><svg class="crow" viewBox="-36 -42 72 80" aria-hidden="true">' + R.chester(0, 0, 1, t.id === 'christmas' ? 'santa' : 'none') + '</svg><p>' + esc(t.card.back) + '</p></div>';
+      $('cardBack').innerHTML = '<div><svg class="crow" viewBox="-36 -42 72 80" aria-hidden="true">' + R.chester(0, 0, 1, R.hatFor(t)) + '</svg><p>' + esc(t.card.back) + '</p></div>';
       $('cardFront').innerHTML = cardFront(card);
       var ccol = { treasure: 'var(--treasure)', trick: 'var(--trick)', task: 'var(--task)', fate: 'var(--fate)' }[card.cls];
       $('cardFront').style.setProperty('--cc', ccol); ov.style.setProperty('--cc', ccol);
@@ -890,9 +890,9 @@
   }
   // Square playlist cover: Chester on the theme ground.
   function crowCover() {
-    var t = theme(), xmas = t.id === 'christmas';
+    var t = theme();
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><radialGradient id="g" cx="50%" cy="45%" r="70%"><stop offset="0" stop-color="' + t.palette.ground + '"/><stop offset="1" stop-color="' + t.palette.ground2 + '"/></radialGradient></defs>' +
-      '<rect width="256" height="256" fill="url(#g)"/>' + R.chester(128, 120, 3.2, xmas ? 'santa' : 'none') + '</svg>';
+      '<rect width="256" height="256" fill="url(#g)"/>' + R.chester(128, 120, 3.2, R.hatFor(t)) + '</svg>';
     return new Promise(function (resolve) {
       var img = new Image();
       img.onload = function () { var c = document.createElement('canvas'); c.width = c.height = 256; c.getContext('2d').drawImage(img, 0, 0, 256, 256); resolve(c.toDataURL('image/png')); };
@@ -908,7 +908,7 @@
     });
   }
   function fontCss() {
-    var fam = theme().id === 'christmas' ? 'Mountains+of+Christmas:wght@700' : 'Grenze+Gotisch:wght@700';
+    var fam = theme().fontQuery || 'Grenze+Gotisch:wght@700';
     var url = 'https://fonts.googleapis.com/css2?family=' + fam + '&family=Atkinson+Hyperlegible:wght@700&display=swap';
     return fetch(url).then(function (r) { return r.text(); }).then(function (css) {
       var urls = css.match(/url\((https:[^)]+)\)/g) || [];
@@ -930,7 +930,7 @@
     }))).then(function (r) {
       var css = r[0];
       var words = resultsTitle().split(' '), l1 = words.length > 2 ? words.slice(0, 2).join(' ') : words[0], l2 = words.length > 2 ? words.slice(2).join(' ') : words.slice(1).join(' ');
-      var bfill = t.id === 'christmas' ? '#d7263d' : '#3fd04a', bstroke = t.id === 'christmas' ? '#fff' : '#3b2208';
+      var bfill = t.banner ? t.banner[0] : '#3fd04a', bstroke = t.banner ? t.banner[1] : '#3b2208';
       var banner = '<g transform="translate(40,40) rotate(-7)" font-family="' + esc(t.font) + '" font-weight="700" fill="' + bfill + '" stroke="' + bstroke + '" stroke-width="14" paint-order="stroke">' +
         '<text x="0" y="100" font-size="118">' + esc(l1) + '</text><text x="40" y="205" font-size="118">' + esc(l2) + '</text></g>';
       var str = new XMLSerializer().serializeToString(svg).replace('</svg>', banner + '</svg>');

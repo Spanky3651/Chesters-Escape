@@ -65,7 +65,7 @@
       '<circle cx="-4" cy="-22" r="1.6" fill="#24384a"/><circle cx="4" cy="-22" r="1.6" fill="#24384a"/><path d="M0,-19 l9,2 -9,2 z" fill="#f08a24"/>' +
       '<path d="M-10,-11 h20" stroke="#d7263d" stroke-width="4" stroke-linecap="round"/></g>';
   }
-  // Chester: a small round crow. hat = 'none' | 'santa' | 'party'
+  // Chester: a small round crow. hat = 'none' | 'santa' | 'pilgrim'
   function chester(x, y, s, hat) {
     var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')">';
     o += '<ellipse cx="0" cy="30" rx="26" ry="5" fill="#000" opacity=".3"/>';
@@ -78,12 +78,117 @@
     o += '<path d="M-5,5 L5,5 L0,13 Z" fill="#f2a33a"/>';
     o += '<ellipse cx="-13" cy="8" rx="4" ry="2.5" fill="#ff7b9c" opacity=".55"/><ellipse cx="13" cy="8" rx="4" ry="2.5" fill="#ff7b9c" opacity=".55"/>';
     if (hat === 'santa') o += '<path d="M-15,-14 C-10,-34 10,-40 22,-30 C14,-30 12,-24 15,-14 Z" fill="#d7263d"/><rect x="-17" y="-17" width="34" height="7" rx="3.5" fill="#fff"/><circle cx="23" cy="-30" r="5" fill="#fff"/>';
+    if (hat === 'pilgrim') o += '<ellipse cx="0" cy="-15" rx="23" ry="4.5" fill="#5a4030" stroke="#1a120c" stroke-width="1.2"/><path d="M-12,-16 L-10,-40 L10,-40 L12,-16 Z" fill="#5a4030" stroke="#1a120c" stroke-width="1.2"/><rect x="-11.4" y="-24" width="22.8" height="6" fill="#1a120c"/><rect x="-4.5" y="-25" width="9" height="8" fill="none" stroke="#f2c046" stroke-width="2"/>';
     o += '</g>';
     return o;
   }
 
-  function fence(pal, christmas) {
+
+  // ---- Thanksgiving farm art --------------------------------------------------
+  function pumpkin(x, y, s) {
+    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')">';
+    o += '<ellipse cx="0" cy="13" rx="22" ry="5" fill="#5a3616" opacity=".25"/>';
+    o += '<ellipse cx="-9" cy="2" rx="11" ry="12" fill="#d9661f"/><ellipse cx="9" cy="2" rx="11" ry="12" fill="#d9661f"/>';
+    o += '<ellipse cx="0" cy="2" rx="10" ry="13" fill="#ea7a2c" stroke="#b4501a" stroke-width="1"/>';
+    o += '<path d="M-9,-9 Q-12,2 -9,13 M9,-9 Q12,2 9,13" stroke="#b4501a" stroke-width="1" fill="none"/>';
+    o += '<path d="M-1,-10 q-1,-6 3,-9" stroke="#5a3a1a" stroke-width="3.2" stroke-linecap="round" fill="none"/>';
+    o += '<path d="M2,-12 q8,-6 12,0 q-7,3 -12,0" fill="#4f8a2b"/>';
+    o += '<ellipse cx="-4" cy="-4" rx="3" ry="5" fill="#fff" opacity=".18"/></g>';
+    return o;
+  }
+  function hayBale(x, y, s) {
+    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')">';
+    o += '<ellipse cx="0" cy="14" rx="28" ry="6" fill="#5a3616" opacity=".25"/>';
+    o += '<rect x="-24" y="-12" width="48" height="26" rx="6" fill="#e3b955" stroke="#a87a26" stroke-width="1.5"/>';
+    o += '<path d="M-20,-5 h14 M-2,-5 h18 M-18,3 h10 M0,3 h20 M-20,9 h16" stroke="#b98b2e" stroke-width="1.3" stroke-linecap="round"/>';
+    o += '<path d="M-10,-12 v26 M10,-12 v26" stroke="#8a4a1a" stroke-width="2.4"/>';
+    o += '<path d="M-24,-6 l-4,-2 M24,-4 l4,-3 M-22,10 l-4,2" stroke="#e3b955" stroke-width="1.5" stroke-linecap="round"/></g>';
+    return o;
+  }
+  function cornShock(x, y, s) {
+    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')">';
+    o += '<ellipse cx="0" cy="8" rx="22" ry="5" fill="#5a3616" opacity=".25"/>';
+    o += '<path d="M-16,8 L-3,-44 L0,-50 L3,-44 L16,8 Z" fill="#cfa24a" stroke="#9a7426" stroke-width="1.2"/>';
+    o += '<path d="M-10,8 L-1,-44 M-4,8 L0,-46 M3,8 L1,-44 M9,8 L2,-42" stroke="#9a7426" stroke-width="1" fill="none"/>';
+    o += '<path d="M-3,-44 C-14,-52 -20,-50 -24,-58 M3,-44 C12,-54 18,-52 24,-60 M-1,-40 C-12,-40 -18,-34 -24,-36" stroke="#b78a34" stroke-width="2.4" fill="none" stroke-linecap="round"/>';
+    o += '<rect x="-9" y="-22" width="18" height="5" rx="2" fill="#8a4a1a"/>';
+    o += '<ellipse cx="12" cy="0" rx="4" ry="9" fill="#f2c046" stroke="#c6922a" transform="rotate(18 12 0)"/></g>';
+    return o;
+  }
+  function autumnTree(x, y, s) {
+    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')">';
+    o += '<ellipse cx="0" cy="4" rx="48" ry="12" fill="#5a3616" opacity=".25"/>';
+    o += '<path d="M-6,4 C-4,-24 -8,-40 -2,-60 L4,-60 C8,-40 4,-24 7,4 Z" fill="#6b4422"/>';
+    o += '<path d="M0,-40 C-14,-50 -20,-56 -26,-66 M2,-46 C14,-56 20,-62 26,-74" stroke="#6b4422" stroke-width="4" fill="none" stroke-linecap="round"/>';
+    [[-26, -76, 22, '#b23a1c'], [4, -96, 26, '#d9661f'], [28, -74, 22, '#e0a31f'], [-6, -66, 22, '#c8521c'], [-18, -98, 18, '#e0a31f'], [22, -100, 16, '#b23a1c']].forEach(function (c) {
+      o += '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + c[2] + '" fill="' + c[3] + '"/>';
+    });
+    o += '<circle cx="-6" cy="-104" r="8" fill="#fff" opacity=".12"/></g>';
+    return o;
+  }
+  function scarecrow(x, y, s) {
+    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')">';
+    o += '<ellipse cx="0" cy="6" rx="26" ry="6" fill="#5a3616" opacity=".25"/>';
+    o += '<rect x="-3" y="-60" width="6" height="66" fill="#6b4422"/><rect x="-34" y="-46" width="68" height="5" fill="#6b4422"/>';
+    o += '<path d="M-34,-48 l-6,-3 M-34,-42 l-7,2 M34,-48 l6,-3 M34,-42 l7,2" stroke="#e3b955" stroke-width="2.2" stroke-linecap="round"/>';
+    o += '<path d="M-30,-49 H30 V-38 H14 L12,-12 H-12 L-14,-38 H-30 Z" fill="#b23a1c"/>';
+    o += '<path d="M-26,-49 V-38 M-16,-49 V-14 M-6,-49 V-12 M6,-49 V-12 M16,-49 V-14 M26,-49 V-38 M-30,-44 H30 M-13,-30 H13 M-12,-20 H12" stroke="#7a2412" stroke-width="1.4" opacity=".7"/>';
+    o += '<path d="M-10,-12 l-3,7 M0,-12 v8 M10,-12 l3,7" stroke="#e3b955" stroke-width="2" stroke-linecap="round"/>';
+    o += '<circle cx="0" cy="-62" r="12" fill="#d9b77a" stroke="#a8843e" stroke-width="1.2"/>';
+    o += '<path d="M-5,-64 l3,3 M-5,-61 l3,-3 M2,-64 l3,3 M2,-61 l3,-3" stroke="#4a2a10" stroke-width="1.4"/><path d="M-5,-56 q5,3 10,0" stroke="#4a2a10" stroke-width="1.3" fill="none"/>';
+    o += '<ellipse cx="0" cy="-71" rx="20" ry="4.5" fill="#e3b955" stroke="#a87a26"/><path d="M-10,-72 Q-9,-86 0,-86 Q9,-86 10,-72 Z" fill="#e3b955" stroke="#a87a26"/><rect x="-10" y="-76" width="20" height="3.5" fill="#b23a1c"/></g>';
+    return o;
+  }
+  function turkey(x, y, s) {
+    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')">';
+    o += '<ellipse cx="0" cy="18" rx="26" ry="5" fill="#5a3616" opacity=".25"/>';
+    ['#7a3d16', '#d9661f', '#e0a31f', '#b23a1c', '#7a3d16'].forEach(function (c, i) {
+      var a = -70 + i * 35;
+      o += '<ellipse cx="0" cy="-18" rx="8" ry="22" fill="' + c + '" transform="rotate(' + a + ' 0 2)"/>';
+    });
+    o += '<ellipse cx="0" cy="4" rx="15" ry="14" fill="#6b3a18"/>';
+    o += '<circle cx="0" cy="-12" r="8" fill="#8a4f24"/>';
+    o += '<circle cx="-3" cy="-14" r="1.7" fill="#111"/><circle cx="3" cy="-14" r="1.7" fill="#111"/>';
+    o += '<path d="M-3,-10 L3,-10 L0,-5 Z" fill="#f2c046"/><path d="M1,-7 q4,4 0,9 q-3,-4 0,-9" fill="#d7263d"/>';
+    o += '<path d="M-5,17 v5 M5,17 v5" stroke="#e8a33c" stroke-width="2.4" stroke-linecap="round"/></g>';
+    return o;
+  }
+  function leafShape(col) {
+    return '<path d="M0,-7 C5,-6 7,-1 6,3 C4,6 1,7 0,8 C-1,7 -4,6 -6,3 C-7,-1 -5,-6 0,-7 Z M0,-6 V9" fill="' + col + '" stroke="#5a3616" stroke-opacity=".45" stroke-width=".8"/>';
+  }
+
+  // ---- per-theme look ---------------------------------------------------------
+  // Everything the board draws differently per theme lives here, so a new theme is one more entry.
+  var LOOKS = {
+    cemetery: {
+      sky: 'moon', grain: '.35', pseed: 9, fog: true, parts: 'wisps', river: 'water', fence: 'iron', decor: 'graves', seed: 13,
+      vignette: ['#000', '.6'], stone: ['#b3b8ba', '#878d90'],
+      title: { shadow: '#0c0e0b', ink: '#d9dcd5', stroke: '#3b3f3a', ink2: '#f2a33a', stroke2: '#2b1a05', tagline: '#e4e6df' },
+      good: '#3fd04a', bad: '#a78bfa', warpBad: '#ff4b4b',
+      card: 'url(#gCard)', cardText: null, task: ['#16171a', '#f2a33a'], plain: ['#1d201b', '#f1f1ea'], exit: ['#0e100d', '#f2a33a']
+    },
+    christmas: {
+      sky: 'snow', grain: '.07', pseed: 5, fog: false, parts: 'snow', river: 'ice', fence: 'candy', decor: 'winter', seed: 21,
+      vignette: ['#24384a', '.25'], stone: ['#ffffff', '#dbe8f2'],
+      title: { shadow: '#d7263d', ink: '#24384a', stroke: '#fff', ink2: '#d7263d', stroke2: '#fff', tagline: '#24384a' },
+      good: '#2fb35a', bad: '#3a6ea5', warpBad: '#d7263d',
+      card: 'url(#gGift)', cardText: '#fff', task: ['#24384a', '#d7263d'], plain: ['#ffffff', '#24384a'], exit: ['#d7263d', '#f4c542']
+    },
+    thanksgiving: {
+      sky: 'sun', grain: '.12', pseed: 7, fog: false, parts: 'leaves', river: 'creek', fence: 'rail', decor: 'farm', seed: 31,
+      vignette: ['#5a3616', '.3'], stone: ['#fff7e6', '#ecd3a2'],
+      title: { shadow: '#b23a1c', ink: '#4a2a10', stroke: '#fff4dc', ink2: '#d9661f', stroke2: '#fff4dc', tagline: '#4a2a10' },
+      good: '#4f8a2b', bad: '#b23a1c', warpBad: '#c0392b',
+      card: 'url(#gHarvest)', cardText: '#fff', task: ['#4a2a10', '#d9661f'], plain: ['#fff8ea', '#4a2a10'], exit: ['#7a2a14', '#f2c046']
+    }
+  };
+  function look(theme) { return LOOKS[theme.id] || LOOKS.cemetery; }
+  function hatFor(theme) { return theme.hat || 'none'; }
+
+  function fence(L) {
     var o = '<g>';
+    if (L.fence === 'rail') return railFence();
+    var christmas = L.fence === 'candy';
     var col = christmas ? '#d7263d' : '#5e646b', col2 = christmas ? '#fff' : '#8a9097';
     // rails
     o += '<rect x="10" y="10" width="980" height="980" fill="none" stroke="' + col2 + '" stroke-width="4" opacity=".75"/>';
@@ -98,10 +203,30 @@
     o += '</g>';
     return o;
   }
+  // Split-rail farm fence: two wooden rails with posts.
+  function railFence() {
+    var o = '<g>';
+    o += '<rect x="11" y="11" width="978" height="978" fill="none" stroke="#9c6a34" stroke-width="4" opacity=".9"/>';
+    o += '<rect x="4" y="4" width="992" height="992" fill="none" stroke="#7a4e24" stroke-width="6"/>';
+    for (var i = 0; i <= 15; i++) {
+      var p = 20 + i * 64 - (i === 15 ? 4 : 0);
+      [[p, 6], [p, 994], [6, p], [994, p]].forEach(function (q) {
+        o += '<rect x="' + (q[0] - 5) + '" y="' + (q[1] - 6) + '" width="10" height="12" rx="2" fill="#5a3616" stroke="#2e1a08" stroke-width="1.5"/>';
+      });
+    }
+    return o + '</g>';
+  }
 
-  function river(christmas, pal) {
+  function river(L, pal) {
     var d = 'M1012,640 C960,636 905,650 862,700 C815,755 770,800 728,848 C690,892 648,930 622,1012';
-    if (christmas) {
+    if (L.river === 'creek') {
+      return '<g><path d="' + d + '" stroke="#6b4a22" stroke-width="154" fill="none" stroke-linecap="round" opacity=".9"/>' +
+        '<path d="' + d + '" stroke="#5f9bbd" stroke-width="122" fill="none" stroke-linecap="round"/>' +
+        '<path d="' + d + '" stroke="#a9d3ea" stroke-width="3" stroke-dasharray="14 22" fill="none" opacity=".85"/>' +
+        '<path d="' + d + '" stroke="#cfe8f5" stroke-width="2" stroke-dasharray="6 30" fill="none" transform="translate(28,8)" opacity=".7"/>' +
+        '<path d="' + d + '" stroke="#cfe8f5" stroke-width="2" stroke-dasharray="6 30" fill="none" transform="translate(-30,-6)" opacity=".7"/></g>';
+    }
+    if (L.river === 'ice') {
       return '<g><path d="' + d + '" stroke="#bfe3f7" stroke-width="150" fill="none" stroke-linecap="round" opacity=".95"/>' +
         '<path d="' + d + '" stroke="#e8f6fd" stroke-width="110" fill="none" stroke-linecap="round"/>' +
         '<path d="M930,640 l20,26 -14,18 M860,780 l-26,18 8,22 M700,870 l22,10 M640,930 l-16,-20" stroke="#8cc4e2" stroke-width="2" fill="none"/></g>';
@@ -114,27 +239,33 @@
   }
 
   function background(board, theme) {
-    var pal = theme.palette, xmas = theme.id === 'christmas', o = '';
+    var pal = theme.palette, L = look(theme), o = '';
     if (board.background) {
       o += '<image href="' + esc(board.background) + '" x="0" y="0" width="1000" height="1000" preserveAspectRatio="xMidYMid slice"/>';
       return o;
     }
     o += '<rect width="1000" height="1000" fill="url(#gGround)"/>';
-    o += '<rect width="1000" height="1000" filter="url(#fGrain)" opacity="' + (xmas ? '.07' : '.35') + '"/>';
-    if (xmas) {
+    o += '<rect width="1000" height="1000" filter="url(#fGrain)" opacity="' + L.grain + '"/>';
+    if (L.sky === 'sun') {
+      // stubble rows across the field, a low autumn sun and a few fallen leaves
+      for (var y = 60; y < 1000; y += 46) o += '<path d="M0,' + y + ' Q250,' + (y - 14) + ' 500,' + y + ' T1000,' + y + '" stroke="#8a5a22" stroke-width="3" fill="none" opacity=".12"/>';
+      o += '<circle cx="770" cy="90" r="150" fill="url(#gSun)"/>';
+      var r2 = rnd(11), cols = ['#b23a1c', '#d9661f', '#e0a31f', '#8a4a1a'];
+      for (var j = 0; j < 40; j++) o += '<g transform="translate(' + (r2() * 1000).toFixed(0) + ',' + (r2() * 1000).toFixed(0) + ') rotate(' + (r2() * 360).toFixed(0) + ') scale(' + (.7 + r2() * .5).toFixed(2) + ')" opacity=".75">' + leafShape(cols[j % 4]) + '</g>';
+    } else if (L.sky === 'snow') {
       var r1 = rnd(7);
       for (var i = 0; i < 70; i++) o += '<circle cx="' + (r1() * 1000).toFixed(0) + '" cy="' + (r1() * 1000).toFixed(0) + '" r="' + (1 + r1() * 2.4).toFixed(1) + '" fill="#fff" opacity=".9"/>';
     } else {
       o += '<circle cx="760" cy="96" r="120" fill="url(#gMoon)"/>';
     }
-    o += river(xmas, pal);
+    o += river(L, pal);
     o += '<rect width="1000" height="1000" fill="url(#gVignette)"/>';
     return o;
   }
 
   // Decorations go on free cells only, so they never sit under a space.
   function decor(board, theme) {
-    var pal = theme.palette, xmas = theme.id === 'christmas', used = {}, o = '';
+    var pal = theme.palette, L = look(theme), used = {}, o = '';
     var cell = board.cell || 64, pad = 20;
     Object.keys(board.spaces).forEach(function (id) { var s = board.spaces[id]; used[Math.floor((s.x - pad) / cell) + ',' + Math.floor((s.y - pad) / cell)] = 1; });
     // keep the title, tagline, start markers and the river clear
@@ -147,11 +278,17 @@
       if (inRiver && !(c >= 11 && r <= 7)) used[c + ',' + r] = 1;
     }
     var spots = [[3, 4], [4, 4], [5, 4], [3, 5], [5, 5], [8, 4], [8, 6], [9, 3], [11, 4], [11, 6], [12, 5], [11, 8], [12, 7], [3, 9], [4, 10], [6, 11], [7, 11], [8, 11], [3, 11], [5, 10], [8, 7], [9, 6], [4, 7], [11, 10], [9, 11]];
-    var g = rnd(xmas ? 21 : 13);
+    var g = rnd(L.seed);
     spots.forEach(function (q, i) {
       if (used[q[0] + ',' + q[1]]) return;
       var x = pad + q[0] * cell + cell / 2 + (g() - .5) * 18, y = pad + q[1] * cell + cell / 2 + (g() - .5) * 14;
-      if (xmas) {
+      if (L.decor === 'farm') {
+        var k = i % 4, sc = .8 + g() * .3;
+        if (k === 0) o += pumpkin(x, y + 6, sc);
+        else if (k === 1) o += hayBale(x, y + 4, sc * .9);
+        else if (k === 2) o += cornShock(x, y + 20, sc);
+        else o += pumpkin(x - 8, y + 8, sc * .75) + pumpkin(x + 10, y + 2, sc * .6);
+      } else if (L.decor === 'winter') {
         if (i % 3 === 0) o += pine(x, y + 18, .8 + g() * .3);
         else if (i % 3 === 1) o += present(x, y, .9 + g() * .3, ['#d7263d', '#2fb35a', '#3a6ea5', '#f4c542'][i % 4]);
         else o += snowyGrave(x, y, .8 + g() * .3, i % 3 === 2 ? (i % 2) : 2, { stoneDark: '#4f6476' });
@@ -159,7 +296,9 @@
         o += tombstone(x, y, .8 + g() * .35, i % 3, pal);
       }
     });
-    if (xmas) {
+    if (L.decor === 'farm') {
+      o += autumnTree(560, 420, 1.15) + scarecrow(330, 780, 1.1) + autumnTree(890, 320, .85) + hayBale(440, 600, 1.2) + turkey(655, 605, 1.05) + pumpkin(820, 405, 1.15);
+    } else if (L.decor === 'winter') {
       o += pine(560, 400, 1.3) + pine(318, 760, 1.2) + snowman(660, 600, 1.1) + present(440, 610, 1.1, '#d7263d') + pine(890, 330, 1.05) +
         snowyGrave(600, 470, .95, 0, { stoneDark: '#4f6476' }) + snowyGrave(820, 410, .85, 1, { stoneDark: '#4f6476' });
     } else {
@@ -171,15 +310,21 @@
   // Fog drifting low over the ground (under the spaces), and floating lights or snow on top.
   // Pure CSS animation, switched off by prefers-reduced-motion.
   function fog(theme) {
-    if (theme.id === 'christmas') return '';
+    if (!look(theme).fog) return '';
     return '<g class="atmo fog" aria-hidden="true">' +
       '<ellipse class="fog1" cx="300" cy="640" rx="420" ry="90" fill="url(#gFog)"/>' +
       '<ellipse class="fog2" cx="720" cy="360" rx="380" ry="80" fill="url(#gFog)"/>' +
       '<ellipse class="fog3" cx="520" cy="880" rx="460" ry="70" fill="url(#gFog)"/></g>';
   }
   function particles(theme) {
-    var g = rnd(theme.id === 'christmas' ? 5 : 9), o = '<g class="atmo parts" aria-hidden="true">';
-    if (theme.id === 'christmas') {
+    var L = look(theme), g = rnd(L.pseed), o = '<g class="atmo parts" aria-hidden="true">';
+    if (L.parts === 'leaves') {
+      var cols = ['#b23a1c', '#d9661f', '#e0a31f', '#8a4a1a'];
+      for (var j = 0; j < 16; j++) {
+        var lx = (g() * 1000).toFixed(0), ld = (12 + g() * 10).toFixed(1), ldl = (-g() * 22).toFixed(1), lsw = (g() * 60 - 30).toFixed(0), lsc = (.8 + g() * .4).toFixed(2);
+        o += '<g transform="translate(' + lx + ',-16) scale(' + lsc + ')" opacity=".9"><g class="leaf" style="animation-duration:' + ld + 's;animation-delay:' + ldl + 's;--sway:' + lsw + 'px">' + leafShape(cols[j % 4]) + '</g></g>';
+      }
+    } else if (L.parts === 'snow') {
       for (var i = 0; i < 46; i++) {
         var x = (g() * 1000).toFixed(0), r = (1.6 + g() * 2.8).toFixed(1), d = (9 + g() * 9).toFixed(1), dl = (-g() * 18).toFixed(1), sway = (g() * 40 - 20).toFixed(0);
         o += '<circle class="flake" cx="' + x + '" cy="-12" r="' + r + '" fill="#fff" stroke="#7fa3c0" stroke-opacity=".55" stroke-width="1" style="animation-duration:' + d + 's;animation-delay:' + dl + 's;--sway:' + sway + 'px"/>';
@@ -195,22 +340,22 @@
   }
 
   function titleBlock(board, theme) {
-    var o = '', xmas = theme.id === 'christmas';
-    var ink = xmas ? '#24384a' : '#d9dcd5';
+    var o = '', T = look(theme).title;
     var parts = splitTitle(theme.title);
+    var t2 = theme.titleSize || 70;   // long second words get a smaller size
     o += '<g class="title">';
-    o += '<text x="34" y="92" font-family="' + esc(theme.font) + '" font-size="64" font-weight="700" fill="' + (xmas ? '#d7263d' : '#0c0e0b') + '" opacity=".55" transform="translate(4,5)">' + esc(parts[0]) + '</text>';
-    o += '<text x="34" y="92" font-family="' + esc(theme.font) + '" font-size="64" font-weight="700" fill="' + ink + '" stroke="' + (xmas ? '#fff' : '#3b3f3a') + '" stroke-width="1.5" paint-order="stroke">' + esc(parts[0]) + '</text>';
-    o += '<text x="70" y="160" font-family="' + esc(theme.font) + '" font-size="70" font-weight="700" fill="' + (xmas ? '#d7263d' : '#0c0e0b') + '" opacity=".55" transform="translate(4,5)">' + esc(parts[1]) + '</text>';
-    o += '<text x="70" y="160" font-family="' + esc(theme.font) + '" font-size="70" font-weight="700" fill="' + (xmas ? '#d7263d' : '#f2a33a') + '" stroke="' + (xmas ? '#fff' : '#2b1a05') + '" stroke-width="2" paint-order="stroke">' + esc(parts[1]) + '</text>';
-    o += chester(575, 128, 1.05, xmas ? 'santa' : 'none');
+    o += '<text x="34" y="92" font-family="' + esc(theme.font) + '" font-size="64" font-weight="700" fill="' + T.shadow + '" opacity=".55" transform="translate(4,5)">' + esc(parts[0]) + '</text>';
+    o += '<text x="34" y="92" font-family="' + esc(theme.font) + '" font-size="64" font-weight="700" fill="' + T.ink + '" stroke="' + T.stroke + '" stroke-width="1.5" paint-order="stroke">' + esc(parts[0]) + '</text>';
+    o += '<text x="70" y="160" font-family="' + esc(theme.font) + '" font-size="' + t2 + '" font-weight="700" fill="' + T.shadow + '" opacity=".55" transform="translate(4,5)">' + esc(parts[1]) + '</text>';
+    o += '<text x="70" y="160" font-family="' + esc(theme.font) + '" font-size="' + t2 + '" font-weight="700" fill="' + T.ink2 + '" stroke="' + T.stroke2 + '" stroke-width="2" paint-order="stroke">' + esc(parts[1]) + '</text>';
+    o += chester(575, 128, 1.05, hatFor(theme));
     // tagline down the left edge, one or two words per line like a carved signpost
     var words = theme.tagline.split(' '), lines = [], cur = '';
     words.forEach(function (w) { if ((cur + ' ' + w).trim().length > 8) { if (cur) lines.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); });
     if (cur) lines.push(cur);
     lines = lines.slice(0, 14);
     var tsize = theme.taglineSize || 19;   // wide display fonts set a smaller size
-    o += '<g font-family="' + esc(theme.font) + '" font-size="' + tsize + '" fill="' + (xmas ? '#24384a' : '#e4e6df') + '" text-anchor="middle">';
+    o += '<g font-family="' + esc(theme.font) + '" font-size="' + tsize + '" fill="' + T.tagline + '" text-anchor="middle">';
     lines.forEach(function (l, i) { o += '<text x="52" y="' + (230 + i * (tsize + 5)) + '">' + esc(l) + '</text>'; });
     o += '</g></g>';
     return o;
@@ -221,11 +366,11 @@
   }
 
   function startMarkers(board, theme) {
-    var o = '', xmas = theme.id === 'christmas';
+    var o = '', L = look(theme);
     ['longer', 'riskier'].forEach(function (r) {
       var st = board.starts && board.starts[r]; if (!st) return;
       var label = (theme.words && theme.words[r]) || r;
-      var fill = xmas ? '#2fb35a' : '#3fd04a';
+      var fill = L.good;
       o += '<g class="start" transform="translate(' + st.x + ',' + st.y + ')">';
       if (st.dir === 'left') o += '<path d="M24,-14 L-8,-14 L-8,-24 L-28,0 L-8,24 L-8,14 L24,14 Z" fill="#111" stroke="' + fill + '" stroke-width="3"/>';
       else o += '<path d="M-14,-24 L14,-24 L14,4 L24,4 L0,28 L-24,4 L-14,4 Z" fill="#111" stroke="' + fill + '" stroke-width="3"/>';
@@ -237,7 +382,7 @@
 
   // ---- spaces ----------------------------------------------------------------
   function spaceSvg(sp, theme, opts) {
-    var pal = theme.palette, xmas = theme.id === 'christmas', k = sp.kind && theme.kinds[sp.kind];
+    var pal = theme.palette, L = look(theme), k = sp.kind && theme.kinds[sp.kind];
     var s = 58, h = s / 2, o = '';
     var cls = 'sp sp-' + sp.type + (opts.selected === sp.id ? ' sel' : '');
     o += '<g class="' + cls + '" data-id="' + esc(sp.id) + '" transform="translate(' + sp.x + ',' + sp.y + ')" tabindex="' + (opts.focusable ? 0 : -1) + '" role="button" aria-label="' + esc(label(sp, theme)) + '">';
@@ -248,10 +393,10 @@
     }
     o += '<rect x="' + (-h + 2) + '" y="' + (-h + 3) + '" width="' + s + '" height="' + s + '" rx="5" fill="#000" opacity=".35"/>';
     var fill = 'url(#gStone)', stroke = pal.stoneDark, txt = pal.ink;
-    if (sp.type === 'card') { fill = xmas ? 'url(#gGift)' : 'url(#gCard)'; }
-    if (sp.type === 'task') { fill = xmas ? '#24384a' : '#16171a'; stroke = xmas ? '#d7263d' : '#f2a33a'; txt = '#fff'; }
-    if (sp.type === 'move' || sp.type === 'skip' || sp.type === 'start' || sp.type === 'warp' || sp.type === 'safe') { fill = xmas ? '#ffffff' : '#1d201b'; stroke = sp.type === 'move' && sp.n > 0 || sp.type === 'safe' || (sp.type === 'warp' && sp.kind === 'swim') ? (xmas ? '#2fb35a' : '#3fd04a') : (xmas ? '#3a6ea5' : '#a78bfa'); txt = xmas ? '#24384a' : '#f1f1ea'; }
-    if (sp.type === 'exit') { fill = xmas ? '#d7263d' : '#0e100d'; stroke = xmas ? '#f4c542' : '#f2a33a'; txt = '#fff'; }
+    if (sp.type === 'card') { fill = L.card; }
+    if (sp.type === 'task') { fill = L.task[0]; stroke = L.task[1]; txt = '#fff'; }
+    if (sp.type === 'move' || sp.type === 'skip' || sp.type === 'start' || sp.type === 'warp' || sp.type === 'safe') { fill = L.plain[0]; stroke = sp.type === 'move' && sp.n > 0 || sp.type === 'safe' || (sp.type === 'warp' && sp.kind === 'swim') ? L.good : L.bad; txt = L.plain[1]; }
+    if (sp.type === 'exit') { fill = L.exit[0]; stroke = L.exit[1]; txt = '#fff'; }
     o += '<rect class="face" x="' + (-h) + '" y="' + (-h) + '" width="' + s + '" height="' + s + '" rx="5" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + (sp.type === 'map' || sp.type === 'card' ? 1.5 : 2.5) + '"/>';
     if (sp.type === 'map' || sp.type === 'card') o += '<rect x="' + (-h + 3) + '" y="' + (-h + 3) + '" width="' + (s - 6) + '" height="' + (s - 6) + '" rx="3" fill="none" stroke="#fff" stroke-opacity=".22"/>';
     var f = 'Atkinson Hyperlegible, Arial, sans-serif';
@@ -263,7 +408,8 @@
       }
     } else if (sp.type === 'card') {
       var w = theme.words.card;
-      o += t(0, -4, w[0], 13.5, xmas ? '#fff' : pal.ink, f, 700, .9) + t(0, 12, w[1], 13.5, xmas ? '#fff' : pal.ink, f, 700, .9);
+      var ct = L.cardText || pal.ink;
+      o += t(0, -4, w[0], 13.5, ct, f, 700, .9) + t(0, 12, w[1], 13.5, ct, f, 700, .9);
     } else if (sp.type === 'exit') {
       o += t(0, 2, k ? k.icon : '\uD83D\uDEAA', 26, '#fff', 'serif', 400) + t(0, 24, 'EXIT', 10.5, txt, f, 700);
     } else {
@@ -297,13 +443,13 @@
   }
 
   function connectors(board, theme) {
-    var o = '', xmas = theme.id === 'christmas';
+    var o = '', L = look(theme);
     // warp arrows, dotted like the original board
     Object.keys(board.spaces).forEach(function (id) {
       var sp = board.spaces[id];
       if (sp.type !== 'warp' || !board.spaces[sp.to]) return;
       var to = board.spaces[sp.to], good = sp.kind === 'swim';
-      var col = good ? (xmas ? '#2fb35a' : '#3fd04a') : (xmas ? '#d7263d' : '#ff4b4b');
+      var col = good ? L.good : L.warpBad;
       var mx = (sp.x + to.x) / 2 + (good ? 60 : -50), my = (sp.y + to.y) / 2 + (good ? 60 : -40);
       o += '<path d="M' + sp.x + ',' + sp.y + ' Q' + mx + ',' + my + ' ' + to.x + ',' + to.y + '" fill="none" stroke="' + col + '" stroke-width="5" stroke-dasharray="2 12" stroke-linecap="round" opacity=".95" marker-end="url(#mArrow' + (good ? 'G' : 'R') + ')"/>';
     });
@@ -311,21 +457,23 @@
   }
 
   function defs(theme) {
-    var pal = theme.palette, xmas = theme.id === 'christmas';
+    var pal = theme.palette, L = look(theme);
     return '<defs>' +
       '<radialGradient id="gGround" cx="50%" cy="45%" r="75%"><stop offset="0" stop-color="' + pal.ground + '"/><stop offset="1" stop-color="' + pal.ground2 + '"/></radialGradient>' +
-      '<radialGradient id="gVignette" cx="50%" cy="50%" r="72%"><stop offset=".62" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="' + (xmas ? '#24384a' : '#000') + '" stop-opacity="' + (xmas ? '.25' : '.6') + '"/></radialGradient>' +
+      '<radialGradient id="gVignette" cx="50%" cy="50%" r="72%"><stop offset=".62" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="' + L.vignette[0] + '" stop-opacity="' + L.vignette[1] + '"/></radialGradient>' +
       '<radialGradient id="gMoon" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff7d6" stop-opacity=".55"/><stop offset=".22" stop-color="#fff2c2" stop-opacity=".22"/><stop offset="1" stop-color="#fff2c2" stop-opacity="0"/></radialGradient>' +
       '<linearGradient id="gGrave" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9c6d1"/><stop offset="1" stop-color="#7d90a1"/></linearGradient>' +
-      '<linearGradient id="gStone" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + (xmas ? '#ffffff' : '#b3b8ba') + '"/><stop offset="1" stop-color="' + (xmas ? '#dbe8f2' : '#878d90') + '"/></linearGradient>' +
+      '<linearGradient id="gStone" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + L.stone[0] + '"/><stop offset="1" stop-color="' + L.stone[1] + '"/></linearGradient>' +
       '<linearGradient id="gCard" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9dcd7"/><stop offset="1" stop-color="#a9adaa"/></linearGradient>' +
       '<linearGradient id="gGift" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e2384c"/><stop offset="1" stop-color="#a4142a"/></linearGradient>' +
+      '<linearGradient id="gHarvest" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ea7a2c"/><stop offset="1" stop-color="#b4501a"/></linearGradient>' +
+      '<radialGradient id="gSun" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff1c4" stop-opacity=".75"/><stop offset=".25" stop-color="#ffd27a" stop-opacity=".35"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient>' +
       '<radialGradient id="gFog"><stop offset="0" stop-color="#dfe8dc" stop-opacity=".22"/><stop offset="1" stop-color="#dfe8dc" stop-opacity="0"/></radialGradient>' +
       '<radialGradient id="gWisp"><stop offset="0" stop-color="#e9ffd0"/><stop offset=".25" stop-color="#9dff6a" stop-opacity=".8"/><stop offset="1" stop-color="#5cff3a" stop-opacity="0"/></radialGradient>' +
       '<filter id="fGrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .9 0"/></filter>' +
       '<filter id="fGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-      '<marker id="mArrowG" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="' + (xmas ? '#2fb35a' : '#3fd04a') + '"/></marker>' +
-      '<marker id="mArrowR" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="' + (xmas ? '#d7263d' : '#ff4b4b') + '"/></marker>' +
+      '<marker id="mArrowG" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="' + L.good + '"/></marker>' +
+      '<marker id="mArrowR" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="' + L.warpBad + '"/></marker>' +
       '</defs>';
   }
 
@@ -334,7 +482,7 @@
     var o = '<svg class="board-svg" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + esc(theme.title) + ' game board">';
     o += defs(theme);
     o += '<g class="bg">' + background(b, theme) + '</g>';
-    if (!b.background) o += '<g class="decor">' + decor(b, theme) + fence(theme.palette, theme.id === 'christmas') + '</g>';
+    if (!b.background) o += '<g class="decor">' + decor(b, theme) + fence(look(theme)) + '</g>';
     if (!b.background || opts.titleOnImage) o += titleBlock(b, theme);
     if (!(b.background && b.artSpaces)) o += '<g class="links">' + connectors(b, theme) + '</g>';
     if (!b.background && !opts.still) o += fog(theme);
@@ -429,6 +577,6 @@
 
   root.CGRender = {
     board: board, placeTokens: placeTokens, layoutTokens: layoutTokens, tokenXY: tokenXY,
-    playerColor: playerColor, initials: initials, chester: chester, label: label, esc: esc
+    playerColor: playerColor, initials: initials, chester: chester, hatFor: hatFor, label: label, esc: esc
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -43,7 +43,7 @@
   function render() {
     var t = theme();
     document.body.setAttribute('data-theme', t.id);
-    $('brandCrow').innerHTML = R.chester(0, 0, 1, t.id === 'christmas' ? 'santa' : 'none');
+    $('brandCrow').innerHTML = R.chester(0, 0, 1, R.hatFor(t));
     var wrap = $('dzWrap');
     wrap.innerHTML = R.board(board, t, { selected: sel, designer: true, still: true });
     wrap.className = 'board-wrap dz-wrap tool-' + tool;

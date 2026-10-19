@@ -27,7 +27,7 @@ If you played a map and it doesn't show up (for example a replay that wasn't a n
 
 ## Board designer
 
-`designer.html` lays out a board on top of your own art: upload the image, click each square in order, and set what it does (map, blocker, card drop, move, lose a turn, back to start, or a current that carries you elsewhere). Themes swap the art, event names and card text, so the same board can run as a Halloween or a Christmas game.
+`designer.html` lays out a board on top of your own art: upload the image, click each square in order, and set what it does (map, blocker, card drop, move, lose a turn, back to start, or a current that carries you elsewhere). Themes swap the art, event names and card text, so the same board can run as a Halloween, Thanksgiving or Christmas game.
 
 ## Built with
 
