@@ -86,3 +86,10 @@
   .mode-tabs { order: 3; }
 }
 .mode-tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+
+/* Close (back to the game), always in the top right corner */
+body > .top { position: relative; padding-right: 76px; }
+.dz-close { position: absolute; top: 50%; right: 18px; transform: translateY(-50%); display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--raise); color: var(--text); }
+.dz-close svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+.dz-close:hover, .dz-close:focus-visible { border-color: var(--accent); color: var(--accent); }
+@media (max-width: 760px) { body > .top { padding-right: 64px; } .dz-close { top: 12px; right: 12px; transform: none; } }
