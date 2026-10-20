@@ -537,3 +537,20 @@ body.gated .foot { border-top: 0; margin-top: 0; }
   .stage-die { width: 150px; height: 140px; }
   .burst { font-size: 120px; --lift: -130px; --lift-hi: -140px; }
 }
+
+/* ---- clan games ---- */
+.clan-switch { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--raise); }
+.clan-switch[hidden] { display: none; }
+.clan-btn { display: inline-flex; align-items: center; gap: 8px; padding: 4px 14px 4px 4px; border: 0; border-radius: 999px; background: none; color: var(--muted); font: 700 14.5px/1 var(--ui); cursor: pointer; }
+.clan-btn:hover { color: var(--text); }
+.clan-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); cursor: default; }
+.clan-ic, .clan-big { display: inline-grid; place-items: center; border-radius: 50%; object-fit: cover; background: var(--raise-2); color: var(--text); font-weight: 700; flex: none; }
+.clan-ic[hidden], .clan-big[hidden] { display: none; }
+.clan-ic { width: 30px; height: 30px; font-size: 12px; }
+.clan-btn:not([aria-pressed="true"]) .clan-ic { filter: grayscale(.5); opacity: .8; }
+.clan-btn:hover .clan-ic { filter: none; opacity: 1; }
+.clan-picks { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-top: 6px; }
+.clan-pick { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 22px 14px 18px; border: 1px solid var(--line-2); border-radius: 16px; background: var(--raise-2); color: var(--text); font: 700 22px/1.1 var(--display); cursor: pointer; transition: transform .15s, border-color .15s; }
+.clan-pick:hover, .clan-pick:focus-visible { border-color: var(--accent); transform: translateY(-2px); }
+.clan-big { width: 88px; height: 88px; font-size: 28px; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
+@media (max-width: 640px) { .clan-btn .nm { display: none; } .clan-btn { padding: 3px; } }

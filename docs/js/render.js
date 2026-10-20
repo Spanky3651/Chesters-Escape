@@ -77,11 +77,36 @@
     o += '<circle cx="-6" cy="-1" r="3.2" fill="#111"/><circle cx="8" cy="-1" r="3.2" fill="#111"/><circle cx="-5" cy="-2.4" r="1" fill="#fff"/><circle cx="9" cy="-2.4" r="1" fill="#fff"/></g>';
     o += '<path d="M-5,5 L5,5 L0,13 Z" fill="#f2a33a"/>';
     o += '<ellipse cx="-13" cy="8" rx="4" ry="2.5" fill="#ff7b9c" opacity=".55"/><ellipse cx="13" cy="8" rx="4" ry="2.5" fill="#ff7b9c" opacity=".55"/>';
-    if (hat === 'santa') o += '<path d="M-15,-14 C-10,-34 10,-40 22,-30 C14,-30 12,-24 15,-14 Z" fill="#d7263d"/><rect x="-17" y="-17" width="34" height="7" rx="3.5" fill="#fff"/><circle cx="23" cy="-30" r="5" fill="#fff"/>';
-    if (hat === 'pilgrim') o += '<ellipse cx="0" cy="-15" rx="23" ry="4.5" fill="#5a4030" stroke="#1a120c" stroke-width="1.2"/><path d="M-12,-16 L-10,-40 L10,-40 L12,-16 Z" fill="#5a4030" stroke="#1a120c" stroke-width="1.2"/><rect x="-11.4" y="-24" width="22.8" height="6" fill="#1a120c"/><rect x="-4.5" y="-25" width="9" height="8" fill="none" stroke="#f2c046" stroke-width="2"/>';
+    o += hatSvg(hat);
     o += '</g>';
     return o;
   }
+  function hatSvg(hat) {
+    var o = '';
+    if (hat === 'santa') o += '<path d="M-15,-14 C-10,-34 10,-40 22,-30 C14,-30 12,-24 15,-14 Z" fill="#d7263d"/><rect x="-17" y="-17" width="34" height="7" rx="3.5" fill="#fff"/><circle cx="23" cy="-30" r="5" fill="#fff"/>';
+    if (hat === 'pilgrim') o += '<ellipse cx="0" cy="-15" rx="23" ry="4.5" fill="#5a4030" stroke="#1a120c" stroke-width="1.2"/><path d="M-12,-16 L-10,-40 L10,-40 L12,-16 Z" fill="#5a4030" stroke="#1a120c" stroke-width="1.2"/><rect x="-11.4" y="-24" width="22.8" height="6" fill="#1a120c"/><rect x="-4.5" y="-25" width="9" height="8" fill="none" stroke="#f2c046" stroke-width="2"/>';
+    return o;
+  }
+  // Taco: the Beaters mascot, a smiling taco shell with the fillings peeking over the top.
+  function taco(x, y, s, hat) {
+    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')">';
+    o += '<ellipse cx="0" cy="29" rx="29" ry="5" fill="#000" opacity=".28"/>';
+    // fillings along the top edge of the shell: lettuce, tomato and meat
+    var fill = [[-26, 14, 6, '#5fb83a'], [-23, 4, 6.5, '#6cc443'], [-16, -4, 6.5, '#5fb83a'], [-7, -8, 6.5, '#6cc443'], [3, -9, 6.5, '#5fb83a'], [13, -6, 6.5, '#6cc443'], [21, 1, 6.5, '#5fb83a'], [26, 11, 6, '#6cc443'],
+      [-19, 4, 3.6, '#e0412b'], [-2, -7, 3.6, '#e0412b'], [17, -1, 3.6, '#e0412b'], [-10, -3, 3.4, '#8a4b22'], [8, -4, 3.4, '#8a4b22'], [24, 7, 3, '#8a4b22'], [-25, 9, 3, '#e0412b']];
+    fill.forEach(function (c) { o += '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + c[2] + '" fill="' + c[3] + '"/>'; });
+    o += '<path d="M-28,27 A28,27 0 0 1 28,27 Z" fill="#f6c64a" stroke="#d48f1c" stroke-width="2" stroke-linejoin="round"/>';
+    o += '<path d="M-20,12 A21,20 0 0 1 2,-0.5" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="3" stroke-linecap="round"/>';
+    o += '<circle cx="-16" cy="20" r="1.2" fill="#d48f1c" opacity=".6"/><circle cx="18" cy="21" r="1.2" fill="#d48f1c" opacity=".6"/><circle cx="10" cy="4" r="1.1" fill="#d48f1c" opacity=".55"/><circle cx="-6" cy="5" r="1.1" fill="#d48f1c" opacity=".55"/>';
+    o += '<path d="M-12,13 q4,-5 8,0 M4,13 q4,-5 8,0" fill="none" stroke="#3a2410" stroke-width="2.4" stroke-linecap="round"/>';
+    o += '<path d="M-4,18 q4,4.5 8,0" fill="none" stroke="#3a2410" stroke-width="2.2" stroke-linecap="round"/>';
+    o += '<ellipse cx="-16" cy="18" rx="4" ry="2.4" fill="#ff7b9c" opacity=".6"/><ellipse cx="16" cy="18" rx="4" ry="2.4" fill="#ff7b9c" opacity=".6"/>';
+    if (hat && hat !== 'none') o += '<g transform="translate(2,4) rotate(8)">' + hatSvg(hat) + '</g>';
+    o += '</g>';
+    return o;
+  }
+  // The theme's main character: Chester, or Taco on the Beaters themes.
+  function hero(x, y, s, theme) { return theme && theme.hero === 'taco' ? taco(x, y, s, hatFor(theme)) : chester(x, y, s, theme ? hatFor(theme) : 'none'); }
 
 
   // ---- Thanksgiving farm art --------------------------------------------------
@@ -182,7 +207,7 @@
       card: 'url(#gHarvest)', cardText: '#fff', task: ['#4a2a10', '#d9661f'], plain: ['#fff8ea', '#4a2a10'], exit: ['#7a2a14', '#f2c046']
     }
   };
-  function look(theme) { return LOOKS[theme.id] || LOOKS.cemetery; }
+  function look(theme) { return LOOKS[theme.look || theme.id] || LOOKS.cemetery; }
   function hatFor(theme) { return theme.hat || 'none'; }
 
   function fence(L) {
@@ -240,8 +265,9 @@
 
   function background(board, theme) {
     var pal = theme.palette, L = look(theme), o = '';
-    if (board.background) {
-      o += '<image href="' + esc(board.background) + '" x="0" y="0" width="1000" height="1000" preserveAspectRatio="xMidYMid slice"/>';
+    var art = board.background || theme.art;
+    if (art) {
+      o += '<image href="' + esc(art) + '" x="0" y="0" width="1000" height="1000" preserveAspectRatio="xMidYMid slice"/>';
       return o;
     }
     o += '<rect width="1000" height="1000" fill="url(#gGround)"/>';
@@ -348,7 +374,7 @@
     o += '<text x="34" y="92" font-family="' + esc(theme.font) + '" font-size="64" font-weight="700" fill="' + T.ink + '" stroke="' + T.stroke + '" stroke-width="1.5" paint-order="stroke">' + esc(parts[0]) + '</text>';
     o += '<text x="70" y="160" font-family="' + esc(theme.font) + '" font-size="' + t2 + '" font-weight="700" fill="' + T.shadow + '" opacity=".55" transform="translate(4,5)">' + esc(parts[1]) + '</text>';
     o += '<text x="70" y="160" font-family="' + esc(theme.font) + '" font-size="' + t2 + '" font-weight="700" fill="' + T.ink2 + '" stroke="' + T.stroke2 + '" stroke-width="2" paint-order="stroke">' + esc(parts[1]) + '</text>';
-    o += chester(575, 128, 1.05, hatFor(theme));
+    o += hero(575, 128, 1.05, theme);
     // tagline down the left edge, one or two words per line like a carved signpost
     var words = theme.tagline.split(' '), lines = [], cur = '';
     words.forEach(function (w) { if ((cur + ' ' + w).trim().length > 8) { if (cur) lines.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); });
@@ -430,7 +456,7 @@
       case 'move': return sp.n > 0 ? 'Ahead ' + sp.n : 'Back ' + (-sp.n);
       case 'skip': return sp.turns > 1 ? 'Lose ' + sp.turns : 'Lose turn';
       case 'start': return 'To start';
-      case 'warp': return sp.kind === 'swim' ? 'Swim!' : (sp.kind === 'current' ? 'Current' : 'Warp');
+      case 'warp': return sp.kind === 'swim' ? ((theme.words && theme.words.swim) || 'Swim!') : (sp.kind === 'current' ? 'Current' : 'Warp');
       case 'safe': return 'Safe!';
       default: return '';
     }
@@ -482,10 +508,12 @@
     var o = '<svg class="board-svg" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + esc(theme.title) + ' game board">';
     o += defs(theme);
     o += '<g class="bg">' + background(b, theme) + '</g>';
-    if (!b.background) o += '<g class="decor">' + decor(b, theme) + fence(look(theme)) + '</g>';
-    if (!b.background || opts.titleOnImage) o += titleBlock(b, theme);
+    // Theme art (the taco boards) already has its own title and scenery.
+    var art = b.background || theme.art;
+    if (!art) o += '<g class="decor">' + decor(b, theme) + fence(look(theme)) + '</g>';
+    if (!art || (b.background && opts.titleOnImage)) o += titleBlock(b, theme);
     if (!(b.background && b.artSpaces)) o += '<g class="links">' + connectors(b, theme) + '</g>';
-    if (!b.background && !opts.still) o += fog(theme);
+    if (!art && !opts.still) o += fog(theme);
     if (!(b.background && b.artSpaces)) o += startMarkers(b, theme);
     o += '<g class="spaces">';
     var so = Object.assign({}, opts, { artSpaces: !!(b.background && b.artSpaces) });
@@ -577,6 +605,6 @@
 
   root.CGRender = {
     board: board, placeTokens: placeTokens, layoutTokens: layoutTokens, tokenXY: tokenXY,
-    playerColor: playerColor, initials: initials, chester: chester, hatFor: hatFor, label: label, esc: esc
+    playerColor: playerColor, initials: initials, chester: chester, taco: taco, hero: hero, hatFor: hatFor, label: label, esc: esc
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

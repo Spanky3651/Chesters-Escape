@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Card list</title>
+<meta name="description" content="Every card in the Chester's Escape deck for each theme, and what it does.">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%83%8F%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Grenze+Gotisch:wght@500;700;800&family=Mountains+of+Christmas:wght@700&family=Cherry+Swash:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/game.css?v=20261019m">
+<style>
+  body { background: var(--bg); color: var(--text); font: 400 16px/1.5 var(--ui); margin: 0; }
+  .cl { max-width: 980px; margin: 0 auto; padding: 22px 16px 60px; }
+  .cl-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .cl-head svg { width: 56px; height: 62px; flex: none; }
+  .cl-head h1 { margin: 0; font: 700 40px/1.05 var(--display); }
+  .cl-head p { margin: 4px 0 0; color: var(--muted); }
+  .cl-themes { display: flex; gap: 8px; flex-wrap: wrap; margin: 22px 0 8px; }
+  .cl-themes button { border: 1px solid var(--line-2); background: var(--raise); color: var(--muted); border-radius: 999px; padding: 9px 16px; font: 700 15px/1 var(--ui); cursor: pointer; }
+  .cl-themes button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .cl-note { color: var(--muted); max-width: 72ch; margin: 14px 0 26px; }
+  .cl-group h2 { font: 700 28px/1.1 var(--display); margin: 30px 0 4px; }
+  .cl-group > p { color: var(--muted); margin: 0 0 14px; }
+  .cl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .cl-card { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; padding: 16px; border-radius: 14px; background: var(--raise); border: 1px solid var(--line); border-left: 5px solid var(--c); }
+  .cl-card .art { font-size: 36px; line-height: 1; text-align: center; padding-top: 2px; }
+  .cl-card h3 { margin: 0 0 4px; font: 700 19px/1.2 var(--ui); }
+  .cl-card .txt { margin: 0 0 10px; color: var(--text); font-size: 15.5px; }
+  .cl-card .fx { display: inline-block; font-size: 13.5px; font-weight: 700; color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); border-radius: 7px; padding: 4px 9px; }
+  .cl-card .id { float: right; font-size: 12px; color: var(--faint); font-weight: 700; }
+  .cl-events { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+  .cl-events div { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--raise); border: 1px solid var(--line); font-size: 15px; }
+  .cl-events span { font-size: 24px; width: 30px; text-align: center; flex: none; }
+  .cl-back { display: inline-block; margin-top: 34px; color: var(--accent); }
+</style>
+<script data-goatcounter="https://chesters-escape.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body data-theme="cemetery">
+<main class="cl">
+  <header class="cl-head">
+    <svg viewBox="-36 -42 72 80" aria-hidden="true" id="hero"></svg>
+    <div><h1 id="title">Card list</h1><p id="sub">Every card in the deck and what it does.</p></div>
+  </header>
+  <nav class="cl-themes" id="themes" aria-label="Theme"></nav>
+  <p class="cl-note">Landing on a card space draws one card. The deck has 20 cards. It is shuffled once, every card comes up once, and then it is shuffled again, so each card shows up the same number of times over a game. The effects are the same in every theme. Only the names and story change.</p>
+  <div id="list"></div>
+  <a class="cl-back" href="index.html">Back to the game</a>
+</main>
+<script src="js/content.js?v=20261019m"></script>
+<script src="js/render.js?v=20261019m"></script>
+<script>
+(function () {
+  'use strict';
+  var C = window.CGContent, R = window.CGRender, esc = R.esc;
+  var GROUPS = [
+    ['treasure', 'Good news', 'Moves you ahead or protects you.', '--treasure'],
+    ['trick', 'Bad news', 'Sends you back or costs you turns.', '--trick'],
+    ['task', 'Bonus maps', 'One more map to play before your next roll.', '--task'],
+    ['fate', 'Anything goes', 'A bit of luck either way.', '--fate']
+  ];
+  var q = new URLSearchParams(location.search);
+  var current = C.themes[q.get('theme')] ? q.get('theme') : 'taco-thanksgiving';
+
+  function render() {
+    var t = C.themes[current], cards = C.cardsFor(current);
+    document.body.setAttribute('data-theme', t.look || t.id);
+    document.getElementById('hero').innerHTML = R.hero(0, 0, 1, t);
+    document.getElementById('title').textContent = t.title + ' cards';
+    document.getElementById('sub').textContent = t.tagline;
+    document.title = t.title + ' cards';
+    document.getElementById('themes').innerHTML = Object.keys(C.themes).map(function (k) {
+      return '<button type="button" data-t="' + k + '" aria-pressed="' + (k === current) + '">' + esc(C.themes[k].name) + '</button>';
+    }).join('');
+    var html = GROUPS.map(function (g) {
+      var list = cards.filter(function (c) { return c.cls === g[0]; });
+      return '<section class="cl-group"><h2>' + esc((t.card[g[0]] || g[1]).replace(/([^s])$/, '$1s')) + ' (' + list.length + ')</h2><p>' + esc(g[2]) + '</p><div class="cl-grid">' +
+        list.map(function (c) {
+          return '<article class="cl-card" style="--c:var(' + g[3] + ')"><div class="art" aria-hidden="true">' + esc(c.art) + '</div><div><span class="id">' + esc(c.id.slice(1)) + '</span><h3>' + esc(c.title) + '</h3><p class="txt">' + esc(c.text) + '</p><span class="fx">' + esc(C.cardEffectText(c)) + '</span></div></article>';
+        }).join('') + '</div></section>';
+    }).join('');
+    html += '<section class="cl-group"><h2>Event spaces</h2><p>The names on the board spaces in this theme.</p><div class="cl-events">' +
+      Object.keys(t.kinds).map(function (k) { return '<div><span aria-hidden="true">' + esc(t.kinds[k].icon) + '</span>' + esc(t.kinds[k].title) + '</div>'; }).join('') + '</div></section>';
+    document.getElementById('list').innerHTML = html;
+  }
+  document.getElementById('themes').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-t]'); if (!b) return;
+    current = b.dataset.t;
+    var u = new URL(location.href); u.searchParams.set('theme', current); history.replaceState(null, '', u);
+    render();
+  });
+  render();
+})();
+</script>
+</body>
+</html>

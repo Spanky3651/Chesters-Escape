@@ -181,7 +181,7 @@
         safe:       { title: 'Safe!', icon: '🕯️' },
         exit:       { title: "Chester's tombstone home", icon: '🪦' }
       },
-      words: { card: ['GIFT', 'DROP'], start: 'Start', longer: 'Longer route', riskier: 'Riskier route', escaped: 'Gifts delivered!', results: 'Day {n} results' },
+      words: { card: ['GIFT', 'DROP'], start: 'Start', longer: 'Longer route', riskier: 'Riskier route', escaped: 'Gifts delivered!', results: 'Day {n} results', swim: 'Skate!' },
       routes: { longer: "Plowed paths, more maps. {n} spaces to Chester's tombstone.", riskier: 'Shorter, but the frozen river and the snowy graves are waiting. {n} spaces.' }
     },
     thanksgiving: {
@@ -214,8 +214,76 @@
         safe:       { title: 'Safe!', icon: '🍂' },
         exit:       { title: 'The feast table', icon: '🍽️' }
       },
-      words: { card: ['PIE', 'DROP'], start: 'Start', longer: 'Longer route', riskier: 'Riskier route', escaped: 'Made it to the feast!', results: 'Day {n} results' },
+      words: { card: ['PIE', 'DROP'], start: 'Start', longer: 'Longer route', riskier: 'Riskier route', escaped: 'Made it to the feast!', results: 'Day {n} results', swim: 'Paddle!' },
       routes: { longer: 'Through the fields, more maps. {n} spaces to the feast table.', riskier: 'Shorter, but the creek and the scarecrows are waiting. {n} spaces.' }
+    },
+    'taco-thanksgiving': {
+      id: 'taco-thanksgiving',
+      name: "Taco's Thanksgiving",
+      title: "Taco's Thanksgiving",
+      tagline: 'Help Taco get to Thanksgiving dinner.',
+      goal: 'dinner table',
+      font: "'Cherry Swash', Georgia, serif",
+      fontQuery: 'Cherry+Swash:wght@700',
+      hero: 'taco',
+      hat: 'pilgrim',
+      look: 'thanksgiving',
+      art: 'img/themes/taco-thanksgiving.jpg',   // Hummingbird's board art, title included
+      banner: ['#d9661f', '#fff4dc'],
+      palette: { ground: '#f3d27a', ground2: '#d9a24a', stone: '#fff7e6', stoneDark: '#9a6a2e', ink: '#4a2a10', accent: '#d9661f', good: '#4f8a2b', bad: '#b23a1c', water: '#5f9bbd' },
+      card: { back: 'Taco’s Thanksgiving', treasure: 'Harvest card', trick: 'Leftovers card', task: 'Chore card', fate: 'Wishbone card' },
+      kinds: {
+        cat:        { title: 'Chased by the farm cat!', icon: '🐈' },
+        roadblock:  { title: 'Hay bales block the road!', icon: '🌾' },
+        terror:     { title: 'The farmer saw you!', icon: '🧑‍🌾' },
+        attack:     { title: 'Angry turkey!', icon: '🦃' },
+        ghostScare: { title: 'Spooked by a scarecrow!', icon: '👒' },
+        ghostRun:   { title: 'Ride the hay wagon!', icon: '🚜' },
+        flowers:    { title: 'Found a corn cob!', icon: '🌽' },
+        evilGhost:  { title: 'Cow stampede!', icon: '🐄' },
+        grave:      { title: 'Fell in the mud pit!', icon: '🐖' },
+        pulledUnder:{ title: 'Stuck in the cranberry bog!', icon: '🥾' },
+        swim:       { title: 'Hop the stepping stones!', icon: '🪨' },
+        current:    { title: 'Swept down the creek!', icon: '🌊' },
+        safe:       { title: 'Safe!', icon: '🍂' },
+        exit:       { title: 'Thanksgiving dinner', icon: '🍽️' }
+      },
+      words: { card: ['PIE', 'DROP'], start: 'Start', longer: 'Longer route', riskier: 'Riskier route', escaped: 'Made it to dinner!', results: 'Day {n} results', swim: 'Hop across!' },
+      routes: { longer: 'Through the fields, more maps. {n} spaces to dinner.', riskier: 'Shorter, but the creek is waiting. {n} spaces.' }
+    },
+    'taco-christmas': {
+      id: 'taco-christmas',
+      name: "Taco's Christmas",
+      title: "Taco's Christmas",
+      tagline: "Help Taco get to Santa's house.",
+      goal: 'North Pole',
+      font: "'Mountains of Christmas', Georgia, serif",
+      fontQuery: 'Mountains+of+Christmas:wght@700',
+      hero: 'taco',
+      hat: 'santa',
+      look: 'christmas',
+      art: 'img/themes/taco-christmas.jpg',   // Hummingbird's board art, title included
+      banner: ['#d7263d', '#fff'],
+      palette: { ground: '#e9f1f7', ground2: '#c9dbe8', stone: '#ffffff', stoneDark: '#9db4c6', ink: '#24384a', accent: '#d7263d', good: '#2fb35a', bad: '#3a6ea5', water: '#a9d6f0' },
+      card: { back: 'Taco’s Christmas', treasure: 'Gift card', trick: 'Coal card', task: 'Carol card', fate: 'Snow globe' },
+      kinds: {
+        cat:        { title: 'Chased by a snowman!', icon: '⛄' },
+        roadblock:  { title: 'Snowed in!', icon: '🌨️' },
+        terror:     { title: 'Krampus spotted!', icon: '😈' },
+        attack:     { title: 'Grumpy elf!', icon: '🧝' },
+        ghostScare: { title: 'Brain freeze!', icon: '🥶' },
+        ghostRun:   { title: 'Sled downhill!', icon: '🛷' },
+        flowers:    { title: 'Found a candy cane!', icon: '🍬' },
+        evilGhost:  { title: 'Avalanche!', icon: '🏔️' },
+        grave:      { title: 'Buried in a snowdrift!', icon: '🧊' },
+        pulledUnder:{ title: 'Stuck in the slush!', icon: '🫠' },
+        swim:       { title: 'Skate to safety!', icon: '⛸️' },
+        current:    { title: 'Thin ice!', icon: '❄️' },
+        safe:       { title: 'Safe!', icon: '🕯️' },
+        exit:       { title: "Santa's house", icon: '🏠' }
+      },
+      words: { card: ['GIFT', 'DROP'], start: 'Start', longer: 'Longer route', riskier: 'Riskier route', escaped: "Made it to Santa's!", results: 'Day {n} results', swim: 'Skate!' },
+      routes: { longer: "Plowed paths, more maps. {n} spaces to Santa's house.", riskier: 'Shorter, but the frozen river is waiting. {n} spaces.' }
     }
   };
 
@@ -310,6 +378,50 @@
       c18: ['Set the table', '🍴', 'Chester helps set the table and hops one space closer.'],
       c19: ['Count your blessings', '🌅', 'The sun sets over the fields. Chester takes a moment to be thankful.'],
       c20: ['Seconds on stuffing', '🥘', 'Chester zooms ahead for seconds, then naps it off.']
+    },
+    'taco-thanksgiving': {
+      c01: ['Pumpkin spice latte', '☕', 'Taco sips a pumpkin spice latte and picks up the pace.'],
+      c02: ['Autumn gust', '🍂', 'A gust of wind rolls Taco three rows down the field.'],
+      c03: ['Dinner bell', '🔔', 'The dinner bell rings. Taco hurries straight to the next map.'],
+      c04: ['Lucky wishbone', '🍗', 'Taco gets the bigger half. Roll again today.'],
+      c05: ['Tortilla blanket', '🧣', 'Taco is wrapped up snug. The next setback misses you.'],
+      c06: ['Hay wagon ride', '🚜', 'Taco hops on the hay wagon and rides four spaces.'],
+      c07: ['Porch light', '🕯️', 'The farmhouse porch light shows the next step.'],
+      c08: ['Flock of geese', '🦆', 'The geese let Taco tag along for two spaces.'],
+      c09: ['Scarecrow standoff', '👒', 'A scarecrow flaps in the wind and Taco backs off three spaces.'],
+      c10: ['Food coma', '😴', 'One plate too many. Taco sleeps through the next turn.'],
+      c11: ['Slipped on leaves', '🍁', 'A wet leaf pile sends Taco sliding back two spaces.'],
+      c12: ['Lost in the corn maze', '🌽', 'Every row looks the same. Better wait it out.'],
+      c13: ['Spilled the salsa', '🍅', 'The salsa tips over. Back one space to clean it up.'],
+      c14: ['Dish duty', '🧽', 'Somebody has to wash all those dishes. Taco is stuck for a while.'],
+      c15: ['Turkey chase', '🦃', 'The turkey thinks Taco is cutting in line for dinner and chases Taco back two spaces.'],
+      c16: ["Grandma's request", '👵', 'Grandma wants one more song before anyone touches dessert.'],
+      c17: ['Pie-eating contest', '🏆', 'The cousins say the last slice goes to whoever wins this map.'],
+      c18: ['Set the table', '🍴', 'Taco helps set the table and hops one space closer.'],
+      c19: ['Count your blessings', '🌅', 'The sun sets over the fields. Taco takes a moment to be thankful.'],
+      c20: ['Seconds on stuffing', '🥘', 'Taco zooms ahead for seconds, then naps it off.']
+    },
+    'taco-christmas': {
+      c01: ['Hot cocoa', '☕', 'Taco warms up with a mug of cocoa and picks up the pace.'],
+      c02: ['North wind', '🌬️', 'A north wind pushes Taco three snowy steps ahead.'],
+      c03: ["Rudolph's nose", '🔴', 'A bright red glow lights the way straight to the next map.'],
+      c04: ['Christmas wish', '🌟', 'Taco makes a wish on the tree topper. Roll again today.'],
+      c05: ['Ugly sweater', '🧶', 'Taco bundles up in an ugly sweater. The next setback misses you.'],
+      c06: ['Sled ride', '🛷', 'Taco grabs a sled and zooms four spaces downhill.'],
+      c07: ['String of lights', '💡', 'A string of lights shows the next step.'],
+      c08: ['Reindeer lift', '🦌', 'A friendly reindeer gives Taco a lift for two spaces.'],
+      c09: ['Snowball ambush', '❄️', 'The snowman gang pelts Taco back three spaces.'],
+      c10: ['Tangled in lights', '🎄', 'It takes all night to get Taco untangled.'],
+      c11: ['Slipped on ice', '🧊', 'Taco spins out and slides back two spaces.'],
+      c12: ['Whiteout', '🌨️', "Taco can't see a thing. Better wait it out."],
+      c13: ['Dropped a present', '🎁', 'A present falls in the snow. Back one space to grab it.'],
+      c14: ['Frozen solid', '🥶', 'Taco is frozen to the spot for a while.'],
+      c15: ['Grumpy elf', '🧝', 'A grumpy elf sends Taco back two spaces to wait in line.'],
+      c16: ['Carolers at the door', '🎶', "The carolers won't let Taco pass until you play one more song."],
+      c17: ['Elf dance-off', '🕺', 'The elves challenge Taco to a dance-off. Win this map to keep going.'],
+      c18: ['Wrap the presents', '✨', 'Taco helps wrap presents and the elves move you one space closer.'],
+      c19: ['Silent night', '🌙', 'The snow goes quiet. Taco enjoys the view.'],
+      c20: ['Cookie rush', '🍪', 'Too many cookies! Taco zooms ahead, then naps it off.']
     }
   };
 
@@ -329,7 +441,7 @@
       case 'again': return 'Roll again today';
       case 'shield': return 'Ignore the next thing that sets you back';
       case 'task': return 'Play a bonus map before your next roll';
-      case 'toNext': return 'Fly to the next map space';
+      case 'toNext': return 'Jump ahead to the next map space';
       default: return 'Nothing happens';
     }
   }

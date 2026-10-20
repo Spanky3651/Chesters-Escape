@@ -25,9 +25,17 @@ Turn on roll reminders on your phone and the game nudges you in the evening if y
 
 If you played a map and it doesn't show up (for example a replay that wasn't a new personal best), tap **I played it** and the host can approve it.
 
+## One game per clan
+
+Each clan Discord server gets its own game, with its own board, players and theme. Sign in with Discord and you land in your clan's game. If you're in more than one of the clan servers, you pick a game the first time and can switch any time with the server icons at the top of the page.
+
+## Cards
+
+[The card list](https://spanky3651.github.io/Chesters-Escape/cards.html?utm_source=github&utm_campaign=readme) shows all 20 cards for each theme and what each one does.
+
 ## Board designer
 
-`designer.html` lays out a board on top of your own art: upload the image, click each square in order, and set what it does (map, blocker, card drop, move, lose a turn, back to start, or a current that carries you elsewhere). Themes swap the art, event names and card text, so the same board can run as a Halloween, Thanksgiving or Christmas game.
+`designer.html` lays out a board on top of your own art: upload the image, click each square in order, and set what it does (map, blocker, card drop, move, lose a turn, back to start, or a current that carries you elsewhere). Themes swap the art, event names and card text, so the same board can run as a Halloween, Thanksgiving or Christmas game. A theme can also bring its own board art, like the Taco's Thanksgiving and Taco's Christmas boards.
 
 ## Built with
 

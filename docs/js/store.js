@@ -152,6 +152,22 @@
     if (m) { setToken(decodeURIComponent(m[1])); history.replaceState(null, '', location.pathname + location.search); }
   }
 
+  // Each clan Discord server has its own game. The page remembers which one you opened last;
+  // a ?clan= link (from a notification or a Discord post) picks one directly.
+  var CLAN_KEY = 'cg.clan';
+  function savedClan() { try { return localStorage.getItem(CLAN_KEY) || ''; } catch (e) { return ''; } }
+  function saveClan(id) { try { if (id) localStorage.setItem(CLAN_KEY, id); } catch (e) {} }
+  function withClan(path, clan) { return clan ? path + (path.indexOf('?') >= 0 ? '&' : '?') + 'clan=' + encodeURIComponent(clan) : path; }
+  function takeClanFromUrl() {
+    var q = new URLSearchParams(location.search), c = q.get('clan');
+    if (!c) return '';
+    saveClan(c); q.delete('clan');
+    var rest = q.toString();
+    history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash);
+    return c;
+  }
+  function switchClan(id) { saveClan(id); location.reload(); }
+
   function LiveStore(api, cfg) {
     var ev = listeners();
     this.mode = 'live';
@@ -163,6 +179,8 @@
     this.cfg = cfg;
     this.vapidKey = cfg.vapidKey || '';
     this.canPlay = cfg.access === 'ok';
+    this.clan = cfg.clan || '';
+    this.clans = cfg.clans || [];
     this.state = null;
     this._seq = -1;
   }
@@ -171,7 +189,7 @@
     var h = opts.headers || {};
     var t = token(); if (t) h.authorization = 'Bearer ' + t;
     opts.headers = h;
-    return fetch(this.api + path, opts).then(json);
+    return fetch(this.api + withClan(path, this.clan), opts).then(json);
   };
   LiveStore.prototype.post = function (path, data) {
     return this._fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data || {}) });
@@ -216,6 +234,7 @@
   // A closed door instead of the game: not signed in, waiting to be let in, or server not reachable.
   function Gate(kind, api, cfg) {
     this.mode = 'gate'; this.kind = kind; this.api = api ? api.replace(/\/+$/, '') : ''; this.user = (cfg && cfg.user) || null; this.startsAt = (cfg && cfg.startsAt) || null;
+    this.clan = (cfg && cfg.clan) || ''; this.clans = (cfg && cfg.clans) || []; this.theme = (cfg && cfg.theme) || '';
   }
   Gate.prototype.loginUrl = LiveStore.prototype.loginUrl;
   Gate.prototype.logout = LiveStore.prototype.logout;
@@ -229,15 +248,19 @@
     if (isLocal() && (!api || q.get('demo') === '1')) return Promise.resolve(new DemoStore());
     if (!api) return Promise.resolve(new Gate('closed'));
     takeTokenFromHash();
-    var t = token();
-    return fetch(api.replace(/\/+$/, '') + '/api/config', { headers: t ? { authorization: 'Bearer ' + t } : {} })
+    var t = token(), want = takeClanFromUrl() || savedClan();
+    return fetch(api.replace(/\/+$/, '') + withClan('/api/config', want), { headers: t ? { authorization: 'Bearer ' + t } : {} })
       .then(function (r) { if (!r.ok) throw new Error('no api'); return r.json(); })
       .then(function (cfg) {
         if (!cfg || !cfg.live) return new Gate('down', api);
+        if (cfg.access === 'signin' || !cfg.user) return new Gate('signin', api, cfg);
+        // In more than one clan server and never picked: ask which game first.
+        if ((cfg.clans || []).length > 1 && !want) return new Gate('choose', api, cfg);
+        if (cfg.clan) saveClan(cfg.clan);
         if (cfg.access === 'ok' || cfg.access === 'pending') return new LiveStore(api, cfg);
         return new Gate('signin', api, cfg);
       }, function () { return new Gate('down', api); });
   }
 
-  root.CGStore = { detect: detect, DemoStore: DemoStore, LiveStore: LiveStore, DEMO_PLAYERS: DEMO_PLAYERS };
+  root.CGStore = { detect: detect, switchClan: switchClan, DemoStore: DemoStore, LiveStore: LiveStore, DEMO_PLAYERS: DEMO_PLAYERS };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

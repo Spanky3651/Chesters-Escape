@@ -2,6 +2,8 @@
  * Chester's Escape - game server (Cloudflare Worker + one Durable Object per game).
  *
  * The page lives on GitHub Pages; this Worker holds the shared game state.
+ * Each clan (a Discord server) has its own game. Sign-in records which clan servers a
+ * player is in; people in more than one pick which game to open.
  *   - Discord sign-in (so a roll can only be made by its own player)
  *   - rolls on the server with crypto randomness
  *   - BeatLeader checks on the server (no relay needed here)
@@ -18,7 +20,6 @@ import { sendPush } from './push.js';
 
 const E = globalThis.CGEngine;
 const C = globalThis.CGContent;
-const GAME_ID = 'main';
 const CHECK_EVERY = 15 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
@@ -57,18 +58,49 @@ function json(env, req, data, status = 200) {
 }
 // A time zone name the runtime knows (e.g. America/Los_Angeles), or null.
 function validZone(tz) { try { if (!tz) return null; new Intl.DateTimeFormat('en-US', { timeZone: String(tz) }); return String(tz).slice(0, 64); } catch { return null; } }
-function hosts(env) { return String(env.HOSTS || '').split(',').map((s) => s.trim()).filter(Boolean); }
+const list = (v) => String(v || '').split(',').map((s) => s.trim()).filter(Boolean);
+function hosts(env, clan) { return [...list(env.HOSTS), ...((clan && clan.hosts) || [])]; }
+
+// The clans, from the CLANS setting in wrangler.toml. Each one:
+//   name, guild (Discord server ID, empty = anyone), game (stored game name, defaults to the id),
+//   theme (for a brand-new game), hosts (extra host IDs), webhook (name of the secret holding the
+//   channel webhook), announce ("1" posts day and start/end messages).
+// Without CLANS it falls back to one clan built from GUILD_ID, stored as the "main" game.
+function clans(env) {
+  let c = env.CLANS;
+  if (typeof c === 'string') { try { c = JSON.parse(c); } catch { c = null; } }
+  if (c && typeof c === 'object' && !Array.isArray(c)) c = Object.entries(c).map(([id, v]) => ({ id, ...v }));
+  if (!Array.isArray(c) || !c.length) c = [{ id: 'main', name: 'Clan', guild: env.GUILD_ID || '', game: 'main' }];
+  return c.map((x) => ({
+    id: String(x.id), name: String(x.name || x.id), guild: String(x.guild || ''), game: String(x.game || x.id),
+    theme: C.themes[x.theme] ? x.theme : (C.themes[env.THEME] ? env.THEME : 'cemetery'),
+    hosts: list(x.hosts), webhook: String(x.webhook || 'DISCORD_WEBHOOK_URL'),
+    announce: String(x.announce != null ? x.announce : env.ANNOUNCE_DAYS || '0'), icon: String(x.icon || '')
+  }));
+}
+// The game page link for a clan, so notifications and Discord posts open the right game.
+function pageFor(env, clan, hash) {
+  const base = env.GAME_PAGE || '';
+  if (!base) return '';
+  return base + (clans(env).length > 1 && clan ? (base.includes('?') ? '&' : '?') + 'clan=' + encodeURIComponent(clan.id) : '') + (hash || '');
+}
 function rng() { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] / 4294967296; }
 
-async function userFrom(env, req) {
+// The signed-in player and the clan game this request is for (?clan=, else their first clan).
+// Sessions from before clans existed carry no clan list, so those players sign in once more.
+async function userFrom(env, req, url) {
   const h = req.headers.get('authorization') || '';
   const tok = h.startsWith('Bearer ') ? h.slice(7) : '';
   const u = await verify(env, tok);
-  if (!u) return null;
-  return { ...u, isHost: hosts(env).includes(u.id) };
+  if (!u || !Array.isArray(u.clans)) return null;
+  const mine = clans(env).filter((c) => !c.guild || u.clans.includes(c.id));
+  if (!mine.length) return null;
+  const want = url.searchParams.get('clan');
+  const clan = mine.find((c) => c.id === want) || mine[0];
+  return { id: u.id, name: u.name, avatar: u.avatar, clan, clans: mine.map((c) => ({ id: c.id, name: c.name, icon: (u.icons && u.icons[c.id]) || c.icon })), isHost: hosts(env, clan).includes(u.id) };
 }
 
-function gameStub(env) { return env.GAME.get(env.GAME.idFromName(GAME_ID)); }
+function gameStub(env, clan) { return env.GAME.get(env.GAME.idFromName(clan.game)); }
 
 // ---------------------------------------------------------------------------
 // Discord sign-in
@@ -80,7 +112,7 @@ async function authLogin(env, req, url) {
   const state = await sign(env, { r: ret, n: crypto.randomUUID(), exp: Date.now() + 10 * 60 * 1000 });
   const q = new URLSearchParams({
     client_id: env.DISCORD_CLIENT_ID, response_type: 'code', redirect_uri: url.origin + '/auth/callback',
-    scope: env.GUILD_ID ? 'identify guilds' : 'identify', state, prompt: 'none'
+    scope: clans(env).some((c) => c.guild) ? 'identify guilds' : 'identify', state, prompt: 'none'
   });
   return Response.redirect('https://discord.com/oauth2/authorize?' + q, 302);
 }
@@ -97,12 +129,21 @@ async function authCallback(env, req, url) {
   if (!tok.access_token) return new Response('Discord sign-in failed. Go back to the game and try again.', { status: 400 });
   const auth = { authorization: 'Bearer ' + tok.access_token };
   const me = await fetch('https://discord.com/api/users/@me', { headers: auth }).then((r) => r.json());
-  if (env.GUILD_ID) {
-    const guilds = await fetch('https://discord.com/api/users/@me/guilds', { headers: auth }).then((r) => r.json());
-    if (!Array.isArray(guilds) || !guilds.some((g) => g.id === env.GUILD_ID)) return new Response('This game is for members of the clan Discord server.', { status: 403 });
+  // Which clan servers they are in, plus each server's icon for the game switcher.
+  const all = clans(env), member = [], icons = {};
+  let guilds = [];
+  if (all.some((c) => c.guild)) {
+    guilds = await fetch('https://discord.com/api/users/@me/guilds', { headers: auth }).then((r) => r.json());
+    if (!Array.isArray(guilds)) guilds = [];
   }
+  for (const c of all) {
+    const g = c.guild && guilds.find((x) => x.id === c.guild);
+    if (!c.guild || g) member.push(c.id);
+    if (g && g.icon) icons[c.id] = `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=96`;
+  }
+  if (!member.length) return new Response('This game is for members of the clan Discord servers.', { status: 403 });
   const avatar = me.avatar ? `https://cdn.discordapp.com/avatars/${me.id}/${me.avatar}.png?size=128` : '';
-  const session = await sign(env, { id: me.id, name: me.global_name || me.username, avatar, exp: Date.now() + 60 * 24 * 3600 * 1000 });
+  const session = await sign(env, { id: me.id, name: me.global_name || me.username, avatar, clans: member, icons, exp: Date.now() + 60 * 24 * 3600 * 1000 });
   return Response.redirect(st.r + '#token=' + encodeURIComponent(session), 302);
 }
 
@@ -122,41 +163,45 @@ export default {
       if (url.pathname === '/dev/login' && env.DEV_LOGIN === '1') {
         // Local testing only: wrangler dev --var DEV_LOGIN:1
         const id = url.searchParams.get('id') || 'dev'; const name = url.searchParams.get('name') || 'Dev player';
-        return json(env, req, { token: await sign(env, { id, name, avatar: '', exp: Date.now() + 86400000 }) });
+        const member = url.searchParams.has('clans') ? list(url.searchParams.get('clans')) : clans(env).map((c) => c.id);
+        return json(env, req, { token: await sign(env, { id, name, avatar: '', clans: member, icons: {}, exp: Date.now() + 86400000 }) });
       }
       if (!url.pathname.startsWith('/api/')) return new Response("Chester's Escape game server. The game itself is on the game page.", { status: 200 });
 
-      const user = await userFrom(env, req);
+      const user = await userFrom(env, req, url);
       if (url.pathname === '/api/config') {
-        const r = await gameStub(env).whoAmI(user);
-        const vapidKey = user && env.VAPID_PUBLIC_KEY ? String(env.VAPID_PUBLIC_KEY).trim() : undefined;
-        return json(env, req, { live: true, access: r.access, startsAt: r.startsAt, vapidKey, user: user && { id: user.id, name: user.name, avatar: user.avatar }, isHost: !!(user && user.isHost), pid: r.pid });
+        if (!user) return json(env, req, { live: true, access: 'signin', clans: [] });
+        const r = await gameStub(env, user.clan).whoAmI(user);
+        const vapidKey = env.VAPID_PUBLIC_KEY ? String(env.VAPID_PUBLIC_KEY).trim() : undefined;
+        return json(env, req, { live: true, access: r.access, startsAt: r.startsAt, vapidKey, user: { id: user.id, name: user.name, avatar: user.avatar }, isHost: user.isHost, pid: r.pid, clan: user.clan.id, clans: user.clans, theme: r.theme });
       }
       if (url.pathname === '/api/state' && req.method === 'GET') {
-        const r = await gameStub(env).getState(user, Number(url.searchParams.get('since') ?? -1));
+        if (!user) return json(env, req, { error: 'Sign in with Discord to see the game.', code: 'no-access', access: 'signin' }, 403);
+        const r = await gameStub(env, user.clan).getState(user, Number(url.searchParams.get('since') ?? -1));
         return json(env, req, r, r.error ? 403 : 200);
       }
       if (url.pathname === '/api/act' && req.method === 'POST') {
         if (!user) return json(env, req, { error: 'Sign in with Discord first.', code: 'auth' }, 401);
         const body = await req.json().catch(() => ({}));
-        const r = await gameStub(env).act(user, String(body.action || ''), body.args || {});
+        const r = await gameStub(env, user.clan).act(user, String(body.action || ''), body.args || {});
         if (r.error && r.code === 'no-access') r.status = 403;
         return json(env, req, r, r.error ? (r.status || 400) : 200);
       }
       if (url.pathname.startsWith('/api/push/') && req.method === 'POST') {
         if (!user) return json(env, req, { error: 'Sign in with Discord first.' }, 401);
         const body = await req.json().catch(() => ({}));
-        const r = await gameStub(env).pushOp(user, url.pathname.slice('/api/push/'.length), body);
+        const r = await gameStub(env, user.clan).pushOp(user, url.pathname.slice('/api/push/'.length), body);
         return json(env, req, r, r.error ? 400 : 200);
       }
       if (url.pathname === '/api/host/results' && req.method === 'POST') {
         if (!user || !user.isHost) return json(env, req, { error: 'Only the host can post results.' }, 403);
-        if (!env.DISCORD_WEBHOOK_URL) return json(env, req, { error: 'No Discord webhook is set up on the server yet.' }, 400);
+        const hook = env[user.clan.webhook];
+        if (!hook) return json(env, req, { error: 'No Discord webhook is set up for ' + user.clan.name + ' yet.' }, 400);
         const form = await req.formData();
         const out = new FormData();
         out.append('payload_json', JSON.stringify({ content: String(form.get('text') || ''), allowed_mentions: { parse: [] } }));
         out.append('files[0]', form.get('file'), 'results.png');
-        const r = await fetch(env.DISCORD_WEBHOOK_URL, { method: 'POST', body: out });
+        const r = await fetch(hook, { method: 'POST', body: out });
         if (!r.ok) return json(env, req, { error: 'Discord did not accept the post (' + r.status + ').' }, 502);
         return json(env, req, { ok: true });
       }
@@ -183,9 +228,20 @@ export class Game extends DurableObject {
     });
   }
 
+  // Which clan this game belongs to. Each call from the front door says so; the alarm uses
+  // the last one seen. A game from before clans existed is the "main" game.
+  useClan(user) { if (user && user.clan && this.meta.clanId !== user.clan.id) this.meta.clanId = user.clan.id; }
+  clan() {
+    const all = clans(this.env);
+    return all.find((c) => c.id === this.meta.clanId) || all.find((c) => c.game === 'main') || all[0];
+  }
+  page(hash) { return pageFor(this.env, this.clan(), hash); }
+  webhook() { return this.env[this.clan().webhook] || ''; }
+  announcing() { return !!this.webhook() && this.clan().announce === '1'; }
+
   game() {
     if (!this.state) {
-      const themeId = this.env.THEME || 'cemetery';
+      const themeId = this.clan().theme;
       this.state = E.createGame({ board: C.boards['chester-escape'](), cards: C.cardsFor(themeId), themeId, title: C.themes[themeId].title, rng });
       this.meta = Object.assign(this.meta || {}, { nextCutoff: E.nextCutoff(this.state.settings) });
     }
@@ -193,7 +249,7 @@ export class Game extends DurableObject {
   }
 
   // Who can play. 'testers' (default): only the host and people the host lets in.
-  // 'open': anyone who signs in (GUILD_ID still limits sign-in to the clan server).
+  // 'open': anyone who signs in (sign-in is still limited to the clan's Discord server).
   access() {
     if (!this.meta.access) {
       const seed = String(this.env.TESTERS || '').split(',').map((x) => x.trim()).filter(Boolean);
@@ -219,6 +275,7 @@ export class Game extends DurableObject {
   pidFor(user) { return user ? 'd' + user.id : null; }
 
   async whoAmI(user) {
+    this.useClan(user);
     const s = this.game(); const pid = this.pidFor(user);
     const status = this.accessFor(user);
     if (status === 'pending') {
@@ -232,10 +289,11 @@ export class Game extends DurableObject {
         await this.save();
       }
     }
-    return { pid: status === 'ok' && pid && s.players[pid] ? pid : null, access: status, startsAt: s.status === 'signup' ? s.startsAt || null : null };
+    return { pid: status === 'ok' && pid && s.players[pid] ? pid : null, access: status, startsAt: s.status === 'signup' ? s.startsAt || null : null, theme: s.themeId };
   }
 
   async getState(user, since) {
+    this.useClan(user);
     const s = this.game(); const pid = this.pidFor(user);
     // Anyone signed in can watch. Only approved players can join and play (checked in act()).
     if (!user) return { error: 'Sign in with Discord to see the game.', code: 'no-access', access: 'signin' };
@@ -248,6 +306,7 @@ export class Game extends DurableObject {
   }
 
   async act(user, action, a) {
+    this.useClan(user);
     const s = this.game(); const pid = this.pidFor(user);
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
     const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess'];
@@ -362,13 +421,13 @@ export class Game extends DurableObject {
     return pub && priv ? { publicKey: pub, privateKey: priv, subject: this.env.GAME_PAGE || 'https://spanky3651.github.io/Chesters-Escape/' } : null;
   }
   async notifyHosts(msg, only) {
-    const hostIds = String(this.env.HOSTS || '').split(',').map((x) => x.trim());
-    return this.pushTo((this.meta.push || []).filter((x) => (only ? only(x) : hostIds.includes(x.uid))), { ...msg, url: (this.env.GAME_PAGE || '') + '#host' });
+    const hostIds = hosts(this.env, this.clan());
+    return this.pushTo((this.meta.push || []).filter((x) => (only ? only(x) : hostIds.includes(x.uid))), { ...msg, url: this.page('#host') });
   }
   async pushTo(subs, msg) {
     const keys = this.pushKeys();
     if (!keys || !subs.length) return { sent: 0, failed: 0 };
-    const payload = { title: msg.title, body: msg.body || '', tag: msg.tag || 'chester', url: msg.url || this.env.GAME_PAGE || '' };
+    const payload = { title: msg.title, body: msg.body || '', tag: (this.clan().id + '-') + (msg.tag || 'chester'), url: msg.url || this.page() };
     const gone = new Set(); let sent = 0, failed = 0;
     await Promise.all(subs.map(async (sub) => {
       try {
@@ -381,6 +440,7 @@ export class Game extends DurableObject {
     return { sent, failed };
   }
   async pushOp(user, op, body) {
+    this.useClan(user);
     this.game();
     if (!this.pushKeys()) return { error: 'Notifications are not set up on the server yet.' };
     if (!this.canUse(user)) return { error: 'The host has to let you in first.' };
@@ -448,9 +508,9 @@ export class Game extends DurableObject {
 
   // Day rollover at the cutoff, plus a BeatLeader sweep for everyone still on a map.
   async announceStart() {
-    if (!this.env.DISCORD_WEBHOOK_URL || this.env.ANNOUNCE_DAYS !== '1') return;
-    const content = `**${this.state.title} has started!** Day 1 is open, go roll your first d4.` + (this.env.GAME_PAGE ? `\n${this.env.GAME_PAGE}` : '');
-    await fetch(this.env.DISCORD_WEBHOOK_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
+    if (!this.announcing()) return;
+    const content = `**${this.state.title} has started!** Day 1 is open, go roll your first d4.` + (this.page() ? `\n${this.page()}` : '');
+    await fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
   }
 
   // Once a game day per device, at the reminder hour in that device's own time zone: nudge
@@ -474,11 +534,11 @@ export class Game extends DurableObject {
 
   async announceEnd() {
     const s = this.state;
-    if (!this.env.DISCORD_WEBHOOK_URL || this.env.ANNOUNCE_DAYS !== '1' || !s.final) return;
+    if (!this.announcing() || !s.final) return;
     const medal = ['🥇', '🥈', '🥉'];
     const top = s.final.slice(0, 3).map((r, i) => `${medal[i]} ${s.players[r.pid].name}` + (r.escaped ? ` (escaped day ${r.day})` : ` (${r.left} to go)`)).join('\n');
-    const content = `**${s.title} is over!**\n${top}` + (this.env.GAME_PAGE ? `\n${this.env.GAME_PAGE}` : '');
-    await fetch(this.env.DISCORD_WEBHOOK_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content, allowed_mentions: { parse: [] } }) }).catch(() => {});
+    const content = `**${s.title} is over!**\n${top}` + (this.page() ? `\n${this.page()}` : '');
+    await fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content, allowed_mentions: { parse: [] } }) }).catch(() => {});
   }
 
   async alarm() {
@@ -492,10 +552,10 @@ export class Game extends DurableObject {
     } else if (s.status === 'running' && this.meta.nextCutoff && now >= this.meta.nextCutoff - 1000) {
       E.advanceDay(s);
       this.meta.nextCutoff = E.nextCutoff(s.settings, now + 1000);
-      if (this.env.DISCORD_WEBHOOK_URL && this.env.ANNOUNCE_DAYS === '1') {
+      if (this.announcing()) {
         const left = s.order.filter((id) => !s.players[id].finished).length;
-        const content = `**Day ${s.day - 1} is done!** ${left} still trying to escape. Day ${s.day} starts now.` + (this.env.GAME_PAGE ? `\n${this.env.GAME_PAGE}` : '');
-        await fetch(this.env.DISCORD_WEBHOOK_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
+        const content = `**Day ${s.day - 1} is done!** ${left} still trying to escape. Day ${s.day} starts now.` + (this.page() ? `\n${this.page()}` : '');
+        await fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
       }
     }
     await this.remind(now);

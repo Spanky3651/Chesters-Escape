@@ -21,7 +21,7 @@ self.addEventListener('notificationclick', function (e) {
   var url = (e.notification.data && e.notification.data.url) || self.registration.scope;
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
     for (var i = 0; i < list.length; i++) {
-      if (list[i].url.indexOf(self.registration.scope) === 0) { if (/#host$/.test(url)) list[i].postMessage({ type: 'open-host' }); return list[i].focus(); }
+      if (list[i].url.indexOf(self.registration.scope) === 0) { list[i].postMessage({ type: 'open', url: url }); return list[i].focus(); }
     }
     return self.clients.openWindow(url);
   }));

@@ -164,11 +164,38 @@
     var pending = store.access && store.access.pending ? store.access.pending.length : 0;
     return { claims: claims, pending: pending, total: claims + pending };
   }
+  // ---- clan games ------------------------------------------------------------------------------
+  // Players in more than one clan server get a switcher with each server's icon.
+  function clanIcon(c, cls) {
+    var letters = String(c.name || '?').replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join('').toUpperCase() || '?';
+    var fallback = '<span class="' + cls + '" aria-hidden="true"' + (c.icon ? ' hidden' : '') + '>' + esc(letters) + '</span>';
+    return (c.icon ? '<img class="' + cls + '" src="' + esc(c.icon) + '" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false">' : '') + fallback;
+  }
+  var clanSwitchDone = false;
+  function renderClanSwitch(src) {
+    var el = $('clanSwitch'), list = (src && src.clans) || [];
+    if (!el || clanSwitchDone || list.length < 2) return;
+    clanSwitchDone = true;
+    el.hidden = false;
+    el.innerHTML = list.map(function (c) {
+      var on = c.id === src.clan;
+      return '<button type="button" class="clan-btn" data-clan="' + esc(c.id) + '" aria-pressed="' + on + '" title="' + esc(on ? 'You are in the ' + c.name + ' game' : 'Switch to the ' + c.name + ' game') + '">' + clanIcon(c, 'clan-ic') + '<span class="nm">' + esc(c.name) + '</span></button>';
+    }).join('');
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-clan]'); if (!b) return;
+    var cur = store && store.clan;
+    if (b.dataset.clan === cur && b.classList.contains('clan-btn')) return;
+    track('clan-' + b.dataset.clan);
+    window.CGStore.switchClan(b.dataset.clan);
+  });
+
   function renderHeader() {
     var s = st(), t = theme();
-    document.body.setAttribute('data-theme', t.id);
+    renderClanSwitch(store);
+    document.body.setAttribute('data-theme', t.look || t.id);
     $('gameTitle').textContent = t.title;
-    $('brandCrow').innerHTML = R.chester(0, 0, 1, R.hatFor(t));
+    $('brandCrow').innerHTML = R.hero(0, 0, 1, t);
     $('dayNum').textContent = s.status === 'finished' ? 'Game over' : s.status === 'signup' ? 'Sign-ups open' : 'Day ' + s.day;
     $('hostBtn').hidden = !store.isHost;
     var todo = store.isHost ? hostTodo() : { total: 0 };
@@ -637,7 +664,7 @@
   function showCard(card) {
     return new Promise(function (resolve) {
       var t = theme(), ov = $('cardOverlay'), c3 = $('card3d');
-      $('cardBack').innerHTML = '<div><svg class="crow" viewBox="-36 -42 72 80" aria-hidden="true">' + R.chester(0, 0, 1, R.hatFor(t)) + '</svg><p>' + esc(t.card.back) + '</p></div>';
+      $('cardBack').innerHTML = '<div><svg class="crow" viewBox="-36 -42 72 80" aria-hidden="true">' + R.hero(0, 0, 1, t) + '</svg><p>' + esc(t.card.back) + '</p></div>';
       $('cardFront').innerHTML = cardFront(card);
       var ccol = { treasure: 'var(--treasure)', trick: 'var(--trick)', task: 'var(--task)', fate: 'var(--fate)' }[card.cls];
       $('cardFront').style.setProperty('--cc', ccol); ov.style.setProperty('--cc', ccol);
@@ -892,7 +919,7 @@
   function crowCover() {
     var t = theme();
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><radialGradient id="g" cx="50%" cy="45%" r="70%"><stop offset="0" stop-color="' + t.palette.ground + '"/><stop offset="1" stop-color="' + t.palette.ground2 + '"/></radialGradient></defs>' +
-      '<rect width="256" height="256" fill="url(#g)"/>' + R.chester(128, 120, 3.2, R.hatFor(t)) + '</svg>';
+      '<rect width="256" height="256" fill="url(#g)"/>' + R.hero(128, 120, 3.2, t) + '</svg>';
     return new Promise(function (resolve) {
       var img = new Image();
       img.onload = function () { var c = document.createElement('canvas'); c.width = c.height = 256; c.getContext('2d').drawImage(img, 0, 0, 256, 256); resolve(c.toDataURL('image/png')); };
@@ -932,6 +959,8 @@
       var words = resultsTitle().split(' '), l1 = words.length > 2 ? words.slice(0, 2).join(' ') : words[0], l2 = words.length > 2 ? words.slice(2).join(' ') : words.slice(1).join(' ');
       var bfill = t.banner ? t.banner[0] : '#3fd04a', bstroke = t.banner ? t.banner[1] : '#3b2208';
       var banner = '<g transform="translate(40,40) rotate(-7)" font-family="' + esc(t.font) + '" font-weight="700" fill="' + bfill + '" stroke="' + bstroke + '" stroke-width="14" paint-order="stroke">' +
+        // Theme art has its title painted in, so the banner gets a plate to sit on.
+        (t.art ? '<rect x="-22" y="-6" width="560" height="232" rx="28" fill="' + t.palette.ground + '" stroke="' + bfill + '" stroke-width="6" opacity=".96"/>' : '') +
         '<text x="0" y="100" font-size="118">' + esc(l1) + '</text><text x="40" y="205" font-size="118">' + esc(l2) + '</text></g>';
       var str = new XMLSerializer().serializeToString(svg).replace('</svg>', banner + '</svg>');
       if (css) str = str.replace(/<defs>/, '<defs><style>' + css + '</style>');
@@ -1293,23 +1322,28 @@
   // ---- start -----------------------------------------------------------------------------------
   // ---- closed door ---------------------------------------------------------------------------
   function renderGate(g) {
-    var t = C.themes.cemetery;
+    var t = (g.theme && C.themes[g.theme]) || null;
     track('gate-' + g.kind);
     document.addEventListener('click', function (e) { if (e.target.closest('a[href*="/auth/login"]')) track('sign-in'); });
     document.body.classList.add('gated');
-    $('brandCrow').innerHTML = R.chester(0, 0, 1, 'none');
+    if (t) { document.body.setAttribute('data-theme', t.look || t.id); $('gameTitle').textContent = t.title; document.title = t.title; }
+    $('brandCrow').innerHTML = t ? R.hero(0, 0, 1, t) : R.chester(0, 0, 1, 'none');
+    if (g.kind !== 'choose') renderClanSwitch(g);
     var msg = {
       closed: ['Coming soon', "Chester's Escape isn't open yet. Watch the clan Discord for the start."],
       down: ["Can't reach the game", 'The game server is not answering right now. Try again in a minute.'],
       signin: ['Private game', 'Sign in with Discord to see the board. The host lets players in.'],
-      pending: ["You're on the list", 'Thanks' + (g.user ? ', ' + g.user.name : '') + '. The host has your request and will let you in. Check back soon.']
+      pending: ["You're on the list", 'Thanks' + (g.user ? ', ' + g.user.name : '') + '. The host has your request and will let you in. Check back soon.'],
+      choose: ['Pick your game', "You're in more than one clan server, so there's a game for each. You can switch any time with the icons at the top of the page."]
     }[g.kind];
-    var html = '<section class="gate-card"><svg class="gate-crow" viewBox="-36 -42 72 80" aria-hidden="true">' + R.chester(0, 0, 1, 'none') + '</svg>' +
+    var html = '<section class="gate-card"><svg class="gate-crow" viewBox="-36 -42 72 80" aria-hidden="true">' + (t ? R.hero(0, 0, 1, t) : R.chester(0, 0, 1, 'none')) + '</svg>' +
       '<h2>' + esc(msg[0]) + '</h2><p>' + esc(msg[1]) + '</p>' + (g.startsAt && g.startsAt > Date.now() ? countdownHtml(g.startsAt) : '') + '<div class="row" style="justify-content:center">';
     if (g.kind === 'signin') html += '<a class="btn" href="' + esc(g.loginUrl()) + '">Sign in with Discord</a>';
     if (g.kind === 'pending') html += '<button type="button" class="btn ghost" id="gateRetry">Check again</button><button type="button" class="btn link" id="gateOut">Sign out</button>';
     if (g.kind === 'down') html += '<button type="button" class="btn ghost" id="gateRetry">Try again</button>';
-    html += '</div></section>';
+    html += '</div>';
+    if (g.kind === 'choose') html += '<div class="clan-picks">' + g.clans.map(function (c) { return '<button type="button" class="clan-pick" data-clan="' + esc(c.id) + '">' + clanIcon(c, 'clan-big') + '<span>' + esc(c.name) + '</span></button>'; }).join('') + '</div>';
+    html += '</section>';
     document.querySelector('main.layout').outerHTML = '<main class="gate">' + html + '</main>';
     var r = $('gateRetry'); if (r) r.onclick = function () { location.reload(); };
     var o = $('gateOut'); if (o) o.onclick = function () { g.logout(); };
@@ -1326,7 +1360,15 @@
     store.on(function () { if (!animating) renderAll(); });
     renderAll();
     if (/^#host$/.test(location.hash)) { history.replaceState(null, '', location.pathname + location.search); if (store.isHost) openHost(); }
-    if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', function (e) { if (e.data && e.data.type === 'open-host' && store.isHost) { openHost(); store.poll && store.poll(); } });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', function (e) {
+      var d = e.data || {};
+      if (d.type !== 'open' && d.type !== 'open-host') return;
+      // A notification from the other clan's game opens that game.
+      var c = ''; try { c = new URL(d.url || '', location.href).searchParams.get('clan') || ''; } catch (x) {}
+      if (c && store.clan && c !== store.clan) { location.href = d.url; return; }
+      if ((d.type === 'open-host' || /#host$/.test(d.url || '')) && store.isHost) openHost();
+      store.poll && store.poll();
+    });
     if (store.mode === 'live') { setInterval(function () { if (!animating && document.visibilityState === 'visible') store.poll(); }, 20000); }
     setInterval(tickClock, 30000);
     setInterval(tickCountdowns, 1000);

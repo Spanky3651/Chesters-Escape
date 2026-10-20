@@ -18,20 +18,39 @@ GAME_PAGE = "https://spanky3651.github.io/Chesters-Escape/"
 ALLOWED_ORIGINS = "https://spanky3651.github.io"
 # Discord user IDs that get the host tools (comma separated).
 HOSTS = "909550896571113492"
-# Optional: only members of this Discord server can sign in. Leave empty to allow anyone.
-GUILD_ID = "933398740008587396"
 # The game starts invite-only. People who sign in land on the host's waiting list
 # (Host tools, Who can play). Optional: Discord IDs let in from the start (comma separated).
 TESTERS = ""
-# Theme for a brand-new game: cemetery or christmas.
-THEME = "cemetery"
-# "1" posts a short "Day N is done" message to the webhook at each cutoff.
+# "1" posts start, day and end messages to each clan's webhook. A clan can override it with announce.
 ANNOUNCE_DAYS = "0"
+
+# One game per clan Discord server. Members of a server can sign in to that clan's game;
+# people in both servers get a switcher. Settings per clan:
+#   name     shown on the switcher
+#   guild    the Discord server ID (empty lets anyone sign in)
+#   game     the name the game is stored under. GenX keeps "main", the game that's already running.
+#   theme    theme for a brand-new game (cemetery, christmas, thanksgiving, taco-thanksgiving, taco-christmas)
+#   webhook  name of the secret holding that clan's Discord channel webhook
+#   hosts    optional extra host Discord IDs for this clan only (comma separated)
+[vars.CLANS.genx]
+name = "GenX"
+guild = "933398740008587396"
+game = "main"
+theme = "cemetery"
+webhook = "DISCORD_WEBHOOK_URL"
+
+[vars.CLANS.beaters]
+name = "Beaters"
+guild = "1420030867908329482"
+game = "beaters"
+theme = "taco-thanksgiving"
+webhook = "DISCORD_WEBHOOK_URL_BEATERS"
 
 # Secrets (set with: npx wrangler secret put NAME)
 #   DISCORD_CLIENT_ID      from the Discord developer portal, OAuth2 page
 #   DISCORD_CLIENT_SECRET  same page
 #   SESSION_SECRET         any long random string
-#   DISCORD_WEBHOOK_URL    optional, the game channel's webhook for posting results
+#   DISCORD_WEBHOOK_URL    optional, GenX's game channel webhook for posting results
+#   DISCORD_WEBHOOK_URL_BEATERS  optional, the same for the Beaters server
 #   VAPID_PUBLIC_KEY       optional, push notifications for hosts (see the key command in the setup notes)
 #   VAPID_PRIVATE_KEY      optional, the matching private key
