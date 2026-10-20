@@ -693,3 +693,36 @@ body.gated .foot { border-top: 0; margin-top: 0; }
 .clan-pick:hover, .clan-pick:focus-visible { border-color: var(--accent); transform: translateY(-2px); }
 .clan-big { width: 88px; height: 88px; font-size: 28px; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
 @media (max-width: 640px) { .clan-btn .nm { display: none; } .clan-btn { padding: 3px; } }
+
+/* ---- UI pass, Oct 20 ---- */
+.nav-btn .sm { display: none; }
+@media (max-width: 640px) {
+  .topnav { overflow: visible; justify-content: space-between; gap: 2px; }
+  .nav-btn .lg { display: none; }
+  .nav-btn .sm { display: inline; }
+  .nav-btn { padding: 7px 8px; }
+}
+/* Phones: Zoom and Replay sit in a row under the board instead of over its last row. */
+@media (max-width: 760px) {
+  .board-zone { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+  .board-zone > .board-wrap { flex: 0 0 100%; }
+  .board-zone > .zoom-btn, .board-zone > .replay-btn { position: static; background: var(--raise); border-color: var(--line-2); }
+  .board-zone > .replay-btn { margin-left: auto; }
+  .board-zone > .roll-stage { bottom: 48px; }
+}
+.turn > h2 { margin-bottom: 0; }
+.turn > p { margin: 0; }
+.turn > h2 + p.why { margin-top: -8px; }
+@media (max-width: 640px) {
+  .ptable, .ptable tbody { display: block; }
+  .ptable tr { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .ptable td { border: 0; padding: 0; }
+  .ptable td:first-child { flex: 1 0 100%; }
+}
+/* Standings get the full width under the board and the side panels. */
+.layout > .standings { grid-column: 1 / -1; margin-top: 4px; }
+.st .sub { display: flex !important; align-items: center; gap: 6px; }
+.st-cover { width: 18px; height: 18px; border-radius: 4px; object-fit: cover; flex: none; }
+.route-card .rc-stats { display: block; margin-top: 8px; font-size: 13px; color: var(--faint); }
+.st .st-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ptable td:empty { display: none; }

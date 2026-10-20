@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Grenze+Gotisch:wght@500;700;800&family=Mountains+of+Christmas:wght@700&family=Cherry+Swash:wght@700&family=Creepster&family=Pacifico&family=Sniglet:wght@800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/game.css?v=20261020f">
+<link rel="stylesheet" href="css/game.css?v=20261020g">
 <script data-goatcounter="https://chesters-escape.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
 </head>
@@ -39,10 +39,10 @@
     <span class="clock" id="dayClock"></span>
   </div>
   <nav class="topnav" aria-label="Game">
-    <button type="button" class="nav-btn" id="howBtn">How to play</button>
-    <button type="button" class="nav-btn" id="playlistBtn">Get the maps</button>
+    <button type="button" class="nav-btn" id="howBtn"><span class="lg">How to play</span><span class="sm">Rules</span></button>
+    <button type="button" class="nav-btn" id="playlistBtn"><span class="lg">Get the maps</span><span class="sm">Maps</span></button>
     <button type="button" class="nav-btn" id="hostBtn" hidden>Host tools</button>
-    <a class="nav-btn" href="designer.html" id="designerLink" hidden>Board designer</a>
+    <a class="nav-btn" href="designer.html" id="designerLink" hidden><span class="lg">Board designer</span><span class="sm">Designer</span></a>
     <button type="button" class="nav-btn icon" id="muteBtn" aria-pressed="false" title="Sound effects">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="slash" d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       <span class="sr">Sound effects</span>
@@ -67,7 +67,6 @@
       <div class="replay-cap" id="replayCap" hidden aria-live="polite"><span id="replayText"></span><button type="button" id="replaySkip">Skip</button></div>
       <div class="roll-stage" id="rollStage" hidden aria-hidden="true"><div class="stage-die" id="stageDie"></div><div class="burst" id="burst"></div></div>
     </div>
-    <section class="standings" id="standings" aria-label="Standings"></section>
   </section>
 
   <aside class="side">
@@ -84,6 +83,7 @@
       <ol class="feed" id="feed"></ol>
     </section>
   </aside>
+  <section class="standings" id="standings" aria-label="Standings"></section>
 </main>
 
 <footer class="foot">
@@ -101,7 +101,7 @@
   <div class="foot-more" id="footTools"><span class="fm-label">More Beat Saber tools:</span> <a href="https://spanky3651.github.io/Playlist-Studio/?utm_source=chesters-escape&amp;utm_medium=footer&amp;utm_campaign=site" data-tool="playlist-studio">Playlist Studio</a> <span class="sep">&middot;</span> <a href="https://spanky3651.github.io/HSV-Config-Generator/?utm_source=chesters-escape&amp;utm_medium=footer&amp;utm_campaign=site" data-tool="hsv-config-generator">HSV <span class="fm-long">Config </span>Generator</a> <span class="sep">&middot;</span> <a href="https://spanky3651.github.io/ReeSaber-Studio/?utm_source=chesters-escape&amp;utm_medium=footer&amp;utm_campaign=site" data-tool="reesaber-studio">ReeSaber Studio</a></div>
   <div class="foot-meta">
     <div class="foot-count" id="footCount" hidden></div>
-    <span class="foot-updated" id="footUpdated" data-updated="2026-10-20T11:00:00Z">Site updated recently</span>
+    <span class="foot-updated" id="footUpdated" data-updated="2026-10-20T11:22:00Z">Site updated recently</span>
   </div>
 </footer>
 
@@ -146,13 +146,13 @@
 <div class="mbar" id="mbar" hidden></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="js/config.js?v=20261020f"></script>
-<script src="js/content.js?v=20261020f"></script>
-<script src="js/engine.js?v=20261020f"></script>
-<script src="js/render.js?v=20261020f"></script>
-<script src="js/dice.js?v=20261020f"></script>
-<script src="js/services.js?v=20261020f"></script>
-<script src="js/store.js?v=20261020f"></script>
-<script src="js/app.js?v=20261020f"></script>
+<script src="js/config.js?v=20261020g"></script>
+<script src="js/content.js?v=20261020g"></script>
+<script src="js/engine.js?v=20261020g"></script>
+<script src="js/render.js?v=20261020g"></script>
+<script src="js/dice.js?v=20261020g"></script>
+<script src="js/services.js?v=20261020g"></script>
+<script src="js/store.js?v=20261020g"></script>
+<script src="js/app.js?v=20261020g"></script>
 </body>
 </html>

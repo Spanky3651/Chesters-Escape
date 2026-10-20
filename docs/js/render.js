@@ -641,6 +641,13 @@
     opts = opts || {};
     var layer = svg.querySelector('.tokens'); if (!layer) return;
     var pos = layoutTokens(s, opts.overrides);
+    // A lone token's name tag runs into tokens on the spaces next to it, so those show only the
+    // initials (tap the token for names). Your own tag always shows.
+    var crowded = {};
+    Object.keys(pos).forEach(function (a) {
+      var A = pos[a]; if (A.n !== 1) return;
+      crowded[a] = Object.keys(pos).some(function (b) { var B = pos[b]; return b !== a && Math.abs(B.x - A.x) < 74 && B.y - A.y > -10 && B.y - A.y < 72; });
+    });
     var defsEl = svg.querySelector('defs');
     s.order.forEach(function (pid) {
       var p = s.players[pid]; if (!p.route) return;
@@ -663,7 +670,8 @@
       if (p.avatar) inner += '<image href="' + esc(p.avatar) + '" x="' + (-r) + '" y="' + (-r) + '" width="' + (2 * r) + '" height="' + (2 * r) + '" clip-path="url(#' + clipId + ')" preserveAspectRatio="xMidYMid slice" onerror="this.remove()"/>';
       if (me) inner += '<circle r="' + (r + 6.5) + '" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4 4" class="me-ring"/>';
       if (p.finished) inner += '<text y="' + (-r - 6) + '" text-anchor="middle" font-size="' + (r * .9) + '">\uD83C\uDF89</text>';
-      if (L.n === 1 || me) inner += '<g class="tag"><rect x="-34" y="' + (r + 5) + '" width="68" height="15" rx="7.5" fill="#000" opacity=".78"/><text y="' + (r + 16) + '" text-anchor="middle" font-family="Atkinson Hyperlegible, Arial, sans-serif" font-weight="700" font-size="10.5" fill="#fff">' + esc(trunc(p.name, 11)) + '</text></g>';
+      inner += '<title>' + esc(p.name) + '</title>';
+      if ((L.n === 1 && !crowded[pid]) || me) inner += '<g class="tag"><rect x="-34" y="' + (r + 5) + '" width="68" height="15" rx="7.5" fill="#000" opacity=".78"/><text y="' + (r + 16) + '" text-anchor="middle" font-family="Atkinson Hyperlegible, Arial, sans-serif" font-weight="700" font-size="10.5" fill="#fff">' + esc(trunc(p.name, 11)) + '</text></g>';
       g.querySelector('.tok-in').innerHTML = inner;
       g.classList.toggle('me', me);
       if (!opts.noMove) g.style.transform = 'translate(' + L.x + 'px,' + L.y + 'px)';

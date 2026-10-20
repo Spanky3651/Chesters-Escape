@@ -91,6 +91,8 @@
     var keys = [];
     Object.keys(s.board.spaces).forEach(function (id) { var sp = s.board.spaces[id]; if (sp.type === 'map' && sp.bsr && sp.bsr[0]) keys.push(sp.bsr[0]); });
     S.maps(keys).then(function (found) {
+      Object.keys(found).forEach(function (k) { mapInfo[k] = found[k]; });
+      renderStandings();
       if (svg !== svgEl) return;   // the board was rebuilt meanwhile
       var NS = 'http://www.w3.org/2000/svg';
       Array.prototype.forEach.call(svg.querySelectorAll('.sp-map'), function (g) {
@@ -202,7 +204,7 @@
     var todo = store.isHost ? hostTodo() : { total: 0 };
     document.title = (todo.total ? '(' + todo.total + ') ' : '') + t.title;
     var hb = $('hostBtn');
-    hb.innerHTML = 'Host tools' + (todo.total ? '<span class="nav-badge" aria-hidden="true">' + todo.total + '</span>' : '');
+    hb.innerHTML = '<span class="lg">Host tools</span><span class="sm">Host</span>' + (todo.total ? '<span class="nav-badge" aria-hidden="true">' + todo.total + '</span>' : '');
     hb.setAttribute('aria-label', todo.total ? 'Host tools, ' + todo.total + ' waiting on you' : 'Host tools');
     hb.title = todo.total ? [todo.claims ? todo.claims + ' run' + (todo.claims === 1 ? '' : 's') + ' to approve' : '', todo.pending ? todo.pending + ' waiting to get in' : ''].filter(Boolean).join(', ') : '';
     if (todo.total > lastTodo) { var nb = hb.querySelector('.nav-badge'); if (nb) { void nb.offsetWidth; nb.classList.add('bump'); } }
@@ -326,7 +328,7 @@
       el.innerHTML = '<h2>Pick your route</h2>' + pre + '<p class="why">You can\'t change it later.</p><div class="routes">' +
         ['longer', 'riskier'].map(function (r) {
           var info = s.board.routeInfo[r];
-          return '<button type="button" class="route-card' + (r === 'riskier' ? ' risk' : '') + '" data-route="' + r + '"><b>' + esc(info.name) + '</b><span>' + esc(routeBlurb(r)) + '</span></button>';
+          return '<button type="button" class="route-card' + (r === 'riskier' ? ' risk' : '') + '" data-route="' + r + '"><b>' + esc(info.name) + '</b><span>' + esc(routeBlurb(r)) + '</span><span class="rc-stats">' + esc(routeCounts(s.board, r)) + '</span></button>';
         }).join('') + '</div>';
       return;
     }
@@ -448,6 +450,10 @@
   }
 
   // ---- standings -----------------------------------------------------------------
+  function songCover(p) {
+    var m = p.tasks.length && songFor(p.tasks[0].bsr[0]);
+    return m && m.cover ? '<img class="st-cover" src="' + esc(m.cover) + '" alt="" loading="lazy">' : '';
+  }
   function renderStandings() {
     var s = st();
     var rank = s.status === 'finished' && s.final ? s.final : E.ranking(s);
@@ -459,16 +465,36 @@
       html += '<li><button type="button" class="st' + (pid === store.me ? ' me' : '') + (p.finished ? ' done' : '') + '" data-pid="' + esc(pid) + '" style="--c:' + col + '">' +
         '<span class="place">' + (p.finished ? ordinal(p.finished.place) : s.status === 'finished' ? ordinal(placeOf[pid]) : placeOf[pid] || i + 1) + '</span>' + avatarHtml(p, 'ava') +
         '<span style="min-width:0"><span class="nm">' + esc(p.name) + '</span> <span class="chip ' + (p.route === 'riskier' ? 'risk' : 'long') + '">' + (p.route === 'riskier' ? 'Riskier' : 'Longer') + '</span>' +
-        '<span class="sub" style="display:block">' + esc(statusLine(p)) + '</span><span class="bar"><i style="width:' + pct + '%"></i></span></span></button></li>';
+        '<span class="sub" style="display:block"' + (p.tasks.length ? ' title="!bsr ' + esc(p.tasks.map(function (t) { return t.bsr.join(' or '); }).join(', ')) + '"' : '') + '>' + songCover(p) + '<span class="st-t">' + esc(statusLine(p)) + '</span></span><span class="bar"><i style="width:' + pct + '%"></i></span></span></button></li>';
     });
     $('standings').innerHTML = html + '</ol>';
+  }
+  // What's on a route, to compare the two at a glance.
+  function routeCounts(b, r) {
+    var n = { map: 0, task: 0, card: 0, good: 0, bad: 0 };
+    (b.routes[r] || []).forEach(function (id) {
+      var sp = b.spaces[id]; if (!sp) return;
+      if (sp.type === 'map') n.map++; else if (sp.type === 'task') n.task++; else if (sp.type === 'card') n.card++;
+      else if ((sp.type === 'move' && sp.n > 0) || sp.type === 'safe' || (sp.type === 'warp' && sp.kind === 'swim')) n.good++;
+      else if (sp.type !== 'exit') n.bad++;
+    });
+    var w = function (k, one, many) { return n[k] + ' ' + (n[k] === 1 ? one : many); };
+    return [w('map', 'map', 'maps'), w('task', 'blocker', 'blockers'), w('card', 'card drop', 'card drops'), w('good', 'boost', 'boosts'), w('bad', 'setback', 'setbacks')].join(' \u00b7 ');
+  }
+  // Song names for the standings. Board maps arrive with the covers; bonus maps are looked up here.
+  var mapInfo = {}, mapAsked = {};
+  function songFor(key) {
+    key = String(key || '').toLowerCase();
+    if (mapInfo[key]) return mapInfo[key];
+    if (!mapAsked[key]) { mapAsked[key] = 1; S.maps([key]).then(function (f) { if (f[key]) { mapInfo[key] = f[key]; renderStandings(); } }); }
+    return null;
   }
   function statusLine(p) {
     var s = st();
     if (p.finished) return 'Escaped on day ' + p.finished.day;
     if (s.status === 'signup') return 'Signed up, waiting for the start';
     if (s.status === 'finished') return E.remaining(s, p) + ' spaces to go at the end';
-    if (p.tasks.length) return 'Playing !bsr ' + p.tasks.map(function (t) { return t.bsr[0]; }).join(', ');
+    if (p.tasks.length) return 'Playing ' + p.tasks.map(function (t) { var m = songFor(t.bsr[0]); return m ? m.name : '!bsr ' + t.bsr[0]; }).join(', ');
     if (p.skippedDay === s.day) return 'Sitting out today';
     var c = E.canRoll(s, p.id);
     if (c.ok) return 'Ready to roll' + (p.pos >= 0 ? ', ' + E.remaining(s, p) + ' to go' : '');
@@ -1232,6 +1258,8 @@
         if (tok) { tok.classList.remove('ping'); void tok.getBBox(); tok.classList.add('ping'); $('boardWrap').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
         return;
       }
+      var tk = e.target.closest('.board-svg .tok');
+      if (tk) { var tp = st().players[tk.getAttribute('data-pid')], tid = tp && tp.route && tp.pos >= 0 && st().board.routes[tp.route][tp.pos]; if (tid) { openSpace(tid, tk); return; } }
       var sp = e.target.closest('.board-svg .sp'); if (sp) { openSpace(sp.dataset.id, sp); return; }
       if (e.target.closest('#spacePop [data-close]') || (!e.target.closest('#spacePop') && !$('spacePop').hidden)) closeSpace();
       var fb = e.target.closest('[data-feed]'); if (fb) { feedMode = fb.dataset.feed; renderFeed(); return; }
