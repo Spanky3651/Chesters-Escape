@@ -7,6 +7,9 @@
   'use strict';
   var C = root.CGContent;
 
+  // A card's art: an emoji, or a picture (an image path in the game, a data URL from the card editor).
+  function isImg(s) { return /^(data:image\/(png|jpeg|webp);|img\/|https:\/\/)/.test(String(s || '')); }
+  function cardArt(art) { return isImg(art) ? '<img class="cart-img" src="' + esc(art) + '" alt="">' : esc(art); }
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function rnd(seed) { var s = seed >>> 0; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 
@@ -685,6 +688,6 @@
 
   root.CGRender = {
     board: board, placeTokens: placeTokens, layoutTokens: layoutTokens, tokenXY: tokenXY,
-    playerColor: playerColor, initials: initials, chester: chester, taco: taco, hero: hero, dieIcon: function () { return DIE_ICON; }, setFavicon: setFavicon, faviconSvg: faviconSvg, hatFor: hatFor, label: label, esc: esc
+    playerColor: playerColor, initials: initials, chester: chester, taco: taco, hero: hero, dieIcon: function () { return DIE_ICON; }, setFavicon: setFavicon, cardArt: cardArt, isImg: isImg, faviconSvg: faviconSvg, hatFor: hatFor, label: label, esc: esc
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

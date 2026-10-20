@@ -35,7 +35,7 @@ Each clan Discord server gets its own game, with its own board, players and them
 
 ## Card editor
 
-The designer's **Cards** tab lets anyone rewrite a theme's 20 cards and its event space names, with a live preview of each card. What a card does stays locked. Download the card pack and send the file to the host. The designer follows the clan game you're signed in to, so its themes and saved boards are for that game only.
+The designer's **Cards** tab lets anyone rewrite a theme's 20 cards and its event space names and add their own card pictures, with a live preview of each card. What a card does stays locked. Download the card pack and send the file to the host. The designer follows the clan game you're signed in to, so its themes and saved boards are for that game only.
 
 ## Built with
 

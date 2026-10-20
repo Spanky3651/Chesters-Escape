@@ -787,3 +787,8 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .sound-opt { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
 .topnav .clan-switch { margin-left: 6px; }
 @media (max-width: 640px) { .topnav .clan-switch { margin-left: 0; } }
+
+/* Card pictures from the card editor */
+.cfront .cart { min-height: 0; overflow: hidden; }
+.cfront .cart.pic { background: #000; padding: 0; }
+.cfront .cart-img { width: 100%; height: 100%; object-fit: cover; display: block; }

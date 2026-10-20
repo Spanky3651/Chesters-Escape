@@ -705,7 +705,7 @@
   // ---- cards -------------------------------------------------------------------------
   function cardFront(card) {
     var t = theme(), cc = { treasure: 'var(--treasure)', trick: 'var(--trick)', task: 'var(--task)', fate: 'var(--fate)' }[card.cls];
-    return '<div class="ctype">' + esc(t.card[card.cls] || 'Card') + '</div><div class="cart" aria-hidden="true">' + card.art + '</div>' +
+    return '<div class="ctype">' + esc(t.card[card.cls] || 'Card') + '</div><div class="cart' + (R.isImg(card.art) ? ' pic' : '') + '" aria-hidden="true">' + R.cardArt(card.art) + '</div>' +
       '<div class="ctitle">' + esc(card.title) + '</div><div class="ctext">' + esc(card.text) + '</div><div class="cfx">' + esc(C.cardEffectText(card)) + '</div>';
   }
   function showCard(card) {
