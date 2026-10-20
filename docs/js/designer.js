@@ -44,6 +44,7 @@
   function render() {
     var t = theme();
     document.body.setAttribute('data-theme', t.look || t.id);
+    R.setFavicon(t);
     $('brandCrow').innerHTML = R.hero(0, 0, 1, t);
     var wrap = $('dzWrap');
     wrap.innerHTML = R.board(board, t, { selected: sel, designer: true, still: true });

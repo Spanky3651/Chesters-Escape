@@ -110,6 +110,23 @@
     o += '</g></g>';
     return o;
   }
+  // Browser tab icon for a theme: the theme's character, cropped close, in that theme's hat.
+  function faviconSvg(theme) {
+    var taco = theme.hero === 'taco', hat = hatFor(theme);
+    var vb = taco ? '-31 -30 62 62' : hat !== 'none' ? '-27 -32 54 54' : '-25 -21 50 50';
+    var n = vb.split(' ').map(Number);
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + vb + '"><rect x="' + n[0] + '" y="' + n[1] + '" width="' + n[2] + '" height="' + n[3] + '" rx="' + (n[2] * .22) + '" fill="' + (taco ? '#2a1a0e' : '#f2a33a') + '"/>' + hero(0, taco ? 2 : 0, 1, theme) + '</svg>';
+  }
+  function setFavicon(theme) {
+    if (typeof document === 'undefined') return;
+    var href = 'data:image/svg+xml,' + encodeURIComponent(theme ? faviconSvg(theme) : DIE_ICON);
+    var link = document.querySelector('link[rel="icon"]');
+    if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+    if (link.getAttribute('href') !== href) { link.type = 'image/svg+xml'; link.href = href; }
+  }
+  // The shared icon (sign-in, game picker): an orange d4 showing a 4.
+  var DIE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M50 6 L94 84 Q96 90 90 90 L10 90 Q4 90 6 84 Z" fill="#9a4a12"/><path d="M50 6 L50 90 L10 90 Q4 90 6 84 Z" fill="#e8822a"/><path d="M50 6 L94 84 Q96 90 90 90 L50 90 Z" fill="#ffb347"/><text x="50" y="80" text-anchor="middle" font-family="Arial Black,Arial" font-weight="900" font-size="40" fill="#1a0f00">4</text></svg>';
+
   // The theme's main character: Chester, or Taco on the Beaters themes.
   function hero(x, y, s, theme) { return theme && theme.hero === 'taco' ? taco(x, y, s, hatFor(theme)) : chester(x, y, s, theme ? hatFor(theme) : 'none'); }
 
@@ -660,6 +677,6 @@
 
   root.CGRender = {
     board: board, placeTokens: placeTokens, layoutTokens: layoutTokens, tokenXY: tokenXY,
-    playerColor: playerColor, initials: initials, chester: chester, taco: taco, hero: hero, hatFor: hatFor, label: label, esc: esc
+    playerColor: playerColor, initials: initials, chester: chester, taco: taco, hero: hero, setFavicon: setFavicon, faviconSvg: faviconSvg, hatFor: hatFor, label: label, esc: esc
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

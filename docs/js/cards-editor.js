@@ -51,6 +51,7 @@
     var t = theme(), list = cards(), base = {}, d = draft();
     defaults().forEach(function (c) { base[c.id] = c; });
     document.body.setAttribute('data-theme', t.look || t.id);
+    R.setFavicon(t);
     $('brandCrow').innerHTML = R.hero(0, 0, 1, t);
     $('ceTheme').innerHTML = themes.map(function (k) { return '<option value="' + k + '"' + (k === themeId ? ' selected' : '') + '>' + esc(C.themes[k].name) + '</option>'; }).join('');
     $('ceAuthor').value = drafts.author || '';

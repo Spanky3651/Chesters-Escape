@@ -194,6 +194,7 @@
     var s = st(), t = theme();
     renderClanSwitch(store);
     document.body.setAttribute('data-theme', t.look || t.id);
+    R.setFavicon(t);
     $('gameTitle').textContent = t.title;
     $('brandCrow').innerHTML = R.hero(0, 0, 1, t);
     $('dayNum').textContent = s.status === 'finished' ? 'Game over' : s.status === 'signup' ? 'Sign-ups open' : 'Day ' + s.day;
@@ -1329,6 +1330,7 @@
     document.addEventListener('click', function (e) { if (e.target.closest('a[href*="/auth/login"]')) track('sign-in'); });
     document.body.classList.add('gated');
     if (t) { document.body.setAttribute('data-theme', t.look || t.id); $('gameTitle').textContent = t.title; document.title = t.title; }
+    R.setFavicon(t);
     $('brandCrow').innerHTML = t ? R.hero(0, 0, 1, t) : R.chester(0, 0, 1, 'none');
     if (g.kind !== 'choose') renderClanSwitch(g);
     var msg = {
