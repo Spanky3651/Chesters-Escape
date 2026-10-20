@@ -40,6 +40,128 @@ body[data-theme="christmas"] {
   --die-hi: #ff7a8a; --die-mid: #d7263d; --die-lo: #7d0e1d;
   --treasure: #3cc46a; --trick: #7fb2ff; --task: #f4c542; --fate: #c9d6e3;
 }
+body[data-theme="halloween"] {
+  --bg: #0b0612;
+  --raise: #160d22;
+  --raise-2: #20132f;
+  --line: #2f1d45;
+  --line-2: #42295e;
+  --text: #f6eefc;
+  --muted: #c3afd6;
+  --faint: #806a96;
+  --accent: #ff8a2b;
+  --accent-ink: #1a0a00;
+  --good: #6fd36f;
+  --bad: #c084fc;
+  --gold: #ffb347;
+  --display: 'Creepster', Georgia, serif;
+  --die-hi: #ffb067;
+  --die-mid: #ff8a2b;
+  --die-lo: #8a3a0a;
+  --treasure: #6fd36f;
+  --trick: #c084fc;
+  --task: #ffb347;
+  --fate: #d6c6e6;
+}
+body[data-theme="newyear"] {
+  --bg: #050816;
+  --raise: #0e1430;
+  --raise-2: #151d42;
+  --line: #232c5a;
+  --line-2: #313c75;
+  --text: #f2f4ff;
+  --muted: #aab3dc;
+  --faint: #6f79a6;
+  --accent: #f2c046;
+  --accent-ink: #1a1400;
+  --good: #3cc46a;
+  --bad: #8ea2ff;
+  --gold: #f2c046;
+  --display: 'Sniglet', system-ui, sans-serif;
+  --die-hi: #ffe08a;
+  --die-mid: #f2c046;
+  --die-lo: #9a7414;
+  --treasure: #3cc46a;
+  --trick: #8ea2ff;
+  --task: #f2c046;
+  --fate: #c9d0ec;
+}
+body[data-theme="valentine"] {
+  --bg: #0d0408;
+  --raise: #1c0a12;
+  --raise-2: #28101a;
+  --line: #3a1726;
+  --line-2: #522036;
+  --text: #fff0f4;
+  --muted: #e2b2c2;
+  --faint: #a0707f;
+  --accent: #ff4d6d;
+  --accent-ink: #fff;
+  --good: #4fd18b;
+  --bad: #ff8fab;
+  --gold: #ffc2d1;
+  --display: 'Pacifico', Georgia, serif;
+  --die-hi: #ff8fa3;
+  --die-mid: #ff4d6d;
+  --die-lo: #8a0f2c;
+  --treasure: #4fd18b;
+  --trick: #ff8fab;
+  --task: #ffc2d1;
+  --fate: #e6c8d2;
+}
+body[data-theme="spring"] {
+  --bg: #050b06;
+  --raise: #0f1a10;
+  --raise-2: #172617;
+  --line: #24381f;
+  --line-2: #33502c;
+  --text: #f2fbef;
+  --muted: #b5cdb0;
+  --faint: #74906d;
+  --accent: #ff8fb8;
+  --accent-ink: #2a0716;
+  --good: #6cd46c;
+  --bad: #ffa3c4;
+  --gold: #ffd23f;
+  --display: 'Sniglet', system-ui, sans-serif;
+  --die-hi: #ffc0d5;
+  --die-mid: #ff8fb8;
+  --die-lo: #a8325c;
+  --treasure: #6cd46c;
+  --trick: #ffa3c4;
+  --task: #ffd23f;
+  --fate: #cfe3c8;
+}
+body[data-theme="summer"] {
+  --bg: #03090d;
+  --raise: #0a1820;
+  --raise-2: #10232e;
+  --line: #18333f;
+  --line-2: #224656;
+  --text: #effaff;
+  --muted: #a9cfdc;
+  --faint: #6a93a2;
+  --accent: #ffb703;
+  --accent-ink: #1a1000;
+  --good: #4ad991;
+  --bad: #ff8c42;
+  --gold: #ffd166;
+  --display: 'Sniglet', system-ui, sans-serif;
+  --die-hi: #ffd166;
+  --die-mid: #ffb703;
+  --die-lo: #a35f00;
+  --treasure: #4ad991;
+  --trick: #ff8c42;
+  --task: #ffd166;
+  --fate: #c6e3ec;
+}
+/* Creepster and Pacifico only come in one weight; keep the browser from faking bold. */
+body[data-theme="halloween"], body[data-theme="valentine"] { font-synthesis: none; }
+body[data-theme="halloween"] .cback { background: repeating-linear-gradient(45deg, #3b1d4a 0 18px, #5a2d82 18px 36px); border-color: #ff8a2b; }
+body[data-theme="newyear"] .cback { background: repeating-linear-gradient(45deg, #151d42 0 18px, #1d2350 18px 36px); border-color: #f2c046; }
+body[data-theme="valentine"] .cback { background: repeating-linear-gradient(45deg, #c9184a 0 18px, #ff4d6d 18px 36px); border-color: #fff; }
+body[data-theme="spring"] .cback { background: repeating-linear-gradient(45deg, #3fa34d 0 18px, #6cd46c 18px 36px); border-color: #ffd23f; }
+body[data-theme="summer"] .cback { background: repeating-linear-gradient(45deg, #fb8500 0 18px, #ffb703 18px 36px); border-color: #fff; }
 body[data-theme="thanksgiving"] {
   --bg: #0b0704;
   --raise: #1a110a;
@@ -327,6 +449,10 @@ body[data-theme="thanksgiving"] .cback { background: repeating-linear-gradient(9
 .foot-meta { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
 .foot-updated { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 12.5px; color: var(--faint); letter-spacing: .3px; white-space: nowrap; }
 .foot-count:not([hidden]) + .foot-updated::before { content: '\00b7'; margin-right: 10px; color: var(--faint); }
+.foot-more { text-align: center; font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 13px; color: var(--faint); letter-spacing: .3px; line-height: 1.9; }
+.foot-more a { color: var(--accent); text-decoration: none; white-space: nowrap; }
+.foot-more a:hover { color: var(--text); text-decoration: underline; }
+.foot-more .sep { margin: 0 8px; }
 .foot-badges { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
 /* developer badge and Ko-fi button, same as MSploit's other tools */
 a.credit { display: inline-flex; align-items: center; gap: 12px; padding: 8px 18px 8px 8px; border: 1px solid var(--line-2); border-radius: 12px; background: #060607; text-decoration: none; transition: .16s; }
@@ -490,6 +616,8 @@ body.gated .foot { border-top: 0; margin-top: 0; }
 /* Taco does a little dip and wiggle every few seconds, the way Chester blinks. */
 .board-svg .art-hero, .taco-move { animation: peek 6s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
 .taco-move { transform-origin: 50% 92%; }
+.board-svg .art-hero.hop { animation-name: tacohop; }
+@keyframes tacohop { 0%, 60%, 100% { transform: none; } 66% { transform: translateY(-14%); } 72% { transform: translateY(0) scale(1.05, .95); } 77% { transform: rotate(-4deg); } 83% { transform: rotate(3deg); } 89% { transform: rotate(-1.5deg); } 94% { transform: none; } }
 @keyframes peek { 0%, 60%, 100% { transform: none; } 65% { transform: translateY(6%) scale(1.02, .97); } 71% { transform: rotate(-4deg); } 77% { transform: rotate(3.5deg); } 83% { transform: rotate(-2deg); } 89% { transform: rotate(1deg); } 94% { transform: none; } }
 @keyframes blink { 0%,94%,100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
 

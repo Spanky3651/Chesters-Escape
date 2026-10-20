@@ -85,6 +85,10 @@
     var o = '';
     if (hat === 'santa') o += '<path d="M-15,-14 C-10,-34 10,-40 22,-30 C14,-30 12,-24 15,-14 Z" fill="#d7263d"/><rect x="-17" y="-17" width="34" height="7" rx="3.5" fill="#fff"/><circle cx="23" cy="-30" r="5" fill="#fff"/>';
     if (hat === 'pilgrim') o += '<ellipse cx="0" cy="-15" rx="23" ry="4.5" fill="#5a4030" stroke="#1a120c" stroke-width="1.2"/><path d="M-12,-16 L-10,-40 L10,-40 L12,-16 Z" fill="#5a4030" stroke="#1a120c" stroke-width="1.2"/><rect x="-11.4" y="-24" width="22.8" height="6" fill="#1a120c"/><rect x="-4.5" y="-25" width="9" height="8" fill="none" stroke="#f2c046" stroke-width="2"/>';
+    if (hat === 'party') o += '<path d="M-10,-14 L0,-35 L10,-14 Z" fill="#f2c046" stroke="#c9921c" stroke-width="1.2" stroke-linejoin="round"/><path d="M-7,-20 L5,-23 M-4,-27 L3,-29" stroke="#ff5a8a" stroke-width="2.4" stroke-linecap="round"/><circle cx="0" cy="-36" r="4" fill="#ff5a8a"/><path d="M-11,-14 h22" stroke="#c9921c" stroke-width="2" stroke-linecap="round"/>';
+    if (hat === 'witch') o += '<ellipse cx="0" cy="-15" rx="24" ry="4.5" fill="#2d2a5a" stroke="#15132e" stroke-width="1.2"/><path d="M-12,-16 C-8,-28 -2,-38 6,-44 C10,-46 14,-43 12,-40 C8,-40 6,-34 8,-28 L12,-16 Z" fill="#2d2a5a" stroke="#15132e" stroke-width="1.2" stroke-linejoin="round"/><rect x="-11" y="-22" width="22" height="5" fill="#ff8a2b"/><rect x="-3.5" y="-23" width="7" height="7" fill="none" stroke="#f2c046" stroke-width="1.6"/>';
+    if (hat === 'bunny') o += '<g stroke="#e4d8e2" stroke-width="1.2"><ellipse cx="-9" cy="-27" rx="5.5" ry="12" transform="rotate(-14 -9 -27)" fill="#fff"/><ellipse cx="9" cy="-27" rx="5.5" ry="12" transform="rotate(14 9 -27)" fill="#fff"/></g><ellipse cx="-9" cy="-27" rx="2.8" ry="8" transform="rotate(-14 -9 -27)" fill="#ff9fb8"/><ellipse cx="9" cy="-27" rx="2.8" ry="8" transform="rotate(14 9 -27)" fill="#ff9fb8"/><path d="M-16,-15 Q0,-24 16,-15" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>';
+    if (hat === 'heart') o += '<g transform="translate(16,-26) rotate(14)"><path d="M0,9 C-12,0 -12,-9 -6,-9 C-2.5,-9 0,-6.5 0,-4 C0,-6.5 2.5,-9 6,-9 C12,-9 12,0 0,9 Z" fill="#ff4d6d" stroke="#c9184a" stroke-width="1.2"/></g>';
     return o;
   }
   // Taco: the Beaters mascot, a smiling taco shell with the fillings peeking over the top.
@@ -101,7 +105,8 @@
     o += '<path d="M-12,13 q4,-5 8,0 M4,13 q4,-5 8,0" fill="none" stroke="#3a2410" stroke-width="2.4" stroke-linecap="round"/>';
     o += '<path d="M-4,18 q4,4.5 8,0" fill="none" stroke="#3a2410" stroke-width="2.2" stroke-linecap="round"/>';
     o += '<ellipse cx="-16" cy="18" rx="4" ry="2.4" fill="#ff7b9c" opacity=".6"/><ellipse cx="16" cy="18" rx="4" ry="2.4" fill="#ff7b9c" opacity=".6"/>';
-    if (hat && hat !== 'none') o += '<g transform="translate(2,4) rotate(8)">' + hatSvg(hat) + '</g>';
+    if (hat === 'shades') o += '<g fill="#1a1a1a"><rect x="-15" y="6.5" width="12" height="8.5" rx="3.5"/><rect x="3" y="6.5" width="12" height="8.5" rx="3.5"/></g><path d="M-3,9 h6 M-15,9 l-9,-3 M15,9 l9,-3" stroke="#1a1a1a" stroke-width="1.8" stroke-linecap="round"/><path d="M-12,8.5 l3,0 M6,8.5 l3,0" stroke="#fff" stroke-opacity=".8" stroke-width="1.6" stroke-linecap="round"/>';
+    else if (hat && hat !== 'none') o += '<g transform="translate(2,4) rotate(8)">' + hatSvg(hat) + '</g>';
     o += '</g></g>';
     return o;
   }
@@ -178,6 +183,9 @@
     o += '<path d="M-5,17 v5 M5,17 v5" stroke="#e8a33c" stroke-width="2.4" stroke-linecap="round"/></g>';
     return o;
   }
+  function heartShape(col) {
+    return '<path d="M0,7 C-9,0 -9,-7 -4.5,-7 C-2,-7 0,-5 0,-3 C0,-5 2,-7 4.5,-7 C9,-7 9,0 0,7 Z" fill="' + col + '"/>';
+  }
   function leafShape(col) {
     return '<path d="M0,-7 C5,-6 7,-1 6,3 C4,6 1,7 0,8 C-1,7 -4,6 -6,3 C-7,-1 -5,-6 0,-7 Z M0,-6 V9" fill="' + col + '" stroke="#5a3616" stroke-opacity=".45" stroke-width=".8"/>';
   }
@@ -205,6 +213,42 @@
       title: { shadow: '#b23a1c', ink: '#4a2a10', stroke: '#fff4dc', ink2: '#d9661f', stroke2: '#fff4dc', tagline: '#4a2a10' },
       good: '#4f8a2b', bad: '#b23a1c', warpBad: '#c0392b',
       card: 'url(#gHarvest)', cardText: '#fff', task: ['#4a2a10', '#d9661f'], plain: ['#fff8ea', '#4a2a10'], exit: ['#7a2a14', '#f2c046']
+    },
+    // The taco boards bring their own art, so these only set the spaces, particles and colors.
+    halloween: {
+      sky: 'art', grain: '0', pseed: 11, fog: false, parts: 'leaves', partColors: ['#e8590c', '#ff8a2b', '#8e44ad', '#5a2d82'], river: 'none', fence: 'none', decor: 'none', seed: 41,
+      vignette: ['#2a1040', '.3'], stone: ['#fff8ef', '#eadcf2'],
+      title: { shadow: '#ff8a2b', ink: '#3b1d4a', stroke: '#fff', ink2: '#ff8a2b', stroke2: '#fff', tagline: '#3b1d4a' },
+      good: '#4caf50', bad: '#8e44ad', warpBad: '#e8590c',
+      card: 'url(#gTheme)', cardGrad: ['#ff8a2b', '#c4520f'], cardText: '#fff', task: ['#3b1d4a', '#ff8a2b'], plain: ['#fff4e6', '#3b1d4a'], exit: ['#3b1d4a', '#ff8a2b']
+    },
+    newyear: {
+      sky: 'art', grain: '0', pseed: 11, fog: false, parts: 'confetti', partColors: ['#f2c046', '#ff5a8a', '#5ac8fa', '#ffffff'], river: 'none', fence: 'none', decor: 'none', seed: 41,
+      vignette: ['#0b1240', '.25'], stone: ['#ffffff', '#dfe4f5'],
+      title: { shadow: '#f2c046', ink: '#1d2350', stroke: '#fff', ink2: '#f2c046', stroke2: '#fff', tagline: '#1d2350' },
+      good: '#2fb35a', bad: '#5b6cff', warpBad: '#d7263d',
+      card: 'url(#gTheme)', cardGrad: ['#f6c84a', '#c9921c'], cardText: '#1d2350', task: ['#1d2350', '#f2c046'], plain: ['#f4f6ff', '#1d2350'], exit: ['#1d2350', '#f2c046']
+    },
+    valentine: {
+      sky: 'art', grain: '0', pseed: 11, fog: false, parts: 'hearts', partColors: ['#ff4d6d', '#ff8fab', '#c9184a'], river: 'none', fence: 'none', decor: 'none', seed: 41,
+      vignette: ['#7a1030', '.18'], stone: ['#ffffff', '#ffe3ea'],
+      title: { shadow: '#ff4d6d', ink: '#7a1030', stroke: '#fff', ink2: '#ff4d6d', stroke2: '#fff', tagline: '#7a1030' },
+      good: '#2fb35a', bad: '#c2185b', warpBad: '#c2185b',
+      card: 'url(#gTheme)', cardGrad: ['#ff4d6d', '#c9184a'], cardText: '#fff', task: ['#7a1030', '#ffb3c6'], plain: ['#ffffff', '#7a1030'], exit: ['#7a1030', '#ffd1dc']
+    },
+    spring: {
+      sky: 'art', grain: '0', pseed: 11, fog: false, parts: 'petals', partColors: ['#ffc0d5', '#ff8fb8', '#ffffff'], river: 'none', fence: 'none', decor: 'none', seed: 41,
+      vignette: ['#2f4a1d', '.2'], stone: ['#ffffff', '#e8f5d8'],
+      title: { shadow: '#e75480', ink: '#2f4a1d', stroke: '#fff', ink2: '#e75480', stroke2: '#fff', tagline: '#2f4a1d' },
+      good: '#3fa34d', bad: '#e75480', warpBad: '#e75480',
+      card: 'url(#gTheme)', cardGrad: ['#ff8fb8', '#e75480'], cardText: '#fff', task: ['#2f4a1d', '#ffd23f'], plain: ['#ffffff', '#2f4a1d'], exit: ['#2f4a1d', '#ffd23f']
+    },
+    summer: {
+      sky: 'art', grain: '0', pseed: 11, fog: false, parts: 'none', partColors: [], river: 'none', fence: 'none', decor: 'none', seed: 41,
+      vignette: ['#0b4f6c', '.15'], stone: ['#ffffff', '#fff1d6'],
+      title: { shadow: '#ffb703', ink: '#0b4f6c', stroke: '#fff', ink2: '#ffb703', stroke2: '#fff', tagline: '#0b4f6c' },
+      good: '#2fb35a', bad: '#ff7b00', warpBad: '#e63946',
+      card: 'url(#gTheme)', cardGrad: ['#ffb703', '#fb8500'], cardText: '#fff', task: ['#0b4f6c', '#ffb703'], plain: ['#ffffff', '#0b4f6c'], exit: ['#0b4f6c', '#ffb703']
     }
   };
   function look(theme) { return LOOKS[theme.look || theme.id] || LOOKS.cemetery; }
@@ -271,7 +315,9 @@
       var hh = !board.background && theme.artHero;
       if (hh) {
         // The art's hero on its own layer so it can peek and wiggle (CSS), clipped at the hill line.
-        o += '<clipPath id="heroClip"><path d="' + hh.clip + '"/></clipPath><g clip-path="url(#heroClip)"><image class="art-hero" href="' + esc(hh.src) + '" x="' + hh.x + '" y="' + hh.y + '" width="' + hh.w + '" height="' + hh.h + '"/></g>';
+        // 'hill': peeks over a hill and dips behind it (clipped at the hill line). 'hop': hops in place.
+        var img = '<image class="art-hero' + (hh.move === 'hop' ? ' hop' : '') + '" href="' + esc(hh.src) + '" x="' + hh.x + '" y="' + hh.y + '" width="' + hh.w + '" height="' + hh.h + '"/>';
+        o += hh.clip ? '<clipPath id="heroClip"><path d="' + hh.clip + '"/></clipPath><g clip-path="url(#heroClip)">' + img + '</g>' : img;
       }
       return o;
     }
@@ -349,11 +395,14 @@
   }
   function particles(theme) {
     var L = look(theme), g = rnd(L.pseed), o = '<g class="atmo parts" aria-hidden="true">';
-    if (L.parts === 'leaves') {
-      var cols = ['#b23a1c', '#d9661f', '#e0a31f', '#8a4a1a'];
-      for (var j = 0; j < 16; j++) {
-        var lx = (g() * 1000).toFixed(0), ld = (12 + g() * 10).toFixed(1), ldl = (-g() * 22).toFixed(1), lsw = (g() * 60 - 30).toFixed(0), lsc = (.8 + g() * .4).toFixed(2);
-        o += '<g transform="translate(' + lx + ',-16) scale(' + lsc + ')" opacity=".9"><g class="leaf" style="animation-duration:' + ld + 's;animation-delay:' + ldl + 's;--sway:' + lsw + 'px">' + leafShape(cols[j % 4]) + '</g></g>';
+    if (L.parts === 'none') return '';
+    if (L.parts === 'leaves' || L.parts === 'petals' || L.parts === 'hearts' || L.parts === 'confetti') {
+      // Falling leaves, blossom petals, hearts or confetti: same drift, different shape.
+      var cols = L.partColors || ['#b23a1c', '#d9661f', '#e0a31f', '#8a4a1a'], many = L.parts === 'confetti' ? 26 : 16;
+      for (var j = 0; j < many; j++) {
+        var lx = (g() * 1000).toFixed(0), ld = (12 + g() * 10).toFixed(1), ldl = (-g() * 22).toFixed(1), lsw = (g() * 60 - 30).toFixed(0), lsc = (.8 + g() * .4).toFixed(2), col = cols[j % cols.length];
+        var shape = L.parts === 'hearts' ? heartShape(col) : L.parts === 'confetti' ? '<rect x="-3" y="-5" width="6" height="10" rx="1" fill="' + col + '"/>' : L.parts === 'petals' ? '<ellipse rx="4.5" ry="7" fill="' + col + '" stroke="#e75480" stroke-opacity=".35" stroke-width=".8"/>' : leafShape(col);
+        o += '<g transform="translate(' + lx + ',-16) scale(' + lsc + ')" opacity=".9"><g class="leaf" style="animation-duration:' + ld + 's;animation-delay:' + ldl + 's;--sway:' + lsw + 'px">' + shape + '</g></g>';
       }
     } else if (L.parts === 'snow') {
       for (var i = 0; i < 46; i++) {
@@ -497,6 +546,7 @@
       '<linearGradient id="gStone" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + L.stone[0] + '"/><stop offset="1" stop-color="' + L.stone[1] + '"/></linearGradient>' +
       '<linearGradient id="gCard" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9dcd7"/><stop offset="1" stop-color="#a9adaa"/></linearGradient>' +
       '<linearGradient id="gGift" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e2384c"/><stop offset="1" stop-color="#a4142a"/></linearGradient>' +
+      (L.cardGrad ? '<linearGradient id="gTheme" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + L.cardGrad[0] + '"/><stop offset="1" stop-color="' + L.cardGrad[1] + '"/></linearGradient>' : '') +
       '<linearGradient id="gHarvest" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ea7a2c"/><stop offset="1" stop-color="#b4501a"/></linearGradient>' +
       '<radialGradient id="gSun" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff1c4" stop-opacity=".75"/><stop offset=".25" stop-color="#ffd27a" stop-opacity=".35"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient>' +
       '<radialGradient id="gFog"><stop offset="0" stop-color="#dfe8dc" stop-opacity=".22"/><stop offset="1" stop-color="#dfe8dc" stop-opacity="0"/></radialGradient>' +

@@ -1066,7 +1066,7 @@
       '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label>' +
       '<label class="start-field"><span>Roll reminder for players who turn on notifications</span><select id="remindSel"><option value=""' + (E.remindHour(s) == null ? ' selected' : '') + '>Off</option>' +
       [17, 18, 19, 20, 21, 22].map(function (h) { return '<option value="' + h + '"' + (E.remindHour(s) === h ? ' selected' : '') + '>' + hourLabel(h) + ' in each player\'s own time</option>'; }).join('') + '</select></label></section>';
-    html += '<section class="hsec"><h3>Theme and board</h3><div class="row"><label>Theme <select id="themeSel">' + Object.keys(C.themes).map(function (k) { return '<option value="' + k + '"' + (k === s.themeId ? ' selected' : '') + '>' + esc(C.themes[k].name) + '</option>'; }).join('') + '</select></label></div>' +
+    html += '<section class="hsec"><h3>Theme and board</h3><div class="row"><label>Theme <select id="themeSel">' + Object.keys(C.themes).filter(function (k) { return (C.themes[k].family || 'chester') === (theme().family || 'chester'); }).map(function (k) { return '<option value="' + k + '"' + (k === s.themeId ? ' selected' : '') + '>' + esc(C.themes[k].name) + '</option>'; }).join('') + '</select></label></div>' +
       '<p style="margin-top:10px">Changing the theme keeps everyone where they are. Starting a new game puts everyone back at the start.</p>' +
       '<label class="start-field"><span>Start time for the new game (optional)</span><input type="datetime-local" id="newStart"></label>' +
       '<label class="start-field"><span>End time (optional)</span><input type="datetime-local" id="newEnd"></label>' +
@@ -1351,8 +1351,18 @@
     if (g.startsAt) setInterval(tickCountdowns, 1000);
   }
 
+  // Footer links to the other tools say which game the click came from (GoatCounter reads utm_campaign).
+  function toolLinks(s) {
+    var camp = s.kind === 'choose' ? 'picker' : s.clan || (s.mode === 'demo' ? 'demo' : s.kind === 'signin' ? 'signed-out' : 'site');
+    Array.prototype.forEach.call(document.querySelectorAll('#footTools a[data-tool]'), function (a) {
+      try { var u = new URL(a.href); u.searchParams.set('utm_campaign', camp); a.href = u.toString(); } catch (e) {}
+      a.addEventListener('click', function () { track('tool-' + a.dataset.tool + '-' + camp); });
+    });
+  }
+
   window.CGStore.detect().then(function (s) {
     store = s;
+    toolLinks(s);
     if (store.mode === 'gate') { renderGate(store); throw 'gated'; }
     return store.load();
   }).then(function () {

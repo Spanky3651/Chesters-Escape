@@ -31,7 +31,7 @@ Each clan Discord server gets its own game, with its own board, players and them
 
 ## Board designer
 
-`designer.html` lays out a board on top of your own art: upload the image, click each square in order, and set what it does (map, blocker, card drop, move, lose a turn, back to start, or a current that carries you elsewhere). Themes swap the art, event names and card text, so the same board can run as a Halloween, Thanksgiving or Christmas game. A theme can also bring its own board art, like the Taco's Thanksgiving and Taco's Christmas boards.
+`designer.html` lays out a board on top of your own art: upload the image, click each square in order, and set what it does (map, blocker, card drop, move, lose a turn, back to start, or a current that carries you elsewhere). Themes swap the art, event names and card text, so the same board can run as a Halloween, Thanksgiving or Christmas game. A theme can also bring its own board art, like the taco boards for Halloween, Thanksgiving, Christmas, New Year, Valentine's Day, Easter and summer.
 
 ## Built with
 
