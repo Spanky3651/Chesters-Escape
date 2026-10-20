@@ -431,7 +431,7 @@
       case 'warp': return { html: esc(sp && sp.kind ? t.kinds[sp.kind].title : 'Carried away') + ' Now at ' + esc(spaceName(s.board.spaces[e.to])), cls: sp && sp.kind === 'swim' ? 'good' : 'bad' };
       case 'cleared': {
         var pr = e.proof || {}, how = pr.by === 'beatleader' ? 'on BeatLeader' : pr.by === 'host' ? 'by the host' : '';
-        var detail = pr.diff ? ' (' + esc(pr.diff.replace('ExpertPlus', 'Expert+')) + (pr.acc ? ', ' + (pr.acc * 100).toFixed(2) + '%' : '') + ')' : '';
+        var detail = pr.diff ? ' (' + esc(pr.diff.replace('ExpertPlus', 'Expert+')) + (pr.acc ? ', ' + (pr.acc * 100).toFixed(2) + '%' : '') + (pr.firstAcc != null ? ', improved' : '') + ')' : '';
         var rp = pr.score ? ' <a href="' + esc(S.replayUrl(pr.score)) + '" target="_blank" rel="noopener">Replay</a>' : '';
         return { html: 'Cleared <b>!bsr ' + esc((e.bsr || []).join(' or ')) + '</b> ' + how + detail + rp, cls: 'good' };
       }

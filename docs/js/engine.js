@@ -390,6 +390,29 @@
     return cleared;
   }
 
+  // A player went back and beat their score on a map they already cleared: the log keeps the best
+  // run on the difficulty that cleared it. Same scores and hashes as matchScores. Returns the events changed.
+  function improveClears(s, pid, scores, hashesByKey) {
+    var changed = [];
+    s.events.forEach(function (e) {
+      var pr = e.proof;
+      if (e.t !== 'cleared' || e.pid !== pid || !pr || pr.by !== 'beatleader' || !pr.diff) return;
+      var hashes = (e.bsr || []).map(function (k) { return (hashesByKey[String(k).toLowerCase()] || '').toUpperCase(); }).filter(Boolean);
+      var best = null;
+      (scores || []).forEach(function (sc) {
+        if (hashes.indexOf(String(sc.hash || '').toUpperCase()) < 0 || sc.diff !== pr.diff || !(sc.acc > (best ? best.acc : pr.acc || 0))) return;
+        if (pr.score && sc.id === pr.score) return;
+        best = sc;
+      });
+      if (!best) return;
+      if (pr.firstAcc == null) pr.firstAcc = pr.acc;
+      pr.score = best.id || pr.score; pr.acc = best.acc; pr.mods = best.mods || ''; pr.improvedAt = now();
+      changed.push(e);
+    });
+    if (changed.length) s.seq++;
+    return changed;
+  }
+
   // ---- days ------------------------------------------------------------------
   // Sign-ups are open: players can join and pick a route, but nobody rolls until the start.
   function startGame(s, at) {
@@ -590,7 +613,7 @@
     VERSION: VERSION, DEFAULTS: DEFAULTS,
     createGame: createGame, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, signupsOpen: signupsOpen, chooseRoute: chooseRoute,
     canRoll: canRoll, roll: roll, advanceDay: advanceDay,
-    completeTask: completeTask, claimTask: claimTask, rejectClaim: rejectClaim, matchScores: matchScores,
+    completeTask: completeTask, claimTask: claimTask, rejectClaim: rejectClaim, matchScores: matchScores, improveClears: improveClears,
     setPosition: setPosition, hostCard: hostCard, resetPlayer: resetPlayer,
     routeOf: routeOf, spaceAt: spaceAt, progress: progress, remaining: remaining, exitIndex: exitIndex,
     cardById: cardById, publicState: publicState, allMapKeys: allMapKeys, checkBoard: checkBoard,

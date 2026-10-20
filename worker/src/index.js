@@ -518,8 +518,11 @@ export class Game extends DurableObject {
   }
   async check(pid) {
     const s = this.state, p = s.players[pid];
-    if (!p || !p.tasks.length || !p.blId) return [];
-    const keys = [...new Set(p.tasks.flatMap((t) => t.bsr || []))];
+    if (!p || !p.blId) return [];
+    // Open maps to clear, plus maps already cleared on BeatLeader in case they beat that score since.
+    const done = s.events.filter((e) => e.t === 'cleared' && e.pid === pid && e.proof && e.proof.by === 'beatleader' && e.proof.diff);
+    if (!p.tasks.length && !done.length) return [];
+    const keys = [...new Set(p.tasks.flatMap((t) => t.bsr || []).concat(done.flatMap((e) => e.bsr || [])))];
     const hashes = {};
     for (const k of keys) hashes[String(k).toLowerCase()] = await this.bs(String(k).toLowerCase());
     const r = await fetch((this.env.BL_API || 'https://api.beatleader.xyz') + '/player/' + encodeURIComponent(p.blId) + '/scores?sortBy=date&order=desc&count=50', { headers: { 'user-agent': 'ChestersEscape' } });
@@ -529,7 +532,9 @@ export class Game extends DurableObject {
       const lb = x.leaderboard || {}, d = lb.difficulty || {};
       return { id: x.id, hash: String((lb.song || {}).hash || '').toUpperCase(), time: parseInt(x.timeset, 10) || x.timepost || 0, diff: d.difficultyName || '', acc: x.accuracy || 0, mods: x.modifiers || '' };
     });
-    return E.matchScores(s, pid, scores, hashes);
+    const cleared = p.tasks.length ? E.matchScores(s, pid, scores, hashes) : [];
+    E.improveClears(s, pid, scores, hashes);
+    return cleared;
   }
 
   // Day rollover at the cutoff, plus a BeatLeader sweep for everyone still on a map.
@@ -585,9 +590,18 @@ export class Game extends DurableObject {
       }
     }
     await this.remind(now);
-    for (const pid of s.status === 'running' ? s.order.slice(0, 60) : []) {
-      const p = s.players[pid];
-      if (p.tasks.length && p.blId && !p.finished) { try { await this.check(pid); } catch { /* try again next sweep */ } }
+    if (s.status === 'running') {
+      // Everyone on a map first, then a rotating batch of the rest (they may have beaten an old
+      // clear). Kept small so a sweep stays well under the Worker's outside-request limit.
+      const linked = s.order.filter((id) => s.players[id].blId);
+      const busy = linked.filter((id) => s.players[id].tasks.length);
+      const hasClears = new Set(s.events.filter((e) => e.t === 'cleared' && e.proof && e.proof.by === 'beatleader').map((e) => e.pid));
+      const idle = linked.filter((id) => !s.players[id].tasks.length && hasClears.has(id));
+      const off = (this.meta.sweepOff || 0) % (idle.length || 1);
+      const take = Math.max(0, 30 - busy.length);
+      const batch = idle.slice(off).concat(idle.slice(0, off)).slice(0, take);
+      this.meta.sweepOff = off + batch.length;
+      for (const pid of busy.slice(0, 30).concat(batch)) { try { await this.check(pid); } catch { /* try again next sweep */ } }
     }
     await this.save();
   }
