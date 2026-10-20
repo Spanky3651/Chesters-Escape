@@ -302,9 +302,11 @@
     if (p.finished) stats.push('<span class="stat good">Escaped on day ' + p.finished.day + ', ' + ordinal(p.finished.place) + ' place</span>');
     el.innerHTML = '<div class="me-row">' + avatarHtml(p, 'me-ava') + '<div><div class="me-name">' + esc(p.name) + '</div><div class="me-sub">' + esc(route) +
       (p.blId ? ' &middot; <a href="https://beatleader.com/u/' + encodeURIComponent(p.blId) + '" target="_blank" rel="noopener">BeatLeader</a>' : '') + '</div></div></div>' +
-      (stats.length ? '<div class="me-stats">' + stats.join('') + '</div>' : '') +
-      (store.mode === 'live' && store.canPlay && !p.finished && s.status !== 'finished' && E.remindHour(s) != null ? '<div class="push-box me-push" data-kind="player"></div>' : '');
+      (stats.length ? '<div class="me-stats">' + stats.join('') + '</div>' : '');
     el.style.setProperty('--c', col);
+    // Roll reminders live behind the bell in the header.
+    var rb = $('remBtn'), wantRem = store.mode === 'live' && store.canPlay && !p.finished && s.status !== 'finished' && E.remindHour(s) != null;
+    if (rb.hidden === wantRem) { rb.hidden = !wantRem; if (!wantRem) closeRem(); }
     fillPush();
   }
 
@@ -1151,6 +1153,7 @@
     currentSub().then(function (sub) {
       var on = sub && Notification.permission === 'granted';
       if (on) refreshZone(sub);
+      var rb = $('remBtn'); if (rb) { rb.classList.toggle('on', !!on); rb.title = on ? 'Roll reminders are on' : 'Roll reminders'; }
       set(function (k) {
         if (k === 'host') return on
           ? '<p class="push-on">On for this device. You\'ll get a notification when someone is waiting to get in or asks you to approve a run, plus your own roll reminders.</p><div class="row"><button type="button" class="btn small" data-push="test">Send a test</button><button type="button" class="btn small ghost" data-push="off">Turn off</button></div>'
@@ -1163,6 +1166,15 @@
       });
     });
   }
+  function openRem() {
+    var pop = $('remPop'), b = $('remBtn'), r = b.getBoundingClientRect();
+    pop.hidden = false; b.setAttribute('aria-expanded', 'true');
+    pop.style.top = Math.round(r.bottom + 8) + 'px';
+    var w = pop.offsetWidth, vw = document.documentElement.clientWidth;
+    pop.style.left = Math.round(Math.min(vw - w - 12, Math.max(12, r.right + 8 - w))) + 'px';
+    fillPush(); track('reminders-open');
+  }
+  function closeRem() { var pop = $('remPop'); if (pop && !pop.hidden) { pop.hidden = true; $('remBtn').setAttribute('aria-expanded', 'false'); } }
   function pushOn() {
     var key = urlKey(store.vapidKey);
     Notification.requestPermission().then(function (perm) {
@@ -1234,6 +1246,8 @@
       var c = e.target.closest('[data-copy]'); if (c) { copy(c.dataset.copy); return; }
       if (e.target.closest('#rollBtn') || e.target.closest('#mRoll')) { doRoll(); return; }
       if (e.target.closest('#finaleBtn') || e.target.closest('#mFinale')) { openFinale(); return; }
+      if (e.target.closest('#remBtn')) { $('remPop').hidden ? openRem() : closeRem(); return; }
+      if (!e.target.closest('#remPop')) closeRem();
       var pb = e.target.closest('[data-push]'); if (pb) { ({ on: pushOn, off: pushOff, test: pushTest })[pb.dataset.push](); return; }
       var mv = e.target.closest('#mVerify'); if (mv) { doVerify(mv); return; }
       if (e.target.closest('#mGo')) { $('turnPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('turnPanel').focus({ preventScroll: true }); return; }
@@ -1266,7 +1280,7 @@
       var hb = e.target.closest('#hostBody [data-h]'); if (hb) { hostAction(hb); return; }
     });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { if (!$('modal').hidden) closeModal(); else if (!$('spacePop').hidden) closeSpace(); else if (!$('hostDrawer').hidden) closeHost(); }
+      if (e.key === 'Escape') { if (!$('remPop').hidden) closeRem(); else if (!$('modal').hidden) closeModal(); else if (!$('spacePop').hidden) closeSpace(); else if (!$('hostDrawer').hidden) closeHost(); }
       if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('.board-svg .sp')) { e.preventDefault(); openSpace(e.target.closest('.sp').dataset.id, e.target.closest('.sp')); }
     });
     document.addEventListener('change', function (e) {

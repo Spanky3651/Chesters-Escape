@@ -731,3 +731,36 @@ body.gated .foot { border-top: 0; margin-top: 0; }
 body.neutral { --display: var(--ui); --raise: #111; --raise-2: #191919; --line: #262626; --line-2: #333; }
 body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .gate-die { width: 96px; height: 96px; margin: 0 auto 4px; display: block; }
+
+/* Wide desktop: standings on the left, the board in the middle, your panels on the right. */
+@media (min-width: 1500px) {
+  .layout { grid-template-columns: 300px minmax(0, 1fr) 400px; grid-template-areas: "st board side"; max-width: 1960px; }
+  .layout > .board-col { grid-area: board; }
+  .layout > .side { grid-area: side; }
+  .layout > .standings { grid-area: st; grid-column: auto; margin-top: 0; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; scrollbar-width: thin; }
+  .layout > .standings h2 { font-size: 22px; }
+  .layout > .standings .st-list { grid-template-columns: 1fr; gap: 6px; }
+  .layout > .standings .st { padding: 8px 10px; }
+}
+/* Mid-size desktop: standings stack under your panels on the right, next to the board. */
+@media (min-width: 1101px) and (max-width: 1499px) {
+  .layout { grid-template-areas: "board side" "board st"; grid-template-rows: auto 1fr; }
+  .layout > .board-col { grid-area: board; }
+  .layout > .side { grid-area: side; position: static; }
+  .layout > .standings { grid-area: st; grid-column: auto; margin-top: 0; align-self: start; }
+  .layout > .standings h2 { font-size: 22px; }
+  .layout > .standings .st-list { grid-template-columns: 1fr; gap: 6px; }
+  .layout > .standings .st { padding: 8px 10px; }
+}
+
+/* Roll reminders: a bell in the header that opens a small panel. */
+.rem-btn { position: relative; }
+.rem-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.rem-btn.on { color: var(--good); }
+.rem-btn.on svg { fill: color-mix(in srgb, var(--good) 25%, transparent); }
+.rem-dot { position: absolute; top: 7px; right: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 2px var(--bg); display: none; }
+.rem-btn.on .rem-dot { display: block; }
+.rem-pop { position: fixed; z-index: 45; width: min(380px, calc(100vw - 24px)); padding: 8px; border-radius: 16px; background: var(--raise); border: 1px solid var(--line-2); box-shadow: 0 24px 60px rgba(0,0,0,.6); }
+.rem-pop .rem { border: 0; background: none; box-shadow: none; }
+.rem-pop .push-box:empty::before { content: 'Checking this device.'; display: block; padding: 12px; color: var(--muted); font-size: 14px; }
+.rem-pop .push-box > p { margin: 10px 12px; }
