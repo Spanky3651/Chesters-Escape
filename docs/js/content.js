@@ -769,6 +769,8 @@
     'taco-thanksgiving': {
       title: "Taco's Thanksgiving",
       author: 'hummingbird',
+      authorUrl: 'https://beatleader.com/u/76561198786758592',
+      credit: 'Every map on this board was hand-picked by hummingbird for this game. The spaces were then balanced so both routes play fair.',
       spaces: {
         L1: ['54624'],   // Confession・Farewell (wangyufy, 2:51)
         L2: ['40490'],   // Hazy Moon Night (Ken_Monogatari, 3:14)

@@ -111,11 +111,11 @@
   function replayUrl(scoreId) { return 'https://replay.beatleader.com/?scoreId=' + encodeURIComponent(scoreId); }
 
   // .bplist with every board map. difficulties lists each Standard difficulty so any choice is highlighted.
-  function playlist(title, keys, image, by) {
+  function playlist(title, keys, image, by, about) {
     return Promise.all(keys.map(function (k) { return map(k).catch(function () { return null; }); })).then(function (maps) {
       return {
         playlistTitle: title, playlistAuthor: by || 'MSploit', image: image || '',
-        playlistDescription: by ? 'Maps picked by ' + by + ' for ' + title + '.' : '',
+        playlistDescription: by ? 'Curated by ' + by + ' for ' + title + '. ' + (about || '') : '',
         songs: maps.filter(Boolean).map(function (m) {
           var diffs = m.diffs.filter(function (d) { return d.characteristic === 'Standard'; });
           if (!diffs.length) diffs = m.diffs;

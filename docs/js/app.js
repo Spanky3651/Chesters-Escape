@@ -948,12 +948,14 @@
 
   function openPlaylist() {
     var s = st(), keys = E.allMapKeys(s.board, s.cards);
-    modal('Get the maps', '<p class="lede">Every map on this board' + (s.board.bonusMaps && s.board.bonusMaps.length ? ' plus the bonus maps from cards' : '') + ', ' + keys.length + ' in all, as a playlist for the game.' + (s.board.mapsBy ? ' Maps picked by ' + esc(s.board.mapsBy) + '.' : '') + '</p>' +
+    var set = C.mapSets[s.board.mapSet], by = set && set.author;
+    modal('Get the maps', '<p class="lede">Every map on this board' + (s.board.bonusMaps && s.board.bonusMaps.length ? ' plus the bonus maps from cards' : '') + ', ' + keys.length + ' in all, as a playlist for the game.</p>' +
+      (by ? '<div class="curator"><span class="cur-k">Curated by</span> ' + (set.authorUrl ? '<a href="' + esc(set.authorUrl) + '" target="_blank" rel="noopener">' + esc(by) + '</a>' : '<b>' + esc(by) + '</b>') + '<p>' + esc(set.credit || '') + '</p></div>' : '') +
       '<p class="why">Save it to your Beat Saber Playlists folder, or open it with a playlist mod. In game you can also type the key into Better Song Search.</p>' +
       '<div class="row"><button type="button" class="btn" id="plGo">Download playlist</button></div><p class="err" id="plErr" hidden></p>', function (body) {
       body.querySelector('#plGo').addEventListener('click', function () {
         var b = this; b.disabled = true; b.textContent = 'Building playlist';
-        crowCover().then(function (img) { return S.playlist(theme().title, keys, img, s.board.mapsBy); }).then(function (pl) {
+        crowCover().then(function (img) { return S.playlist(theme().title, keys, img, by, set && [set.credit, set.authorUrl].filter(Boolean).join(' ')); }).then(function (pl) {
           track('get-maps');
           var blob = new Blob([JSON.stringify(pl, null, 2)], { type: 'application/json' });
           var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = theme().title.replace(/[^A-Za-z0-9]+/g, '-').replace(/-+$/, '') + '.bplist'; a.click();
