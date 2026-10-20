@@ -948,12 +948,12 @@
 
   function openPlaylist() {
     var s = st(), keys = E.allMapKeys(s.board, s.cards);
-    modal('Get the maps', '<p class="lede">Every map on this board' + (s.board.bonusMaps && s.board.bonusMaps.length ? ' plus the bonus maps from cards' : '') + ', ' + keys.length + ' in all, as a playlist for the game.</p>' +
+    modal('Get the maps', '<p class="lede">Every map on this board' + (s.board.bonusMaps && s.board.bonusMaps.length ? ' plus the bonus maps from cards' : '') + ', ' + keys.length + ' in all, as a playlist for the game.' + (s.board.mapsBy ? ' Maps picked by ' + esc(s.board.mapsBy) + '.' : '') + '</p>' +
       '<p class="why">Save it to your Beat Saber Playlists folder, or open it with a playlist mod. In game you can also type the key into Better Song Search.</p>' +
       '<div class="row"><button type="button" class="btn" id="plGo">Download playlist</button></div><p class="err" id="plErr" hidden></p>', function (body) {
       body.querySelector('#plGo').addEventListener('click', function () {
         var b = this; b.disabled = true; b.textContent = 'Building playlist';
-        crowCover().then(function (img) { return S.playlist(theme().title, keys, img); }).then(function (pl) {
+        crowCover().then(function (img) { return S.playlist(theme().title, keys, img, s.board.mapsBy); }).then(function (pl) {
           track('get-maps');
           var blob = new Blob([JSON.stringify(pl, null, 2)], { type: 'application/json' });
           var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = theme().title.replace(/[^A-Za-z0-9]+/g, '-').replace(/-+$/, '') + '.bplist'; a.click();

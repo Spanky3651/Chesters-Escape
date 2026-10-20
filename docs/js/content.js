@@ -266,6 +266,7 @@
       hat: "pilgrim",
       look: "thanksgiving",
       art: "img/themes/taco-thanksgiving.jpg?v=20261020",   // Hummingbird's board art, title included
+      mapSet: 'taco-thanksgiving',   // Hummingbird's 50 maps
       artHero: {"src": "img/themes/taco-thanksgiving-taco.png?v=20261020", "x": 126.0, "y": 122.01, "w": 121.21, "h": 79.74, "move": "hop"},
       banner: ["#d9661f", "#fff4dc"],
       palette: {"ground": "#f3d27a", "ground2": "#d9a24a", "stone": "#fff7e6", "stoneDark": "#9a6a2e", "ink": "#4a2a10", "accent": "#d9661f", "good": "#4f8a2b", "bad": "#b23a1c", "water": "#5f9bbd"},
@@ -758,9 +759,83 @@
     }
   }
 
+  // ---- map sets -----------------------------------------------------------------
+  // Another set of songs for the same board: a map key for every map and blocker space
+  // (by space id) and its own bonus maps. A theme or a clan picks one; the layout is unchanged.
+  var MAP_SETS = {
+    // Hummingbird's 50 maps for the Beaters board (Oct 20, 2026). Spread for fairness: both routes
+    // get the same average song length and density, every d4 roll reaches a similar mix, and no
+    // mapper repeats back to back. The 7 lightest songs are the bonus maps.
+    'taco-thanksgiving': {
+      title: "Taco's Thanksgiving",
+      author: 'hummingbird',
+      spaces: {
+        L1: ['54624'],   // Confession・Farewell (wangyufy, 2:51)
+        L2: ['40490'],   // Hazy Moon Night (Ken_Monogatari, 3:14)
+        L3: ['4ecbf'],   // Party In The U.S.A. (Tonkie, 3:24)
+        L5: ['4ba2c'],   // What It Sounds Like (TheGeriatricJedi, 4:13)
+        L6: ['53666'],   // さくらさくらさくら (Hanari, 2:04)
+        L8: ['5077a'],   // LOOK AT ME (Danny., 2:41)
+        L9: ['4f850'],   // ESCAPE (hickeychan, 3:14)
+        L10: ['4d273'],   // body (Jonas, 2:50)
+        L11: ['4a950'],   // Kinmokusei (Vassa, 3:17)
+        L13: ['4d85d'],   // Chromatically (Tiku, 3:20)
+        L14: ['45612'],   // Normal Complex (wangyufy, 2:52)
+        L16: ['547a7'],   // COOK (TheGeriatricJedi, 2:52)
+        L17: ['2e6b2'],   // MOONLIGHT SUNRISE (Lalahti, 3:02)
+        L18: ['40555'],   // Diamond Eyes (Amo, 3:36)
+        L19: ['46db5'],   // Purrfect (Danny., 2:41)
+        L20: ['3b34c'],   // Lucky Girl Syndrome (Lalahti, 2:21)
+        L22: ['4d425'],   // 夜行少女 (wangyufy, 4:12)
+        L24: ['36f01'],   // CAKE (Jonas, 3:21)
+        L25: ['41a10'],   // Drip (minsiii, 3:01)
+        L26: ['3934b'],   // Brain Power (hickeychan, 5:11)
+        L27: ['52514'],   // Perfume (lustrgreed, 2:50)
+        L28: ['45459'],   // Cola Song (3ggcake, 1:59)
+        L30: ['4c979'],   // strangers once again (Pashankie, 3:19)
+        L31: ['30a91'],   // SET ME FREE (Lalahti, 3:03)
+        L32: ['4e71a'],   // 横竖撇点折 (wangyufy, 3:50)
+        L33: ['48e81'],   // LOVETiCON (Danny., 3:01)
+        L35: ['4ed84'],   // RUDE! (Jonas, 3:21)
+        L36: ['3b319'],   // Bezos I (hickeychan, 2:17)
+        L38: ['333f4'],   // Wings of Silence (Amo, 2:33)
+        R1: ['32c6f'],   // EUNOIA (minsiii, 3:26)
+        R3: ['2ed72'],   // LP (hickeychan, 2:13)
+        R5: ['49f1d'],   // Love Me Like You Do (wangyufy, 4:12)
+        R7: ['53b36'],   // The Right Song (TheGeriatricJedi, 3:27)
+        R9: ['4e0fd'],   // ASTRO+NYAUT (yabje, 2:26)
+        R10: ['4b6f1'],   // FOCUS (Jonas, 2:59)
+        R12: ['3a789'],   // Who\'s That Boy (hickeychan, 3:23)
+        R13: ['4f76a'],   // Zoka no michi, Ayumeba (Hanari, 3:05)
+        R15: ['47979'],   // See You Next Crossing (wangyufy, 3:32)
+        R16: ['5408b'],   // UNFORGIVEN Japanese ver. (Sped up) (Dark_Waffle, 2:19)
+        R19: ['50f9e'],   // I Just Might (TheGeriatricJedi, 3:34)
+        R21: ['32c94'],   // GOT THE THRILLS (Lalahti, 2:55)
+        R22: ['531c0'],   // God-ish (Cush, 3:25)
+        s2: ['471f0']   // lemons (olbmaphlee, 2:30)
+      },
+      bonusMaps: ['4d995', '551d8', '4ef66', '544cc', '4e0e1', '44505', '4b917']
+    }
+  }; /*MAPSETS*/
+
+  // The board with a map set's songs in it. No set (or an unknown one) gives the original songs.
+  function boardFor(setId) { var b = buildBoard(); applyMapSet(b, setId); return b; }
+  function applyMapSet(board, setId) {
+    var set = MAP_SETS[setId], base = buildBoard();
+    if (!board || !board.spaces) return false;
+    Object.keys(board.spaces).forEach(function (id) {
+      var sp = board.spaces[id], keys = set ? set.spaces[id] : base.spaces[id] && base.spaces[id].bsr;
+      if ((sp.type === 'map' || sp.type === 'task') && keys) sp.bsr = keys.slice();
+    });
+    board.bonusMaps = (set ? set.bonusMaps : base.bonusMaps).slice();
+    if (set) { board.mapSet = setId; board.mapsBy = set.author || ''; } else { delete board.mapSet; delete board.mapsBy; }
+    return true;
+  }
+
   root.CGContent = {
     CELL: CELL, PAD: PAD,
     boards: { 'chester-escape': buildBoard },
+    mapSets: MAP_SETS, boardFor: boardFor, applyMapSet: applyMapSet,
     themes: THEMES,
     cardsFor: cardsFor,
     effectText: effectText, cardEffectText: cardEffectText, spaceEffectText: spaceEffectText

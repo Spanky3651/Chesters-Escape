@@ -27,7 +27,7 @@ If you played a map and it doesn't show up (for example a replay that wasn't a n
 
 ## One game per clan
 
-Each clan Discord server gets its own game, with its own board, players and theme. Sign in with Discord and you land in your clan's game. If you're in more than one of the clan servers, you pick a game the first time and can switch any time with the server icons at the top of the page.
+Each clan Discord server gets its own game, with its own board, players and theme. Sign in with Discord and you land in your clan's game. If you're in more than one of the clan servers, you pick a game the first time and can switch any time with the server icons at the top of the page. A clan can also bring its own songs: the Beaters board plays hummingbird's 50 picks, spread so both routes get the same average song length and density.
 
 ## Board designer
 

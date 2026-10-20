@@ -35,13 +35,13 @@
     try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
     if (saved && saved.state && saved.state.v === E.VERSION) {
       this.state = saved.state; this.me = saved.me;
-      E.upgradeBonus(this.state.board, C.boards['chester-escape']().bonusMaps);
+      if (!this.state.board.mapSet) E.upgradeBonus(this.state.board, C.boards['chester-escape']().bonusMaps);
     }
     else this.fresh('cemetery', null, true);
   }
 
   DemoStore.prototype.fresh = function (themeId, board, withHistory, startsAt, endsAt) {
-    var b = board || C.boards['chester-escape']();
+    var b = board || C.boardFor((C.themes[themeId] || {}).mapSet);
     var s = E.createGame({ board: b, cards: C.cardsFor(themeId), themeId: themeId, title: C.themes[themeId].title, status: startsAt ? 'signup' : 'running', startsAt: startsAt || null, endsAt: endsAt || null });
     DEMO_PLAYERS.forEach(function (p) { E.addPlayer(s, p); });
     // bots pick routes; you pick yours in the app

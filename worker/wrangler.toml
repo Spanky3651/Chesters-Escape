@@ -32,6 +32,7 @@ ANNOUNCE_DAYS = "0"
 #   game     the name the game is stored under. GenX keeps "main", the game that's already running.
 #   theme    theme for a brand-new game (cemetery, christmas, thanksgiving, taco-thanksgiving, taco-christmas)
 #   webhook  name of the secret holding that clan's Discord channel webhook
+#   maps     songs on the board (a map set from content.js); a theme with its own set wins. Empty = the original songs
 #   hosts    optional extra host Discord IDs for this clan only (comma separated)
 [vars.CLANS.genx]
 name = "GenX"
@@ -47,6 +48,7 @@ order = 2
 guild = "1420030867908329482"
 game = "beaters"
 theme = "taco-thanksgiving"
+maps = "taco-thanksgiving"
 webhook = "DISCORD_WEBHOOK_URL_BEATERS"
 
 # Secrets (set with: npx wrangler secret put NAME)

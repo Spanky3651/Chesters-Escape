@@ -77,10 +77,13 @@ function clans(env) {
     id: String(x.id), name: String(x.name || x.id), guild: String(x.guild || ''), game: String(x.game || x.id),
     theme: C.themes[x.theme] ? x.theme : (C.themes[env.THEME] ? env.THEME : 'cemetery'),
     hosts: list(x.hosts), webhook: String(x.webhook || 'DISCORD_WEBHOOK_URL'),
-    announce: String(x.announce != null ? x.announce : env.ANNOUNCE_DAYS || '0'), icon: String(x.icon || '')
+    announce: String(x.announce != null ? x.announce : env.ANNOUNCE_DAYS || '0'), icon: String(x.icon || ''),
+    maps: C.mapSets[x.maps] ? String(x.maps) : ''
   }));
 }
 // The game page link for a clan, so notifications and Discord posts open the right game.
+// Which songs a clan's board uses: the theme's own map set, else the clan's, else the original.
+function mapSetFor(clan, themeId) { const t = C.themes[themeId] || {}; return (C.mapSets[t.mapSet] && t.mapSet) || (clan && clan.maps) || ''; }
 function pageFor(env, clan, hash) {
   const base = env.GAME_PAGE || '';
   if (!base) return '';
@@ -225,14 +228,27 @@ export class Game extends DurableObject {
     ctx.blockConcurrencyWhile(async () => {
       this.state = (await ctx.storage.get('state')) || null;
       // A game already running picks up new built-in bonus maps.
-      if (this.state) E.upgradeBonus(this.state.board, C.boards['chester-escape']().bonusMaps);
+      if (this.state && !this.state.board.mapSet) E.upgradeBonus(this.state.board, C.boards['chester-escape']().bonusMaps);
       this.meta = (await ctx.storage.get('meta')) || {};
     });
   }
 
   // Which clan this game belongs to. Each call from the front door says so; the alarm uses
   // the last one seen. A game from before clans existed is the "main" game.
-  useClan(user) { if (user && user.clan && this.meta.clanId !== user.clan.id) this.meta.clanId = user.clan.id; }
+  useClan(user) {
+    if (user && user.clan && this.meta.clanId !== user.clan.id) this.meta.clanId = user.clan.id;
+    this.syncMaps();
+  }
+  // Before the first roll, keep the board's songs in step with the theme and clan (a game made
+  // before its map set existed picks it up here). Once the game runs, the songs stay put.
+  syncMaps() {
+    const s = this.state;
+    if (!s || s.status !== 'signup' || s.board.custom || s.board.id !== 'chester-escape') return false;
+    const want = mapSetFor(this.clan(), s.themeId);
+    if ((s.board.mapSet || '') === want) return false;
+    C.applyMapSet(s.board, want); s.seq++; this.dirty = true;
+    return true;
+  }
   clan() {
     const all = clans(this.env);
     return all.find((c) => c.id === this.meta.clanId) || all.find((c) => c.game === 'main') || all[0];
@@ -244,7 +260,8 @@ export class Game extends DurableObject {
   game() {
     if (!this.state) {
       const themeId = this.clan().theme;
-      this.state = E.createGame({ board: C.boards['chester-escape'](), cards: C.cardsFor(themeId), themeId, title: C.themes[themeId].title, rng });
+      this.dirty = true;
+      this.state = E.createGame({ board: C.boardFor(mapSetFor(this.clan(), themeId)), cards: C.cardsFor(themeId), themeId, title: C.themes[themeId].title, rng });
       this.meta = Object.assign(this.meta || {}, { nextCutoff: E.nextCutoff(this.state.settings) });
     }
     return this.state;
@@ -291,6 +308,7 @@ export class Game extends DurableObject {
         await this.save();
       }
     }
+    if (this.dirty) { this.dirty = false; await this.save(); }
     return { pid: status === 'ok' && pid && s.players[pid] ? pid : null, access: status, startsAt: s.status === 'signup' ? s.startsAt || null : null, theme: s.themeId };
   }
 
@@ -301,6 +319,7 @@ export class Game extends DurableObject {
     if (!user) return { error: 'Sign in with Discord to see the game.', code: 'no-access', access: 'signin' };
     const canPlay = this.canUse(user);
     const me = canPlay && pid && s.players[pid] ? pid : null;
+    if (this.dirty) { this.dirty = false; await this.save(); }
     if (since === s.seq) return { state: null, me, canPlay };
     const out = { state: E.publicState(s), me, canPlay, isHost: !!user.isHost, user: { id: user.id, name: user.name, avatar: user.avatar } };
     if (user && user.isHost) out.access = this.access();
@@ -354,11 +373,12 @@ export class Game extends DurableObject {
           s.themeId = a.theme; s.title = C.themes[a.theme].title;
           const words = Object.fromEntries(C.cardsFor(a.theme).map((c) => [c.id, c]));
           s.cards = s.cards.map((c) => (words[c.id] ? { ...c, title: words[c.id].title, art: words[c.id].art, text: words[c.id].text } : c));
+          this.syncMaps();
           break;
         }
         case 'newGame': {
           const themeId = C.themes[a.theme] ? a.theme : s.themeId;
-          const board = a.board || C.boards['chester-escape']();
+          const board = a.board ? { ...a.board, custom: true } : C.boardFor(mapSetFor(this.clan(), themeId));
           const probs = E.checkBoard(board);
           if (probs.length) return { error: probs[0] };
           const keep = s.order.map((id) => s.players[id]);

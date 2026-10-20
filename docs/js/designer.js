@@ -356,7 +356,7 @@
       $('dzFor').innerHTML = 'Working on the <b>' + esc(clan.name) + '</b> game. Boards and themes here are for ' + esc(clan.name) + ' only.';
       $('dzFor').hidden = false;
     }
-    board = load() || C.boards['chester-escape']();
+    board = load() || C.boardFor((C.themes[themeId] || {}).mapSet);
     bind(); render(); updateUndo();
   });
 })();
