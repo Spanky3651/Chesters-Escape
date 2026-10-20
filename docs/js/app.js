@@ -1322,7 +1322,8 @@
   // ---- start -----------------------------------------------------------------------------------
   // ---- closed door ---------------------------------------------------------------------------
   function renderGate(g) {
-    var t = (g.theme && C.themes[g.theme]) || null;
+    // The game picker stays neutral; each game's own theme shows once you pick it.
+    var t = g.kind !== 'choose' && g.theme && C.themes[g.theme] || null;
     track('gate-' + g.kind);
     document.addEventListener('click', function (e) { if (e.target.closest('a[href*="/auth/login"]')) track('sign-in'); });
     document.body.classList.add('gated');

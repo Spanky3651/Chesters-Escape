@@ -27,6 +27,7 @@ ANNOUNCE_DAYS = "0"
 # One game per clan Discord server. Members of a server can sign in to that clan's game;
 # people in both servers get a switcher. Settings per clan:
 #   name     shown on the switcher
+#   order    position on the switcher and the game picker (1 first)
 #   guild    the Discord server ID (empty lets anyone sign in)
 #   game     the name the game is stored under. GenX keeps "main", the game that's already running.
 #   theme    theme for a brand-new game (cemetery, christmas, thanksgiving, taco-thanksgiving, taco-christmas)
@@ -34,6 +35,7 @@ ANNOUNCE_DAYS = "0"
 #   hosts    optional extra host Discord IDs for this clan only (comma separated)
 [vars.CLANS.genx]
 name = "GenX"
+order = 1
 guild = "933398740008587396"
 game = "main"
 theme = "cemetery"
@@ -41,6 +43,7 @@ webhook = "DISCORD_WEBHOOK_URL"
 
 [vars.CLANS.beaters]
 name = "Beaters"
+order = 2
 guild = "1420030867908329482"
 game = "beaters"
 theme = "taco-thanksgiving"

@@ -63,13 +63,15 @@ function hosts(env, clan) { return [...list(env.HOSTS), ...((clan && clan.hosts)
 
 // The clans, from the CLANS setting in wrangler.toml. Each one:
 //   name, guild (Discord server ID, empty = anyone), game (stored game name, defaults to the id),
-//   theme (for a brand-new game), hosts (extra host IDs), webhook (name of the secret holding the
+//   order (position on the switcher), theme (for a brand-new game), hosts (extra host IDs), webhook (name of the secret holding the
 //   channel webhook), announce ("1" posts day and start/end messages).
 // Without CLANS it falls back to one clan built from GUILD_ID, stored as the "main" game.
 function clans(env) {
   let c = env.CLANS;
   if (typeof c === 'string') { try { c = JSON.parse(c); } catch { c = null; } }
   if (c && typeof c === 'object' && !Array.isArray(c)) c = Object.entries(c).map(([id, v]) => ({ id, ...v }));
+  // Cloudflare may hand the table back in any key order, so "order" sets the switcher order.
+  if (Array.isArray(c)) c = c.slice().sort((a, b) => (Number(a.order) || 99) - (Number(b.order) || 99));
   if (!Array.isArray(c) || !c.length) c = [{ id: 'main', name: 'Clan', guild: env.GUILD_ID || '', game: 'main' }];
   return c.map((x) => ({
     id: String(x.id), name: String(x.name || x.id), guild: String(x.guild || ''), game: String(x.game || x.id),
