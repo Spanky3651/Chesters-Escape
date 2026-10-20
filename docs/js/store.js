@@ -122,6 +122,8 @@
         case 'card': return Promise.resolve(done(E.hostCard(s, a.pid, a.card)));
         case 'resetPlayer': return Promise.resolve(done(E.resetPlayer(s, a.pid)));
         case 'removePlayer': E.removePlayer(s, a.pid); if (self.me === a.pid) self.me = null; return Promise.resolve(done({}));
+        case 'clearPlayers': if (!E.clearPlayers(s)) return Promise.reject(new Error('You can only clear sign-ups before the game starts.')); self.me = null; return Promise.resolve(done({}));
+        case 'signups': if (s.status !== 'signup') return Promise.reject(new Error('The game has already started.')); if (a.closed) s.signupsClosed = true; else delete s.signupsClosed; s.seq++; return Promise.resolve(done({}));
         case 'clearRoute': { var q = s.players[a.pid]; q.route = null; q.pos = -1; q.tasks = []; return Promise.resolve(done({})); }
         case 'settings': Object.assign(s.settings, a.patch || {}); return Promise.resolve(done(s.settings));
         case 'theme':

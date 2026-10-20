@@ -330,7 +330,7 @@ export class Game extends DurableObject {
     this.useClan(user);
     const s = this.game(); const pid = this.pidFor(user);
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
-    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess'];
+    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess'];
     if (hostOnly.includes(action) && !user.isHost) return { error: 'Only the host can do that.', status: 403 };
     if (s.status === 'finished' && ['join', 'route', 'roll', 'verify', 'claim'].includes(action)) return { error: 'The game is over.' };
     const wasRunning = s.status === 'running';
@@ -338,6 +338,7 @@ export class Game extends DurableObject {
     try {
       switch (action) {
         case 'join': {
+          if (!E.signupsOpen(s) && !user.isHost) return { error: 'Sign-ups are closed until the game starts.' };
           const bl = await this.blPlayer(a.blId);
           const taken = s.order.find((id) => id !== pid && s.players[id].blId === bl.id);
           if (taken) return { error: 'That BeatLeader profile is already in the game.' };
@@ -362,6 +363,8 @@ export class Game extends DurableObject {
         case 'card': E.hostCard(s, a.pid, a.card); break;
         case 'resetPlayer': E.resetPlayer(s, a.pid); break;
         case 'removePlayer': E.removePlayer(s, a.pid); break;
+        case 'clearPlayers': if (!E.clearPlayers(s)) return { error: 'You can only clear sign-ups before the game starts.' }; break;
+        case 'signups': if (s.status !== 'signup') return { error: 'The game has already started.' }; if (a.closed) s.signupsClosed = true; else delete s.signupsClosed; s.seq++; break;
         case 'clearRoute': { const p = s.players[a.pid]; p.route = null; p.pos = -1; p.tasks = []; break; }
         case 'settings': {
           const allowed = ['exactFinish', 'oneFinishPerDay', 'oneRollPerDay', 'cutoffHour', 'cutoffMinute', 'timeZone', 'remindHour'];

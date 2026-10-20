@@ -218,7 +218,7 @@
     R.setFavicon(t);
     $('gameTitle').textContent = t.title;
     $('brandCrow').innerHTML = R.hero(0, 0, 1, t);
-    $('dayNum').textContent = s.status === 'finished' ? 'Game over' : s.status === 'signup' ? 'Sign-ups open' : 'Day ' + s.day;
+    $('dayNum').textContent = s.status === 'finished' ? 'Game over' : s.status === 'signup' ? (E.signupsOpen(s) ? 'Sign-ups open' : 'Sign-ups closed') : 'Day ' + s.day;
     $('hostBtn').hidden = !store.isHost;
     var todo = store.isHost ? hostTodo() : { total: 0 };
     document.title = (todo.total ? '(' + todo.total + ') ' : '') + t.title;
@@ -302,7 +302,9 @@
           '<div class="row"><button type="button" class="btn ghost" id="checkAgain">Check again</button><button type="button" class="btn link" id="logoutBtn">Sign out</button></div>';
         return;
       }
-      if (store.mode === 'live' && !store.user) {
+      if (!E.signupsOpen(s) && !store.isHost) {
+        el.innerHTML = '<h2>Join the escape</h2><p class="lede">You can join as soon as the game starts. Watch your clan Discord for the start.</p>';
+      } else if (store.mode === 'live' && !store.user) {
         el.innerHTML = '<h2>Join the escape</h2><p class="lede">Sign in with Discord so the game knows which token is yours. You only do this once.</p><a class="btn" href="' + esc(store.loginUrl()) + '">Sign in with Discord</a>';
       } else {
         el.innerHTML = '<h2>Join the escape</h2><p class="lede">Link your BeatLeader profile. The game checks it to see when you have played your map.</p><button type="button" class="btn" id="joinBtn">Join the game</button>' +
@@ -342,6 +344,7 @@
       el.innerHTML = '<h2>You\'re signed up</h2>' + pre + '<p class="why">You\'re on the ' + esc(s.board.routeInfo[p.route].name.toLowerCase()) + '. Your first roll unlocks when the countdown ends. Come back then and roll the d4.</p>';
       return;
     }
+    if (pre && !p && !E.signupsOpen(s) && !store.isHost) { el.innerHTML = '<h2>Sign-ups are closed</h2>' + pre + '<p class="empty">Joining opens when the game starts. Come back then to get a token and pick your route.</p>'; return; }
     if (pre && !p) { el.innerHTML = '<h2>Sign-ups are open</h2>' + pre + '<p class="empty">' + (store.mode === 'live' && !store.canPlay ? 'Once the host lets you in, you can join and pick your route before the start.' : 'Join now and pick your route. Everyone rolls for the first time when the countdown ends.') + '</p>'; return; }
     if (!p) { el.innerHTML = '<h2>Your turn</h2><p class="empty">' + (store.mode === 'live' && !store.canPlay ? 'Once the host lets you in, you can join and get a token on the board.' : 'Join the game to get a token on the board.') + '</p>'; return; }
     if (!p.route) {
@@ -1070,11 +1073,17 @@
       (running ? '<button type="button" class="btn small danger" data-h="endnow">End the game now</button>' : '') + '</div></section>';
   }
   function startSection(s) {
-    return '<section class="hsec"><h3>Sign-ups are open</h3><p>' + (s.startsAt ? 'The first roll unlocks <b>' + esc(startWhen(s.startsAt)) + '</b>, in <span data-countdown="' + s.startsAt + '">' + fmtLeft(s.startsAt - Date.now()) + '</span>.' : 'No start time is set yet.') +
-      ' Until then people can join and pick a route, but nobody rolls.</p>' +
+    var open = E.signupsOpen(s), n = s.order.length;
+    return '<section class="hsec"><h3>Before the start</h3><p>' + (s.startsAt ? 'The first roll unlocks <b>' + esc(startWhen(s.startsAt)) + '</b>, in <span data-countdown="' + s.startsAt + '">' + fmtLeft(s.startsAt - Date.now()) + '</span>.' : 'No start time is set yet.') +
+      (open ? ' Until then people can join and pick a route, but nobody rolls.' : ' Sign-ups are closed until then.') + '</p>' +
       '<label class="start-field"><span>Start time</span><input type="datetime-local" id="startEdit" value="' + (s.startsAt ? toLocalInput(s.startsAt) : '') + '"></label>' +
       '<div class="row"><button type="button" class="btn small" data-h="reschedule">Save start time</button>' + (s.startsAt ? '<button type="button" class="btn small ghost" data-h="clearstart">Cancel the countdown</button>' : '') + '<button type="button" class="btn small ghost" data-h="startnow">Start now</button></div>' +
-      (s.startsAt ? '<p class="why">Cancel the countdown keeps sign-ups open and everyone where they are, with no start time until you set a new one.</p>' : '') + '</section>';
+      (s.startsAt ? '<p class="why">Cancel the countdown keeps sign-ups open and everyone where they are, with no start time until you set a new one.</p>' : '') +
+      '<h4 class="hsub">Sign-ups</h4>' +
+      '<label class="check"><input type="radio" name="sumode" value="open"' + (open ? ' checked' : '') + '> <span>Open. People can join and pick a route now.</span></label>' +
+      '<label class="check"><input type="radio" name="sumode" value="closed"' + (open ? '' : ' checked') + '> <span>Closed until the game starts. Joining opens by itself at the start.</span></label>' +
+      '<p style="margin-top:10px">' + (n ? n + (n === 1 ? ' person has' : ' people have') + ' signed up.' : 'Nobody has signed up yet.') + '</p>' +
+      (n ? '<div class="row"><button type="button" class="btn small danger" data-h="clearplayers">Clear all sign-ups</button></div>' : '') + '</section>';
   }
   function renderHost() {
     var s = st(), demo = store.mode === 'demo', html = '';
@@ -1252,6 +1261,7 @@
       case 'setend': { var se = readStart('endEdit'); if (!se) { if (se === null) toast('Pick an end time first.', 'bad'); break; } run('setEnd', { endsAt: se }, 'End time saved.'); break; }
       case 'finale': closeHost(); openFinale(); break;
       case 'clearend': run('setEnd', { endsAt: null }, 'End time cleared.'); break;
+      case 'clearplayers': if (confirm('Take all ' + st().order.length + ' sign-ups off the board? They can join again whenever sign-ups are open.')) run('clearPlayers', {}, 'Sign-ups cleared.'); break;
       case 'clearstart': if (confirm('Cancel the countdown? Sign-ups stay open and nobody can roll until you set a new start time.')) run('schedule', { startsAt: null }, 'Countdown canceled. Sign-ups are still open.'); break;
       case 'endnow': if (confirm('End the game now? The standings freeze and nobody can roll again.')) run('endNow', {}, 'The game is over.'); break;
       case 'startnow': if (confirm('Start the game now? Everyone can roll right away.')) run('startNow', {}, 'The game has started.'); break;
@@ -1318,6 +1328,7 @@
       if (t.dataset.pos) { store.act('setpos', { pid: t.dataset.pos, pos: parseInt(t.value, 10) - 1, apply: $('applyMove') && $('applyMove').checked }).catch(fail); return; }
       if (t.dataset.cardfor && t.value) { var pid = t.dataset.cardfor, cid = t.value; store.act('card', { pid: pid, card: cid }).then(function () { toast('Gave ' + st().players[pid].name + ' a card.', 'good'); }, fail); return; }
       if (t.dataset.set) { var patch = {}; patch[t.dataset.set] = t.checked; store.act('settings', { patch: patch }).catch(fail); return; }
+      if (t.name === 'sumode') { store.act('signups', { closed: t.value === 'closed' }).then(function () { toast(t.value === 'closed' ? 'Sign-ups are closed until the game starts.' : 'Sign-ups are open.', 'good'); }, fail); return; }
       if (t.name === 'acmode') { store.act('accessMode', { mode: t.value }).then(function () { track('host-access-' + t.value); toast(t.value === 'open' ? 'Anyone who signs in can play now.' : 'Invite-only again.', 'good'); }, fail); return; }
       if (t.id === 'remindSel') { store.act('settings', { patch: { remindHour: t.value === '' ? null : Number(t.value) } }).then(function () { track('host-reminder-' + (t.value || 'off')); toast(t.value === '' ? 'Roll reminders are off.' : 'Roll reminders go out at ' + hourLabel(t.value) + '.', 'good'); }, fail); return; }
       if (t.id === 'themeSel') { store.act('theme', { theme: t.value }).then(function () { track('host-theme-' + t.value); renderBoard(true); }, fail); }

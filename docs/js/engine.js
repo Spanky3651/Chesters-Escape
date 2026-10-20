@@ -97,6 +97,14 @@
     s.finishOrder = s.finishOrder.filter(function (x) { return x !== pid; });
   }
 
+  // Host tool during sign-ups: take everyone off the board.
+  function clearPlayers(s) {
+    if (s.status !== 'signup') return false;
+    s.order.slice().forEach(function (pid) { removePlayer(s, pid); });
+    return true;
+  }
+  function signupsOpen(s) { return !(s.status === 'signup' && s.signupsClosed); }
+
   function chooseRoute(s, pid, route) {
     var p = need(s, pid);
     if (p.route) throw err('route-set', 'Your route is already locked in.');
@@ -387,6 +395,7 @@
   function startGame(s, at) {
     if (s.status !== 'signup') return false;
     s.status = 'running'; s.day = 1; s.startedAt = at || now();
+    delete s.signupsClosed;   // joining always reopens once the game is running
     emit(s, null, { t: 'begin' });
     return true;
   }
@@ -579,7 +588,7 @@
 
   var E = {
     VERSION: VERSION, DEFAULTS: DEFAULTS,
-    createGame: createGame, addPlayer: addPlayer, removePlayer: removePlayer, chooseRoute: chooseRoute,
+    createGame: createGame, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, signupsOpen: signupsOpen, chooseRoute: chooseRoute,
     canRoll: canRoll, roll: roll, advanceDay: advanceDay,
     completeTask: completeTask, claimTask: claimTask, rejectClaim: rejectClaim, matchScores: matchScores,
     setPosition: setPosition, hostCard: hostCard, resetPlayer: resetPlayer,

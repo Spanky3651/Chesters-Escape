@@ -800,3 +800,4 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .curator .cur-who { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
 .curator .cur-ava { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: none; border: 2px solid var(--accent); background: var(--raise-2); display: grid; place-items: center; font-weight: 800; color: var(--accent); }
 .curator .cur-ava[hidden] { display: none; }
+.hsec .hsub { margin: 16px 0 6px; font-size: 15px; font-weight: 700; color: var(--text); }
