@@ -1073,7 +1073,8 @@
     return '<section class="hsec"><h3>Sign-ups are open</h3><p>' + (s.startsAt ? 'The first roll unlocks <b>' + esc(startWhen(s.startsAt)) + '</b>, in <span data-countdown="' + s.startsAt + '">' + fmtLeft(s.startsAt - Date.now()) + '</span>.' : 'No start time is set yet.') +
       ' Until then people can join and pick a route, but nobody rolls.</p>' +
       '<label class="start-field"><span>Start time</span><input type="datetime-local" id="startEdit" value="' + (s.startsAt ? toLocalInput(s.startsAt) : '') + '"></label>' +
-      '<div class="row"><button type="button" class="btn small" data-h="reschedule">Save start time</button><button type="button" class="btn small ghost" data-h="startnow">Start now</button></div></section>';
+      '<div class="row"><button type="button" class="btn small" data-h="reschedule">Save start time</button>' + (s.startsAt ? '<button type="button" class="btn small ghost" data-h="clearstart">Cancel the countdown</button>' : '') + '<button type="button" class="btn small ghost" data-h="startnow">Start now</button></div>' +
+      (s.startsAt ? '<p class="why">Cancel the countdown keeps sign-ups open and everyone where they are, with no start time until you set a new one.</p>' : '') + '</section>';
   }
   function renderHost() {
     var s = st(), demo = store.mode === 'demo', html = '';
@@ -1251,6 +1252,7 @@
       case 'setend': { var se = readStart('endEdit'); if (!se) { if (se === null) toast('Pick an end time first.', 'bad'); break; } run('setEnd', { endsAt: se }, 'End time saved.'); break; }
       case 'finale': closeHost(); openFinale(); break;
       case 'clearend': run('setEnd', { endsAt: null }, 'End time cleared.'); break;
+      case 'clearstart': if (confirm('Cancel the countdown? Sign-ups stay open and nobody can roll until you set a new start time.')) run('schedule', { startsAt: null }, 'Countdown canceled. Sign-ups are still open.'); break;
       case 'endnow': if (confirm('End the game now? The standings freeze and nobody can roll again.')) run('endNow', {}, 'The game is over.'); break;
       case 'startnow': if (confirm('Start the game now? Everyone can roll right away.')) run('startNow', {}, 'The game has started.'); break;
       case 'letin': run('letIn', { id: btn.dataset.id }, 'Let in.'); break;

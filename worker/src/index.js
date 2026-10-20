@@ -391,6 +391,7 @@ export class Game extends DurableObject {
         }
         case 'schedule': {
           if (s.status !== 'signup') return { error: 'The game has already started.' };
+          if (a.startsAt == null) { s.startsAt = null; s.seq++; break; }
           const at = Number(a.startsAt);
           if (!(at > Date.now() + 60000)) return { error: 'Pick a start time in the future.' };
           s.startsAt = at; s.seq++; break;

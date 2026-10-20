@@ -101,6 +101,7 @@
         case 'advance': if (s.status !== 'running') return Promise.reject(new Error('The game has not started yet.')); self._botsPlay(true); return Promise.resolve(done({ day: s.day }));
         case 'schedule':
           if (s.status !== 'signup') return Promise.reject(new Error('The game has already started.'));
+          if (a.startsAt == null) { s.startsAt = null; s.seq++; return Promise.resolve(done({})); }
           if (!(a.startsAt > Date.now() + 60000)) return Promise.reject(new Error('Pick a start time in the future.'));
           s.startsAt = a.startsAt; s.seq++; return Promise.resolve(done({}));
         case 'setEnd':
