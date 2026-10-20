@@ -452,7 +452,11 @@ body[data-theme="thanksgiving"] .cback { background: repeating-linear-gradient(9
 .foot-more { text-align: center; font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 13px; color: var(--faint); letter-spacing: .3px; line-height: 1.9; }
 .foot-more a { color: var(--accent); text-decoration: none; white-space: nowrap; }
 .foot-more a:hover { color: var(--text); text-decoration: underline; }
-.foot-more .sep { margin: 0 8px; }
+.foot-more .sep { margin: 0 4px; }
+@media (max-width: 560px) {
+  .foot-more .fm-label, .foot-more a { display: block; }
+  .foot-more .sep { display: none; }
+}
 .foot-badges { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
 /* developer badge and Ko-fi button, same as MSploit's other tools */
 a.credit { display: inline-flex; align-items: center; gap: 12px; padding: 8px 18px 8px 8px; border: 1px solid var(--line-2); border-radius: 12px; background: #060607; text-decoration: none; transition: .16s; }
