@@ -523,7 +523,8 @@ a.kofi-support:hover { transform: translateY(-2px); border-color: #ff2740; box-s
 @media (max-width: 760px) { .zoom-btn { display: inline-flex; } }
 
 /* invite-only screen */
-body.gated .topnav, body.gated .daybox, body.gated .demo-bar { display: none !important; }
+body.gated .topnav > :not(.clan-switch), body.gated .daybox, body.gated .demo-bar { display: none !important; }
+body.gated .topnav { margin-left: auto; width: auto; }
 body.gated .foot { border-top: 0; margin-top: 0; }
 .gate { min-height: calc(100vh - 230px); display: grid; place-items: center; padding: 24px 16px; }
 .gate-card { width: min(520px, 100%); text-align: center; border: 1px solid var(--line); border-radius: 18px; background: var(--raise); padding: 34px 26px; }
@@ -764,3 +765,23 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .rem-pop .rem { border: 0; background: none; box-shadow: none; }
 .rem-pop .push-box:empty::before { content: 'Checking this device.'; display: block; padding: 12px; color: var(--muted); font-size: 14px; }
 .rem-pop .push-box > p { margin: 10px 12px; }
+
+/* Server switcher: a button in the header's menu with a dropdown. */
+.topnav .clan-switch { display: flex; border: 0; padding: 0; background: none; border-radius: 0; }
+.topnav .clan-switch[hidden] { display: none; }
+.clan-cur { gap: 8px; padding: 4px 10px 4px 4px; border: 1px solid var(--line-2); border-radius: 999px; color: var(--text); font-weight: 700; }
+.clan-cur:hover, .clan-cur[aria-expanded="true"] { border-color: var(--accent); }
+.clan-cur .clan-ic { width: 28px; height: 28px; filter: none !important; opacity: 1 !important; }
+.clan-cur .chev, .clan-opt .tick { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.clan-cur .chev { color: var(--muted); transition: transform .2s; }
+.clan-cur[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.clan-pop { position: fixed; z-index: 45; min-width: 220px; padding: 6px; border-radius: 14px; background: var(--raise); border: 1px solid var(--line-2); box-shadow: 0 24px 60px rgba(0,0,0,.6); }
+.clan-pop .cp-h { margin: 6px 10px 6px; font-size: 12.5px; letter-spacing: .6px; text-transform: uppercase; color: var(--faint); font-weight: 700; }
+.clan-opt { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 10px; border: 0; border-radius: 10px; background: none; color: var(--text); font: 700 16px/1 var(--ui); cursor: pointer; text-align: left; }
+.clan-opt:hover { background: var(--raise-2); }
+.clan-opt span { flex: 1; }
+.clan-opt .clan-ic { width: 34px; height: 34px; font-size: 13px; }
+.clan-opt.on { cursor: default; }
+.clan-opt.on .tick { color: var(--accent); }
+@media (max-width: 640px) { .clan-cur { padding: 3px 6px 3px 3px; gap: 4px; } .clan-cur .nm { display: none; } }
+.sound-opt { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }

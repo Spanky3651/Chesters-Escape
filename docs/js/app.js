@@ -174,20 +174,39 @@
     return (c.icon ? '<img class="' + cls + '" src="' + esc(c.icon) + '" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false">' : '') + fallback;
   }
   var clanSwitchDone = false;
+  // One button in the header showing the current server; it opens a small menu of your servers.
   function renderClanSwitch(src) {
     var el = $('clanSwitch'), list = (src && src.clans) || [];
     if (!el || clanSwitchDone || list.length < 2) return;
     clanSwitchDone = true;
+    var cur = list.filter(function (c) { return c.id === src.clan; })[0] || list[0];
     el.hidden = false;
-    el.innerHTML = list.map(function (c) {
-      var on = c.id === src.clan;
-      return '<button type="button" class="clan-btn" data-clan="' + esc(c.id) + '" aria-pressed="' + on + '" title="' + esc(on ? 'You are in the ' + c.name + ' game' : 'Switch to the ' + c.name + ' game') + '">' + clanIcon(c, 'clan-ic') + '<span class="nm">' + esc(c.name) + '</span></button>';
+    el.innerHTML = '<button type="button" class="nav-btn clan-cur" id="clanBtn" aria-haspopup="menu" aria-expanded="false" title="Switch game">' + clanIcon(cur, 'clan-ic') +
+      '<span class="nm">' + esc(cur.name) + '</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>';
+    $('clanPop').innerHTML = '<p class="cp-h">Switch game</p>' + list.map(function (c) {
+      var on = c.id === cur.id;
+      return '<button type="button" role="menuitemradio" aria-checked="' + on + '" class="clan-opt' + (on ? ' on' : '') + '"' + (on ? '' : ' data-clan="' + esc(c.id) + '"') + '>' + clanIcon(c, 'clan-ic') + '<span>' + esc(c.name) + '</span>' +
+        (on ? '<svg class="tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : '') + '</button>';
     }).join('');
   }
+  function closeClan() { var p = $('clanPop'); if (p && !p.hidden) { p.hidden = true; $('clanBtn').setAttribute('aria-expanded', 'false'); } }
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('#clanBtn')) {
+      var pop = $('clanPop'), b = $('clanBtn');
+      if (!pop.hidden) { closeClan(); return; }
+      pop.hidden = false; b.setAttribute('aria-expanded', 'true');
+      var r = b.getBoundingClientRect(), w = pop.offsetWidth, vw = document.documentElement.clientWidth;
+      pop.style.top = Math.round(r.bottom + 8) + 'px';
+      pop.style.left = Math.round(Math.min(vw - w - 12, Math.max(12, r.left))) + 'px';
+      return;
+    }
+    if (!e.target.closest('#clanPop')) closeClan();
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeClan(); });
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-clan]'); if (!b) return;
     var cur = store && store.clan;
-    if (b.dataset.clan === cur && b.classList.contains('clan-btn')) return;
+    if (b.dataset.clan === cur) return;
     track('clan-' + b.dataset.clan);
     window.CGStore.switchClan(b.dataset.clan);
   });
@@ -210,7 +229,6 @@
     if (todo.total > lastTodo) { var nb = hb.querySelector('.nav-badge'); if (nb) { void nb.offsetWidth; nb.classList.add('bump'); } }
     lastTodo = todo.total;
     $('designerLink').hidden = !store.isHost;   // host only, like Host tools
-    $('muteBtn').setAttribute('aria-pressed', muted ? 'true' : 'false');
     var demo = store.mode === 'demo';
     $('demoBar').hidden = !demo;
     if (demo) {
@@ -894,7 +912,8 @@
       '<li>Every roll ends with a map. If your turn stops on a space without one, you get a bonus map. A Safe space is the only break.</li>' +
       '<li>First one to the ' + esc(t.goal) + ' wins. Everyone else keeps playing for their place.</li>' +
       (s.settings.oneFinishPerDay !== false ? '<li>Only one player can escape per day. If someone already got out today, you wait at the gate and walk out on your next roll.</li>' : '') + '</ol>' +
-      '<p class="why">If you played a map and the check can\'t find it (for example a replay that wasn\'t a new personal best), use "I played it" and the host can approve it.</p>');
+      '<p class="why">If you played a map and the check can\'t find it (for example a replay that wasn\'t a new personal best), use "I played it" and the host can approve it.</p>' +
+      '<label class="check sound-opt"><input type="checkbox" id="soundChk"' + (muted ? '' : ' checked') + '> <span>Sound effects</span></label>');
   }
 
   function openJoin(linkOnly) {
@@ -1309,7 +1328,8 @@
       w.classList.toggle('zoomed', on); this.setAttribute('aria-pressed', on ? 'true' : 'false'); this.textContent = on ? 'Zoom out' : 'Zoom in';
       if (on) centerOnMe();
     };
-    $('muteBtn').onclick = function () { muted = !muted; try { localStorage.setItem('cg.muted', muted ? '1' : '0'); } catch (e) {} renderHeader(); if (!muted) sfx.hop(); };
+    // Sound effects: a quiet switch at the bottom of How to play.
+    document.addEventListener('change', function (e) { if (e.target.id !== 'soundChk') return; muted = !e.target.checked; try { localStorage.setItem('cg.muted', muted ? '1' : '0'); } catch (x) {} if (!muted) sfx.hop(); });
   }
 
   // Ko-fi heart beats once when the footer scrolls into view (hover beat is CSS only).
