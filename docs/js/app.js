@@ -776,16 +776,26 @@
     if (sp.bsr && sp.bsr.length) html += '<div class="maps">' + sp.bsr.map(function (key) { return '<div class="mapline" data-key="' + esc(key) + '"><img alt=""><div><b data-n>!bsr ' + esc(key) + '</b><div class="why" data-m>Loading</div><div class="row"><button type="button" class="key" data-copy="!bsr ' + esc(key) + '">Copy !bsr ' + esc(key) + '</button><a class="why" target="_blank" rel="noopener" href="https://beatsaver.com/maps/' + esc(key) + '">BeatSaver</a></div></div></div>'; }).join('') + '</div>';
     html += '<p class="here">' + esc(steps.join(', ')) + (here.length ? '. Here now: ' + esc(here.join(', ')) : '') + '</p>';
     pop.innerHTML = html; pop.hidden = false;
-    var r = anchor.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
-    var x = Math.min(window.innerWidth - pw - 12, Math.max(12, r.left + r.width / 2 - pw / 2));
-    var y = r.bottom + 10; if (y + ph > window.innerHeight - 12) y = Math.max(12, r.top - ph - 10);
-    pop.style.left = x + 'px'; pop.style.top = y + 'px';
+    // Fit the part of the page the player can see. When someone has pinch-zoomed on a phone that is
+    // only a slice of the layout, so size and place it against the visual viewport, not the window.
+    function place() {
+      var v = window.visualViewport, de = document.documentElement;
+      var L = v ? v.offsetLeft : 0, T = v ? v.offsetTop : 0, VW = v ? v.width : de.clientWidth, VH = v ? v.height : window.innerHeight;
+      pop.style.width = Math.min(320, VW - 16) + 'px';
+      var r = anchor.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+      var x = Math.max(L + 8, Math.min(L + VW - pw - 8, r.left + r.width / 2 - pw / 2));
+      var y = r.bottom + 10; if (y + ph > T + VH - 8) y = r.top - ph - 10;
+      y = Math.max(T + 8, Math.min(y, T + VH - ph - 8));
+      pop.style.left = x + 'px'; pop.style.top = y + 'px';
+    }
+    place();
     (sp.bsr || []).forEach(function (key) {
       S.map(key).then(function (m) {
         var line = pop.querySelector('.mapline[data-key="' + key + '"]'); if (!line) return;
         line.querySelector('img').src = m.cover;
         line.querySelector('[data-n]').textContent = m.name;
         line.querySelector('[data-m]').textContent = [m.author, m.mapper ? 'mapped by ' + m.mapper : ''].filter(Boolean).join(', ');
+        if (!pop.hidden) place();
       }, function () { var line = pop.querySelector('.mapline[data-key="' + key + '"] [data-m]'); if (line) line.textContent = "Couldn't load map details"; });
     });
     pop.querySelector('[data-close]').focus();
