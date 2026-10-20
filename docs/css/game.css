@@ -785,3 +785,5 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .clan-opt.on .tick { color: var(--accent); }
 @media (max-width: 640px) { .clan-cur { padding: 3px 6px 3px 3px; gap: 4px; } .clan-cur .nm { display: none; } }
 .sound-opt { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+.topnav .clan-switch { margin-left: 6px; }
+@media (max-width: 640px) { .topnav .clan-switch { margin-left: 0; } }

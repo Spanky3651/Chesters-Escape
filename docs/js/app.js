@@ -197,7 +197,7 @@
       pop.hidden = false; b.setAttribute('aria-expanded', 'true');
       var r = b.getBoundingClientRect(), w = pop.offsetWidth, vw = document.documentElement.clientWidth;
       pop.style.top = Math.round(r.bottom + 8) + 'px';
-      pop.style.left = Math.round(Math.min(vw - w - 12, Math.max(12, r.left))) + 'px';
+      pop.style.left = Math.round(Math.min(vw - w - 12, Math.max(12, r.right - w))) + 'px';
       return;
     }
     if (!e.target.closest('#clanPop')) closeClan();
