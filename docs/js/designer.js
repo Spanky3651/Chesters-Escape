@@ -3,16 +3,17 @@
  */
 (function () {
   'use strict';
-  var E = window.CGEngine, C = window.CGContent, R = window.CGRender;
+  var E = window.CGEngine, C = window.CGContent, R = window.CGRender, S = window.CGServices;
   var $ = function (id) { return document.getElementById(id); };
   var esc = R.esc;
-  var WORK = 'cg.designer.work', SAVED = 'cg.designer.board';
+  // Boards are kept per clan game, so a GenX board and a Beaters board don't overwrite each other.
+  var WORK = 'cg.designer.work', SAVED = 'cg.designer.board', OLD_WORK = WORK;
   var CELL = C.CELL, PAD = C.PAD;
 
-  var board = load() || C.boards['chester-escape']();
+  var board = null, clan = null, themes = Object.keys(C.themes);
   var themeId = 'cemetery', route = 'longer', tool = 'select', sel = null, drag = null, seq = 0;
 
-  function load() { try { return JSON.parse(localStorage.getItem(WORK) || 'null'); } catch (e) { return null; } }
+  function load() { try { return JSON.parse(localStorage.getItem(WORK) || localStorage.getItem(OLD_WORK) || 'null'); } catch (e) { return null; } }
   function persist() {
     try { localStorage.setItem(WORK, JSON.stringify(board)); }
     catch (e) { toast('This browser is out of room for the board. Use a smaller background image.', 'bad'); }
@@ -50,7 +51,7 @@
     var svg = wrap.querySelector('svg');
     if ($('showOrder').checked) drawOrder(svg);
     if (sel) { var g = svg.querySelector('.sp[data-id="' + sel + '"]'); if (g) g.classList.add('sel'); }
-    renderSteps(); renderSpace(); renderProblems();
+    renderSteps(); renderSpace(); renderProblems(); renderStats();
     $('bTitle').value = board.title || '';
     $('rName').value = (board.routeInfo[route] || {}).name || '';
     $('rBlurb').value = (board.routeInfo[route] || {}).blurb || '';
@@ -78,6 +79,37 @@
         '<span class="acts"><button type="button" data-mv="-1" data-i="' + i + '" aria-label="Move up">&uarr;</button><button type="button" data-mv="1" data-i="' + i + '" aria-label="Move down">&darr;</button><button type="button" data-rm="' + i + '" aria-label="Remove from route">&times;</button></span></li>';
     }).join('') || '<li class="empty">No spaces yet. Pick Add spaces and click the board.</li>';
   }
+  // A quick count of what's on each route, to compare the two at a glance.
+  function renderStats() {
+    var el = $('routeStats'); if (!el) return;
+    el.innerHTML = Object.keys(board.routes).map(function (r) {
+      var n = { all: 0, map: 0, task: 0, card: 0, good: 0, bad: 0 };
+      board.routes[r].forEach(function (id) {
+        var sp = board.spaces[id]; if (!sp) return; n.all++;
+        if (sp.type === 'map') n.map++; else if (sp.type === 'task') n.task++; else if (sp.type === 'card') n.card++;
+        else if ((sp.type === 'move' && sp.n > 0) || sp.type === 'safe' || (sp.type === 'warp' && sp.kind === 'swim')) n.good++;
+        else if (sp.type !== 'exit') n.bad++;
+      });
+      return '<li' + (r === route ? ' class="on"' : '') + '><b>' + esc((board.routeInfo[r] || {}).name || r) + '</b> ' + n.all + ' spaces: ' + n.map + ' maps, ' + n.task + ' blockers, ' + n.card + ' card drops, ' + n.good + ' helpful, ' + n.bad + ' setbacks</li>';
+    }).join('');
+  }
+  // Look up map keys on BeatSaver so a typo shows up right away.
+  function mapPeek(el, keys) {
+    if (!el) return;
+    keys = (keys || []).filter(Boolean);
+    if (!keys.length) { el.innerHTML = ''; return; }
+    el.innerHTML = keys.map(function (k) { return '<li data-k="' + esc(k) + '"><span class="mp-k">' + esc(k) + '</span> <span class="muted">Looking up...</span></li>'; }).join('');
+    keys.forEach(function (k) {
+      if (!S) return;
+      S.map(k).then(function (m) {
+        var li = el.querySelector('[data-k="' + k + '"]'); if (!li) return;
+        var std = m.diffs.filter(function (d) { return d.characteristic === 'Standard'; }).map(function (d) { return d.name.replace('ExpertPlus', 'Expert+'); });
+        li.innerHTML = '<img src="' + esc(m.cover) + '" alt="" loading="lazy"><span><b>' + esc(m.name) + '</b> <span class="muted">by ' + esc(m.mapper) + '</span><br><span class="muted">' + esc(std.join(', ') || 'No Standard difficulties') + '</span></span>';
+      }, function () {
+        var li = el.querySelector('[data-k="' + k + '"]'); if (li) { li.className = 'bad'; li.innerHTML = '<span class="mp-k">' + esc(k) + '</span> No map with this key on BeatSaver. Check for a typo.'; }
+      });
+    });
+  }
   function renderSpace() {
     var el = $('spaceEdit'), sp = sel && board.spaces[sel];
     if (!sp) { el.innerHTML = '<p class="empty">Select a space on the board to edit it.</p>'; return; }
@@ -88,13 +120,14 @@
     if (sp.type !== 'map' && sp.type !== 'card') {
       html += '<div class="field"><label for="sKind">Event art and name</label><select id="sKind"><option value="">None</option>' + kinds.map(function (k) { return '<option value="' + k + '"' + (sp.kind === k ? ' selected' : '') + '>' + t.kinds[k].icon + ' ' + esc(t.kinds[k].title) + '</option>'; }).join('') + '</select><span class="hint">Each theme shows its own version of this event.</span></div>';
     }
-    if (sp.type === 'map' || sp.type === 'task') html += '<div class="field"><label for="sBsr">Map key</label><input type="text" id="sBsr" value="' + esc((sp.bsr || []).join(', ')) + '" placeholder="4fde6"><span class="hint">Two keys separated by a comma means the player picks either one.</span></div>';
+    if (sp.type === 'map' || sp.type === 'task') html += '<div class="field"><label for="sBsr">Map key</label><input type="text" id="sBsr" value="' + esc((sp.bsr || []).join(', ')) + '" placeholder="4fde6"><span class="hint">Two keys separated by a comma means the player picks either one.</span><ul class="map-peek" id="sMaps"></ul></div>';
     if (sp.type === 'move') html += '<div class="field"><label for="sN">Spaces to move</label><input type="number" id="sN" value="' + (sp.n || 0) + '"><span class="hint">Positive moves ahead, negative moves back.</span></div>';
     if (sp.type === 'skip') html += '<div class="field"><label for="sTurns">Turns lost</label><input type="number" id="sTurns" min="1" max="5" value="' + (sp.turns || 1) + '"></div>';
     if (sp.type === 'warp') html += '<div class="field"><label for="sTo">Carries the player to</label><select id="sTo"><option value="">Pick a space</option>' + Object.keys(board.spaces).filter(function (id) { return id !== sp.id; }).map(function (id) { return '<option value="' + esc(id) + '"' + (sp.to === id ? ' selected' : '') + '>' + esc(stepName(id)) + '</option>'; }).join('') + '</select><span class="hint">The space it lands on applies, so a current can drop someone onto a lose-a-turn space.</span></div>';
     html += '<p class="why">' + (inRoutes.length ? 'On the ' + esc(inRoutes.join(' and ')) : 'Not on any route yet') + '.</p>';
     html += '<div class="row"><button type="button" class="btn small danger" id="sDelete">Delete space</button></div>';
     el.innerHTML = html;
+    if (sp.type === 'map' || sp.type === 'task') mapPeek($('sMaps'), sp.bsr);
   }
   function stepName(id) {
     var sp = board.spaces[id], where = [];
@@ -213,13 +246,13 @@
       });
     });
     $('snap').onchange = render; $('showOrder').onchange = render;
-    $('bTheme').innerHTML = Object.keys(C.themes).map(function (k) { return '<option value="' + k + '">' + esc(C.themes[k].name) + '</option>'; }).join('');
+    $('bTheme').innerHTML = themes.map(function (k) { return '<option value="' + k + '"' + (k === themeId ? ' selected' : '') + '>' + esc(C.themes[k].name) + '</option>'; }).join('');
     $('bTheme').onchange = function () { themeId = this.value; render(); };
     $('bTitle').oninput = function () { typed('bTitle'); board.title = this.value; persist(); };
     $('rName').oninput = function () { typed('rName:' + route); board.routeInfo[route].name = this.value; persist(); };
     $('rBlurb').oninput = function () { typed('rBlurb:' + route); board.routeInfo[route].blurb = this.value; persist(); };
     ['bTitle', 'rName', 'rBlurb'].forEach(function (id) { $(id).addEventListener('blur', function () { typing = null; }); });
-    $('bonus').onchange = function () { checkpoint(); board.bonusMaps = this.value.split(/[\s,]+/).map(function (k) { return k.replace(/^!bsr/i, '').trim().toLowerCase(); }).filter(Boolean); changed(); };
+    $('bonus').onchange = function () { checkpoint(); board.bonusMaps = this.value.split(/[\s,]+/).map(function (k) { return k.replace(/^!bsr/i, '').trim().toLowerCase(); }).filter(Boolean); changed(); mapPeek($('bonusMaps'), board.bonusMaps); };
     $('routeTabs').addEventListener('click', function (e) { var b = e.target.closest('[data-route]'); if (b) { route = b.dataset.route; render(); } });
     $('addToRoute').onclick = function () { if (sel) addToRoute(sel); };
     $('steps').addEventListener('click', function (e) {
@@ -286,6 +319,7 @@
     $('resetBoard').onclick = function () { if (confirm('Throw away this board and start from Chester\'s Escape?')) { checkpoint(); board = C.boards['chester-escape'](); sel = null; route = 'longer'; changed(); toast('Started over. Undo brings your board back.', 'good'); } };
     $('undoBtn').onclick = undo; $('redoBtn').onclick = redo;
     document.addEventListener('keydown', function (e) {
+      if (document.body.classList.contains('cards-mode')) return;
       var inField = /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
       var mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
       // In a text box, Ctrl+Z stays the browser's own text undo.
@@ -312,5 +346,16 @@
     });
   }
 
-  bind(); render(); updateUndo();
+  (window.CGDesignerClan || Promise.resolve(null)).then(function (info) {
+    clan = info;
+    if (clan) {
+      WORK = 'cg.designer.work.' + clan.clan; SAVED = 'cg.designer.board.' + clan.clan;
+      themes = window.CGDesignerThemes(clan);
+      themeId = clan.theme && themes.indexOf(clan.theme) >= 0 ? clan.theme : themes[0];
+      $('dzFor').innerHTML = 'Working on the <b>' + esc(clan.name) + '</b> game. Boards and themes here are for ' + esc(clan.name) + ' only.';
+      $('dzFor').hidden = false;
+    }
+    board = load() || C.boards['chester-escape']();
+    bind(); render(); updateUndo();
+  });
 })();

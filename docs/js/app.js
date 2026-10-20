@@ -1161,7 +1161,8 @@
       return store.post('/api/push/test', { endpoint: sub.endpoint });
     }).then(function () { track('push-test'); toast('Test sent. It should pop up in a few seconds.', 'good'); }, fail);
   }
-  function designerBoard() { try { return JSON.parse(localStorage.getItem('cg.designer.board') || 'null'); } catch (e) { return null; } }
+  // The designer keeps a board per clan game; boards saved before clans existed are still found.
+  function designerBoard() { try { return JSON.parse((store.clan && localStorage.getItem('cg.designer.board.' + store.clan)) || localStorage.getItem('cg.designer.board') || 'null'); } catch (e) { return null; } }
   function hostAction(btn) {
     var h = btn.dataset.h, pid = btn.dataset.pid;
     var run = function (name, args, msg) { return store.act(name, args).then(function () { track('host-' + h); if (msg) toast(msg, 'good'); }, fail); };

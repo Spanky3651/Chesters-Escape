@@ -34,3 +34,55 @@
 .tool.icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .tool.icon:disabled { opacity: .35; cursor: default; }
 .tool.icon:not(:disabled):hover { border-color: var(--accent); }
+
+/* Board / Cards tabs and the clan the designer is working for */
+.mode-tabs button { font-size: 15px; padding: 8px 16px; }
+.dz-for { max-width: 1500px; margin: 14px auto 0; padding: 0 22px; color: var(--muted); font-size: 14.5px; }
+.dz-for b { color: var(--text); }
+.route-stats { list-style: none; margin: 0 0 12px; padding: 0; font-size: 13.5px; color: var(--muted); display: grid; gap: 4px; }
+.route-stats li.on { color: var(--text); }
+.route-stats b { color: var(--text); margin-right: 4px; }
+.map-peek { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 6px; }
+.map-peek li { display: flex; align-items: center; gap: 10px; font-size: 13.5px; line-height: 1.35; }
+.map-peek li.bad { color: var(--warn); }
+.map-peek img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; flex: none; background: var(--raise-2); }
+.map-peek .mp-k { font-family: ui-monospace, Consolas, monospace; color: var(--accent); }
+#bonusMaps { max-height: 260px; overflow: auto; }
+
+/* Card editor */
+.cz { max-width: 1180px; margin: 0 auto; padding: 18px 22px 50px; }
+.cz-intro { margin: 0 0 6px; color: var(--muted); max-width: 80ch; }
+.cz-bar { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+.cz-bar .field { margin: 8px 0; min-width: 220px; }
+.cz-bar select, .cz-bar input, .ce-f input, .ce-f textarea, .ce-kind input { padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: #000; color: var(--text); font: inherit; color-scheme: dark; }
+.cz-actions { margin: 8px 0; gap: 10px; flex-wrap: wrap; }
+.ce-group h2 { font: 700 28px/1.1 var(--display); margin: 30px 0 4px; }
+.ce-group h2 .muted { font-size: 18px; color: var(--muted); }
+.ce-card { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 20px; align-items: start; padding: 16px; margin: 12px 0; border: 1px solid var(--line); border-radius: 14px; background: var(--raise); }
+.ce-card.changed { border-color: var(--accent); }
+.cprev { width: 200px; height: 280px; position: relative; overflow: hidden; border-radius: 12px; }
+.cprev-in { width: 320px; height: 448px; transform: scale(.625); transform-origin: top left; position: relative; }
+.cprev .cface { box-shadow: none; }
+.ce-fields { min-width: 0; }
+.ce-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.ce-head b { font-size: 16px; }
+.ce-badge { font-size: 12.5px; font-weight: 700; color: var(--accent-ink); background: var(--accent); border-radius: 999px; padding: 2px 9px; }
+.ce-row { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px; }
+.ce-f { display: flex; flex-direction: column; gap: 5px; margin: 8px 0; font-size: 14px; font-weight: 700; }
+.ce-f span { display: flex; justify-content: space-between; gap: 8px; }
+.ce-f .cnt { font-style: normal; font-weight: 400; color: var(--faint); font-size: 12.5px; }
+.ce-f textarea { resize: vertical; min-height: 64px; font-weight: 400; }
+.ce-f input { font-weight: 400; }
+.ce-fx { margin: 6px 0 0; font-size: 14.5px; color: var(--muted); }
+.ce-fx b { color: var(--text); }
+.ce-was { margin: 6px 0 0; font-size: 13.5px; color: var(--faint); }
+.ce-kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; }
+.ce-kind { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--raise); }
+.ce-kind.changed { border-color: var(--accent); }
+.ce-kind .ce-icon { text-align: center; font-size: 20px; padding: 6px; }
+@media (max-width: 640px) {
+  .ce-card { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  .ce-fields { width: 100%; }
+  .mode-tabs { order: 3; }
+}
+.mode-tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700; }

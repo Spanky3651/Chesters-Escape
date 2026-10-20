@@ -33,6 +33,10 @@ Each clan Discord server gets its own game, with its own board, players and them
 
 `designer.html` lays out a board on top of your own art: upload the image, click each square in order, and set what it does (map, blocker, card drop, move, lose a turn, back to start, or a current that carries you elsewhere). Themes swap the art, event names and card text, so the same board can run as a Halloween, Thanksgiving or Christmas game. A theme can also bring its own board art, like the taco boards for Halloween, Thanksgiving, Christmas, New Year, Valentine's Day, Easter and summer.
 
+## Card editor
+
+The designer's **Cards** tab lets anyone rewrite a theme's 20 cards and its event space names, with a live preview of each card. What a card does stays locked. Download the card pack and send the file to the host. The designer follows the clan game you're signed in to, so its themes and saved boards are for that game only.
+
 ## Built with
 
 Map info from [BeatSaver](https://beatsaver.com). Scores from [BeatLeader](https://beatleader.com).
