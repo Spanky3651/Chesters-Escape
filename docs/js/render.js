@@ -89,7 +89,7 @@
   }
   // Taco: the Beaters mascot, a smiling taco shell with the fillings peeking over the top.
   function taco(x, y, s, hat) {
-    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')">';
+    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')"><g class="taco-move">';
     o += '<ellipse cx="0" cy="29" rx="29" ry="5" fill="#000" opacity=".28"/>';
     // fillings along the top edge of the shell: lettuce, tomato and meat
     var fill = [[-26, 14, 6, '#5fb83a'], [-23, 4, 6.5, '#6cc443'], [-16, -4, 6.5, '#5fb83a'], [-7, -8, 6.5, '#6cc443'], [3, -9, 6.5, '#5fb83a'], [13, -6, 6.5, '#6cc443'], [21, 1, 6.5, '#5fb83a'], [26, 11, 6, '#6cc443'],
@@ -102,7 +102,7 @@
     o += '<path d="M-4,18 q4,4.5 8,0" fill="none" stroke="#3a2410" stroke-width="2.2" stroke-linecap="round"/>';
     o += '<ellipse cx="-16" cy="18" rx="4" ry="2.4" fill="#ff7b9c" opacity=".6"/><ellipse cx="16" cy="18" rx="4" ry="2.4" fill="#ff7b9c" opacity=".6"/>';
     if (hat && hat !== 'none') o += '<g transform="translate(2,4) rotate(8)">' + hatSvg(hat) + '</g>';
-    o += '</g>';
+    o += '</g></g>';
     return o;
   }
   // The theme's main character: Chester, or Taco on the Beaters themes.
@@ -268,6 +268,11 @@
     var art = board.background || theme.art;
     if (art) {
       o += '<image href="' + esc(art) + '" x="0" y="0" width="1000" height="1000" preserveAspectRatio="xMidYMid slice"/>';
+      var hh = !board.background && theme.artHero;
+      if (hh) {
+        // The art's hero on its own layer so it can peek and wiggle (CSS), clipped at the hill line.
+        o += '<clipPath id="heroClip"><path d="' + hh.clip + '"/></clipPath><g clip-path="url(#heroClip)"><image class="art-hero" href="' + esc(hh.src) + '" x="' + hh.x + '" y="' + hh.y + '" width="' + hh.w + '" height="' + hh.h + '"/></g>';
+      }
       return o;
     }
     o += '<rect width="1000" height="1000" fill="url(#gGround)"/>';

@@ -229,6 +229,8 @@
       hat: 'pilgrim',
       look: 'thanksgiving',
       art: 'img/themes/taco-thanksgiving.jpg',   // Hummingbird's board art, title included
+      // Taco cut out of the art so he can move; clip keeps him behind the hill.
+      artHero: { src: 'img/themes/taco-thanksgiving-taco.png', x: 518.34, y: 87.72, w: 156.3, h: 98.88, clip: 'M488.8,54.2 L702.6,54.2 L702.6,178.9 L699.4,179.1 L696.2,179.4 L693.0,179.6 L689.8,179.8 L686.6,180.0 L683.4,180.1 L680.2,180.3 L677.0,180.4 L673.8,180.6 L670.7,180.7 L667.5,180.8 L664.3,180.8 L661.1,180.9 L657.9,180.9 L654.7,181.0 L651.5,181.0 L648.3,181.0 L645.1,181.0 L641.9,180.9 L638.8,180.9 L635.6,180.8 L632.4,180.7 L629.2,180.6 L626.0,180.5 L622.8,180.4 L619.6,180.2 L616.4,180.1 L613.2,179.9 L610.0,179.7 L606.9,179.5 L603.7,179.3 L600.5,179.0 L597.3,178.8 L594.1,178.5 L590.9,178.2 L587.7,177.9 L584.5,177.6 L581.3,177.2 L578.1,176.9 L575.0,176.5 L571.8,176.1 L568.6,175.7 L565.4,175.3 L562.2,174.9 L559.0,174.4 L555.8,173.9 L552.6,173.5 L549.4,173.0 L546.3,172.5 L543.1,171.9 L539.9,171.4 L536.7,170.8 L533.5,170.2 L530.3,169.6 L527.1,169.0 L523.9,168.4 L520.7,167.8 L517.5,167.1 L514.4,166.4 L511.2,165.8 L508.0,165.1 L504.8,164.3 L501.6,163.6 L498.4,162.8 L495.2,162.1 L492.0,161.3 L488.8,160.5 Z' },
       banner: ['#d9661f', '#fff4dc'],
       palette: { ground: '#f3d27a', ground2: '#d9a24a', stone: '#fff7e6', stoneDark: '#9a6a2e', ink: '#4a2a10', accent: '#d9661f', good: '#4f8a2b', bad: '#b23a1c', water: '#5f9bbd' },
       card: { back: 'Taco’s Thanksgiving', treasure: 'Harvest card', trick: 'Leftovers card', task: 'Chore card', fate: 'Wishbone card' },
@@ -263,6 +265,8 @@
       hat: 'santa',
       look: 'christmas',
       art: 'img/themes/taco-christmas.jpg',   // Hummingbird's board art, title included
+      // Taco cut out of the art so he can move; clip keeps him behind the hill.
+      artHero: { src: 'img/themes/taco-christmas-taco.png', x: 521.53, y: 85.33, w: 128.39, h: 93.3, clip: 'M492.0,51.8 L677.0,51.8 L677.0,172.7 L673.8,173.1 L670.7,173.4 L667.5,173.8 L664.3,174.1 L661.1,174.3 L657.9,174.6 L654.7,174.8 L651.5,175.0 L648.3,175.2 L645.1,175.3 L641.9,175.4 L638.8,175.5 L635.6,175.6 L632.4,175.6 L629.2,175.6 L626.0,175.6 L622.8,175.6 L619.6,175.5 L616.4,175.4 L613.2,175.3 L610.0,175.1 L606.9,174.9 L603.7,174.7 L600.5,174.5 L597.3,174.2 L594.1,174.0 L590.9,173.7 L587.7,173.3 L584.5,173.0 L581.3,172.6 L578.1,172.1 L575.0,171.7 L571.8,171.2 L568.6,170.7 L565.4,170.2 L562.2,169.7 L559.0,169.1 L555.8,168.5 L552.6,167.8 L549.4,167.2 L546.3,166.5 L543.1,165.8 L539.9,165.0 L536.7,164.3 L533.5,163.5 L530.3,162.7 L527.1,161.8 L523.9,161.0 L520.7,160.1 L517.5,159.1 L514.4,158.2 L511.2,157.2 L508.0,156.2 L504.8,155.2 L501.6,154.1 L498.4,153.0 L495.2,151.9 L492.0,150.8 Z' },
       banner: ['#d7263d', '#fff'],
       palette: { ground: '#e9f1f7', ground2: '#c9dbe8', stone: '#ffffff', stoneDark: '#9db4c6', ink: '#24384a', accent: '#d7263d', good: '#2fb35a', bad: '#3a6ea5', water: '#a9d6f0' },
       card: { back: 'Taco’s Christmas', treasure: 'Gift card', trick: 'Coal card', task: 'Carol card', fate: 'Snow globe' },

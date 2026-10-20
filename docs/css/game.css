@@ -487,6 +487,10 @@ body.gated .foot { border-top: 0; margin-top: 0; }
 @keyframes leaf { from { transform: translate(0, 0) rotate(0); } 25% { transform: translate(var(--sway, 20px), 260px) rotate(110deg); } 50% { transform: translate(calc(var(--sway, 20px) * -1), 520px) rotate(200deg); } 75% { transform: translate(var(--sway, 20px), 780px) rotate(290deg); } to { transform: translate(0, 1060px) rotate(380deg); } }
 @keyframes snow { from { transform: translate(0, 0); } 50% { transform: translate(var(--sway, 10px), 520px); } to { transform: translate(0, 1040px); } }
 .board-svg .eyes, .brand-crow .eyes, .gate-crow .eyes, .cback .eyes { animation: blink 5.5s infinite; transform-box: fill-box; transform-origin: center; }
+/* Taco does a little dip and wiggle every few seconds, the way Chester blinks. */
+.board-svg .art-hero, .taco-move { animation: peek 6s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+.taco-move { transform-origin: 50% 92%; }
+@keyframes peek { 0%, 60%, 100% { transform: none; } 65% { transform: translateY(6%) scale(1.02, .97); } 71% { transform: rotate(-4deg); } 77% { transform: rotate(3.5deg); } 83% { transform: rotate(-2deg); } 89% { transform: rotate(1deg); } 94% { transform: none; } }
 @keyframes blink { 0%,94%,100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
 
 /* ---- roll preview, landing ---- */
