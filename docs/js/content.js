@@ -229,8 +229,8 @@
       hero: 'taco',
       hat: "witch",
       look: "halloween",
-      art: "img/themes/taco-halloween.jpg",   // Hummingbird's board art, title included
-      artHero: {"src": "img/themes/taco-halloween-taco.png", "x": 117.22, "y": 55.02, "w": 90.91, "h": 78.15, "move": "hop"},
+      art: "img/themes/taco-halloween.jpg?v=20261020",   // Hummingbird's board art, title included
+      artHero: {"src": "img/themes/taco-halloween-taco.png?v=20261020", "x": 117.22, "y": 55.02, "w": 90.91, "h": 78.15, "move": "hop"},
       banner: ["#ff8a2b", "#2a1040"],
       palette: {"ground": "#b9a3e3", "ground2": "#7d62b8", "stone": "#fff8ef", "stoneDark": "#8a6fb0", "ink": "#3b1d4a", "accent": "#ff8a2b", "good": "#4caf50", "bad": "#8e44ad", "water": "#7d62b8"},
       card: {"back": "Taco’s Halloween", "treasure": "Treat card", "trick": "Trick card", "task": "Spell card", "fate": "Potion card"},
@@ -265,8 +265,8 @@
       hero: 'taco',
       hat: "pilgrim",
       look: "thanksgiving",
-      art: "img/themes/taco-thanksgiving.jpg",   // Hummingbird's board art, title included
-      artHero: {"src": "img/themes/taco-thanksgiving-taco.png", "x": 126.0, "y": 122.01, "w": 121.21, "h": 79.74, "move": "hop"},
+      art: "img/themes/taco-thanksgiving.jpg?v=20261020",   // Hummingbird's board art, title included
+      artHero: {"src": "img/themes/taco-thanksgiving-taco.png?v=20261020", "x": 126.0, "y": 122.01, "w": 121.21, "h": 79.74, "move": "hop"},
       banner: ["#d9661f", "#fff4dc"],
       palette: {"ground": "#f3d27a", "ground2": "#d9a24a", "stone": "#fff7e6", "stoneDark": "#9a6a2e", "ink": "#4a2a10", "accent": "#d9661f", "good": "#4f8a2b", "bad": "#b23a1c", "water": "#5f9bbd"},
       card: {"back": "Taco’s Thanksgiving", "treasure": "Harvest card", "trick": "Leftovers card", "task": "Chore card", "fate": "Wishbone card"},
@@ -301,8 +301,8 @@
       hero: 'taco',
       hat: "santa",
       look: "christmas",
-      art: "img/themes/taco-christmas.jpg",   // Hummingbird's board art, title included
-      artHero: {"src": "img/themes/taco-christmas-taco.png", "x": 74.96, "y": 66.99, "w": 146.73, "h": 114.04, "move": "hill", "clip": "M47.0,35.1 L248.0,35.1 L248.0,190.0 L244.8,189.0 L241.6,187.9 L238.4,187.0 L235.2,186.0 L232.1,185.1 L228.9,184.2 L225.7,183.4 L222.5,182.5 L219.3,181.7 L216.1,181.0 L212.9,180.2 L209.7,179.5 L206.5,178.8 L203.3,178.2 L200.2,177.6 L197.0,177.0 L193.8,176.5 L190.6,175.9 L187.4,175.4 L184.2,175.0 L181.0,174.5 L177.8,174.1 L174.6,173.8 L171.5,173.4 L168.3,173.1 L165.1,172.8 L161.9,172.6 L158.7,172.4 L155.5,172.2 L152.3,172.0 L149.1,171.9 L145.9,171.8 L142.7,171.7 L139.6,171.7 L136.4,171.7 L133.2,171.7 L130.0,171.8 L126.8,171.9 L123.6,172.0 L120.4,172.1 L117.2,172.3 L114.0,172.5 L110.8,172.7 L107.7,173.0 L104.5,173.3 L101.3,173.6 L98.1,174.0 L94.9,174.4 L91.7,174.8 L88.5,175.2 L85.3,175.7 L82.1,176.2 L78.9,176.8 L75.8,177.3 L72.6,177.9 L69.4,178.6 L66.2,179.2 L63.0,179.9 L59.8,180.7 L56.6,181.4 L53.4,182.2 L50.2,183.0 L47.0,183.9 Z"},
+      art: "img/themes/taco-christmas.jpg?v=20261020",   // Hummingbird's board art, title included
+      artHero: {"src": "img/themes/taco-christmas-taco.png?v=20261020", "x": 74.96, "y": 66.99, "w": 146.73, "h": 114.04, "move": "hill", "clip": "M47.0,35.1 L248.0,35.1 L248.0,190.0 L244.8,189.0 L241.6,187.9 L238.4,187.0 L235.2,186.0 L232.1,185.1 L228.9,184.2 L225.7,183.4 L222.5,182.5 L219.3,181.7 L216.1,181.0 L212.9,180.2 L209.7,179.5 L206.5,178.8 L203.3,178.2 L200.2,177.6 L197.0,177.0 L193.8,176.5 L190.6,175.9 L187.4,175.4 L184.2,175.0 L181.0,174.5 L177.8,174.1 L174.6,173.8 L171.5,173.4 L168.3,173.1 L165.1,172.8 L161.9,172.6 L158.7,172.4 L155.5,172.2 L152.3,172.0 L149.1,171.9 L145.9,171.8 L142.7,171.7 L139.6,171.7 L136.4,171.7 L133.2,171.7 L130.0,171.8 L126.8,171.9 L123.6,172.0 L120.4,172.1 L117.2,172.3 L114.0,172.5 L110.8,172.7 L107.7,173.0 L104.5,173.3 L101.3,173.6 L98.1,174.0 L94.9,174.4 L91.7,174.8 L88.5,175.2 L85.3,175.7 L82.1,176.2 L78.9,176.8 L75.8,177.3 L72.6,177.9 L69.4,178.6 L66.2,179.2 L63.0,179.9 L59.8,180.7 L56.6,181.4 L53.4,182.2 L50.2,183.0 L47.0,183.9 Z"},
       banner: ["#d7263d", "#fff"],
       palette: {"ground": "#e9f1f7", "ground2": "#c9dbe8", "stone": "#ffffff", "stoneDark": "#9db4c6", "ink": "#24384a", "accent": "#d7263d", "good": "#2fb35a", "bad": "#3a6ea5", "water": "#a9d6f0"},
       card: {"back": "Taco’s Christmas", "treasure": "Gift card", "trick": "Coal card", "task": "Carol card", "fate": "Snow globe"},
@@ -337,8 +337,8 @@
       hero: 'taco',
       hat: "party",
       look: "newyear",
-      art: "img/themes/taco-newyear.jpg",   // Hummingbird's board art, title included
-      artHero: {"src": "img/themes/taco-newyear-taco.png", "x": 77.35, "y": 94.9, "w": 130.78, "h": 101.28, "move": "hill", "clip": "M49.4,63.0 L234.4,63.0 L234.4,201.3 L231.3,200.2 L228.1,199.2 L224.9,198.3 L221.7,197.3 L218.5,196.4 L215.3,195.6 L212.1,194.7 L208.9,193.9 L205.7,193.1 L202.6,192.4 L199.4,191.7 L196.2,191.0 L193.0,190.4 L189.8,189.8 L186.6,189.2 L183.4,188.7 L180.2,188.1 L177.0,187.7 L173.8,187.2 L170.7,186.8 L167.5,186.4 L164.3,186.1 L161.1,185.8 L157.9,185.5 L154.7,185.2 L151.5,185.0 L148.3,184.8 L145.1,184.6 L141.9,184.5 L138.8,184.4 L135.6,184.4 L132.4,184.3 L129.2,184.3 L126.0,184.4 L122.8,184.5 L119.6,184.6 L116.4,184.7 L113.2,184.9 L110.0,185.1 L106.9,185.3 L103.7,185.6 L100.5,185.9 L97.3,186.2 L94.1,186.5 L90.9,186.9 L87.7,187.4 L84.5,187.8 L81.3,188.3 L78.1,188.8 L75.0,189.4 L71.8,190.0 L68.6,190.6 L65.4,191.2 L62.2,191.9 L59.0,192.6 L55.8,193.4 L52.6,194.2 L49.4,195.0 Z"},
+      art: "img/themes/taco-newyear.jpg?v=20261020",   // Hummingbird's board art, title included
+      artHero: {"src": "img/themes/taco-newyear-taco.png?v=20261020", "x": 77.35, "y": 94.9, "w": 130.78, "h": 101.28, "move": "hill", "clip": "M49.4,63.0 L234.4,63.0 L234.4,201.3 L231.3,200.2 L228.1,199.2 L224.9,198.3 L221.7,197.3 L218.5,196.4 L215.3,195.6 L212.1,194.7 L208.9,193.9 L205.7,193.1 L202.6,192.4 L199.4,191.7 L196.2,191.0 L193.0,190.4 L189.8,189.8 L186.6,189.2 L183.4,188.7 L180.2,188.1 L177.0,187.7 L173.8,187.2 L170.7,186.8 L167.5,186.4 L164.3,186.1 L161.1,185.8 L157.9,185.5 L154.7,185.2 L151.5,185.0 L148.3,184.8 L145.1,184.6 L141.9,184.5 L138.8,184.4 L135.6,184.4 L132.4,184.3 L129.2,184.3 L126.0,184.4 L122.8,184.5 L119.6,184.6 L116.4,184.7 L113.2,184.9 L110.0,185.1 L106.9,185.3 L103.7,185.6 L100.5,185.9 L97.3,186.2 L94.1,186.5 L90.9,186.9 L87.7,187.4 L84.5,187.8 L81.3,188.3 L78.1,188.8 L75.0,189.4 L71.8,190.0 L68.6,190.6 L65.4,191.2 L62.2,191.9 L59.0,192.6 L55.8,193.4 L52.6,194.2 L49.4,195.0 Z"},
       banner: ["#f2c046", "#1d2350"],
       palette: {"ground": "#c7d3f2", "ground2": "#8fa3d8", "stone": "#ffffff", "stoneDark": "#8d97c4", "ink": "#1d2350", "accent": "#f2c046", "good": "#2fb35a", "bad": "#5b6cff", "water": "#8fb7e8"},
       card: {"back": "Taco’s New Year", "treasure": "Sparkler card", "trick": "Fizzle card", "task": "Resolution card", "fate": "Countdown card"},
@@ -373,8 +373,8 @@
       hero: 'taco',
       hat: "heart",
       look: "valentine",
-      art: "img/themes/taco-valentine.jpg",   // Hummingbird's board art, title included
-      artHero: {"src": "img/themes/taco-valentine-taco.png", "x": 137.16, "y": 120.41, "w": 120.41, "h": 70.18, "move": "hop"},
+      art: "img/themes/taco-valentine.jpg?v=20261020",   // Hummingbird's board art, title included
+      artHero: {"src": "img/themes/taco-valentine-taco.png?v=20261020", "x": 137.16, "y": 120.41, "w": 120.41, "h": 70.18, "move": "hop"},
       banner: ["#ff4d6d", "#fff0f4"],
       palette: {"ground": "#ffd6e0", "ground2": "#f7a8bd", "stone": "#ffffff", "stoneDark": "#d68aa0", "ink": "#7a1030", "accent": "#ff4d6d", "good": "#2fb35a", "bad": "#c2185b", "water": "#f7a8bd"},
       card: {"back": "Taco’s Valentine’s Day", "treasure": "Sweetheart card", "trick": "Heartbreak card", "task": "Love note card", "fate": "Cupid card"},
@@ -409,8 +409,8 @@
       hero: 'taco',
       hat: "bunny",
       look: "spring",
-      art: "img/themes/taco-easter.jpg",   // Hummingbird's board art, title included
-      artHero: {"src": "img/themes/taco-easter-taco.png", "x": 76.56, "y": 87.72, "w": 125.2, "h": 113.24, "move": "hill", "clip": "M48.6,55.8 L227.3,55.8 L227.3,181.3 L224.1,181.8 L220.9,182.3 L217.7,182.8 L214.5,183.3 L211.3,183.7 L208.1,184.2 L204.9,184.7 L201.8,185.1 L198.6,185.5 L195.4,186.0 L192.2,186.4 L189.0,186.8 L185.8,187.2 L182.6,187.6 L179.4,188.0 L176.2,188.4 L173.0,188.8 L169.9,189.1 L166.7,189.5 L163.5,189.8 L160.3,190.2 L157.1,190.5 L153.9,190.9 L150.7,191.2 L147.5,191.5 L144.3,191.8 L141.1,192.1 L138.0,192.4 L134.8,192.6 L131.6,192.9 L128.4,193.2 L125.2,193.4 L122.0,193.7 L118.8,193.9 L115.6,194.2 L112.4,194.4 L109.3,194.6 L106.1,194.8 L102.9,195.0 L99.7,195.2 L96.5,195.4 L93.3,195.6 L90.1,195.7 L86.9,195.9 L83.7,196.0 L80.5,196.2 L77.4,196.3 L74.2,196.4 L71.0,196.6 L67.8,196.7 L64.6,196.8 L61.4,196.9 L58.2,197.0 L55.0,197.0 L51.8,197.1 L48.6,197.2 Z"},
+      art: "img/themes/taco-easter.jpg?v=20261020",   // Hummingbird's board art, title included
+      artHero: {"src": "img/themes/taco-easter-taco.png?v=20261020", "x": 76.56, "y": 87.72, "w": 125.2, "h": 113.24, "move": "hill", "clip": "M48.6,55.8 L227.3,55.8 L227.3,181.3 L224.1,181.8 L220.9,182.3 L217.7,182.8 L214.5,183.3 L211.3,183.7 L208.1,184.2 L204.9,184.7 L201.8,185.1 L198.6,185.5 L195.4,186.0 L192.2,186.4 L189.0,186.8 L185.8,187.2 L182.6,187.6 L179.4,188.0 L176.2,188.4 L173.0,188.8 L169.9,189.1 L166.7,189.5 L163.5,189.8 L160.3,190.2 L157.1,190.5 L153.9,190.9 L150.7,191.2 L147.5,191.5 L144.3,191.8 L141.1,192.1 L138.0,192.4 L134.8,192.6 L131.6,192.9 L128.4,193.2 L125.2,193.4 L122.0,193.7 L118.8,193.9 L115.6,194.2 L112.4,194.4 L109.3,194.6 L106.1,194.8 L102.9,195.0 L99.7,195.2 L96.5,195.4 L93.3,195.6 L90.1,195.7 L86.9,195.9 L83.7,196.0 L80.5,196.2 L77.4,196.3 L74.2,196.4 L71.0,196.6 L67.8,196.7 L64.6,196.8 L61.4,196.9 L58.2,197.0 L55.0,197.0 L51.8,197.1 L48.6,197.2 Z"},
       banner: ["#e75480", "#fff"],
       palette: {"ground": "#c9e98a", "ground2": "#8cc152", "stone": "#ffffff", "stoneDark": "#8fb06a", "ink": "#2f4a1d", "accent": "#e75480", "good": "#3fa34d", "bad": "#e75480", "water": "#7fc8f8"},
       card: {"back": "Taco’s Easter", "treasure": "Egg card", "trick": "Rain card", "task": "Hunt card", "fate": "Basket card"},
@@ -445,8 +445,8 @@
       hero: 'taco',
       hat: "shades",
       look: "summer",
-      art: "img/themes/taco-summer.jpg",   // Hummingbird's board art, title included
-      artHero: {"src": "img/themes/taco-summer-taco.png", "x": 102.87, "y": 126.0, "w": 130.78, "h": 66.99, "move": "hop"},
+      art: "img/themes/taco-summer.jpg?v=20261020",   // Hummingbird's board art, title included
+      artHero: {"src": "img/themes/taco-summer-taco.png?v=20261020", "x": 102.87, "y": 126.0, "w": 130.78, "h": 66.99, "move": "hop"},
       banner: ["#ffb703", "#0b4f6c"],
       palette: {"ground": "#f6dfae", "ground2": "#e8c27f", "stone": "#ffffff", "stoneDark": "#c9a46a", "ink": "#0b4f6c", "accent": "#ffb703", "good": "#2fb35a", "bad": "#ff7b00", "water": "#3ab0e2"},
       card: {"back": "Taco’s Summer", "treasure": "Sunshine card", "trick": "Sunburn card", "task": "Beach card", "fate": "Seashell card"},
