@@ -726,3 +726,8 @@ body.gated .foot { border-top: 0; margin-top: 0; }
 .route-card .rc-stats { display: block; margin-top: 8px; font-size: 13px; color: var(--faint); }
 .st .st-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ptable td:empty { display: none; }
+
+/* Before a game is picked: no theme, no character, plain type. */
+body.neutral { --display: var(--ui); --raise: #111; --raise-2: #191919; --line: #262626; --line-2: #333; }
+body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
+.gate-die { width: 96px; height: 96px; margin: 0 auto 4px; display: block; }

@@ -685,6 +685,6 @@
 
   root.CGRender = {
     board: board, placeTokens: placeTokens, layoutTokens: layoutTokens, tokenXY: tokenXY,
-    playerColor: playerColor, initials: initials, chester: chester, taco: taco, hero: hero, setFavicon: setFavicon, faviconSvg: faviconSvg, hatFor: hatFor, label: label, esc: esc
+    playerColor: playerColor, initials: initials, chester: chester, taco: taco, hero: hero, dieIcon: function () { return DIE_ICON; }, setFavicon: setFavicon, faviconSvg: faviconSvg, hatFor: hatFor, label: label, esc: esc
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

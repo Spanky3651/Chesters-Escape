@@ -332,7 +332,7 @@
         }).join('') + '</div>';
       return;
     }
-    var html = '<h2>' + (p.finished ? 'Chester is free' : 'Your turn') + '</h2>';
+    var html = '<h2>' + (p.finished ? esc(theme().words.escaped) : 'Your turn') + '</h2>';
     p.tasks.forEach(function (task) { html += taskHtml(p, task); });
     var can = E.canRoll(s, p.id);
     if (!p.finished) {
@@ -1351,25 +1351,30 @@
 
   // ---- start -----------------------------------------------------------------------------------
   // ---- closed door ---------------------------------------------------------------------------
+  function theme0(t) { return t.hero === 'taco' ? 'The game starts in' : null; }
   function renderGate(g) {
     // The game picker stays neutral; each game's own theme shows once you pick it.
+    // Before a game is picked, the page is neutral: a d4, a plain font and no game name.
     var t = g.kind !== 'choose' && g.theme && C.themes[g.theme] || null;
+    var die = R.dieIcon().replace('<svg ', '<svg class="gate-die" aria-hidden="true" ');
+    if (!t) { document.body.classList.add('neutral'); $('gameTitle').textContent = "Beat Saber Board Game"; document.title = "Beat Saber Board Game"; }
     track('gate-' + g.kind);
     document.addEventListener('click', function (e) { if (e.target.closest('a[href*="/auth/login"]')) track('sign-in'); });
     document.body.classList.add('gated');
     if (t) { document.body.setAttribute('data-theme', t.look || t.id); $('gameTitle').textContent = t.title; document.title = t.title; }
     R.setFavicon(t);
-    $('brandCrow').innerHTML = t ? R.hero(0, 0, 1, t) : R.chester(0, 0, 1, 'none');
+    if (t) $('brandCrow').innerHTML = R.hero(0, 0, 1, t);
+    else { $('brandCrow').setAttribute('viewBox', '0 0 100 100'); $('brandCrow').innerHTML = R.dieIcon().replace(/^<svg[^>]*>|<\/svg>$/g, ''); }
     if (g.kind !== 'choose') renderClanSwitch(g);
     var msg = {
-      closed: ['Coming soon', "Chester's Escape isn't open yet. Watch the clan Discord for the start."],
+      closed: ['Coming soon', "The game isn't open yet. Watch your clan Discord for the start."],
       down: ["Can't reach the game", 'The game server is not answering right now. Try again in a minute.'],
-      signin: ['Private game', 'Sign in with Discord to see the board. The host lets players in.'],
+      signin: ['Private game', "Sign in with Discord to see your clan's game."],
       pending: ["You're on the list", 'Thanks' + (g.user ? ', ' + g.user.name : '') + '. The host has your request and will let you in. Check back soon.'],
       choose: ['Pick your game', "You're in more than one clan server, so there's a game for each. You can switch any time with the icons at the top of the page."]
     }[g.kind];
-    var html = '<section class="gate-card"><svg class="gate-crow" viewBox="-36 -42 72 80" aria-hidden="true">' + (t ? R.hero(0, 0, 1, t) : R.chester(0, 0, 1, 'none')) + '</svg>' +
-      '<h2>' + esc(msg[0]) + '</h2><p>' + esc(msg[1]) + '</p>' + (g.startsAt && g.startsAt > Date.now() ? countdownHtml(g.startsAt) : '') + '<div class="row" style="justify-content:center">';
+    var html = '<section class="gate-card">' + (t ? '<svg class="gate-crow" viewBox="-36 -42 72 80" aria-hidden="true">' + R.hero(0, 0, 1, t) + '</svg>' : die) +
+      '<h2>' + esc(msg[0]) + '</h2><p>' + esc(msg[1]) + '</p>' + (t && g.startsAt && g.startsAt > Date.now() ? countdownHtml(g.startsAt, theme0(t)) : '') + '<div class="row" style="justify-content:center">';
     if (g.kind === 'signin') html += '<a class="btn" href="' + esc(g.loginUrl()) + '">Sign in with Discord</a>';
     if (g.kind === 'pending') html += '<button type="button" class="btn ghost" id="gateRetry">Check again</button><button type="button" class="btn link" id="gateOut">Sign out</button>';
     if (g.kind === 'down') html += '<button type="button" class="btn ghost" id="gateRetry">Try again</button>';
