@@ -577,7 +577,7 @@
     var ids = rank.map(function (r) { return r.pid; }).filter(function (pid) { return s.players[pid]; });
     var placeOf = {}; rank.forEach(function (r) { placeOf[r.pid] = r.place; });
     var on = onlineMap(), nOn = Object.keys(on).length;
-    var html = '<h2>' + (s.status === 'finished' ? 'Final standings' : 'Standings') + (nOn ? ' <span class="online-count" title="Players with the game open right now"><i aria-hidden="true"></i>' + nOn + ' online</span>' : '') + '</h2><ol class="st-list">';
+    var html = '<div class="st-head"><h2>' + (s.status === 'finished' ? 'Final standings' : 'Standings') + (nOn ? ' <span class="online-count" title="Players with the game open right now"><i aria-hidden="true"></i>' + nOn + ' online</span>' : '') + '</h2><button type="button" class="btn small ghost hall-btn" data-hall>\uD83C\uDFC6 Hall of fame</button></div><ol class="st-list">';
     ids.forEach(function (pid, i) {
       var p = s.players[pid], col = R.playerColor(s, pid), pct = Math.round(E.progress(s, p) * 100);
       html += '<li><button type="button" class="st' + (pid === store.me ? ' me' : '') + (p.finished ? ' done' : '') + '" data-pid="' + esc(pid) + '" style="--c:' + col + '">' +
@@ -1034,6 +1034,79 @@
   }
 
   // Every badge with what it's for. Earned ones (for this player) light up; the rest show how to get them.
+  function pingToken(pid) {
+    var tok = svgEl && svgEl.querySelector('.tok[data-pid="' + cssq(pid) + '"]');
+    if (tok) { tok.classList.remove('ping'); void tok.getBBox(); tok.classList.add('ping'); $('boardWrap').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+  }
+  // ---- player card: one player's game in numbers, worked out from the game log ----
+  function playerStats(s, pid) {
+    var p = s.players[pid], r = E.routeOf(s, p), last = Math.max(0, r.length - 1), pos = -1;
+    var o = { rolls: 0, total: 0, clears: 0, accs: [], best: null, lost: 0, gained: 0, cards: 0, turnsLost: 0, passed: 0, passedBy: 0 };
+    s.events.forEach(function (e) {
+      if (e.t === 'pass' && (e.over || []).indexOf(pid) >= 0) o.passedBy++;
+      if (e.pid !== pid) return;
+      switch (e.t) {
+        case 'roll': o.rolls++; o.total += e.n; pos = Math.min(last, (e.from == null ? pos : e.from) + e.n); break;
+        case 'move': if (e.n < 0) o.lost += Math.min(-e.n, Math.max(0, (e.from == null ? pos : e.from) + 1)); else o.gained += e.n; pos = e.to; break;
+        case 'warp': { var a = r.indexOf(e.space), b = r.indexOf(e.to); if (a >= 0 && b >= 0) { if (b < a) o.lost += a - b; else o.gained += b - a; pos = b; } break; }
+        case 'start': o.lost += Math.max(0, pos + 1); pos = -1; break;
+        case 'host-move': pos = e.to; break;
+        case 'host-reset': pos = -1; break;
+        case 'card': o.cards++; break;
+        case 'lost-turn': o.turnsLost++; break;
+        case 'pass': o.passed += (e.over || []).length; break;
+        case 'cleared':
+          o.clears++;
+          if (e.proof && e.proof.acc) { o.accs.push(e.proof.acc); if (!o.best || e.proof.acc > o.best.acc) o.best = { acc: e.proof.acc, key: (e.bsr || [])[0], diff: e.proof.diff || '' }; }
+          break;
+      }
+    });
+    o.avgRoll = o.rolls ? o.total / o.rolls : 0;
+    o.avgAcc = o.accs.length ? o.accs.reduce(function (x, y) { return x + y; }, 0) / o.accs.length : 0;
+    return o;
+  }
+  function openPlayer(pid) {
+    var s = st(), p = s.players[pid]; if (!p) return;
+    var o = playerStats(s, pid), rank = (s.status === 'finished' && s.final ? s.final : E.ranking(s)).filter(function (x) { return x.pid === pid; })[0];
+    var luck = !o.rolls ? 'No rolls yet' : o.avgRoll >= 2.8 ? 'Lucky' : o.avgRoll <= 2.2 ? 'Unlucky' : 'Right on average';
+    var tile = function (v, k, sub) { return '<div class="pc-tile"><b>' + v + '</b><span>' + k + '</span>' + (sub ? '<i>' + sub + '</i>' : '') + '</div>'; };
+    var song = o.best && o.best.key ? songFor(o.best.key) : null, list = X.badgesFor(s)[pid] || [];
+    var where = p.finished ? 'Escaped on day ' + p.finished.day : !p.route ? 'No route yet' : rank ? rank.left + ' spaces to go' : '';
+    track('player-card');
+    modal(p.name,
+      '<div class="pc-head" style="--c:' + R.playerColor(s, pid) + '">' + avatarHtml(p, 'pc-ava') + '<div><div class="pc-place">' + (rank && p.route ? ordinal(rank.place) + ' place' : 'Signed up') + '</div>' +
+      '<div class="pc-where">' + esc(where) + (p.route ? ' · ' + esc(s.board.routeInfo[p.route].name) : '') + '</div></div></div>' +
+      '<div class="pc-grid">' +
+      tile(o.clears, 'Maps cleared') +
+      tile(o.accs.length ? (o.avgAcc * 100).toFixed(2) + '%' : '–', 'Average accuracy') +
+      tile(o.best ? (o.best.acc * 100).toFixed(2) + '%' : '–', 'Best clear', o.best ? esc((song && song.name) || ('!bsr ' + o.best.key)) + (o.best.diff ? ' · ' + esc(o.best.diff) : '') : '') +
+      tile(o.rolls ? o.avgRoll.toFixed(2) : '–', 'Average roll', esc(luck) + (o.rolls ? ' \u00b7 ' + o.rolls + ' roll' + (o.rolls === 1 ? '' : 's') + ', 2.50 is average' : '')) +
+      tile(o.lost, 'Spaces lost', 'to setbacks') +
+      tile(o.gained, 'Spaces gained', 'from boosts and shortcuts') +
+      tile(o.cards, 'Cards drawn') +
+      tile(o.passed + ' / ' + o.passedBy, 'Passed / passed by') +
+      (o.turnsLost ? tile(o.turnsLost, 'Turns lost') : '') +
+      '</div>' +
+      (list.length ? '<div class="pc-badges"><span>Badges</span>' + list.map(function (b) { return '<button type="button" class="badge" data-badges="' + esc(pid) + '" title="' + esc(b.name + ': ' + b.desc) + '"><i aria-hidden="true">' + b.icon + '</i> ' + esc(b.name) + '</button>'; }).join('') + '</div>' : '') +
+      '<div class="row" style="margin-top:14px">' + (p.route ? '<button type="button" class="btn ghost" data-pcard-board="' + esc(pid) + '">Show on the board</button>' : '') + '</div>',
+      null, { cls: 'pcard', focusClose: true });
+  }
+  // ---- hall of fame: every finished game in this clan, and the all-time table ----
+  function openHall() {
+    var hall = (store.hall || []).slice().reverse(), totals = E.hallTotals(store.hall || []).slice(0, 10);
+    track('hall-of-fame');
+    var medal = ['🥇', '🥈', '🥉'];
+    var ava = function (t) { return t.avatar ? '<img class="hf-ava" src="' + esc(t.avatar) + '" alt="" onerror="this.outerHTML=\'<span class=&quot;hf-ava&quot;>' + esc(R.initials(t.name)) + '</span>\'">' : '<span class="hf-ava">' + esc(R.initials(t.name)) + '</span>'; };
+    var when = function (ts) { return ts ? new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : ''; };
+    var html = !hall.length ? '<p class="lede">No game has finished yet. The first winner goes up here.</p>' :
+      '<p class="lede">Every finished game, newest first.</p><div class="hf-games">' + hall.map(function (g) {
+        return '<div class="hf-game"><div class="hf-gh"><b>' + esc(g.title) + '</b><span>' + esc(when(g.endedAt)) + ' · ' + g.days + ' day' + (g.days === 1 ? '' : 's') + ' · ' + g.players + ' player' + (g.players === 1 ? '' : 's') + '</span></div>' +
+          '<ol class="hf-pod">' + g.top.map(function (t, i) { return '<li class="p' + (i + 1) + '"><span class="hf-m">' + medal[i] + '</span>' + ava(t) + '<b>' + esc(t.name) + '</b><span>' + (t.escaped ? 'Escaped day ' + t.day : t.left + ' to go') + '</span></li>'; }).join('') + '</ol></div>';
+      }).join('') + '</div>' +
+      '<h3 class="hw-h">All time</h3><table class="hf-table"><thead><tr><th>Player</th><th>Wins</th><th>Podiums</th><th>Escapes</th><th>Games</th></tr></thead><tbody>' +
+      totals.map(function (t, i) { return '<tr' + (t.pid === store.me ? ' class="me"' : '') + '><td><span class="hf-rank">' + (i + 1) + '</span>' + esc(t.name) + '</td><td>' + t.wins + '</td><td>' + t.podiums + '</td><td>' + t.escapes + '</td><td>' + t.games + '</td></tr>'; }).join('') + '</tbody></table>';
+    modal('🏆 Hall of fame', html, null, { cls: 'hall', focusClose: true });
+  }
   function openBadges(pid) {
     var s = st(), p = s.players[pid], have = {}, list = X.badgesFor(s)[pid] || [];
     list.forEach(function (b) { have[b.id] = 1; });
@@ -1201,7 +1274,7 @@
     modal('Game over', '<div class="finale"><p class="lede">' + (winner ? esc(winner.name) + (fin[0].escaped ? ' reached the ' + esc(t.goal) + ' first.' : ' got closest to the ' + esc(t.goal) + '.') : 'The final standings are in.') + '</p>' +
       '<div class="podium">' + podium + '</div>' + (rest ? '<ol class="finale-rest">' + rest + '</ol>' : '') +
       (mine ? '<p class="finale-me">You finished <b>' + ordinal(mine.place) + '</b>' + (mine.escaped ? ', escaping on day ' + mine.day : ', ' + mine.left + ' spaces out') + '.</p>' : '') +
-      '<div class="row"><button type="button" class="btn" data-finale-close>Back to the board</button></div></div>',
+      '<div class="row"><button type="button" class="btn" data-finale-close>Back to the board</button><button type="button" class="btn ghost" data-hall>\uD83C\uDFC6 Hall of fame</button></div></div>',
       function (body) {
         body.querySelector('[data-finale-close]').onclick = closeModal;
       });
@@ -1233,6 +1306,7 @@
     var last = s.events.length ? s.events[s.events.length - 1].id : 0;
     try { localStorage.setItem(seenKey(), JSON.stringify({ id: last, at: Date.now(), day: s.day, place: myPlace() })); } catch (e) {}
   }
+  function agoShort(ms) { var m = Math.round(ms / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; }
   function agoText(ms) {
     var h = Math.round(ms / 3600000), d = Math.floor(ms / 86400000);
     return d >= 1 ? d + (d === 1 ? ' day' : ' days') : h >= 1 ? h + (h === 1 ? ' hour' : ' hours') : 'a little while';
@@ -1538,6 +1612,13 @@
         '<button type="button" class="btn small good" data-h="letin" data-id="' + esc(w.id) + '">Let in</button><button type="button" class="btn small ghost" data-h="dismiss" data-id="' + esc(w.id) + '">Dismiss</button></span></div>';
     }).join('');
     T.today += '</section>';
+    var ud = store.undoInfo ? store.undoInfo() : null;
+    if (ud && ud.list.length) {
+      T.today += '<section class="hsec"><h3>Your recent changes</h3>' + ud.list.map(function (u, i) {
+        return '<div class="undo-row' + (i ? ' old' : '') + '"><span><b>' + esc(u.label) + '</b><span class="why"> ' + esc(agoShort(Date.now() - u.at)) + (u.by ? ' \u00b7 ' + esc(u.by) : '') + '</span></span>' +
+          (i === 0 && ud.ok ? '<button type="button" class="btn small ghost" data-h="undo">Undo</button>' : '') + '</div>';
+      }).join('') + (!ud.ok ? '<p class="why" style="margin-top:8px">Players have done things since your last change, so it can\'t be undone without wiping their moves.</p>' : '<p class="why" style="margin-top:8px">Undo takes back the newest change. Discord posts that already went out stay posted.</p>') + '</section>';
+    }
     if (signup) T.today += startSection(s);
     else if (running) T.today += '<section class="hsec"><h3>Day ' + s.day + '</h3><p>' + (demo ? 'Starting the next day lets every bot clear maps and roll.' : 'The day turns over by itself at ' + esc(cutoffLabel(s)) + '. Start the next day is only for fixing a missed rollover.') + '</p><div class="row">' +
       '<button type="button" class="btn small ghost" data-h="advance">Start the next day</button>' + (demo ? '<button type="button" class="btn small ghost" data-h="simulate">Skip ahead 3 days</button>' : '') + '</div></section>';
@@ -1737,6 +1818,7 @@
       case 'advance': if (store.mode === 'demo' || confirm('Start day ' + (st().day + 1) + ' for everyone now? The day normally turns over by itself at ' + cutoffLabel(st()) + '.')) run('advance', {}, 'Day ' + (st().day + 1) + ' has started.'); break;
       case 'simulate': run('simulate', { days: 3 }, 'Skipped ahead 3 days.'); break;
       case 'tab': showHostTab(btn.dataset.tab); break;
+      case 'undo': { var u0 = store.undoInfo().list[0]; if (u0 && confirm('Undo "' + u0.label + '"?')) run('undo', {}, 'Undone: ' + u0.label + '.'); break; }
       case 'move': {
         var mp = st().players[pid], box = document.querySelector('[data-posfor="' + cssq(pid) + '"]'), to = box ? parseInt(box.value, 10) : NaN, apply = $('applyMove') && $('applyMove').checked;
         if (isNaN(to)) { toast('Type a space number first.', 'bad'); break; }
@@ -1822,11 +1904,9 @@
       if (e.target.closest('a[href*="/auth/login"]')) track('sign-in');
       if (e.target.closest('#logoutBtn')) { track('sign-out'); store.logout(); return; }
       if (e.target.closest('#checkAgain')) { location.reload(); return; }
-      var stb = e.target.closest('.st[data-pid]'); if (stb) {
-        var tok = svgEl.querySelector('.tok[data-pid="' + stb.dataset.pid + '"]');
-        if (tok) { tok.classList.remove('ping'); void tok.getBBox(); tok.classList.add('ping'); $('boardWrap').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
-        return;
-      }
+      var stb = e.target.closest('.st[data-pid]'); if (stb) { openPlayer(stb.dataset.pid); return; }
+      if (e.target.closest('[data-hall]')) { openHall(); return; }
+      var pb = e.target.closest('[data-pcard-board]'); if (pb) { closeModal(); pingToken(pb.getAttribute('data-pcard-board')); return; }
       var tk = e.target.closest('.board-svg .tok');
       if (tk) { var tp = st().players[tk.getAttribute('data-pid')], tid = tp && tp.route && tp.pos >= 0 && st().board.routes[tp.route][tp.pos]; if (tid) { openSpace(tid, tk); return; } }
       var sp = e.target.closest('.board-svg .sp'); if (sp) { openSpace(sp.dataset.id, sp); return; }

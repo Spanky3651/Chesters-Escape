@@ -24,7 +24,7 @@ const CHECK_EVERY = 15 * 60 * 1000;
 const HOUR = 3600000, DAY = 86400000;
 // Discord posts the host can switch on: countdowns and the start/end, then game moments.
 const POST_KINDS = ['signups', 'hour', 'start', 'lastcall', 'end', 'escape', 'leader', 'setback', 'big', 'gate'];
-const MOMENT_CAP = 5, SETBACK = 5, BIG_ACC = 0.95;
+const MOMENT_CAP = 5, SETBACK = 5, BIG_ACC = 0.95, UNDO_KEEP = 5;
 function md(t) { return String(t || '').replace(/([*_~`|>\\])/g, '\\$1'); }
 function ordinal(n) { const v = n % 100; return n + (v >= 11 && v <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'); }
 const VISIT_GAP = 10 * 60 * 1000;   // a return within this long continues the same visit
@@ -242,6 +242,9 @@ export class Game extends DurableObject {
       if (this.state && !this.state.board.mapSet) E.upgradeBonus(this.state.board, C.boards['chester-escape']().bonusMaps);
       this.meta = (await ctx.storage.get('meta')) || {};
       this.visits = (await ctx.storage.get('visits')) || [];
+      this.undoList = (await ctx.storage.get('undoList')) || [];
+      // A game that ended before the hall of fame existed still gets its place in it.
+      if (this.state && this.state.status === 'finished') E.addToHall(this.meta.hall = this.meta.hall || [], this.state);
     });
   }
 
@@ -276,6 +279,19 @@ export class Game extends DurableObject {
       for (const k of POST_KINDS) this.meta.posts[k] = all || l.includes(k);
     }
     return this.meta.posts;
+  }
+  recordHall() { E.addToHall(this.meta.hall = this.meta.hall || [], this.state); }
+  // The last few host changes, newest last. Each keeps the game as it was before the change.
+  async pushUndo(snap, user) {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    await this.ctx.storage.put('undo:' + id, snap.state);
+    this.undoList.push({ id, label: snap.label, at: Date.now(), by: user.name || '', pre: snap.pre, post: this.state.seq, cut: snap.cut });
+    while (this.undoList.length > UNDO_KEEP) { const old = this.undoList.shift(); await this.ctx.storage.delete('undo:' + old.id); }
+    await this.ctx.storage.put('undoList', this.undoList);
+  }
+  undoInfo() {
+    const l = this.undoList, top = l[l.length - 1];
+    return { ok: !!top && top.post === (this.state && this.state.seq), list: l.slice().reverse().map((x) => ({ label: x.label, at: x.at, by: x.by })) };
   }
   discordInfo() { const p = this.posts(), out = { hooked: !!this.webhook() }; for (const k of POST_KINDS) out[k] = !!p[k]; return out; }
   announcing(kind) { return !!this.webhook() && !!this.posts()[kind]; }
@@ -449,8 +465,8 @@ export class Game extends DurableObject {
     await this.visit(user);
     if (this.dirty) { this.dirty = false; await this.save(); }
     if (since === s.seq) return { state: null, me, canPlay, online: this.onlineNow() };
-    const out = { state: E.publicState(s), me, canPlay, isHost: !!user.isHost, user: { id: user.id, name: user.name, avatar: user.avatar }, online: this.onlineNow() };
-    if (user && user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); }
+    const out = { state: E.publicState(s), me, canPlay, isHost: !!user.isHost, user: { id: user.id, name: user.name, avatar: user.avatar }, online: this.onlineNow(), hall: this.meta.hall || [] };
+    if (user && user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); }
     return out;
   }
 
@@ -458,10 +474,12 @@ export class Game extends DurableObject {
     this.useClan(user);
     const s = this.game(); const pid = this.pidFor(user);
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
-    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest'];
+    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo'];
     if (hostOnly.includes(action) && !user.isHost) return { error: 'Only the host can do that.', status: 403 };
     if (s.status === 'finished' && ['join', 'route', 'roll', 'verify', 'claim'].includes(action)) return { error: 'The game is over.' };
     const wasRunning = s.status === 'running';
+    // Host changes keep a snapshot so the host can take the last few back.
+    const snap = user.isHost && E.UNDOABLE.includes(action) ? { state: JSON.stringify(s), cut: this.meta.nextCutoff == null ? null : this.meta.nextCutoff, pre: s.seq, label: E.hostLabel(s, action, a) } : null;
     let result = {};
     try {
       switch (action) {
@@ -540,6 +558,7 @@ export class Game extends DurableObject {
         }
         case 'endNow': {
           if (!E.endGame(s, Date.now())) return { error: 'The game is not running.' };
+          this.recordHall();
           await this.announceEnd();
           break;
         }
@@ -559,6 +578,24 @@ export class Game extends DurableObject {
           ac.names = ac.names || {}; if (w) ac.names[id] = w.name; else if (a.name) ac.names[id] = String(a.name).slice(0, 60);
           ac.pending = ac.pending.filter((x) => x.id !== id); s.seq++; break;
         }
+        case 'undo': {
+          const top = this.undoList[this.undoList.length - 1];
+          if (!top) return { error: 'There is nothing to undo.' };
+          if (top.post !== s.seq) return { error: 'Players have done things since then, so undoing it would wipe their moves too.' };
+          const raw = await this.ctx.storage.get('undo:' + top.id);
+          if (!raw) return { error: 'That change can no longer be undone.' };
+          const old = JSON.parse(raw);
+          old.seq = Math.max(old.seq || 0, s.seq) + 1;   // keep counting up so pages and event ids stay in order
+          this.state = old; this.meta.nextCutoff = top.cut;
+          this.undoList.pop(); await this.ctx.storage.delete('undo:' + top.id);
+          const below = this.undoList[this.undoList.length - 1];
+          if (below && below.post === top.pre) below.post = old.seq;
+          await this.ctx.storage.put('undoList', this.undoList);
+          if (old.status !== 'finished' && this.meta.hall) this.meta.hall = this.meta.hall.filter((h) => h.id !== old.id);
+          if (this.meta.feed && this.meta.feed.game !== old.id) delete this.meta.feed;   // don't re-announce a game we went back to
+          result = { undone: top.label };
+          break;
+        }
         case 'discordPosts': {
           if (!POST_KINDS.includes(a.kind)) return { error: 'Unknown post.' };
           this.posts()[a.kind] = !!a.on; s.seq++; break;
@@ -577,11 +614,12 @@ export class Game extends DurableObject {
       return { error: e.message || 'That did not work.', code: e.code };
     }
     await this.discordFeed();
-    if (wasRunning && this.state.status === 'finished' && action !== 'endNow') await this.announceEnd();
+    if (wasRunning && this.state.status === 'finished' && action !== 'endNow') { this.recordHall(); await this.announceEnd(); }
+    if (snap) await this.pushUndo(snap, user);
     await this.save();
     if (this.state.players[pid]) this.seen(pid);
-    const out = { result, state: E.publicState(this.state), me: this.state.players[pid] ? pid : null, canPlay: true, online: this.onlineNow() };
-    if (user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); }
+    const out = { result, state: E.publicState(this.state), me: this.state.players[pid] ? pid : null, canPlay: true, online: this.onlineNow(), hall: this.meta.hall || [] };
+    if (user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); }
     return out;
   }
   // Who has the game open right now. Open pages check in every 20 seconds while visible, so
@@ -799,7 +837,7 @@ export class Game extends DurableObject {
     const s = this.game();
     const now = Date.now();
     await this.sweepVisits(now);
-    if (s.status === 'running' && s.endsAt && now >= s.endsAt - 1000) { E.endGame(s, now); await this.announceEnd(); }
+    if (s.status === 'running' && s.endsAt && now >= s.endsAt - 1000) { E.endGame(s, now); this.recordHall(); await this.announceEnd(); }
     if (s.status === 'signup' && s.startsAt && now >= s.startsAt - 1000) {
       E.startGame(s, now);
       this.meta.nextCutoff = E.nextCutoff(s.settings, now + 1000);

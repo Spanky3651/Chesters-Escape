@@ -661,6 +661,64 @@
     return asUtc - (d.getTime() - d.getUTCSeconds() * 1000 - d.getUTCMilliseconds());
   }
 
+  // ---- hall of fame ----------------------------------------------------------------
+  // One record per finished game, kept by the game server across games.
+  function hallEntry(s) {
+    var fin = s.final || ranking(s);
+    var who = function (pid) { return s.players[pid] || {}; };
+    return {
+      id: s.id, title: s.title, themeId: s.themeId, startedAt: s.startedAt || null, endedAt: s.endedAt || now(), days: s.day, players: fin.length,
+      top: fin.slice(0, 3).map(function (r) { return { pid: r.pid, name: who(r.pid).name || 'Player', avatar: who(r.pid).avatar || '', place: r.place, escaped: !!r.escaped, day: r.day || null, left: r.left || 0 }; }),
+      all: fin.map(function (r) { return { pid: r.pid, name: who(r.pid).name || 'Player', place: r.place, escaped: !!r.escaped }; })
+    };
+  }
+  function addToHall(hall, s) {
+    if (!s || s.status !== 'finished' || !(s.final || []).length) return false;
+    if (hall.some(function (h) { return h.id === s.id; })) return false;
+    hall.push(hallEntry(s));
+    while (hall.length > 50) hall.shift();
+    return true;
+  }
+  // Wins, podiums and escapes per player across every game in the hall.
+  function hallTotals(hall) {
+    var by = {};
+    (hall || []).forEach(function (g) {
+      (g.all || []).forEach(function (r) {
+        var t = by[r.pid] = by[r.pid] || { pid: r.pid, name: r.name, games: 0, wins: 0, podiums: 0, escapes: 0 };
+        t.name = r.name; t.games++; if (r.place === 1) t.wins++; if (r.place <= 3) t.podiums++; if (r.escaped) t.escapes++;
+      });
+    });
+    return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.wins - a.wins || b.podiums - a.podiums || b.escapes - a.escapes || b.games - a.games || String(a.name).localeCompare(String(b.name)); });
+  }
+
+  // ---- host undo -------------------------------------------------------------------
+  // Host changes that can be taken back, and how each reads in the undo list.
+  var UNDOABLE = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow'];
+  function hostLabel(s, action, a) {
+    a = a || {};
+    var nm = (s.players[a.pid] || {}).name || 'a player', card = a.card ? (s.cards || []).filter(function (c) { return c.id === a.card; })[0] : null;
+    switch (action) {
+      case 'advance': return 'Started day ' + (s.day + 1);
+      case 'approve': return 'Approved ' + nm + '’s map';
+      case 'reject': return 'Rejected ' + nm + '’s run';
+      case 'setpos': return 'Moved ' + nm + ' to space ' + (Number(a.pos) + 1);
+      case 'card': return 'Gave ' + nm + (card ? ' “' + card.title + '”' : ' a card');
+      case 'resetPlayer': return 'Reset ' + nm;
+      case 'removePlayer': return 'Removed ' + nm;
+      case 'clearPlayers': return 'Cleared all sign-ups';
+      case 'signups': return a.closed ? 'Closed sign-ups' : 'Opened sign-ups';
+      case 'clearRoute': return 'Cleared ' + nm + '’s route';
+      case 'settings': return a.patch && 'remindHour' in a.patch ? 'Changed roll reminders' : 'Changed the rules';
+      case 'theme': return 'Changed the theme';
+      case 'newGame': return a.signup ? 'Moved the game to another board' : 'Started a new game';
+      case 'schedule': return a.startsAt == null ? 'Canceled the countdown' : 'Changed the start time';
+      case 'startNow': return 'Started the game';
+      case 'setEnd': return a.endsAt == null ? 'Cleared the end time' : 'Changed the end time';
+      case 'endNow': return 'Ended the game';
+      default: return action;
+    }
+  }
+
   var E = {
     VERSION: VERSION, DEFAULTS: DEFAULTS,
     createGame: createGame, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, react: react, REACTIONS: REACTIONS, LEGACY_REACTIONS: LEGACY_REACTIONS, signupsOpen: signupsOpen, chooseRoute: chooseRoute,
@@ -670,7 +728,7 @@
     routeOf: routeOf, spaceAt: spaceAt, progress: progress, remaining: remaining, exitIndex: exitIndex,
     cardById: cardById, publicState: publicState, allMapKeys: allMapKeys, checkBoard: checkBoard,
     nextCutoff: nextCutoff, shuffle: shuffle, clone: clone, startGame: startGame, upgradeBonus: upgradeBonus,
-    endGame: endGame, ranking: ranking, positionsBefore: positionsBefore, reminderFor: reminderFor, localHour: localHour, remindHour: remindHour, reminderTime: reminderTime
+    endGame: endGame, ranking: ranking, hallEntry: hallEntry, addToHall: addToHall, hallTotals: hallTotals, UNDOABLE: UNDOABLE, hostLabel: hostLabel, positionsBefore: positionsBefore, reminderFor: reminderFor, localHour: localHour, remindHour: remindHour, reminderTime: reminderTime
   };
   root.CGEngine = E;
   if (typeof module !== 'undefined' && module.exports) module.exports = E;

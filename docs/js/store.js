@@ -39,6 +39,20 @@
       if (!this.state.board.mapSet) E.upgradeBonus(this.state.board, C.boards['chester-escape']().bonusMaps);
     }
     else this.fresh('cemetery', null, true);
+    try { this.hall = JSON.parse(localStorage.getItem(KEY + '.hall') || 'null'); } catch (e) { this.hall = null; }
+    if (!Array.isArray(this.hall)) this.hall = demoHall();
+  }
+  // Two made-up past games so the demo's hall of fame has something in it.
+  function demoHall() {
+    var day = 86400000, t = Date.now(), who = function (id) { return DEMO_PLAYERS.filter(function (p) { return p.id === id; })[0] || { name: id }; }, n = function (id) { return who(id).name; };
+    var game = function (id, title, theme, ago, days, order) {
+      var all = order.map(function (pid, i) { return { pid: pid, name: n(pid), place: i + 1, escaped: i < 2 }; });
+      return { id: id, title: title, themeId: theme, startedAt: t - (ago + days) * day, endedAt: t - ago * day, days: days, players: all.length,
+        top: all.slice(0, 3).map(function (r, i) { return { pid: r.pid, name: r.name, avatar: who(r.pid).avatar || '', place: r.place, escaped: r.escaped, day: r.escaped ? days - 1 + i : null, left: r.escaped ? 0 : 6 }; }), all: all };
+    };
+    var title = function (id) { return (C.themes[id] || {}).title || "Chester's Escape"; };
+    return [game('demo-old-1', title('cemetery'), 'cemetery', 40, 12, ['nyx', 'hummingbird', 'moth', 'wisp', 'gravel']),
+      game('demo-old-2', title('christmas'), 'christmas', 12, 10, ['hummingbird', 'msploit', 'nyx', 'bramble', 'pumpkin', 'moth'])];
   }
 
   DemoStore.prototype.fresh = function (themeId, board, withHistory, startsAt, endsAt) {
@@ -97,7 +111,34 @@
     return Promise.resolve({ now: now, visits: out });
   };
 
+  // Host undo and the hall of fame work in the demo too, kept in this browser.
   DemoStore.prototype.act = function (name, a) {
+    var self = this, s0 = this.state, snap = E.UNDOABLE.indexOf(name) >= 0 ? { state: JSON.stringify(s0), label: E.hostLabel(s0, name, a || {}), pre: s0.seq } : null;
+    var stack = this.undoStack = this.undoStack || [];
+    if (name === 'undo') {
+      var top = stack[stack.length - 1];
+      if (!top) return Promise.reject(new Error('There is nothing to undo.'));
+      if (top.post !== s0.seq) return Promise.reject(new Error('Players have done things since then, so undoing it would wipe their moves too.'));
+      var old = JSON.parse(top.state); old.seq = Math.max(old.seq || 0, s0.seq) + 1;
+      stack.pop(); var below = stack[stack.length - 1]; if (below && below.post === top.pre) below.post = old.seq;
+      this.state = old;
+      if (old.status !== 'finished') this.hall = this.hall.filter(function (h) { return h.id !== old.id; });
+      this._saveHall(); this._save(); this._emit({ action: 'undo', result: { undone: top.label } });
+      return Promise.resolve({ undone: top.label });
+    }
+    var was = s0.status;
+    return this._act(name, a).then(function (res) {
+      if (self.state.status === 'finished' && (was !== 'finished' || self.state !== s0) && E.addToHall(self.hall, self.state)) self._saveHall();
+      if (snap) { snap.post = self.state.seq; snap.at = Date.now(); snap.by = 'MSploit'; stack.push(snap); while (stack.length > 5) stack.shift(); self._emit({ action: 'undo-list' }); }
+      return res;
+    });
+  };
+  DemoStore.prototype.undoInfo = function () {
+    var l = this.undoStack || [], top = l[l.length - 1];
+    return { ok: !!top && top.post === this.state.seq, list: l.slice().reverse().map(function (x) { return { label: x.label, at: x.at, by: x.by }; }) };
+  };
+  DemoStore.prototype._saveHall = function () { try { localStorage.setItem(KEY + '.hall', JSON.stringify(this.hall)); } catch (e) {} };
+  DemoStore.prototype._act = function (name, a) {
     var self = this, s = this.state, me = this.me;
     a = a || {};
     function done(res) { self._save(); self._emit({ action: name, result: res }); return res; }
@@ -213,6 +254,7 @@
     this.state = null;
     this._seq = -1;
   }
+  LiveStore.prototype.undoInfo = function () { return this.undo || { ok: false, list: [] }; };
   LiveStore.prototype.visits = function () { return this._fetch('/api/host/visits'); };
   LiveStore.prototype._fetch = function (path, opts) {
     opts = opts || {};
@@ -237,6 +279,8 @@
     if (r.user !== undefined) this.user = r.user;
     if (r.access !== undefined) this.access = r.access;
     if (r.discord !== undefined) this.discord = r.discord;
+    if (r.undo !== undefined) this.undo = r.undo;
+    if (r.hall !== undefined) this.hall = r.hall;
     if (r.canPlay !== undefined) this.canPlay = r.canPlay;
     if (r.online !== undefined) this.online = r.online || [];
   };
