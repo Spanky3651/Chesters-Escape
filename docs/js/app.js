@@ -936,9 +936,9 @@
     if (zone && /\b(busy|prelaunch|replaying)\b/.test(zone.className)) return;
     if (!$('spacePop').hidden || !$('rxPop').hidden || (cam && cam.raf)) return;
     var s = st(); if (!s || !s.order) return;
-    var pos = R.layoutTokens(s), groups = {}, where = {};
+    var pos = R.layoutTokens(s, null, store.me), groups = {}, where = {};
     s.order.forEach(function (pid) {
-      var p = s.players[pid], L = pos[pid]; if (!p || !p.route || !L || L.n < 2) return;
+      var p = s.players[pid], L = pos[pid]; if (!p || !p.route || !L || L.n < 2 || L.hidden) return;   // tucked into a pile: not visible
       var xy = R.tokenXY(s, p), key = Math.round(xy.x) + ',' + Math.round(xy.y);
       (groups[key] = groups[key] || []).push(pid); where[pid] = key;
     });
@@ -1034,6 +1034,21 @@
   }
 
   // Every badge with what it's for. Earned ones (for this player) light up; the rest show how to get them.
+  // Everyone in a pile of tokens, from tapping the pile or its "+N" badge.
+  function openPile(key) {
+    var s = st(), L = R.layoutTokens(s, null, store.me), ids = s.order.filter(function (pid) { return L[pid] && L[pid].pile === key; });
+    if (!ids.length) return;
+    var p0 = s.players[ids[0]], tid = p0.pos >= 0 ? E.routeOf(s, p0)[p0.pos] : null, sp = tid ? s.board.spaces[tid] : null;
+    var rank = {}; (s.status === 'finished' && s.final ? s.final : E.ranking(s)).forEach(function (r) { rank[r.pid] = r; });
+    var on = onlineMap();
+    track('pile');
+    modal(ids.length + ' players here', '<p class="lede">' + (sp ? esc(R.label(sp, theme())) : 'At the start, waiting for their first roll.') + '</p><ul class="pile-list">' +
+      ids.map(function (pid) {
+        var p = s.players[pid], r = rank[pid];
+        return '<li><button type="button" data-pile-pid="' + esc(pid) + '"' + (pid === store.me ? ' class="me"' : '') + '><span class="ava-wrap' + (on[pid] ? ' online' : '') + '">' + avatarHtml(p, 'ava') + '</span><b>' + esc(p.name) + (pid === store.me ? ' <i>(you)</i>' : '') + '</b>' +
+          '<span class="chip ' + (p.route === 'riskier' ? 'risk' : 'long') + '">' + (p.route === 'riskier' ? 'Riskier' : 'Longer') + '</span>' + (r ? '<span class="pl-place">' + ordinal(r.place) + '</span>' : '') + '</button></li>';
+      }).join('') + '</ul>', null, { cls: 'pile', focusClose: true });
+  }
   function pingToken(pid) {
     var tok = svgEl && svgEl.querySelector('.tok[data-pid="' + cssq(pid) + '"]');
     if (tok) { tok.classList.remove('ping'); void tok.getBBox(); tok.classList.add('ping'); $('boardWrap').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
@@ -1952,6 +1967,8 @@
         return;
       }
       var pb = e.target.closest('[data-pcard-board]'); if (pb) { closeModal(); pingToken(pb.getAttribute('data-pcard-board')); return; }
+      var pl = e.target.closest('.board-svg .pile-badge, .board-svg .tok[data-pile]'); if (pl) { openPile(pl.getAttribute('data-pile')); return; }
+      var ppid = e.target.closest('[data-pile-pid]'); if (ppid) { closeModal(); openPlayer(ppid.getAttribute('data-pile-pid')); return; }
       var tk = e.target.closest('.board-svg .tok');
       if (tk) { var tp = st().players[tk.getAttribute('data-pid')], tid = tp && tp.route && tp.pos >= 0 && st().board.routes[tp.route][tp.pos]; if (tid) { openSpace(tid, tk); return; } }
       var sp = e.target.closest('.board-svg .sp'); if (sp) { openSpace(sp.dataset.id, sp); return; }

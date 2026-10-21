@@ -649,7 +649,11 @@
   function initials(name) { return String(name || '?').replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join('').toUpperCase() || '?'; }
 
   // Lay out all tokens, grouping players on the same space into a small cluster.
-  function layoutTokens(s, overrides) {
+  // Lay out all tokens, grouping players on the same space into a small cluster. A crowd of
+  // PILE_AT or more becomes a pile: a few tokens fanned over the space (yours on top) and a
+  // "+N" badge; the rest are tucked under it and listed when the pile is tapped.
+  var PILE_AT = 6, FAN = [[-9, -6], [9, -6], [-5, 8], [8, 8]];
+  function layoutTokens(s, overrides, me) {
     var groups = {};
     s.order.forEach(function (pid) {
       var p = s.players[pid]; if (!p.route) return;
@@ -660,6 +664,14 @@
     var out = {};
     Object.keys(groups).forEach(function (k) {
       var g = groups[k], n = g.length;
+      if (n >= PILE_AT) {
+        var vis = g.slice().sort(function (a, b) { return (b.pid === me) - (a.pid === me); }).slice(0, FAN.length);
+        g.forEach(function (it) {
+          var vi = vis.indexOf(it);
+          out[it.pid] = vi >= 0 ? { x: it.x + FAN[vi][0], y: it.y + FAN[vi][1], r: 14, n: n, pile: k, cx: it.x, cy: it.y } : { x: it.x, y: it.y, r: 14, n: n, pile: k, hidden: true, cx: it.x, cy: it.y };
+        });
+        return;
+      }
       var r = n === 1 ? 23 : n <= 4 ? 15 : 12;
       g.forEach(function (it, i) {
         var dx = 0, dy = 0;
@@ -678,7 +690,7 @@
   function placeTokens(svg, s, theme, opts) {
     opts = opts || {};
     var layer = svg.querySelector('.tokens'); if (!layer) return;
-    var pos = layoutTokens(s, opts.overrides);
+    var pos = layoutTokens(s, opts.overrides, opts.me);
     // A lone token's name tag runs into tokens on the spaces next to it, so those show only the
     // initials (tap the token for names). Your own tag always shows.
     var crowded = {};
@@ -711,11 +723,22 @@
       if (opts.online && opts.online[pid]) inner += '<circle class="on-dot" cx="' + (r * .74).toFixed(1) + '" cy="' + (r * .74).toFixed(1) + '" r="' + (r * .27).toFixed(1) + '"/>';
       if (fl.crown === pid) inner += '<g class="crown" transform="translate(' + (r * .62).toFixed(1) + ',' + (-r * .78).toFixed(1) + ') rotate(20)"><text text-anchor="middle" font-size="' + (r * 1.05).toFixed(1) + '" y="' + (r * .3).toFixed(1) + '">\uD83D\uDC51</text></g>';
       inner += '<title>' + esc(p.name) + '</title>';
-      if ((L.n === 1 && !crowded[pid]) || me) inner += '<g class="tag"><rect x="-34" y="' + (r + 5) + '" width="68" height="15" rx="7.5" fill="#000" opacity=".78"/><text y="' + (r + 16) + '" text-anchor="middle" font-family="Atkinson Hyperlegible, Arial, sans-serif" font-weight="700" font-size="10.5" fill="#fff">' + esc(trunc(p.name, 11)) + '</text></g>';
+      if (((L.n === 1 && !crowded[pid]) || me) && !L.pile) inner += '<g class="tag"><rect x="-34" y="' + (r + 5) + '" width="68" height="15" rx="7.5" fill="#000" opacity=".78"/><text y="' + (r + 16) + '" text-anchor="middle" font-family="Atkinson Hyperlegible, Arial, sans-serif" font-weight="700" font-size="10.5" fill="#fff">' + esc(trunc(p.name, 11)) + '</text></g>';
       g.querySelector('.tok-in').innerHTML = inner;
       g.classList.toggle('me', me);
+      g.classList.toggle('piled', !!L.hidden);
+      if (L.pile) g.setAttribute('data-pile', L.pile); else g.removeAttribute('data-pile');
       if (!opts.noMove) g.style.transform = 'translate(' + L.x + 'px,' + L.y + 'px)';
       if (me) layer.appendChild(g);  // draw on top
+    });
+    if (opts.me) { var mine = layer.querySelector('[data-pid="' + cssEsc(opts.me) + '"]'); if (mine) layer.appendChild(mine); }   // yours on top
+    // a "+N" badge on every pile, drawn over the tokens
+    Array.prototype.forEach.call(layer.querySelectorAll('.pile-badge'), function (b) { b.remove(); });
+    var piles = {};
+    Object.keys(pos).forEach(function (pid) { var L = pos[pid]; if (!L.pile) return; var P = piles[L.pile] = piles[L.pile] || { x: L.cx, y: L.cy, n: L.n, hid: 0 }; if (L.hidden) P.hid++; });
+    Object.keys(piles).forEach(function (k) {
+      var P = piles[k]; if (!P.hid) return;
+      layer.insertAdjacentHTML('beforeend', '<g class="pile-badge" data-pile="' + esc(k) + '" transform="translate(' + (P.x + 21).toFixed(1) + ',' + (P.y - 20).toFixed(1) + ')" role="button" aria-label="' + P.n + ' players here"><circle r="12"/><text y="4.5" text-anchor="middle">+' + P.hid + '</text><title>' + P.n + ' players here. Tap to see who.</title></g>');
     });
     // remove tokens for players who left
     Array.prototype.forEach.call(layer.querySelectorAll('.tok'), function (g) { if (!s.players[g.getAttribute('data-pid')]) g.remove(); });
