@@ -1390,7 +1390,33 @@
   }
 
   // ---- host tools ------------------------------------------------------------------------------
-  function openHost() { $('hostDrawer').hidden = false; $('scrim').hidden = false; renderHost(); $('hostX').focus(); }
+  function openHost() { $('hostDrawer').hidden = false; $('scrim').hidden = false; visitsAt = 0; renderHost(); $('hostX').focus(); }
+  // ---- visit log (host only) ----
+  var visitsData = null, visitsAt = 0, visitsAll = false, visitsBusy = false;
+  function fillVisits(force) {
+    var box = $('visitBox'); if (!box) return;
+    if (visitsData && !force && Date.now() - visitsAt < 30000) { drawVisits(box); return; }
+    if (visitsData) drawVisits(box);
+    if (visitsBusy || !store.visits) return;
+    visitsBusy = true;
+    store.visits().then(function (r) { visitsBusy = false; if (r && r.visits) { visitsData = r; visitsAt = Date.now(); } var b = $('visitBox'); if (b) drawVisits(b); }, function () { visitsBusy = false; var b = $('visitBox'); if (b && !visitsData) b.innerHTML = '<p class="why">Couldn\'t load the visits right now.</p>'; });
+  }
+  function drawVisits(box) {
+    var list = (visitsData && visitsData.visits) || [];
+    if (!list.length) { box.innerHTML = '<p class="why">No visits yet.</p>'; return; }
+    var clock = function (t) { return new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); };
+    var dayOf = function (t) { var d = new Date(t), today = new Date(), y = new Date(Date.now() - 86400000); if (d.toDateString() === today.toDateString()) return 'Today'; if (d.toDateString() === y.toDateString()) return 'Yesterday'; return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }); };
+    var dur = function (ms) { var m = Math.round(ms / 60000); if (m < 1) return 'under a minute'; if (m < 60) return m + ' min'; return Math.floor(m / 60) + ' h ' + (m % 60) + ' min'; };
+    var onNow = list.filter(function (v) { return v.open; }).length, shown = visitsAll ? list : list.slice(0, 30), html = '', lastDay = '';
+    html += '<p class="visit-sum">' + (onNow ? '<span class="vis-dot" aria-hidden="true"></span>' + onNow + ' on the game now \u00b7 ' : '') + list.length + ' visits in the last two weeks</p><ol class="visit-list">';
+    shown.forEach(function (v) {
+      var day = dayOf(v.start); if (day !== lastDay) { html += '<li class="visit-day">' + esc(day) + '</li>'; lastDay = day; }
+      var end = v.open ? 'now' : clock(v.end || v.last), len = (v.open ? Date.now() : (v.end || v.last)) - v.start;
+      html += '<li class="visit' + (v.open ? ' open' : '') + '"><span class="vis-name">' + (v.open ? '<span class="vis-dot" aria-hidden="true"></span>' : '') + esc(v.name) + (v.player ? '' : ' <span class="vis-tag">not playing</span>') + '</span><span class="vis-time">' + clock(v.start) + ' \u2013 ' + end + '</span><span class="vis-len">' + (v.open ? 'on now, ' : '') + dur(len) + '</span></li>';
+    });
+    html += '</ol>' + (list.length > shown.length ? '<button type="button" class="btn small ghost" data-h="visits-more">Show all ' + list.length + '</button>' : '');
+    box.innerHTML = html;
+  }
   function closeHost() { $('hostDrawer').hidden = true; $('scrim').hidden = true; $('hostBtn').focus(); setTimeout(checkNewClears, 300); }
   function cutoffLabel(s) { var h = s.settings.cutoffHour || 0, m = s.settings.cutoffMinute || 0; return ((h % 12) || 12) + ':' + pad2(m) + ' ' + (h < 12 ? 'AM' : 'PM'); }
   function toLocalInput(ts) { var d = new Date(ts); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
@@ -1450,6 +1476,7 @@
       }).join('');
       html += '</section>';
     }
+    html += '<section class="hsec"><div class="thread-head"><h3>Visits</h3><button type="button" class="btn small link" data-h="visits-refresh">Refresh</button></div><p>When signed-in people opened the game and when they left. A visit ends about a minute after they close it, switch away or lock their phone. The last two weeks are kept.</p><div id="visitBox"><p class="why">Loading</p></div></section>';
     html += '<section class="hsec"><h3>Notifications on this device</h3><div id="pushBox" class="push-box" data-kind="host"><p>Checking this device.</p></div></section>';
     html += '<section class="hsec"><h3>Players</h3><p>Space 0 is the start. Moving a token does not apply the space unless you tick the box.</p><table class="ptable"><tbody>';
     s.order.forEach(function (pid) {
@@ -1475,6 +1502,7 @@
       '<button type="button" class="btn small ghost" data-h="newgame">Start a new game</button>' + (designerBoard() ? '<button type="button" class="btn small ghost" data-h="loadboard">Start a new game on the designer board</button>' : '') + '</div></section>';
     var keep = {}; ['newStart', 'startEdit', 'newEnd', 'endEdit'].forEach(function (id) { var el = $(id); if (el && el.value && el.dataset.touched) keep[id] = el.value; });
     $('hostBody').innerHTML = html;
+    fillVisits();
     Object.keys(keep).forEach(function (id) { var el = $(id); if (el) { el.value = keep[id]; el.dataset.touched = '1'; } });
     ['newStart', 'startEdit', 'newEnd', 'endEdit'].forEach(function (id) { var el = $(id); if (el) el.addEventListener('input', function () { el.dataset.touched = '1'; }); });
     fillPush();
@@ -1596,6 +1624,8 @@
       case 'setend': { var se = readStart('endEdit'); if (!se) { if (se === null) toast('Pick an end time first.', 'bad'); break; } run('setEnd', { endsAt: se }, 'End time saved.'); break; }
       case 'finale': closeHost(); openFinale(); break;
       case 'clearend': run('setEnd', { endsAt: null }, 'End time cleared.'); break;
+      case 'visits-refresh': fillVisits(true); break;
+      case 'visits-more': visitsAll = true; fillVisits(); break;
       case 'clearplayers': if (confirm('Take all ' + st().order.length + ' sign-ups off the board? They can join again whenever sign-ups are open.')) run('clearPlayers', {}, 'Sign-ups cleared.'); break;
       case 'clearstart': if (confirm('Cancel the countdown? Sign-ups stay open and nobody can roll until you set a new start time.')) run('schedule', { startsAt: null }, 'Countdown canceled. Sign-ups are still open.'); break;
       case 'endnow': if (confirm('End the game now? The standings freeze and nobody can roll again.')) run('endNow', {}, 'The game is over.'); break;

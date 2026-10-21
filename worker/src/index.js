@@ -192,6 +192,10 @@ export default {
         if (r.error && r.code === 'no-access') r.status = 403;
         return json(env, req, r, r.error ? (r.status || 400) : 200);
       }
+      if (url.pathname === '/api/host/visits' && req.method === 'GET') {
+        if (!user || !user.isHost) return json(env, req, { error: 'Only the host can see this.' }, 403);
+        return json(env, req, await gameStub(env, user.clan).visitLog(user));
+      }
       if (url.pathname.startsWith('/api/push/') && req.method === 'POST') {
         if (!user) return json(env, req, { error: 'Sign in with Discord first.' }, 401);
         const body = await req.json().catch(() => ({}));
@@ -230,6 +234,7 @@ export class Game extends DurableObject {
       // A game already running picks up new built-in bonus maps.
       if (this.state && !this.state.board.mapSet) E.upgradeBonus(this.state.board, C.boards['chester-escape']().bonusMaps);
       this.meta = (await ctx.storage.get('meta')) || {};
+      this.visits = (await ctx.storage.get('visits')) || [];
     });
   }
 
@@ -308,6 +313,7 @@ export class Game extends DurableObject {
         await this.save();
       }
     }
+    await this.visit(user);
     if (this.dirty) { this.dirty = false; await this.save(); }
     return { pid: status === 'ok' && pid && s.players[pid] ? pid : null, access: status, startsAt: s.status === 'signup' ? s.startsAt || null : null, theme: s.themeId };
   }
@@ -320,6 +326,7 @@ export class Game extends DurableObject {
     const canPlay = this.canUse(user);
     const me = canPlay && pid && s.players[pid] ? pid : null;
     if (me) this.seen(me);
+    await this.visit(user);
     if (this.dirty) { this.dirty = false; await this.save(); }
     if (since === s.seq) return { state: null, me, canPlay, online: this.onlineNow() };
     const out = { state: E.publicState(s), me, canPlay, isHost: !!user.isHost, user: { id: user.id, name: user.name, avatar: user.avatar }, online: this.onlineNow() };
@@ -450,6 +457,42 @@ export class Game extends DurableObject {
   onlineNow() {
     const s = this.state, at = this.seenAt || {}, cut = Date.now() - 50000;
     return Object.keys(at).filter((pid) => at[pid] >= cut && s && s.players[pid]);
+  }
+
+  // Sessions for the host: when each signed-in person opened the game and when they left. An open
+  // page checks in every 20 seconds while it's in front of them; a session ends when the check-ins
+  // stop for a minute (closed, switched away or the phone locked). Two weeks are kept.
+  async visit(user) {
+    if (!user || !user.id || user.isHost) return;   // hosts aren't logged
+    const now = Date.now(), live = (this.visitLive = this.visitLive || {}), log = this.visits || (this.visits = []);
+    await this.sweepVisits(now);
+    const cur = live[user.id];
+    if (cur && now - cur.last < 60000) {
+      cur.last = now;
+      if (now - cur.saved > 300000) { cur.saved = now; cur.entry.last = now; await this.ctx.storage.put('visits', log); }
+      return;
+    }
+    const entry = { id: user.id, name: String(user.name || '').slice(0, 60), start: now, last: now, end: null };
+    log.push(entry);
+    const cut = now - 14 * 86400000;
+    while (log.length && (log.length > 1500 || (log[0].end || log[0].last) < cut)) log.shift();
+    live[user.id] = { entry, last: now, saved: now };
+    await this.ctx.storage.put('visits', log);
+  }
+  async sweepVisits(now) {
+    const live = this.visitLive || {}, log = this.visits || [];
+    let changed = false;
+    Object.keys(live).forEach((id) => { const v = live[id]; if (now - v.last >= 60000) { v.entry.end = v.last; v.entry.last = v.last; delete live[id]; changed = true; } });
+    // After a server restart nobody is in memory: anything still open ends at its last saved check-in.
+    log.forEach((e) => { if (e.end == null && !live[e.id] && now - e.last >= 60000) { e.end = e.last; changed = true; } });
+    if (changed) await this.ctx.storage.put('visits', log);
+  }
+  async visitLog(user) {
+    if (!user || !user.isHost) return { error: 'Only the host can see this.' };
+    const now = Date.now();
+    await this.sweepVisits(now);
+    const s = this.game(), live = this.visitLive || {};
+    return { now, visits: (this.visits || []).slice(-400).reverse().map((e) => ({ id: e.id, name: e.name, start: e.start, end: e.end, last: live[e.id] && live[e.id].entry === e ? live[e.id].last : e.last, open: !!(live[e.id] && live[e.id].entry === e), player: !!s.players['d' + e.id] })) };
   }
 
   // --- push notifications for hosts ---
@@ -586,6 +629,7 @@ export class Game extends DurableObject {
   async alarm() {
     const s = this.game();
     const now = Date.now();
+    await this.sweepVisits(now);
     if (s.status === 'running' && s.endsAt && now >= s.endsAt - 1000) { E.endGame(s, now); await this.announceEnd(); }
     if (s.status === 'signup' && s.startsAt && now >= s.startsAt - 1000) {
       E.startGame(s, now);

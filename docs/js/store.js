@@ -87,6 +87,15 @@
   };
 
   DemoStore.prototype.load = function () { return Promise.resolve(this.state); };
+  // Host tools' visit log, made up for the demo from the bots.
+  DemoStore.prototype.visits = function () {
+    var now = Date.now(), m = 60000, s = this.state, out = [];
+    var plan = [['hummingbird', 3, null], ['nyx', 11, null], ['moth', 26, null], ['wisp', 95, 72], ['gravel', 180, 171], ['hummingbird', 300, 262], ['pumpkin', 26 * 60, 26 * 60 - 14], ['bramble', 27 * 60, 27 * 60 - 3], ['nyx', 30 * 60, 30 * 60 - 41]];
+    plan.forEach(function (x) { var p = s.players[x[0]]; if (!p) return; out.push({ id: x[0], name: p.name, start: now - x[1] * m, end: x[2] == null ? null : now - x[2] * m, last: x[2] == null ? now - 5000 : now - x[2] * m, open: x[2] == null, player: true }); });
+    out.push({ id: 'guest', name: 'LJ', start: now - 50 * m, end: now - 47 * m, last: now - 47 * m, open: false, player: false });
+    out.sort(function (a, b) { return b.start - a.start; });
+    return Promise.resolve({ now: now, visits: out });
+  };
 
   DemoStore.prototype.act = function (name, a) {
     var self = this, s = this.state, me = this.me;
@@ -204,6 +213,7 @@
     this.state = null;
     this._seq = -1;
   }
+  LiveStore.prototype.visits = function () { return this._fetch('/api/host/visits'); };
   LiveStore.prototype._fetch = function (path, opts) {
     opts = opts || {};
     var h = opts.headers || {};
