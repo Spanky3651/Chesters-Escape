@@ -330,6 +330,7 @@
   var BLACK = "'Arial Black', 'Atkinson Hyperlegible', Arial, sans-serif";
   function txt(x, y, size, fill, stroke, sw, t, extra) { return '<text x="' + x + '" y="' + y + '" text-anchor="middle" font-family="' + BLACK + '" font-weight="900" font-size="' + size + '" fill="' + fill + '"' + (stroke ? ' stroke="' + stroke + '" stroke-width="' + sw + '" paint-order="stroke" stroke-linejoin="round"' : '') + (extra || '') + '>' + t + '</text>'; }
   // A Beat Saber note: dark bevel, bright red or blue face, white arrow (or a dot) near the top.
+  var uid = 0;
   function note(x, y, w, h, c, mark, r) {
     var C = c === 'r' ? ['#6e0c18', '#e3263b', '#ff8a95'] : ['#0a2a66', '#2a78f2', '#93c4ff'], f = function (n) { return (+n).toFixed(1); };
     r = r || 3.4;
@@ -390,22 +391,28 @@
         '<g class="a-jaw">' + note(7.6, 18.4, 16.8, 6.8, 'b', '', 3) + '</g>' +
         '<path class="a-shock" d="M3.4 4.6l2 2.6M2.4 9.6h2.8M28.6 4.6l-2 2.6M29.6 9.6h-2.8" stroke="#ffd34d" stroke-width="1.5" stroke-linecap="round"/>';
     } },
-    pat: { label: 'Pat pat', svg: function () {
-      return '<g class="a-patcube">' + note(9, 15.4, 14, 13.4, 'b', '', 3.2) +
-        '<path d="M12 21.2l2-.9M20 21.2l-2-.9" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/><circle cx="13.4" cy="22.6" r="1" fill="#fff"/><circle cx="18.6" cy="22.6" r="1" fill="#fff"/>' +
-        '<path class="a-frown" d="M14.2 26.4q1.8-1.4 3.6 0" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/><path class="a-smile" d="M14.2 25.6q1.8 1.6 3.6 0" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/>' +
-        '<path class="a-blush" d="M11.2 24.2h1.6M19.2 24.2h1.6" stroke="#ff8aa8" stroke-width="1.1" stroke-linecap="round"/></g>' +
-        '<g class="a-hand"><rect x="20" y="1" width="10" height="5.4" rx="2" fill="#2f86ff" stroke="#0b2a55" stroke-width="1.2" transform="rotate(-20 25 3.7)"/>' +
-        '<path d="M11.2 6.4h10.4a3 3 0 0 1 3 3v1.6a1.6 1.6 0 0 1-1.6 1.6 1.6 1.6 0 0 1-1.6 1.4 1.6 1.6 0 0 1-1.7-.4 1.6 1.6 0 0 1-1.7.5 1.6 1.6 0 0 1-1.7-.5 1.6 1.6 0 0 1-1.7.4 1.6 1.6 0 0 1-1.6-1.4 1.6 1.6 0 0 1-1.6-1.6V9.4a3 3 0 0 1 3-3z" fill="#fff" stroke="#2c3134" stroke-width="1.3" stroke-linejoin="round"/>' +
-        '<path d="M14.6 11.6v1.6M17.8 11.8v1.6M21 11.6v1.6" stroke="#2c3134" stroke-width=".9" stroke-linecap="round"/><path d="M12.4 7.6h7.6" stroke="#fff" stroke-width="1" opacity=".6"/></g>' +
-        '<path class="a-sparkle" d="M5 14l.7 1.8 1.8.7-1.8.7L5 19l-.7-1.8-1.8-.7 1.8-.7z" fill="#ffd34d"/>';
+    bump: { label: 'Fist bump', svg: function () {
+      var face = function (cx, cy) { return '<circle cx="' + (cx - 2) + '" cy="' + cy + '" r=".95" fill="#fff"/><circle cx="' + (cx + 2) + '" cy="' + cy + '" r=".95" fill="#fff"/><path d="M' + (cx - 1.5) + ' ' + (cy + 2.2) + 'q1.5 1.3 3 0" fill="none" stroke="#fff" stroke-width=".9" stroke-linecap="round"/>'; };
+      var fist = function (x, y, col) { return '<rect x="' + (x - 2.3) + '" y="' + (y - 2.1) + '" width="4.6" height="4.2" rx="1.6" fill="' + col + '" stroke="#050507" stroke-width="1"/><path d="M' + (x - 1) + ' ' + (y - 2) + 'v1.4M' + (x + .4) + ' ' + (y - 2) + 'v1.4" stroke="#050507" stroke-width=".6" stroke-linecap="round"/>'; };
+      return '<g class="a-noteL">' + note(1.2, 13, 11.4, 12.6, 'r', 'arrow', 2.6) + face(6.9, 21) + '<ellipse cx="4.6" cy="27.4" rx="1.8" ry="1" fill="#111"/><ellipse cx="9.2" cy="27.4" rx="1.8" ry="1" fill="#111"/></g>' +
+        '<g class="a-noteR">' + note(19.4, 13, 11.4, 12.6, 'b', 'arrow', 2.6) + face(25.1, 21) + '<ellipse cx="22.8" cy="27.4" rx="1.8" ry="1" fill="#111"/><ellipse cx="27.4" cy="27.4" rx="1.8" ry="1" fill="#111"/></g>' +
+        '<g class="a-armL"><path d="M12.4 20.4L14.2 19.4" stroke="#1b1b22" stroke-width="2" stroke-linecap="round"/>' + fist(13.8, 19.2, '#ff8a95') + '</g>' +
+        '<g class="a-armR"><path d="M19.6 20.4L17.8 19.4" stroke="#1b1b22" stroke-width="2" stroke-linecap="round"/>' + fist(18.2, 19.2, '#93c4ff') + '</g>' +
+        '<g class="a-spark"><path d="M16 11.2l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="#ffd34d" stroke="#5a3a00" stroke-width=".5"/><path d="M12.8 12.4l-1.4-1.6M19.2 12.4l1.4-1.6M16 9.6V8" stroke="#ffd34d" stroke-width="1" stroke-linecap="round"/></g>';
     } },
-    salute: { label: 'o7', svg: function () {
-      return '<g class="a-stand"><ellipse cx="12.6" cy="29.2" rx="2.4" ry="1.3" fill="#1b1b22"/><ellipse cx="19.4" cy="29.2" rx="2.4" ry="1.3" fill="#1b1b22"/>' +
-        note(7.6, 9.4, 16.8, 18.6, 'r', 'arrow') +
-        '<path d="M11.2 18.4h3.6M17.2 18.4h3.6" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/><circle cx="13" cy="20" r="1.1" fill="#fff"/><circle cx="19" cy="20" r="1.1" fill="#fff"/>' +
-        '<path d="M14 24h4" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/></g>' +
-        '<g class="a-arm"><path d="M24.2 22.4L28.6 16.6 24.8 11.8" fill="none" stroke="#1b1b22" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M23.4 9.2h3.4a1.4 1.4 0 0 1 1.4 1.4v1.6h-6.2v-1.6a1.4 1.4 0 0 1 1.4-1.4z" fill="#4a4f66" stroke="#0b0c12" stroke-width=".9" transform="rotate(-38 25.2 11)"/></g>';
+    medal: { label: 'Medal', svg: function () {
+      var id = 'mclip' + (++uid);
+      return '<g class="a-swing"><path d="M10.2 0.6h5.2l3 11.6h-5.2z" fill="#e3263b" stroke="#050507" stroke-width="1.1" stroke-linejoin="round"/><path d="M21.8 0.6h-5.2l-3 11.6h5.2z" fill="#2a78f2" stroke="#050507" stroke-width="1.1" stroke-linejoin="round"/>' +
+        '<circle cx="16" cy="20.4" r="9" fill="#e8a417" stroke="#5a3a00" stroke-width="1.4"/><circle cx="16" cy="20.4" r="6.6" fill="#ffd34d" stroke="#b07a10" stroke-width="1"/>' +
+        '<path d="M16 15.6l1.4 2.9 3.2.4-2.3 2.2.6 3.2-2.9-1.5-2.9 1.5.6-3.2-2.3-2.2 3.2-.4z" fill="#fff4b8" stroke="#a46d06" stroke-width=".7" stroke-linejoin="round"/>' +
+        '<clipPath id="' + id + '"><circle cx="16" cy="20.4" r="8.3"/></clipPath><g clip-path="url(#' + id + ')"><g class="a-glint"><rect x="9" y="10" width="2.4" height="22" fill="#fff" opacity=".7" transform="rotate(30 16 20.4)"/></g></g></g>' +
+        '<path class="a-twinkle" d="M27.4 9.4l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" fill="#fff"/>';
+    } },
+    pressf: { label: 'Press F', svg: function () {
+      return '<circle class="a-ripple" cx="16" cy="18" r="12" fill="none" stroke="#ffd34d" stroke-width="1.3"/><circle class="a-ripple r2" cx="16" cy="18" r="12" fill="none" stroke="#ffd34d" stroke-width="1"/>' +
+        '<rect x="4.6" y="9.4" width="22.8" height="20.2" rx="4.6" fill="#7d8694" stroke="#14171c" stroke-width="1.6"/>' +
+        '<g class="a-key"><rect x="6.2" y="6.2" width="19.6" height="18" rx="3.8" fill="#eef0f3" stroke="#14171c" stroke-width="1.4"/><rect x="8" y="7.8" width="16" height="5" rx="2.4" fill="#fff" opacity=".8"/>' +
+        txt(16, 20.6, 12.5, '#1f232a', '', 0, 'F') + '<path d="M13.8 22.2h4.4" stroke="#1f232a" stroke-width=".9" stroke-linecap="round" opacity=".5"/></g>';
     } },
     sabers: { label: 'Sabers up', svg: function () {
       var saber = function (cls, hx, hy, tx, ty, col, core) {
@@ -419,18 +426,17 @@
         '<g class="a-armR">' + saber('', 25.6, 16.8, 28.6, 5.6, '#2f86ff', '#d6e8ff') + '<line x1="25.6" y1="16.8" x2="24.6" y2="19.6" stroke="#1b1b22" stroke-width="2.6" stroke-linecap="round"/><circle cx="24.4" cy="19.8" r="1.8" fill="#4a4f66" stroke="#0b0c12" stroke-width=".9"/></g>' +
         '<circle class="a-clash" cx="16" cy="6" r="1.3" fill="#fff"/>';
     } },
-    bomb: { label: 'Hit a bomb', svg: function () { return '<g class="a-jitter"><circle cx="14.5" cy="18.5" r="10" fill="#2a2a35" stroke="#000" stroke-width="1.6"/><circle cx="11" cy="15" r="3" fill="#fff" opacity=".3"/><rect x="17.5" y="6.5" width="6" height="5" rx="1.2" fill="#5b5b66" transform="rotate(40 20.5 9)"/><path d="M22.5 7.5q2.5-4.5 6-3.4" fill="none" stroke="#c9a46a" stroke-width="1.6" stroke-linecap="round"/></g><g class="a-spark"><path d="M28.6 .4l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z" fill="#ffb02e"/><circle cx="28.6" cy="3.9" r="1.2" fill="#fff6c8"/></g>'; } },
     salt: { label: 'Salty', svg: function () { return '<g class="a-shaker"><path d="M10.2 13h11.6l-1.4 14.4a2.2 2.2 0 0 1-2.2 2H13.8a2.2 2.2 0 0 1-2.2-2z" fill="#f5f7f9" stroke="#3d4650" stroke-width="1.5"/><path d="M10.6 13q0-7.6 5.4-7.6t5.4 7.6z" fill="#aab6c2" stroke="#3d4650" stroke-width="1.5"/><circle cx="14.2" cy="9.6" r=".9" fill="#56606a"/><circle cx="17.8" cy="9.6" r=".9" fill="#56606a"/><circle cx="16" cy="7.8" r=".9" fill="#56606a"/>' + txt(16, 23.6, 5, '#5f6c78', '', 0, 'SALT', ' textLength="8.6" lengthAdjust="spacingAndGlyphs"') + '</g><rect class="a-grain" x="6" y="3" width="1.8" height="1.8" fill="#fff"/><rect class="a-grain g2" x="3.4" y="6" width="1.5" height="1.5" fill="#fff"/><rect class="a-grain g3" x="7.6" y="8" width="1.4" height="1.4" fill="#fff"/>'; } },
     rip: { label: 'RIP', svg: function () { return '<path d="M8 28.5V13.5a8 8 0 0 1 16 0v15z" fill="#a3a9ac" stroke="#2c3134" stroke-width="1.8"/><path d="M10 13.5a6 6 0 0 1 6-6" fill="none" stroke="#fff" stroke-width="1.2" opacity=".5"/>' + txt(16, 21.8, 7.6, '#3b4043', '', 0, 'RIP') + '<path d="M4 29.2h24" stroke="#4f8a2b" stroke-width="2.6" stroke-linecap="round"/><g class="a-ghost"><path d="M22.5 11.5a4 4 0 0 1 8 0v5.5l-1.3-1.1-1.4 1.1-1.3-1.1-1.4 1.1-1.3-1.1-1.3 1.1z" fill="#fff" stroke="#2c3134" stroke-width=".9" opacity=".95"/><circle cx="25" cy="11.6" r=".75" fill="#222"/><circle cx="28" cy="11.6" r=".75" fill="#222"/></g>'; } },
     hero: { label: '', svg: null }
   };
   // Which reactions lead the picker for each kind of moment.
   var RX_ORDER = {
-    cleared: ['ss', 'fire', 'love', 'jaw', 'letsgo', 'salute', 'sabers', 'salt', 'hero', 'lol', 'popcorn', 'pat', 'bomb', 'rip'],
-    escaped: ['letsgo', 'salute', 'love', 'fire', 'jaw', 'hero', 'sabers', 'salt', 'ss', 'popcorn', 'lol', 'pat', 'rip', 'bomb'],
-    bad: ['rip', 'lol', 'popcorn', 'pat', 'bomb', 'salt', 'salute', 'jaw', 'hero', 'love', 'fire', 'letsgo', 'sabers', 'ss'],
-    good: ['fire', 'jaw', 'love', 'sabers', 'letsgo', 'salt', 'popcorn', 'hero', 'salute', 'lol', 'ss', 'pat', 'rip', 'bomb'],
-    other: ['letsgo', 'love', 'lol', 'popcorn', 'hero', 'fire', 'jaw', 'salute', 'sabers', 'salt', 'pat', 'rip', 'bomb', 'ss']
+    cleared: ['ss', 'fire', 'medal', 'love', 'jaw', 'letsgo', 'bump', 'sabers', 'salt', 'hero', 'lol', 'popcorn', 'pressf', 'rip'],
+    escaped: ['medal', 'letsgo', 'bump', 'love', 'fire', 'jaw', 'hero', 'sabers', 'salt', 'ss', 'popcorn', 'lol', 'pressf', 'rip'],
+    bad: ['pressf', 'rip', 'lol', 'popcorn', 'salt', 'bump', 'jaw', 'hero', 'love', 'fire', 'letsgo', 'sabers', 'medal', 'ss'],
+    good: ['fire', 'jaw', 'love', 'sabers', 'letsgo', 'bump', 'salt', 'popcorn', 'hero', 'medal', 'lol', 'ss', 'pressf', 'rip'],
+    other: ['letsgo', 'bump', 'love', 'lol', 'popcorn', 'hero', 'fire', 'jaw', 'medal', 'sabers', 'salt', 'pressf', 'rip', 'ss']
   };
   function rxLabel(id, theme) { return id === 'hero' ? (theme && theme.hero === 'taco' ? 'Taco!' : 'Caw!') : (RX[id] ? RX[id].label : ''); }
   function rxIcon(id, theme, cls) {
