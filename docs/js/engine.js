@@ -140,10 +140,10 @@
 
   // Emoji reactions on moments in the game thread (scores, escapes, setbacks...). Tapping the
   // same one again takes it back. Stored per event as { emoji: [player ids] }.
-  // The game's own reactions (drawn and animated by the page): SS, fire, let's go, love it (the cat), crossed sabers,
+  // The game's own reactions (drawn and animated by the page): SS, fire, let's go, love it (the cat), no way, o7, the saber cube, popcorn, LOL, pat pat,
   // bomb, salty, RIP and the theme's hero. Reactions saved under an older set (plain emoji, then
   // GG, full combo and miss) map onto the closest current one so they still count and can be taken back.
-  var REACTIONS = ['ss', 'fire', 'letsgo', 'love', 'sabers', 'bomb', 'salt', 'rip', 'hero'];
+  var REACTIONS = ['ss', 'fire', 'letsgo', 'love', 'jaw', 'salute', 'sabers', 'popcorn', 'lol', 'pat', 'bomb', 'salt', 'rip', 'hero'];
   var LEGACY_REACTIONS = { '\uD83D\uDC4F': 'letsgo', '\uD83C\uDF89': 'letsgo', '\uD83D\uDD25': 'fire', '\uD83D\uDE02': 'salt', '\uD83D\uDC80': 'rip', '\uD83D\uDE31': 'bomb', gg: 'letsgo', fc: 'ss', miss: 'bomb' };
   function react(s, pid, evId, emoji) {
     need(s, pid);

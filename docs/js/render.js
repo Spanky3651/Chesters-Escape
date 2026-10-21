@@ -675,7 +675,6 @@
       if (p.finished) inner += '<text y="' + (-r - 6) + '" text-anchor="middle" font-size="' + (r * .9) + '">\uD83C\uDF89</text>';
       if (opts.online && opts.online[pid]) inner += '<circle class="on-dot" cx="' + (r * .74).toFixed(1) + '" cy="' + (r * .74).toFixed(1) + '" r="' + (r * .27).toFixed(1) + '"/>';
       if (fl.crown === pid) inner += '<g class="crown" transform="translate(' + (r * .62).toFixed(1) + ',' + (-r * .78).toFixed(1) + ') rotate(20)"><text text-anchor="middle" font-size="' + (r * 1.05).toFixed(1) + '" y="' + (r * .3).toFixed(1) + '">\uD83D\uDC51</text></g>';
-      if (fl.lantern === pid) inner += '<g class="lantern" transform="translate(' + (-r * .9).toFixed(1) + ',' + (-r * .7).toFixed(1) + ')"><circle r="' + (r * .75).toFixed(1) + '" class="lantern-glow"/><text text-anchor="middle" font-size="' + (r * 1.05).toFixed(1) + '" y="' + (r * .36).toFixed(1) + '">\uD83C\uDFEE</text></g>';
       inner += '<title>' + esc(p.name) + '</title>';
       if ((L.n === 1 && !crowded[pid]) || me) inner += '<g class="tag"><rect x="-34" y="' + (r + 5) + '" width="68" height="15" rx="7.5" fill="#000" opacity=".78"/><text y="' + (r + 16) + '" text-anchor="middle" font-family="Atkinson Hyperlegible, Arial, sans-serif" font-weight="700" font-size="10.5" fill="#fff">' + esc(trunc(p.name, 11)) + '</text></g>';
       g.querySelector('.tok-in').innerHTML = inner;

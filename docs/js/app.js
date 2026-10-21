@@ -7,7 +7,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var esc = R.esc;
 
-  var store = null, die = null, svgEl = null, builtKey = '', animating = false, feedMode = 'me', cam = null;
+  var store = null, die = null, svgEl = null, builtKey = '', animating = false, feedMode = 'all', cam = null;
   var muted = false;
   try { muted = localStorage.getItem('cg.muted') === '1'; } catch (e) {}
 

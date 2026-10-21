@@ -219,13 +219,12 @@
     return val;
   }
 
-  // ---- token flair: crown for the leader, lantern for last place ----
+  // ---- token flair: a crown for the leader ----
   function flair(s) {
-    var o = { crown: null, lantern: null };
+    var o = { crown: null };
     if (s.status !== 'running') return o;
     var rank = E.ranking(s).filter(function (r) { return !r.escaped; });
     if (rank.length >= 2 && rank[0].left < rank[1].left && s.players[rank[0].pid].pos >= 0) o.crown = rank[0].pid;
-    if (rank.length >= 3) { var a = rank[rank.length - 1], b = rank[rank.length - 2]; if (a.left > b.left) o.lantern = a.pid; }
     return o;
   }
 
@@ -330,6 +329,18 @@
   // Drawn as small pictures (no emoji font differences between phones and PCs).
   var BLACK = "'Arial Black', 'Atkinson Hyperlegible', Arial, sans-serif";
   function txt(x, y, size, fill, stroke, sw, t, extra) { return '<text x="' + x + '" y="' + y + '" text-anchor="middle" font-family="' + BLACK + '" font-weight="900" font-size="' + size + '" fill="' + fill + '"' + (stroke ? ' stroke="' + stroke + '" stroke-width="' + sw + '" paint-order="stroke" stroke-linejoin="round"' : '') + (extra || '') + '>' + t + '</text>'; }
+  // A Beat Saber note: dark bevel, bright red or blue face, white arrow (or a dot) near the top.
+  function note(x, y, w, h, c, mark, r) {
+    var C = c === 'r' ? ['#6e0c18', '#e3263b', '#ff8a95'] : ['#0a2a66', '#2a78f2', '#93c4ff'], f = function (n) { return (+n).toFixed(1); };
+    r = r || 3.4;
+    var o = '<rect x="' + f(x) + '" y="' + f(y) + '" width="' + f(w) + '" height="' + f(h) + '" rx="' + f(r) + '" fill="' + C[0] + '" stroke="#050507" stroke-width="1.5"/>' +
+      '<rect x="' + f(x + 1.5) + '" y="' + f(y + 1.5) + '" width="' + f(w - 3) + '" height="' + f(h - 3) + '" rx="' + f(Math.max(1, r - 1.3)) + '" fill="' + C[1] + '"/>' +
+      '<rect x="' + f(x + 1.5) + '" y="' + f(y + 1.5) + '" width="' + f(w - 3) + '" height="' + f((h - 3) * .4) + '" rx="' + f(Math.max(1, r - 1.3)) + '" fill="' + C[2] + '" opacity=".35"/>';
+    var cx = x + w / 2, ay = y + 2.6, aw = w * .27, ah = h * .17;
+    if (mark === 'arrow') o += '<path d="M' + f(cx - aw) + ' ' + f(ay) + 'H' + f(cx + aw) + 'L' + f(cx) + ' ' + f(ay + ah) + 'z" fill="#fff" stroke="#fff" stroke-width="1.2" stroke-linejoin="round" opacity=".45" transform="translate(0 .3)"/><path d="M' + f(cx - aw) + ' ' + f(ay) + 'H' + f(cx + aw) + 'L' + f(cx) + ' ' + f(ay + ah) + 'z" fill="#fff" stroke="#fff" stroke-width=".6" stroke-linejoin="round"/>';
+    if (mark === 'dot') o += '<circle cx="' + f(cx) + '" cy="' + f(ay + 1.8) + '" r="1.7" fill="#fff"/>';
+    return o;
+  }
   var RX = {
     ss: { label: 'SS rank', svg: function () { return '<g class="a-ss"><circle class="a-ring" cx="16" cy="16" r="12.6" fill="#121212" stroke="#ffd34d" stroke-width="2.6"/>' + txt(16, 20.6, 12.5, '#ffd34d', '', 0, 'SS') + '</g><path class="a-twinkle" d="M27 2l1 2.6 2.6 1-2.6 1L27 9.2 26 6.6 23.4 5.6 26 4.6z" fill="#fff"/>'; } },
     fire: { label: 'Fire', svg: function () {
@@ -359,18 +370,54 @@
         '<path class="a-hitL" d="M2.6 20.6l-1.8-1.8M2.2 22.6H.2" stroke="#fff" stroke-width="1" stroke-linecap="round"/><path class="a-hitR" d="M29.4 20.6l1.8-1.8M29.8 22.6h2" stroke="#fff" stroke-width="1" stroke-linecap="round"/>' +
         H('h1', 2.2, 12, 1) + H('h2', 24.8, 11, 1) + H('h3', 13.4, -1, .9);
     } },
+    popcorn: { label: 'Popcorn', svg: function () {
+      var K = function (x, y, cls) { return '<g transform="translate(' + x + ' ' + y + ')"><path class="' + (cls || '') + '" d="M0 0a1.7 1.7 0 0 1 2.6-1.2a1.7 1.7 0 0 1 2.6 1.2a1.6 1.6 0 0 1-.6 2.8a1.7 1.7 0 0 1-3.4.2a1.6 1.6 0 0 1-1.2-3z" fill="#fff4d6" stroke="#9a6b22" stroke-width=".8"/></g>'; };
+      return '<g class="a-bucket">' + K(8.6, 11, '') + K(12.4, 9.4, '') + K(16.2, 10.2, '') + K(19.6, 9, '') + K(22, 11.2, '') + K(14.4, 12, '') +
+        '<path d="M7 14h18l-2.5 16h-13z" fill="#fff" stroke="#3a1f0a" stroke-width="1.5" stroke-linejoin="round"/><path d="M7.00 14L10.00 14L11.67 30L9.50 30zM13.00 14L16.00 14L16.00 30L13.83 30zM19.00 14L22.00 14L20.33 30L18.17 30z" fill="#e8343f"/>' +
+        '<path d="M7 14h18l-2.5 16h-13z" fill="none" stroke="#3a1f0a" stroke-width="1.5" stroke-linejoin="round"/><rect x="6" y="12.8" width="20" height="2.6" rx="1.3" fill="#fff" stroke="#3a1f0a" stroke-width="1.3"/></g>' +
+        K(9.4, 9, 'a-pop k1') + K(18.6, 8.4, 'a-pop k2') + K(14, 8, 'a-pop k3');
+    } },
+    lol: { label: 'LOL', svg: function () {
+      return '<g class="a-rock"><path d="M16 3.4L28.6 26.6q1 2.2-1.4 2.2H4.8q-2.4 0-1.4-2.2z" fill="#e8822a" stroke="#4a2306" stroke-width="1.6" stroke-linejoin="round"/><path d="M16 3.4L28.6 26.6q1 2.2-1.4 2.2H16z" fill="#ffb347" opacity=".55"/>' +
+        txt(16, 13, 5.4, '#4a2306', '', 0, '4') + '<path d="M10.6 16.6l2.8 1.6-2.8 1.6M21.4 16.6l-2.8 1.6 2.8 1.6" fill="none" stroke="#2a1405" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<path d="M12 21.4h8q0 5-4 5t-4-5z" fill="#5a1220" stroke="#2a1405" stroke-width="1.1" stroke-linejoin="round"/><path d="M13.6 24.8q2.4-1.6 4.8 0q-1 1.4-2.4 1.4t-2.4-1.4z" fill="#ff7a8e"/></g>' +
+        '<path class="a-tearL" d="M9.6 17.4q-4.4.4-6 4.2q-.4 1.8 1.2 2 2.2-.6 3.2-3.4z" fill="#6cc4ff" stroke="#0e3d63" stroke-width=".9" stroke-linejoin="round"/><path class="a-tearR" d="M22.4 17.4q4.4.4 6 4.2q.4 1.8-1.2 2-2.2-.6-3.2-3.4z" fill="#6cc4ff" stroke="#0e3d63" stroke-width=".9" stroke-linejoin="round"/>';
+    } },
+    jaw: { label: 'No way!', svg: function () {
+      return '<g class="a-jawhead">' + note(7, 3.4, 18, 15.6, 'b', 'arrow') +
+        '<g class="a-eyes"><circle cx="12.4" cy="11.6" r="3.2" fill="#fff" stroke="#0b0c12" stroke-width=".9"/><circle cx="19.6" cy="11.6" r="3.2" fill="#fff" stroke="#0b0c12" stroke-width=".9"/><circle cx="12.4" cy="11.6" r="1.1" fill="#111"/><circle cx="19.6" cy="11.6" r="1.1" fill="#111"/></g></g>' +
+        '<rect x="9" y="17" width="14" height="9" rx="2" fill="#1a0a12"/><path d="M11 24.8q5-3 10 0v1.2H11z" fill="#ff6b84"/>' +
+        '<g class="a-jaw">' + note(7.6, 18.4, 16.8, 6.8, 'b', '', 3) + '</g>' +
+        '<path class="a-shock" d="M3.4 4.6l2 2.6M2.4 9.6h2.8M28.6 4.6l-2 2.6M29.6 9.6h-2.8" stroke="#ffd34d" stroke-width="1.5" stroke-linecap="round"/>';
+    } },
+    pat: { label: 'Pat pat', svg: function () {
+      return '<g class="a-patcube">' + note(9, 15.4, 14, 13.4, 'b', '', 3.2) +
+        '<path d="M12 21.2l2-.9M20 21.2l-2-.9" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/><circle cx="13.4" cy="22.6" r="1" fill="#fff"/><circle cx="18.6" cy="22.6" r="1" fill="#fff"/>' +
+        '<path class="a-frown" d="M14.2 26.4q1.8-1.4 3.6 0" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/><path class="a-smile" d="M14.2 25.6q1.8 1.6 3.6 0" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/>' +
+        '<path class="a-blush" d="M11.2 24.2h1.6M19.2 24.2h1.6" stroke="#ff8aa8" stroke-width="1.1" stroke-linecap="round"/></g>' +
+        '<g class="a-hand"><rect x="20" y="1" width="10" height="5.4" rx="2" fill="#2f86ff" stroke="#0b2a55" stroke-width="1.2" transform="rotate(-20 25 3.7)"/>' +
+        '<path d="M11.2 6.4h10.4a3 3 0 0 1 3 3v1.6a1.6 1.6 0 0 1-1.6 1.6 1.6 1.6 0 0 1-1.6 1.4 1.6 1.6 0 0 1-1.7-.4 1.6 1.6 0 0 1-1.7.5 1.6 1.6 0 0 1-1.7-.5 1.6 1.6 0 0 1-1.7.4 1.6 1.6 0 0 1-1.6-1.4 1.6 1.6 0 0 1-1.6-1.6V9.4a3 3 0 0 1 3-3z" fill="#fff" stroke="#2c3134" stroke-width="1.3" stroke-linejoin="round"/>' +
+        '<path d="M14.6 11.6v1.6M17.8 11.8v1.6M21 11.6v1.6" stroke="#2c3134" stroke-width=".9" stroke-linecap="round"/><path d="M12.4 7.6h7.6" stroke="#fff" stroke-width="1" opacity=".6"/></g>' +
+        '<path class="a-sparkle" d="M5 14l.7 1.8 1.8.7-1.8.7L5 19l-.7-1.8-1.8-.7 1.8-.7z" fill="#ffd34d"/>';
+    } },
+    salute: { label: 'o7', svg: function () {
+      return '<g class="a-stand"><ellipse cx="12.6" cy="29.2" rx="2.4" ry="1.3" fill="#1b1b22"/><ellipse cx="19.4" cy="29.2" rx="2.4" ry="1.3" fill="#1b1b22"/>' +
+        note(7.6, 9.4, 16.8, 18.6, 'r', 'arrow') +
+        '<path d="M11.2 18.4h3.6M17.2 18.4h3.6" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/><circle cx="13" cy="20" r="1.1" fill="#fff"/><circle cx="19" cy="20" r="1.1" fill="#fff"/>' +
+        '<path d="M14 24h4" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/></g>' +
+        '<g class="a-arm"><path d="M24.2 22.4L28.6 16.6 24.8 11.8" fill="none" stroke="#1b1b22" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M23.4 9.2h3.4a1.4 1.4 0 0 1 1.4 1.4v1.6h-6.2v-1.6a1.4 1.4 0 0 1 1.4-1.4z" fill="#4a4f66" stroke="#0b0c12" stroke-width=".9" transform="rotate(-38 25.2 11)"/></g>';
+    } },
     sabers: { label: 'Sabers up', svg: function () {
       var saber = function (cls, hx, hy, tx, ty, col, core) {
         return '<g class="' + cls + '"><line x1="' + hx + '" y1="' + hy + '" x2="' + tx + '" y2="' + ty + '" stroke="' + col + '" stroke-width="5" stroke-linecap="round" opacity=".3" class="a-glow"/><line x1="' + hx + '" y1="' + hy + '" x2="' + tx + '" y2="' + ty + '" stroke="' + col + '" stroke-width="2.6" stroke-linecap="round"/><line x1="' + hx + '" y1="' + hy + '" x2="' + tx + '" y2="' + ty + '" stroke="' + core + '" stroke-width=".9" stroke-linecap="round"/></g>';
       };
       return '<g class="a-cube"><ellipse cx="12.6" cy="28.8" rx="2.4" ry="1.3" fill="#1b1b22"/><ellipse cx="19.4" cy="28.8" rx="2.4" ry="1.3" fill="#1b1b22"/>' +
-        '<rect x="8.6" y="12.6" width="14.8" height="15" rx="3.4" fill="#3b3f52" stroke="#0b0c12" stroke-width="1.4"/><rect x="10" y="13.8" width="12" height="3" rx="1.5" fill="#fff" opacity=".18"/>' +
-        '<path d="M12.8 15.6l3.2 2.3 3.2-2.3" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+        note(8.6, 12.4, 14.8, 15.4, 'r', 'arrow') +
         '<ellipse cx="13.4" cy="21.2" rx="1.7" ry="2" fill="#fff"/><ellipse cx="18.6" cy="21.2" rx="1.7" ry="2" fill="#fff"/><circle cx="13.8" cy="21.6" r=".9" fill="#111"/><circle cx="18.2" cy="21.6" r=".9" fill="#111"/>' +
         '<path d="M14.2 24.4q1.8 1.6 3.6 0" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/></g>' +
         '<g class="a-armL">' + saber('', 6.4, 16.8, 3.4, 5.6, '#ff3b4a', '#ffd6da') + '<line x1="6.4" y1="16.8" x2="7.4" y2="19.6" stroke="#1b1b22" stroke-width="2.6" stroke-linecap="round"/><circle cx="7.6" cy="19.8" r="1.8" fill="#4a4f66" stroke="#0b0c12" stroke-width=".9"/></g>' +
         '<g class="a-armR">' + saber('', 25.6, 16.8, 28.6, 5.6, '#2f86ff', '#d6e8ff') + '<line x1="25.6" y1="16.8" x2="24.6" y2="19.6" stroke="#1b1b22" stroke-width="2.6" stroke-linecap="round"/><circle cx="24.4" cy="19.8" r="1.8" fill="#4a4f66" stroke="#0b0c12" stroke-width=".9"/></g>' +
-        '<circle class="a-clash" cx="16" cy="6" r="2" fill="#fff"/>';
+        '<circle class="a-clash" cx="16" cy="6" r="1.3" fill="#fff"/>';
     } },
     bomb: { label: 'Hit a bomb', svg: function () { return '<g class="a-jitter"><circle cx="14.5" cy="18.5" r="10" fill="#2a2a35" stroke="#000" stroke-width="1.6"/><circle cx="11" cy="15" r="3" fill="#fff" opacity=".3"/><rect x="17.5" y="6.5" width="6" height="5" rx="1.2" fill="#5b5b66" transform="rotate(40 20.5 9)"/><path d="M22.5 7.5q2.5-4.5 6-3.4" fill="none" stroke="#c9a46a" stroke-width="1.6" stroke-linecap="round"/></g><g class="a-spark"><path d="M28.6 .4l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z" fill="#ffb02e"/><circle cx="28.6" cy="3.9" r="1.2" fill="#fff6c8"/></g>'; } },
     salt: { label: 'Salty', svg: function () { return '<g class="a-shaker"><path d="M10.2 13h11.6l-1.4 14.4a2.2 2.2 0 0 1-2.2 2H13.8a2.2 2.2 0 0 1-2.2-2z" fill="#f5f7f9" stroke="#3d4650" stroke-width="1.5"/><path d="M10.6 13q0-7.6 5.4-7.6t5.4 7.6z" fill="#aab6c2" stroke="#3d4650" stroke-width="1.5"/><circle cx="14.2" cy="9.6" r=".9" fill="#56606a"/><circle cx="17.8" cy="9.6" r=".9" fill="#56606a"/><circle cx="16" cy="7.8" r=".9" fill="#56606a"/>' + txt(16, 23.6, 5, '#5f6c78', '', 0, 'SALT', ' textLength="8.6" lengthAdjust="spacingAndGlyphs"') + '</g><rect class="a-grain" x="6" y="3" width="1.8" height="1.8" fill="#fff"/><rect class="a-grain g2" x="3.4" y="6" width="1.5" height="1.5" fill="#fff"/><rect class="a-grain g3" x="7.6" y="8" width="1.4" height="1.4" fill="#fff"/>'; } },
@@ -379,11 +426,11 @@
   };
   // Which reactions lead the picker for each kind of moment.
   var RX_ORDER = {
-    cleared: ['ss', 'fire', 'love', 'letsgo', 'sabers', 'salt', 'hero', 'bomb', 'rip'],
-    escaped: ['letsgo', 'love', 'fire', 'hero', 'sabers', 'salt', 'ss', 'rip', 'bomb'],
-    bad: ['rip', 'bomb', 'salt', 'hero', 'love', 'fire', 'letsgo', 'sabers', 'ss'],
-    good: ['fire', 'love', 'sabers', 'letsgo', 'salt', 'hero', 'ss', 'rip', 'bomb'],
-    other: ['letsgo', 'love', 'hero', 'fire', 'sabers', 'salt', 'rip', 'bomb', 'ss']
+    cleared: ['ss', 'fire', 'love', 'jaw', 'letsgo', 'salute', 'sabers', 'salt', 'hero', 'lol', 'popcorn', 'pat', 'bomb', 'rip'],
+    escaped: ['letsgo', 'salute', 'love', 'fire', 'jaw', 'hero', 'sabers', 'salt', 'ss', 'popcorn', 'lol', 'pat', 'rip', 'bomb'],
+    bad: ['rip', 'lol', 'popcorn', 'pat', 'bomb', 'salt', 'salute', 'jaw', 'hero', 'love', 'fire', 'letsgo', 'sabers', 'ss'],
+    good: ['fire', 'jaw', 'love', 'sabers', 'letsgo', 'salt', 'popcorn', 'hero', 'salute', 'lol', 'ss', 'pat', 'rip', 'bomb'],
+    other: ['letsgo', 'love', 'lol', 'popcorn', 'hero', 'fire', 'jaw', 'salute', 'sabers', 'salt', 'pat', 'rip', 'bomb', 'ss']
   };
   function rxLabel(id, theme) { return id === 'hero' ? (theme && theme.hero === 'taco' ? 'Taco!' : 'Caw!') : (RX[id] ? RX[id].label : ''); }
   function rxIcon(id, theme, cls) {
