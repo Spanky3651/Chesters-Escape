@@ -21,7 +21,8 @@ HOSTS = "909550896571113492"
 # The game starts invite-only. People who sign in land on the host's waiting list
 # (Host tools, Who can play). Optional: Discord IDs let in from the start (comma separated).
 TESTERS = ""
-# "1" posts start, day and end messages to each clan's webhook. A clan can override it with announce.
+# Automatic Discord posts, off by default. "1" posts start, day and end messages to each clan's
+# webhook. A clan can override it with announce: "1", "0", or a list such as "start,end".
 ANNOUNCE_DAYS = "0"
 
 # One game per clan Discord server. Members of a server can sign in to that clan's game;

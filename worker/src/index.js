@@ -65,7 +65,7 @@ function hosts(env, clan) { return [...list(env.HOSTS), ...((clan && clan.hosts)
 // The clans, from the CLANS setting in wrangler.toml. Each one:
 //   name, guild (Discord server ID, empty = anyone), game (stored game name, defaults to the id),
 //   order (position on the switcher), theme (for a brand-new game), hosts (extra host IDs), webhook (name of the secret holding the
-//   channel webhook), announce ("1" posts day and start/end messages).
+//   channel webhook), announce ("1" posts every message, or a list of start, day and end, e.g. "start,end").
 // Without CLANS it falls back to one clan built from GUILD_ID, stored as the "main" game.
 function clans(env) {
   let c = env.CLANS;
@@ -261,7 +261,7 @@ export class Game extends DurableObject {
   }
   page(hash) { return pageFor(this.env, this.clan(), hash); }
   webhook() { return this.env[this.clan().webhook] || ''; }
-  announcing() { return !!this.webhook() && this.clan().announce === '1'; }
+  announcing(kind) { const a = String(this.clan().announce || '0'); return !!this.webhook() && (a === '1' || a.split(',').map((x) => x.trim()).includes(kind)); }
 
   game() {
     if (!this.state) {
@@ -631,7 +631,7 @@ export class Game extends DurableObject {
 
   // Day rollover at the cutoff, plus a BeatLeader sweep for everyone still on a map.
   async announceStart() {
-    if (!this.announcing()) return;
+    if (!this.announcing('start')) return;
     const content = `**${this.state.title} has started!** Day 1 is open, go roll your first d4.` + (this.page() ? `\n${this.page()}` : '');
     await fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
   }
@@ -657,7 +657,7 @@ export class Game extends DurableObject {
 
   async announceEnd() {
     const s = this.state;
-    if (!this.announcing() || !s.final) return;
+    if (!this.announcing('end') || !s.final) return;
     const medal = ['🥇', '🥈', '🥉'];
     const top = s.final.slice(0, 3).map((r, i) => `${medal[i]} ${s.players[r.pid].name}` + (r.escaped ? ` (escaped day ${r.day})` : ` (${r.left} to go)`)).join('\n');
     const content = `**${s.title} is over!**\n${top}` + (this.page() ? `\n${this.page()}` : '');
@@ -676,7 +676,7 @@ export class Game extends DurableObject {
     } else if (s.status === 'running' && this.meta.nextCutoff && now >= this.meta.nextCutoff - 1000) {
       E.advanceDay(s);
       this.meta.nextCutoff = E.nextCutoff(s.settings, now + 1000);
-      if (this.announcing()) {
+      if (this.announcing('day')) {
         const left = s.order.filter((id) => !s.players[id].finished).length;
         const content = `**Day ${s.day - 1} is done!** ${left} still trying to escape. Day ${s.day} starts now.` + (this.page() ? `\n${this.page()}` : '');
         await fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
