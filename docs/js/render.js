@@ -95,13 +95,48 @@
     return o;
   }
   // Taco: the Beaters mascot, a smiling taco shell with the fillings peeking over the top.
+  var TACO_FILL = null;
+  function tacoFill() {
+    if (TACO_FILL) return TACO_FILL;
+    var cy = 27, f = function (n) { return (+n).toFixed(2); };
+    var pt = function (deg, r) { var a = deg * Math.PI / 180; return [Math.cos(a) * r, cy + Math.sin(a) * r]; };
+    var seed = 11, rnd = function () { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    var at = function (deg, r, rot, body) { var q = pt(deg, r); return '<g transform="translate(' + f(q[0]) + ',' + f(q[1]) + ') rotate(' + f(rot) + ')">' + body + '</g>'; };
+    var o = '';
+    // a green mound behind everything so the toppings read as one pile
+    var d = '';
+    for (var a1 = 188, i = 0; a1 <= 352; a1 += 4, i++) { var q1 = pt(a1, (i % 2 ? 31.5 : 33.5) + rnd() * 1.2); d += (i ? 'L' : 'M') + f(q1[0]) + ',' + f(q1[1]); }
+    for (var a2 = 352; a2 >= 188; a2 -= 8) { var q2 = pt(a2, 24); d += 'L' + f(q2[0]) + ',' + f(q2[1]); }
+    o += '<path d="' + d + 'Z" fill="#2f7d22"/>';
+    // lettuce leaves, pointing out from the rim, in two greens
+    var LEAF = 'M0,-5.2 Q2.6,-1.2 .4,4.2 Q0,4.6 -.4,4.2 Q-2.6,-1.2 0,-5.2Z';
+    for (var l = 0; l < 26; l++) {
+      var a3 = 192 + l * 6.2 + rnd() * 3, r3 = 30 + rnd() * 2.2;
+      o += at(a3, r3, a3 + 90 + (rnd() - .5) * 50, '<path d="' + LEAF + '" fill="' + (l % 3 === 0 ? '#7fd14f' : l % 3 === 1 ? '#5fb83a' : '#4aa32f') + '" transform="scale(' + f(1.05 + rnd() * .35) + ')"/>');
+    }
+    for (var sh = 0; sh < 9; sh++) { var a4 = 200 + sh * 17 + rnd() * 6; o += at(a4, 31 + rnd() * 1.5, a4 + 90 + (rnd() - .5) * 60, '<path d="M-2.6,0 L2.6,0" stroke="#b8f08a" stroke-width=".8" stroke-linecap="round"/>'); }
+    // meat spilling out low at both ends, in front of the lettuce
+    [[188, 1], [352, -1]].forEach(function (m) {
+      for (var k = 0; k < 7; k++) o += at(m[0] + m[1] * (k * 2.6), 27 + (k % 3) * 1.6 + rnd(), rnd() * 90, '<path d="M-2.4,-1.4 L.6,-2.3 2.5,-.2 1.4,2 -1.9,1.6Z" fill="' + (k % 2 ? '#8a4b22' : '#6e3a18') + '" stroke="#4e260e" stroke-width=".35" transform="scale(1.35)"/>');
+    });
+    // diced tomato, red and orange pepper strips, a little cheese
+    for (var t = 0; t < 9; t++) {
+      var a5 = 197 + t * 17.5 + rnd() * 6;
+      o += at(a5, 30.5 + rnd() * 2.4, rnd() * 90, '<rect x="-2" y="-1.6" width="4" height="3.2" rx=".7" fill="#e0412b" stroke="#a82314" stroke-width=".45"/><rect x="-1" y="-.9" width="1.1" height=".7" rx=".3" fill="#ff9b85" opacity=".85"/>');
+    }
+    for (var s2 = 0; s2 < 6; s2++) {
+      var a6 = 206 + s2 * 25 + rnd() * 8, col = s2 % 3 === 2 ? '#f29a2e' : '#d6331f';
+      o += at(a6, 32 + rnd() * 1.2, a6 + 90 + (rnd() - .5) * 80, '<rect x="-3.4" y="-.7" width="6.8" height="1.4" rx=".7" fill="' + col + '"/>');
+    }
+    for (var c = 0; c < 6; c++) { var a7 = 215 + c * 22 + rnd() * 8; o += at(a7, 30 + rnd() * 2, rnd() * 180, '<rect x="-1.8" y="-.45" width="3.6" height=".9" rx=".45" fill="#ffd34d"/>'); }
+    return (TACO_FILL = o);
+  }
   function taco(x, y, s, hat) {
     var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')"><g class="taco-move">';
     o += '<ellipse cx="0" cy="29" rx="29" ry="5" fill="#000" opacity=".28"/>';
-    // fillings along the top edge of the shell: lettuce, tomato and meat
-    var fill = [[-26, 14, 6, '#5fb83a'], [-23, 4, 6.5, '#6cc443'], [-16, -4, 6.5, '#5fb83a'], [-7, -8, 6.5, '#6cc443'], [3, -9, 6.5, '#5fb83a'], [13, -6, 6.5, '#6cc443'], [21, 1, 6.5, '#5fb83a'], [26, 11, 6, '#6cc443'],
-      [-19, 4, 3.6, '#e0412b'], [-2, -7, 3.6, '#e0412b'], [17, -1, 3.6, '#e0412b'], [-10, -3, 3.4, '#8a4b22'], [8, -4, 3.4, '#8a4b22'], [24, 7, 3, '#8a4b22'], [-25, 9, 3, '#e0412b']];
-    fill.forEach(function (c) { o += '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + c[2] + '" fill="' + c[3] + '"/>'; });
+    // fillings along the top edge of the shell, drawn like hummingbird's art: meat at the ends,
+    // shredded lettuce, tomato chunks and pepper strips (no round toppings)
+    o += tacoFill();
     o += '<path d="M-28,27 A28,27 0 0 1 28,27 Z" fill="#f6c64a" stroke="#d48f1c" stroke-width="2" stroke-linejoin="round"/>';
     o += '<path d="M-20,12 A21,20 0 0 1 2,-0.5" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="3" stroke-linecap="round"/>';
     o += '<circle cx="-16" cy="20" r="1.2" fill="#d48f1c" opacity=".6"/><circle cx="18" cy="21" r="1.2" fill="#d48f1c" opacity=".6"/><circle cx="10" cy="4" r="1.1" fill="#d48f1c" opacity=".55"/><circle cx="-6" cy="5" r="1.1" fill="#d48f1c" opacity=".55"/>';
