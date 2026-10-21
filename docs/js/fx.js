@@ -343,10 +343,34 @@
         '<g class="a-bar2"><rect x="4.5" y="16.5" width="23" height="13" rx="3" fill="#1c9f6d" stroke="#0a3a1b" stroke-width="1.8"/><rect x="6.2" y="18" width="19.6" height="3.4" rx="1.7" fill="#8debc6" opacity=".45"/>' +
         txt(10.6, 27, 10, '#fff', '#0a3a1b', 2.4, 'G') + '<g class="a-goflame" transform="translate(12.3 17.2) scale(.3)"><path d="M16 30.5c-6.6 0-10.6-4.3-10.6-10 0-4.6 2.7-7.6 5-10.4.4 2.8 1.6 4.4 3.2 5.2C13 10 15.4 5.5 18.8 2c.4 4.8 3 7.6 5.3 10.6 1.5 2 2.4 4.3 2.4 7.4 0 5.7-4 10.5-10.5 10.5z" fill="#ff5a1f" stroke="#0a3a1b" stroke-width="3"/><path d="M16 30.5c-3.9 0-6.3-2.5-6.3-5.8 0-2.8 1.7-4.6 3.2-6.4.3 1.6 1 2.6 2 3.1-.4-3 1.2-5.6 3.3-7.6.3 3 1.9 4.6 3.2 6.4.9 1.2 1.4 2.6 1.4 4.5 0 3.3-2.4 5.8-6.8 5.8z" fill="#ffd23f"/></g>' + txt(23.6, 27, 10, '#fff', '#0a3a1b', 2.4, '!') + '</g>';
     } },
+    love: { label: 'Love it!', svg: function () {
+      var H = function (cls, x, y, s) { return '<g transform="translate(' + x + ' ' + y + ') scale(' + s + ')"><path class="a-heart ' + cls + '" d="M0 1.2C0-.6 2.2-1 2.6.6 3-1 5.2-.6 5.2 1.2 5.2 3 2.6 4.6 2.6 4.6S0 3 0 1.2z" fill="#ff4d7a" stroke="#5a0018" stroke-width=".8"/></g>'; };
+      return '<path d="M9.6 8.4L10.3 2.4l3.9 3.8z" fill="#f29a3a" stroke="#4a2306" stroke-width="1.1" stroke-linejoin="round"/><path d="M22.4 8.4L21.7 2.4l-3.9 3.8z" fill="#f29a3a" stroke="#4a2306" stroke-width="1.1" stroke-linejoin="round"/>' +
+        '<path d="M10.8 6.6l.4-2.6 1.8 1.8zM21.2 6.6l-.4-2.6-1.8 1.8z" fill="#ffc2a6"/>' +
+        '<path d="M8.2 23.2Q8.2 15.4 16 15.4t7.8 7.8z" fill="#f29a3a" stroke="#4a2306" stroke-width="1.1"/>' +
+        '<circle cx="16" cy="11.4" r="7.2" fill="#f29a3a" stroke="#4a2306" stroke-width="1.1"/>' +
+        '<path d="M16 4.6v2.3M13.5 5.2l.6 1.9M18.5 5.2l-.6 1.9M9.4 11.6h1.8M20.8 11.6h1.8" stroke="#b5561a" stroke-width="1.1" stroke-linecap="round"/>' +
+        '<ellipse cx="16" cy="14.3" rx="3.7" ry="2.6" fill="#fff4e6"/>' +
+        '<path d="M11.7 10.5q1.4-1.7 2.8 0M17.5 10.5q1.4-1.7 2.8 0" fill="none" stroke="#2a1405" stroke-width="1.25" stroke-linecap="round"/>' +
+        '<path d="M15.2 12.9l.8.8.8-.8z" fill="#e0607e"/><path d="M14.5 14.3q1.5 2.3 3 0z" fill="#8a1f33" stroke="#2a1405" stroke-width=".7" stroke-linejoin="round"/>' +
+        '<g class="a-table"><rect x="1" y="22.6" width="30" height="3.3" rx="1.2" fill="#a8672f" stroke="#3a1f0a" stroke-width="1.2"/><rect x="4" y="25.6" width="2.4" height="5.4" fill="#7a4720" stroke="#3a1f0a" stroke-width="1"/><rect x="25.6" y="25.6" width="2.4" height="5.4" fill="#7a4720" stroke="#3a1f0a" stroke-width="1"/></g>' +
+        '<g class="a-pawL"><rect x="5.4" y="14.6" width="4.8" height="8.4" rx="2.4" fill="#f29a3a" stroke="#4a2306" stroke-width="1.1"/><ellipse cx="7.8" cy="22.2" rx="2.8" ry="1.7" fill="#fff4e6" stroke="#4a2306" stroke-width="1"/></g>' +
+        '<g class="a-pawR"><rect x="21.8" y="14.6" width="4.8" height="8.4" rx="2.4" fill="#f29a3a" stroke="#4a2306" stroke-width="1.1"/><ellipse cx="24.2" cy="22.2" rx="2.8" ry="1.7" fill="#fff4e6" stroke="#4a2306" stroke-width="1"/></g>' +
+        '<path class="a-hitL" d="M2.6 20.6l-1.8-1.8M2.2 22.6H.2" stroke="#fff" stroke-width="1" stroke-linecap="round"/><path class="a-hitR" d="M29.4 20.6l1.8-1.8M29.8 22.6h2" stroke="#fff" stroke-width="1" stroke-linecap="round"/>' +
+        H('h1', 2.2, 12, 1) + H('h2', 24.8, 11, 1) + H('h3', 13.4, -1, .9);
+    } },
     sabers: { label: 'Sabers up', svg: function () {
-      return '<g stroke-linecap="round"><g class="a-sab-r"><line x1="8" y1="24" x2="27" y2="4" stroke="#ff3b4a" stroke-width="6" opacity=".28" class="a-glow"/><line x1="8" y1="24" x2="27" y2="4" stroke="#ff5a66" stroke-width="3"/><line x1="8" y1="24" x2="27" y2="4" stroke="#ffd6da" stroke-width="1"/><line x1="3.5" y1="28.8" x2="8.5" y2="23.5" stroke="#2b2b2b" stroke-width="4.2"/><line x1="7.3" y1="22.5" x2="10" y2="25.3" stroke="#bbb" stroke-width="1.6"/></g>' +
-        '<g class="a-sab-b"><line x1="24" y1="24" x2="5" y2="4" stroke="#2f86ff" stroke-width="6" opacity=".28" class="a-glow"/><line x1="24" y1="24" x2="5" y2="4" stroke="#4d9bff" stroke-width="3"/><line x1="24" y1="24" x2="5" y2="4" stroke="#d6e8ff" stroke-width="1"/><line x1="28.5" y1="28.8" x2="23.5" y2="23.5" stroke="#2b2b2b" stroke-width="4.2"/><line x1="24.7" y1="22.5" x2="22" y2="25.3" stroke="#bbb" stroke-width="1.6"/></g></g>' +
-        '<circle class="a-clash" cx="16" cy="13" r="2.2" fill="#fff"/>';
+      var saber = function (cls, hx, hy, tx, ty, col, core) {
+        return '<g class="' + cls + '"><line x1="' + hx + '" y1="' + hy + '" x2="' + tx + '" y2="' + ty + '" stroke="' + col + '" stroke-width="5" stroke-linecap="round" opacity=".3" class="a-glow"/><line x1="' + hx + '" y1="' + hy + '" x2="' + tx + '" y2="' + ty + '" stroke="' + col + '" stroke-width="2.6" stroke-linecap="round"/><line x1="' + hx + '" y1="' + hy + '" x2="' + tx + '" y2="' + ty + '" stroke="' + core + '" stroke-width=".9" stroke-linecap="round"/></g>';
+      };
+      return '<g class="a-cube"><ellipse cx="12.6" cy="28.8" rx="2.4" ry="1.3" fill="#1b1b22"/><ellipse cx="19.4" cy="28.8" rx="2.4" ry="1.3" fill="#1b1b22"/>' +
+        '<rect x="8.6" y="12.6" width="14.8" height="15" rx="3.4" fill="#3b3f52" stroke="#0b0c12" stroke-width="1.4"/><rect x="10" y="13.8" width="12" height="3" rx="1.5" fill="#fff" opacity=".18"/>' +
+        '<path d="M12.8 15.6l3.2 2.3 3.2-2.3" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<ellipse cx="13.4" cy="21.2" rx="1.7" ry="2" fill="#fff"/><ellipse cx="18.6" cy="21.2" rx="1.7" ry="2" fill="#fff"/><circle cx="13.8" cy="21.6" r=".9" fill="#111"/><circle cx="18.2" cy="21.6" r=".9" fill="#111"/>' +
+        '<path d="M14.2 24.4q1.8 1.6 3.6 0" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/></g>' +
+        '<g class="a-armL">' + saber('', 6.4, 16.8, 3.4, 5.6, '#ff3b4a', '#ffd6da') + '<line x1="6.4" y1="16.8" x2="7.4" y2="19.6" stroke="#1b1b22" stroke-width="2.6" stroke-linecap="round"/><circle cx="7.6" cy="19.8" r="1.8" fill="#4a4f66" stroke="#0b0c12" stroke-width=".9"/></g>' +
+        '<g class="a-armR">' + saber('', 25.6, 16.8, 28.6, 5.6, '#2f86ff', '#d6e8ff') + '<line x1="25.6" y1="16.8" x2="24.6" y2="19.6" stroke="#1b1b22" stroke-width="2.6" stroke-linecap="round"/><circle cx="24.4" cy="19.8" r="1.8" fill="#4a4f66" stroke="#0b0c12" stroke-width=".9"/></g>' +
+        '<circle class="a-clash" cx="16" cy="6" r="2" fill="#fff"/>';
     } },
     bomb: { label: 'Hit a bomb', svg: function () { return '<g class="a-jitter"><circle cx="14.5" cy="18.5" r="10" fill="#2a2a35" stroke="#000" stroke-width="1.6"/><circle cx="11" cy="15" r="3" fill="#fff" opacity=".3"/><rect x="17.5" y="6.5" width="6" height="5" rx="1.2" fill="#5b5b66" transform="rotate(40 20.5 9)"/><path d="M22.5 7.5q2.5-4.5 6-3.4" fill="none" stroke="#c9a46a" stroke-width="1.6" stroke-linecap="round"/></g><g class="a-spark"><path d="M28.6 .4l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z" fill="#ffb02e"/><circle cx="28.6" cy="3.9" r="1.2" fill="#fff6c8"/></g>'; } },
     salt: { label: 'Salty', svg: function () { return '<g class="a-shaker"><path d="M10.2 13h11.6l-1.4 14.4a2.2 2.2 0 0 1-2.2 2H13.8a2.2 2.2 0 0 1-2.2-2z" fill="#f5f7f9" stroke="#3d4650" stroke-width="1.5"/><path d="M10.6 13q0-7.6 5.4-7.6t5.4 7.6z" fill="#aab6c2" stroke="#3d4650" stroke-width="1.5"/><circle cx="14.2" cy="9.6" r=".9" fill="#56606a"/><circle cx="17.8" cy="9.6" r=".9" fill="#56606a"/><circle cx="16" cy="7.8" r=".9" fill="#56606a"/>' + txt(16, 23.6, 5, '#5f6c78', '', 0, 'SALT', ' textLength="8.6" lengthAdjust="spacingAndGlyphs"') + '</g><rect class="a-grain" x="6" y="3" width="1.8" height="1.8" fill="#fff"/><rect class="a-grain g2" x="3.4" y="6" width="1.5" height="1.5" fill="#fff"/><rect class="a-grain g3" x="7.6" y="8" width="1.4" height="1.4" fill="#fff"/>'; } },
@@ -355,11 +379,11 @@
   };
   // Which reactions lead the picker for each kind of moment.
   var RX_ORDER = {
-    cleared: ['ss', 'fire', 'letsgo', 'sabers', 'salt', 'hero', 'bomb', 'rip'],
-    escaped: ['letsgo', 'fire', 'hero', 'sabers', 'salt', 'ss', 'rip', 'bomb'],
-    bad: ['rip', 'bomb', 'salt', 'hero', 'fire', 'letsgo', 'sabers', 'ss'],
-    good: ['fire', 'sabers', 'letsgo', 'salt', 'hero', 'ss', 'rip', 'bomb'],
-    other: ['letsgo', 'hero', 'fire', 'sabers', 'salt', 'rip', 'bomb', 'ss']
+    cleared: ['ss', 'fire', 'love', 'letsgo', 'sabers', 'salt', 'hero', 'bomb', 'rip'],
+    escaped: ['letsgo', 'love', 'fire', 'hero', 'sabers', 'salt', 'ss', 'rip', 'bomb'],
+    bad: ['rip', 'bomb', 'salt', 'hero', 'love', 'fire', 'letsgo', 'sabers', 'ss'],
+    good: ['fire', 'love', 'sabers', 'letsgo', 'salt', 'hero', 'ss', 'rip', 'bomb'],
+    other: ['letsgo', 'love', 'hero', 'fire', 'sabers', 'salt', 'rip', 'bomb', 'ss']
   };
   function rxLabel(id, theme) { return id === 'hero' ? (theme && theme.hero === 'taco' ? 'Taco!' : 'Caw!') : (RX[id] ? RX[id].label : ''); }
   function rxIcon(id, theme, cls) {
