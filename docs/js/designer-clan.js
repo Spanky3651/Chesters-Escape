@@ -15,6 +15,7 @@
     fetch(api + '/api/config' + (want ? '?clan=' + encodeURIComponent(want) : ''), { headers: { authorization: 'Bearer ' + token } })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (cfg) {
+        if (cfg && cfg.user && root.CGSkipOwner) root.CGSkipOwner(cfg.user.id);
         if (!cfg || !cfg.user || !cfg.clan) return null;
         var t = C.themes[cfg.theme];
         return { clan: cfg.clan, clans: cfg.clans || [], theme: t ? cfg.theme : null, family: (t && t.family) || 'chester', name: ((cfg.clans || []).filter(function (c) { return c.id === cfg.clan; })[0] || {}).name || cfg.clan };

@@ -296,6 +296,8 @@
   // ---- me panel ----------------------------------------------------------------
   function renderMe() {
     var p = me(), el = $('mePanel'), s = st();
+    // The demo plays as MSploit for everyone, so only a real sign-in can mark the owner's browser.
+    if (store.mode === 'live' && window.CGSkipOwner) window.CGSkipOwner(store.user && store.user.id, p && p.blId);
     if (!p) {
       if (store.mode === 'live' && store.user && !store.canPlay) {
         el.innerHTML = '<h2>You\'re on the list</h2><p class="lede">Thanks, ' + esc(store.user.name) + '. You can watch the game now. The host will let you in to play.</p>' +
@@ -1418,6 +1420,7 @@
   // ---- closed door ---------------------------------------------------------------------------
   function theme0(t) { return t.hero === 'taco' ? 'The game starts in' : null; }
   function renderGate(g) {
+    if (window.CGSkipOwner && g.user) window.CGSkipOwner(g.user.id);
     // The game picker stays neutral; each game's own theme shows once you pick it.
     // Before a game is picked, the page is neutral: a d4, a plain font and no game name.
     var t = g.kind !== 'choose' && g.theme && C.themes[g.theme] || null;
