@@ -3,11 +3,11 @@
  */
 (function () {
   'use strict';
-  var E = window.CGEngine, C = window.CGContent, R = window.CGRender, S = window.CGServices;
+  var E = window.CGEngine, C = window.CGContent, R = window.CGRender, S = window.CGServices, X = window.CGFx, FX = X.fx;
   var $ = function (id) { return document.getElementById(id); };
   var esc = R.esc;
 
-  var store = null, die = null, svgEl = null, builtKey = '', animating = false, feedMode = 'me';
+  var store = null, die = null, svgEl = null, builtKey = '', animating = false, feedMode = 'me', cam = null;
   var muted = false;
   try { muted = localStorage.getItem('cg.muted') === '1'; } catch (e) {}
 
@@ -78,6 +78,7 @@
     if (force || key !== builtKey) {
       $('boardWrap').innerHTML = R.board(s.board, t, { focusable: true });
       svgEl = $('boardWrap').querySelector('svg');
+      cam = new X.Camera(svgEl);
       builtKey = key;
       addCovers();
     }
@@ -92,7 +93,7 @@
     Object.keys(s.board.spaces).forEach(function (id) { var sp = s.board.spaces[id]; if (sp.type === 'map' && sp.bsr && sp.bsr[0]) keys.push(sp.bsr[0]); });
     S.maps(keys).then(function (found) {
       Object.keys(found).forEach(function (k) { mapInfo[k] = found[k]; });
-      renderStandings();
+      renderStandings(); renderFeed();
       if (svg !== svgEl) return;   // the board was rebuilt meanwhile
       var NS = 'http://www.w3.org/2000/svg';
       Array.prototype.forEach.call(svg.querySelectorAll('.sp-map'), function (g) {
@@ -108,7 +109,8 @@
       });
     });
   }
-  function placeTokens(overrides) { R.placeTokens(svgEl, st(), theme(), { me: store.me, overrides: overrides }); }
+  function onlineMap() { var m = {}, s = st(); (store.online || []).forEach(function (pid) { if (s.players[pid]) m[pid] = 1; }); if (store.me && s.players[store.me]) m[store.me] = 1; return m; }
+  function placeTokens(overrides) { R.placeTokens(svgEl, st(), theme(), { me: store.me, overrides: overrides, flair: X.flair(st()), online: onlineMap() }); }
   function markMine() {
     Array.prototype.forEach.call(svgEl.querySelectorAll('.sp.mine'), function (g) { g.classList.remove('mine'); });
     var p = me(); if (!p || !p.route || p.pos < 0) return;
@@ -156,6 +158,14 @@
     var scale = svgEl.getBoundingClientRect().width / 1000;
     w.scrollTo({ left: xy.x * scale - w.clientWidth / 2, top: xy.y * scale - w.clientHeight / 2, behavior: 'smooth' });
   }
+  // The roll camera: zooms the board toward the moving token and eases back out after.
+  // When the player has zoomed in by hand, it scrolls instead so it never fights them.
+  function camOK() { return cam && svgEl && !$('boardWrap').classList.contains('zoomed'); }
+  function camZoom() { return isPhone() ? 2.3 : 1.75; }
+  function camTo(xy, z) { if (camOK()) return cam.focus(xy, z || camZoom()); followToken(xy); return Promise.resolve(); }
+  function camHome() { return cam ? cam.home() : Promise.resolve(); }
+  function tokEl(pid) { return svgEl && svgEl.querySelector('.tok[data-pid="' + pid + '"]'); }
+  function tokFx(pid, cls, ms) { var t = tokEl(pid); if (!t) return; t.classList.remove(cls); void t.getBBox(); t.classList.add(cls); setTimeout(function () { t.classList.remove(cls); }, ms || 600); }
 
   // ---- header ----------------------------------------------------------------
   // Things waiting on the host: runs to approve and people waiting to get in.
@@ -288,6 +298,7 @@
     }
     if (!s || s.status !== 'signup') return;
     tickClock();
+    if (s.startsAt && svgEl && launchFor !== s.startsAt && s.startsAt - Date.now() <= 10500 && s.startsAt - Date.now() > -1500 && document.visibilityState === 'visible') startLaunch(s.startsAt);
     if (!s.startsAt || Date.now() < s.startsAt) return;
     if (store.mode === 'demo') { if (!starting) { starting = true; store.act('startNow').catch(function () {}).then(function () { starting = false; }); } }
     else if (store.mode === 'live' && Date.now() - kickAt > 5000) { kickAt = Date.now(); store.poll(); }
@@ -322,10 +333,17 @@
     if (p.extraRoll) stats.push('<span class="stat good">Bonus roll ready</span>');
     if (p.skip > 0) stats.push('<span class="stat bad">Loses ' + (p.skip > 1 ? 'the next ' + p.skip + ' turns' : 'the next turn') + '</span>');
     if (p.finished) stats.push('<span class="stat good">Escaped on day ' + p.finished.day + ', ' + ordinal(p.finished.place) + ' place</span>');
+    var rv = X.rivals(s, p.id);
+    if (rv && rv.ahead) stats.push('<span class="stat rival">\uD83D\uDD25 <b>' + esc(s.players[rv.ahead.pid].name) + '</b> is ' + rv.ahead.n + ' ahead</span>');
+    if (rv && rv.tied.length) stats.push('<span class="stat rival">\uD83E\uDD1D Neck and neck with <b>' + esc(s.players[rv.tied[0]].name) + '</b>' + (rv.tied.length > 1 ? ' +' + (rv.tied.length - 1) : '') + '</span>');
+    if (rv && rv.behind) stats.push('<span class="stat rival">\uD83D\uDC40 <b>' + esc(s.players[rv.behind.pid].name) + '</b> is ' + rv.behind.n + ' behind</span>');
+    var bl = X.badgesFor(s)[p.id] || [];
     el.innerHTML = '<div class="me-row">' + avatarHtml(p, 'me-ava') + '<div><div class="me-name">' + esc(p.name) + '</div><div class="me-sub">' + esc(route) +
       (p.blId ? ' &middot; <a href="https://beatleader.com/u/' + encodeURIComponent(p.blId) + '" target="_blank" rel="noopener">BeatLeader</a>' : '') + '</div></div></div>' +
-      (stats.length ? '<div class="me-stats">' + stats.join('') + '</div>' : '');
+      (stats.length ? '<div class="me-stats">' + stats.join('') + '</div>' : '') +
+      (bl.length ? '<div class="me-badges">' + bl.map(function (b) { return '<span class="badge" title="' + esc(b.desc) + '"><i aria-hidden="true">' + b.icon + '</i>' + esc(b.name) + '</span>'; }).join('') + '</div>' : '');
     el.style.setProperty('--c', col);
+    badgeNotice(p, bl);
     // Roll reminders live behind the bell in the header.
     var rb = $('remBtn'), wantRem = store.mode === 'live' && store.canPlay && !p.finished && s.status !== 'finished' && E.remindHour(s) != null;
     if (rb.hidden === wantRem) { rb.hidden = !wantRem; if (!wantRem) closeRem(); }
@@ -419,7 +437,7 @@
   }
 
   // ---- feed --------------------------------------------------------------------
-  var ICON = { roll: '🎲', land: '📍', task: '🎵', card: '🃏', move: '➡️', skip: '⏸️', start: '↩️', warp: '🌀', cleared: '✅', claim: '📨', 'claim-rejected': '❌', 'lost-turn': '💤', escaped: '🎉', route: '🧭', join: '👋', shield: '🛡️', 'shield-used': '🛡️', again: '🎲', overshoot: '🎯', 'gate-closed': '🔒', 'host-move': '🧹', 'host-reset': '🧹', reshuffle: '🔀', begin: '🏁' };
+  var ICON = { roll: '🎲', land: '📍', task: '🎵', card: '🃏', move: '➡️', skip: '⏸️', start: '↩️', warp: '🌀', cleared: '✅', claim: '📨', 'claim-rejected': '❌', 'lost-turn': '💤', escaped: '🎉', route: '🧭', join: '👋', shield: '🛡️', 'shield-used': '🛡️', again: '🎲', overshoot: '🎯', 'gate-closed': '🔒', 'host-move': '🧹', 'host-reset': '🧹', reshuffle: '🔀', begin: '🏁', pass: '⚡' };
   function evText(e) {
     var s = st(), t = theme(), sp = e.space ? s.board.spaces[e.space] : null, card = e.card ? E.cardById(s, e.card) : null;
     switch (e.t) {
@@ -435,7 +453,8 @@
         var pr = e.proof || {}, how = pr.by === 'beatleader' ? 'on BeatLeader' : pr.by === 'host' ? 'by the host' : '';
         var detail = pr.diff ? ' (' + esc(pr.diff.replace('ExpertPlus', 'Expert+')) + (pr.acc ? ', ' + (pr.acc * 100).toFixed(2) + '%' : '') + (pr.firstAcc != null ? ', improved' : '') + ')' : '';
         var rp = pr.score ? ' <a href="' + esc(S.replayUrl(pr.score)) + '" target="_blank" rel="noopener">Replay</a>' : '';
-        return { html: 'Cleared <b>!bsr ' + esc((e.bsr || []).join(' or ')) + '</b> ' + how + detail + rp, cls: 'good' };
+        var gr = X.grade(pr.acc), song = songFor((e.bsr || [])[0]);
+        return { html: '<span class="score-line">' + (gr ? '<span class="grade-chip ' + gr.cls + '" title="' + gr.g + ' rank">' + gr.g + '</span>' : '') + 'Cleared <b>' + (song ? esc(song.name) : '!bsr ' + esc((e.bsr || []).join(' or '))) + '</b> ' + how + detail + rp + '</span>', cls: 'good' };
       }
       case 'claim': return { html: 'Asked the host to approve a run' + (e.url ? ' (<a href="' + esc(e.url) + '" target="_blank" rel="noopener">replay</a>)' : '') };
       case 'claim-rejected': return { html: 'The host could not confirm that run', cls: 'bad' };
@@ -452,6 +471,7 @@
       case 'host-reset': return { html: 'The host reset this token' };
       case 'rest': return null;
       case 'reshuffle': return { html: 'The card deck was reshuffled' };
+      case 'pass': { var nm = (e.over || []).map(function (q) { return s.players[q] ? '<b>' + esc(s.players[q].name) + '</b>' : ''; }).filter(Boolean); return nm.length ? { html: 'Passed ' + (nm.length > 2 ? nm.slice(0, -1).join(', ') + ' and ' + nm[nm.length - 1] : nm.join(' and ')), cls: 'good' } : null; }
       default: return null;
     }
   }
@@ -465,13 +485,66 @@
       if (feedMode === 'me' && e.pid !== store.me) continue;
       var x = evText(e); if (!x) continue;
       var p = s.players[e.pid];
-      html += '<li><span class="ic" aria-hidden="true">' + (ICON[e.t] || '•') + '</span><span>' +
+      var rxh = rxRow(e), nActs = (rxh.match(/class="(rx-add|fd-share)"/g) || []).length;
+      html += '<li data-ev="' + e.id + '"' + (nActs ? ' class="has-acts' + (nActs > 1 ? ' two' : '') + '"' : '') + '><span class="ic" aria-hidden="true">' + (ICON[e.t] || '•') + '</span><span>' +
         (feedMode === 'all' && p ? '<span class="who">' + esc(p.name) + '</span> ' : '') +
-        '<span class="' + (x.cls || '') + '">' + x.html + '</span> <span class="when">' + (e.pre ? 'sign-up' : 'day ' + e.day) + '</span></span></li>';
+        '<span class="' + (x.cls || '') + '">' + x.html + '</span> <span class="when">' + (e.pre ? 'sign-up' : 'day ' + e.day) + '</span>' + rxh + '</span></li>';
       shown++;
     }
     list.innerHTML = html || '<li class="empty" style="display:block">' + (feedMode === 'me' ? 'Your moves show up here.' : 'Nothing has happened yet.') + '</li>';
     Array.prototype.forEach.call(document.querySelectorAll('.seg [data-feed]'), function (b) { b.setAttribute('aria-selected', b.dataset.feed === feedMode ? 'true' : 'false'); });
+  }
+
+  // Reactions under a thread item, plus react and share buttons.
+  var RX_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="12" r="8"/><path d="M8 14.5c1.6 1.8 4.4 1.8 6 0"/><path d="M8.5 9.5h.01M13.5 9.5h.01"/><path d="M20 3v4M18 5h4"/></svg>';
+  var SHARE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>';
+  var REACTABLE = { cleared: 1, escaped: 1, card: 1, move: 1, start: 1, warp: 1, pass: 1, skip: 1, 'lost-turn': 1, join: 1, 'gate-closed': 1, 'shield-used': 1 };
+  function shareable(e) { return e.pid === store.me && (e.t === 'cleared' || e.t === 'escaped' || e.t === 'pass' || e.t === 'start' || (e.t === 'warp') || (e.t === 'move' && Math.abs(e.n) >= 3) || e.t === 'card'); }
+  function rxRow(e) {
+    var s = st(), r = (s.reactions || {})[e.id] || {}, mine = me(), html = '';
+    E.REACTIONS.forEach(function (em) {
+      var who = (r[em] || []).filter(function (q) { return s.players[q]; }); if (!who.length) return;
+      var on = mine && who.indexOf(mine.id) >= 0;
+      html += '<button type="button" class="rx-chip" data-rx="' + em + '" data-ev="' + e.id + '" aria-pressed="' + (on ? 'true' : 'false') + '" title="' + esc(who.map(function (q) { return s.players[q].name; }).join(', ')) + '"' + (mine ? '' : ' disabled') + '>' + em + ' <b>' + who.length + '</b></button>';
+    });
+    var acts = '';
+    if (mine && REACTABLE[e.t] && e.pid !== mine.id) acts += '<button type="button" class="rx-add" data-rxadd="' + e.id + '" aria-label="React" title="React">' + RX_ICON + '</button>';
+    if (shareable(e)) acts += '<button type="button" class="fd-share" data-share="' + e.id + '" aria-label="Share this moment" title="Share this moment">' + SHARE_ICON + '</button>';
+    return (html ? '<span class="rx">' + html + '</span>' : '') + (acts ? '<span class="fd-acts">' + acts + '</span>' : '');
+  }
+  function openRx(btn) {
+    var pop = $('rxPop'), id = Number(btn.dataset.rxadd), s = st(), r = (s.reactions || {})[id] || {}, mine = me();
+    pop.innerHTML = E.REACTIONS.map(function (em) { var on = mine && (r[em] || []).indexOf(mine.id) >= 0; return '<button type="button" data-rx="' + em + '" data-ev="' + id + '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="React ' + em + '">' + em + '</button>'; }).join('');
+    pop.hidden = false;
+    var b = btn.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight, v = window.visualViewport;
+    var L = v ? v.offsetLeft : 0, T = v ? v.offsetTop : 0, VW = v ? v.width : innerWidth;
+    pop.style.left = Math.max(L + 8, Math.min(L + VW - w - 8, b.left + b.width / 2 - w / 2)) + 'px';
+    pop.style.top = (b.top - h - 8 < T + 8 ? b.bottom + 8 : b.top - h - 8) + 'px';
+    pop.querySelector('button').focus();
+  }
+  function closeRx() { var p = $('rxPop'); if (p && !p.hidden) p.hidden = true; }
+  function doReact(btn) {
+    if (!me()) { toast('Join the game to react.', ''); return; }
+    var em = btn.dataset.rx, id = Number(btn.dataset.ev);
+    closeRx(); track('react');
+    store.act('react', { id: id, emoji: em }).then(function () {
+      var chip = document.querySelector('#feed li[data-ev="' + id + '"] .rx-chip[data-rx="' + em + '"]'); if (chip) { void chip.offsetWidth; chip.classList.add('bump'); }
+    }, fail);
+  }
+  // Someone reacted to one of your moments: a quick toast (not for your own reactions).
+  var rxSeen = null;
+  function rxNotice() {
+    var s = st(), mine = me(); if (!s || !mine) return;
+    var now = {}, news = [];
+    Object.keys(s.reactions || {}).forEach(function (id) {
+      var ev = null; for (var i = s.events.length - 1; i >= 0; i--) if (s.events[i].id === Number(id)) { ev = s.events[i]; break; }
+      if (!ev || ev.pid !== mine.id) return;
+      Object.keys(s.reactions[id]).forEach(function (em) { s.reactions[id][em].forEach(function (q) { if (q === mine.id) return; var k = id + em + q; now[k] = 1; if (rxSeen && !rxSeen[k] && s.players[q]) news.push({ who: s.players[q].name, em: em, ev: ev }); }); });
+    });
+    rxSeen = now;
+    if (!news.length) return;
+    var n = news[news.length - 1], what = n.ev.t === 'cleared' ? 'your clear' : n.ev.t === 'escaped' ? 'your escape' : 'your move';
+    toast(news.length > 1 ? news.length + ' new reactions on your moments ' + news.map(function (x) { return x.em; }).join('') : n.who + ' reacted ' + n.em + ' to ' + what, 'good');
   }
 
   // ---- standings -----------------------------------------------------------------
@@ -479,17 +552,22 @@
     var m = p.tasks.length && songFor(p.tasks[0].bsr[0]);
     return m && m.cover ? '<img class="st-cover" src="' + esc(m.cover) + '" alt="" loading="lazy">' : '';
   }
+  function badgeIcons(pid, max) {
+    var list = X.badgesFor(st())[pid] || []; if (!list.length) return '';
+    return '<span class="st-badges" title="' + esc(list.map(function (b) { return b.name; }).join(', ')) + '">' + list.slice(0, max).map(function (b) { return b.icon; }).join('') + (list.length > max ? '+' + (list.length - max) : '') + '</span>';
+  }
   function renderStandings() {
     var s = st();
     var rank = s.status === 'finished' && s.final ? s.final : E.ranking(s);
     var ids = rank.map(function (r) { return r.pid; }).filter(function (pid) { return s.players[pid]; });
     var placeOf = {}; rank.forEach(function (r) { placeOf[r.pid] = r.place; });
-    var html = '<h2>' + (s.status === 'finished' ? 'Final standings' : 'Standings') + '</h2><ol class="st-list">';
+    var on = onlineMap(), nOn = Object.keys(on).length;
+    var html = '<h2>' + (s.status === 'finished' ? 'Final standings' : 'Standings') + (nOn ? ' <span class="online-count" title="Players with the game open right now"><i aria-hidden="true"></i>' + nOn + ' online</span>' : '') + '</h2><ol class="st-list">';
     ids.forEach(function (pid, i) {
       var p = s.players[pid], col = R.playerColor(s, pid), pct = Math.round(E.progress(s, p) * 100);
       html += '<li><button type="button" class="st' + (pid === store.me ? ' me' : '') + (p.finished ? ' done' : '') + '" data-pid="' + esc(pid) + '" style="--c:' + col + '">' +
-        '<span class="place">' + (p.finished ? ordinal(p.finished.place) : s.status === 'finished' ? ordinal(placeOf[pid]) : placeOf[pid] || i + 1) + '</span>' + avatarHtml(p, 'ava') +
-        '<span style="min-width:0"><span class="nm">' + esc(p.name) + '</span> <span class="chip ' + (p.route === 'riskier' ? 'risk' : 'long') + '">' + (p.route === 'riskier' ? 'Riskier' : 'Longer') + '</span>' +
+        '<span class="place">' + (p.finished ? ordinal(p.finished.place) : s.status === 'finished' ? ordinal(placeOf[pid]) : placeOf[pid] || i + 1) + '</span><span class="ava-wrap' + (on[pid] ? ' online' : '') + '"' + (on[pid] ? ' title="Online now"' : '') + '>' + avatarHtml(p, 'ava') + '</span>' +
+        '<span style="min-width:0"><span class="nm">' + esc(p.name) + '</span> <span class="chip ' + (p.route === 'riskier' ? 'risk' : 'long') + '">' + (p.route === 'riskier' ? 'Riskier' : 'Longer') + '</span>' + badgeIcons(pid, 4) +
         '<span class="sub" style="display:block"' + (p.tasks.length ? ' title="!bsr ' + esc(p.tasks.map(function (t) { return t.bsr.join(' or '); }).join(', ')) + '"' : '') + '>' + songCover(p) + '<span class="st-t">' + esc(statusLine(p)) + '</span></span><span class="bar"><i style="width:' + pct + '%"></i></span></span></button></li>';
     });
     $('standings').innerHTML = html + '</ol>';
@@ -511,7 +589,7 @@
   function songFor(key) {
     key = String(key || '').toLowerCase();
     if (mapInfo[key]) return mapInfo[key];
-    if (!mapAsked[key]) { mapAsked[key] = 1; S.maps([key]).then(function (f) { if (f[key]) { mapInfo[key] = f[key]; renderStandings(); } }); }
+    if (!mapAsked[key]) { mapAsked[key] = 1; S.maps([key]).then(function (f) { if (f[key]) { mapInfo[key] = f[key]; renderStandings(); renderFeed(); } }); }
     return null;
   }
   function statusLine(p) {
@@ -556,6 +634,7 @@
     lastStatus = st().status;
     renderHeader(); renderBoard(); renderMe(); renderTurn(); renderFeed(); renderStandings(); renderBar(); renderReplayBtn();
     if (!$('hostDrawer').hidden) renderHost();
+    applyDusk(); rxNotice();
   }
 
   // ---- rolling and animation --------------------------------------------------------
@@ -564,13 +643,13 @@
     var o = {}; o[pid] = posXY(p, idx);
     if (tok) { tok.classList.toggle('fly', !!fly); tok.classList.remove('hop'); void tok.getBBox(); if (!fly) tok.classList.add('hop'); }
     placeTokens(o);
-    followToken(o[pid]);
+    camTo(o[pid]);
     if (fly) sfx.land(); else sfx.hop();
     return wait(fly ? 720 : 250);
   }
-  function walk(pid, p, from, to) {
+  function walk(pid, p, from, to, trail) {
     var chain = Promise.resolve(), dir = to >= from ? 1 : -1;
-    for (var i = from + dir; dir > 0 ? i <= to : i >= to; i += dir) (function (i) { chain = chain.then(function () { return hopTo(pid, p, i); }); })(i);
+    for (var i = from + dir; dir > 0 ? i <= to : i >= to; i += dir) (function (i) { chain = chain.then(function () { if (trail) FX.ghost(svgEl, posXY(p, i - dir), trail); return hopTo(pid, p, i); }); })(i);
     return chain;
   }
 
@@ -591,9 +670,12 @@
   function replayDay() {
     var s = st(), d = replayDayNum(); if (!d || animating || replaying) return;
     track('replay-day');
+    replayEvents(s.events.filter(function (e) { return e.day === d; }), 'Day ' + d + ' replay', 'That was day ' + d + '.');
+  }
+  // Plays a stretch of the game thread back on the board: a day, or everything since your last visit.
+  function replayEvents(dayEvs, startCap, endCap) {
+    var s = st(); if (animating || replaying || !dayEvs.length) return;
     var b = s.board, idx = function (p, spaceId) { return b.routes[p.route] ? b.routes[p.route].indexOf(spaceId) : -1; };
-    var dayEvs = s.events.filter(function (e) { return e.day === d; });
-    if (!dayEvs.length) return;
     var firstId = dayEvs[0].id;
     var pos = E.positionsBefore(s, firstId);   // rewind to the start of that day
     var at = {}, xy = function () { var o = {}; Object.keys(at).forEach(function (pid) { o[pid] = posXY(s.players[pid], at[pid]); }); return o; };
@@ -602,13 +684,13 @@
     var zone = document.querySelector('.board-zone'); zone.classList.add('replaying');
     $('replayBtn').hidden = true; $('replayCap').hidden = false;
     var cap = function (html) { $('replayText').innerHTML = html; };
-    cap('Day ' + d + ' replay');
+    cap(startCap);
     placeTokens(xy());
     var hop = function (pid, to, fly) {
       if (replayStop) return Promise.resolve();
       at[pid] = to; var tok = svgEl.querySelector('.tok[data-pid="' + pid + '"]');
       if (tok) { tok.classList.toggle('fly', !!fly); tok.classList.remove('hop'); void tok.getBBox(); if (!fly) tok.classList.add('hop'); }
-      placeTokens(xy()); var o = xy(); followToken(o[pid]);
+      placeTokens(xy()); var o = xy(); camTo(o[pid], isPhone() ? 2 : 1.45);
       if (fly) sfx.land(); else sfx.hop();
       return wait(fly ? 520 : 170);
     };
@@ -621,7 +703,9 @@
     dayEvs.forEach(function (e) {
       var p = s.players[e.pid];
       chain = chain.then(function () {
-        if (replayStop || !p || !p.route) return;
+        if (replayStop) return;
+        if (e.t === 'day') { cap('Day ' + e.day + ' begins'); return wait(700); }
+        if (!p || !p.route) return;
         var x = evText(e), name = '<b>' + esc(p.name) + '</b> ';
         var last = E.exitIndex(s, p);
         if (e.t === 'roll') { cap(name + (e.bonus ? 'took a bonus roll: ' : 'rolled a ') + '<b>' + e.n + '</b>'); return wait(350).then(function () { return walkTo(e.pid, e.from, Math.min(e.from + e.n, last)); }); }
@@ -631,12 +715,14 @@
         if (e.t === 'gate-closed') { cap(name + 'found the gate closed for today'); return hop(e.pid, last - 1); }
         if (e.t === 'host-move') { cap(name + 'was moved by the host'); return hop(e.pid, e.to, true); }
         if (e.t === 'host-reset') { cap(name + 'was reset by the host'); return hop(e.pid, -1, true); }
-        if (e.t === 'card' || e.t === 'escaped' || e.t === 'skip' || (e.t === 'task' && e.bonus)) { if (x) { cap(name + x.html); return wait(e.t === 'escaped' ? 1400 : 900); } }
+        if (e.t === 'pass') { if (x) { cap(name + x.html); FX.pop(svgEl, posXY(p, at[e.pid]), 'Passed!', 'gold'); return wait(900); } }
+        if (e.t === 'escaped') { cap(name + x.html); FX.burst(svgEl, posXY(p, last), '#ffd34d'); return wait(1400); }
+        if (e.t === 'card' || e.t === 'skip' || (e.t === 'task' && e.bonus)) { if (x) { cap(name + x.html); return wait(900); } }
       });
     });
-    chain.then(function () { if (!replayStop) { cap('That was day ' + d + '.'); return wait(1100); } }).then(function () {
+    chain.then(function () { if (!replayStop) { cap(endCap); return wait(1100); } }).then(function () {
       replaying = false; animating = false; zone.classList.remove('replaying'); $('replayCap').hidden = true;
-      renderAll();
+      camHome(); renderAll();
     });
   }
 
@@ -646,7 +732,7 @@
     animating = true;
     ['rollBtn', 'mRoll'].forEach(function (id) { var b = $(id); if (b) b.disabled = true; });
     audio();
-    var startPos = p.pos, wrap = $('boardWrap'), tempZoom = false;
+    var startPos = p.pos;
     var hl = svgEl.querySelector('.hl'); if (hl) Array.prototype.forEach.call(hl.querySelectorAll('.prev'), function (x) { x.remove(); });
     var zone = document.querySelector('.board-zone'); zone.classList.add('busy');
     if (isPhone()) zone.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -669,42 +755,65 @@
         return wait(260);
       }).then(function () {
         stage.hidden = true;
-        // on phones, zoom in to follow the token, then zoom back out
-        if (isPhone() && !wrap.classList.contains('zoomed')) { tempZoom = true; wrap.classList.add('zoomed'); followToken(posXY(pp, startPos)); }
-        return playEvents(pp, res.events, startPos);
+        // the camera moves in on your token, follows the hops, then pulls back out
+        camTo(posXY(pp, startPos));
+        return wait(camOK() ? 380 : 0).then(function () { return playEvents(pp, res.events, startPos); });
       }).then(function () {
-        ripple(posXY(pp, pp.pos));
-        return wait(tempZoom ? 900 : 300);
+        if (!pp.finished) ripple(posXY(pp, pp.pos));
+        return wait(700);
       });
     }).catch(fail).then(function () {
-      if (tempZoom) wrap.classList.remove('zoomed');
+      camHome();
       $('rollStage').hidden = true; document.querySelector('.board-zone').classList.remove('busy');
       animating = false; renderAll();
       var t = document.querySelector('.task'); if (t && !isPhone()) t.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   }
 
+  // Each kind of space lands its own way: boosts leave a trail, setbacks shake the token,
+  // the river splashes, a map space flips its song up, and escaping sends the hero off the board.
   function playEvents(p, events, startPos) {
     var pos = startPos, chain = Promise.resolve(), escaped = null, last = E.exitIndex(st(), p);
+    var col = R.playerColor(st(), p.id), here = function () { return posXY(p, pos); };
     events.forEach(function (e) {
       if (e.pid !== p.id) return;
       chain = chain.then(function () {
         switch (e.t) {
           case 'roll': { var to = Math.min(e.from + e.n, last); return walk(p.id, p, e.from, to).then(function () { pos = to; }); }
           case 'overshoot': toast('You need exactly ' + e.need + ' to reach the exit.'); return;
-          case 'move': return wait(250).then(function () { (e.n > 0 ? sfx.good : sfx.bad)(); return walk(p.id, p, e.from, e.to); }).then(function () { pos = e.to; });
-          case 'start': sfx.bad(); return hopTo(p.id, p, -1, true).then(function () { pos = -1; });
-          case 'warp': { var idx = E.routeOf(st(), p).indexOf(e.to); (st().board.spaces[e.space].kind === 'swim' ? sfx.good : sfx.bad)(); return wait(200).then(function () { return hopTo(p.id, p, idx, true); }).then(function () { pos = idx; }); }
-          case 'card': return showCard(E.cardById(st(), e.card));
-          case 'skip': sfx.bad(); toast(e.turns > 1 ? 'You lose ' + e.turns + ' turns.' : 'You lose a turn.', 'bad'); return wait(400);
-          case 'shield-used': sfx.good(); toast('Your protection blocked that setback.', 'good'); return wait(400);
+          case 'move':
+            if (e.n > 0) { sfx.good(); FX.pop(svgEl, here(), '+' + e.n, 'good'); FX.burst(svgEl, here(), '#ffd34d'); tokFx(p.id, 'boost', 300 * (e.to - e.from) + 600); return wait(450).then(function () { return walk(p.id, p, e.from, e.to, col); }).then(function () { pos = e.to; }); }
+            sfx.bad(); tokFx(p.id, 'shake', 520); FX.flash(svgEl, here(), '#ff5a6e'); FX.pop(svgEl, here(), '\u2212' + (-e.n), 'bad');
+            return wait(650).then(function () { return walk(p.id, p, e.from, e.to); }).then(function () { pos = e.to; });
+          case 'start': sfx.bad(); tokFx(p.id, 'shake', 520); FX.pop(svgEl, here(), 'Back to start!', 'bad');
+            return wait(600).then(function () { FX.puff(svgEl, here()); tokFx(p.id, 'vanish', 460); return wait(380); }).then(function () { return hopTo(p.id, p, -1, true); }).then(function () { pos = -1; FX.puff(svgEl, here()); });
+          case 'warp': {
+            var idx = E.routeOf(st(), p).indexOf(e.to), swim = st().board.spaces[e.space].kind === 'swim', water = (theme().palette.water || '#5ab0ff');
+            (swim ? sfx.good : sfx.bad)();
+            if (!swim) FX.swirl(svgEl, here(), '#c58bff');
+            return wait(swim ? 200 : 600).then(function () { return hopTo(p.id, p, idx, true); }).then(function () { pos = idx; if (swim) { FX.splash(svgEl, here(), water); FX.pop(svgEl, here(), 'Splash!', 'good'); } });
+          }
+          case 'task': {
+            var key = e.bsr && e.bsr[0]; if (!key) return;
+            return S.map(key).then(function (m) { return m; }, function () { return null; }).then(function (m) { return FX.coverPop(svgEl, here(), m || { name: '!bsr ' + key }, e.bonus ? 'Bonus map' : 'Play this map'); });
+          }
+          case 'card': return showCard(E.cardById(st(), e.card), p.id);
+          case 'skip': sfx.bad(); FX.zzz(svgEl, here()); toast(e.turns > 1 ? 'You lose ' + e.turns + ' turns.' : 'You lose a turn.', 'bad'); return wait(900);
+          case 'shield-used': sfx.good(); FX.shield(svgEl, here()); toast('Your protection blocked that setback.', 'good'); return wait(700);
+          case 'gate-closed': FX.pop(svgEl, here(), '\uD83D\uDD12 Gate closed', 'gold'); return wait(900);
+          case 'pass': { var names = (e.over || []).map(function (q) { return st().players[q] ? st().players[q].name : ''; }).filter(Boolean); if (!names.length) return; sfx.good(); FX.burst(svgEl, here(), '#ffd34d'); FX.pop(svgEl, here(), 'Passed ' + (names.length > 2 ? names.length + ' players' : names.join(' & ')) + '!', 'gold'); return wait(1000); }
           case 'again': toast('You get another roll today.', 'good'); return;
           case 'escaped': escaped = e; return;
           default: return;
         }
       });
     });
-    return chain.then(function () { if (escaped) return showWin(p, escaped.place); });
+    return chain.then(function () {
+      if (!escaped) return;
+      var xy = posXY(p, last);
+      sfx.win();
+      return camTo(xy, camZoom() * .8).then(function () { return FX.escape(svgEl, xy, theme()); }).then(function () { camHome(); return showWin(p, escaped.place); });
+    });
   }
 
   // ---- cards -------------------------------------------------------------------------
@@ -713,11 +822,17 @@
     return '<div class="ctype">' + esc(t.card[card.cls] || 'Card') + '</div><div class="cart' + (R.isImg(card.art) ? ' pic' : '') + '" aria-hidden="true">' + R.cardArt(card.art) + '</div>' +
       '<div class="ctitle">' + esc(card.title) + '</div><div class="ctext">' + esc(card.text) + '</div><div class="cfx">' + esc(C.cardEffectText(card)) + '</div>';
   }
-  function showCard(card) {
+  // The card flies out of your token, flips, then shimmers (good), cracks (bad) or glows.
+  function showCard(card, fromPid) {
     return new Promise(function (resolve) {
       var t = theme(), ov = $('cardOverlay'), c3 = $('card3d');
       $('cardBack').innerHTML = '<div><svg class="crow" viewBox="-36 -42 72 80" aria-hidden="true">' + R.hero(0, 0, 1, t) + '</svg><p>' + esc(t.card.back) + '</p></div>';
-      $('cardFront').innerHTML = cardFront(card);
+      $('cardFront').innerHTML = cardFront(card) + '<span class="shine" aria-hidden="true"></span>' +
+        (card.cls === 'trick' ? '<svg class="crack" viewBox="0 0 100 140" preserveAspectRatio="none" aria-hidden="true"><path class="hi" d="M100 6 L86 17 L90 27 L75 40 L79 50 L66 62 L69 70 M86 17 L72 15 L63 23 L55 21 M75 40 L62 37 L56 44 M90 27 L99 37 M79 50 L90 58 M66 62 L57 61"/><path d="M100 6 L86 17 L90 27 L75 40 L79 50 L66 62 L69 70 M86 17 L72 15 L63 23 L55 21 M75 40 L62 37 L56 44 M90 27 L99 37 M79 50 L90 58 M66 62 L57 61"/></svg>' : '');
+      ov.setAttribute('data-cls', card.cls);
+      var tk = fromPid && tokEl(fromPid), fr = tk && tk.getBoundingClientRect();
+      c3.style.setProperty('--fx', fr ? (fr.left + fr.width / 2 - window.innerWidth / 2).toFixed(0) + 'px' : '0px');
+      c3.style.setProperty('--fy', fr ? (fr.top + fr.height / 2 - window.innerHeight / 2).toFixed(0) + 'px' : '30px');
       var ccol = { treasure: 'var(--treasure)', trick: 'var(--trick)', task: 'var(--task)', fate: 'var(--fate)' }[card.cls];
       $('cardFront').style.setProperty('--cc', ccol); ov.style.setProperty('--cc', ccol);
       c3.classList.remove('show'); ov.classList.remove('ready'); ov.hidden = false;
@@ -737,6 +852,8 @@
       var t = theme(), ov = $('winOverlay');
       $('winTitle').textContent = t.words.escaped;
       $('winSub').textContent = p.name + ' made it to the ' + t.goal + ' and finished ' + ordinal(place) + '.';
+      var md = $('winMedal'); md.className = 'win-medal ' + (place <= 3 ? 'p' + place : 'pn'); md.textContent = place <= 3 ? ['\uD83E\uDD47', '\uD83E\uDD48', '\uD83E\uDD49'][place - 1] : ordinal(place);
+      $('winShare').onclick = function () { var ev = st().events.filter(function (x) { return x.t === 'escaped' && x.pid === p.id; }).pop(); if (ev) openShare(ev); };
       var conf = $('confetti'), html = '', cols = ['#3fd04a', '#f2a33a', '#a78bfa', '#ffffff', '#ff6b5a', '#4cc9f0'];
       for (var i = 0; i < 90; i++) html += '<i style="left:' + (Math.random() * 100) + '%;background:' + cols[i % cols.length] + ';animation-duration:' + (2.2 + Math.random() * 2.2) + 's;animation-delay:' + (Math.random() * .8) + 's"></i>';
       conf.innerHTML = html; ov.hidden = false; sfx.win();
@@ -760,9 +877,188 @@
   function celebrateClear(cleared) {
     sfx.good();
     cleared.forEach(function (t) { var a = document.querySelector('.task[data-task="' + t.id + '"]'); if (a) { a.setAttribute('data-stamp', 'Cleared'); a.classList.add('cleared'); } });
-    toast(cleared.length > 1 ? 'Maps cleared. You can roll again.' : 'Map cleared!', 'good');
     animating = true;
-    setTimeout(function () { animating = false; renderAll(); }, 1400);
+    var ids = cleared.map(function (t) { return t.id; });
+    var evs = st().events.filter(function (e) { return e.t === 'cleared' && e.pid === store.me && ids.indexOf(e.task) >= 0; });
+    setTimeout(function () {
+      (evs.length ? revealScores(evs) : Promise.resolve()).then(function () {
+        animating = false; renderAll();
+        toast(cleared.length > 1 ? 'Maps cleared. You can roll again.' : 'Map cleared! You can roll again.', 'good');
+      });
+    }, 700);
+  }
+
+  // ---- score reveal ------------------------------------------------------------------------
+  // Your cleared map, big: the cover, the accuracy counting up, then the rank letter slams down.
+  // Shown once per clear (and again for a new personal best), remembered in this browser.
+  function revKey() { return 'cg.rev.' + st().id; }
+  function revRead() { try { return JSON.parse(localStorage.getItem(revKey()) || 'null'); } catch (e) { return null; } }
+  function revWrite(r) { try { localStorage.setItem(revKey(), JSON.stringify(r)); } catch (e) {} }
+  function pendingReveals() {
+    var s = st(), mine = me(); if (!s || !mine) return [];
+    var list = s.events.filter(function (e) { return e.t === 'cleared' && e.pid === mine.id; });
+    var r = revRead();
+    if (!r) { r = { id: 0, imp: 0 }; list.forEach(function (e) { r.id = Math.max(r.id, e.id); r.imp = Math.max(r.imp, (e.proof && e.proof.improvedAt) || 0); }); revWrite(r); return []; }
+    return list.filter(function (e) { return e.id > r.id || ((e.proof && e.proof.improvedAt) || 0) > r.imp; });
+  }
+  function markRevealed(evs) {
+    var r = revRead() || { id: 0, imp: 0 };
+    evs.forEach(function (e) { r.id = Math.max(r.id, e.id); r.imp = Math.max(r.imp, (e.proof && e.proof.improvedAt) || 0); });
+    revWrite(r);
+  }
+  function revealScores(evs) {
+    markRevealed(evs);
+    return evs.reduce(function (ch, e) { return ch.then(function () { return showScore(e); }); }, Promise.resolve());
+  }
+  function overlayOpen() { return !$('modal').hidden || !$('scoreOverlay').hidden || !$('cardOverlay').hidden || !$('winOverlay').hidden || !$('hostDrawer').hidden || replaying; }
+  function showScore(ev) {
+    return new Promise(function (resolve) {
+      var pr = ev.proof || {}, key = (ev.bsr || [])[0] || '', gr = X.grade(pr.acc), improved = pr.firstAcc != null && pr.improvedAt;
+      var diff = pr.diff ? pr.diff.replace('ExpertPlus', 'Expert+') : '';
+      var note = improved ? 'Up from ' + (pr.firstAcc * 100).toFixed(2) + '%' : pr.by === 'host' ? 'Approved by the host' : '';
+      var ov = $('scoreOverlay'), card = $('scoreCard');
+      card.innerHTML = '<div class="sc-bg"></div><div class="sc-in"><div class="sc-k">' + (improved ? 'New personal best' : 'Map cleared') + '</div>' +
+        '<img class="sc-cover" alt=""><div class="sc-song">!bsr ' + esc(key) + '</div><div class="sc-meta"></div>' + (diff ? '<span class="sc-diff">' + esc(diff) + '</span>' : '') +
+        '<div class="sc-row">' + (gr ? '<div class="sc-acc"><span id="scNum">' + (improved ? (pr.firstAcc * 100).toFixed(2) : '0.00') + '</span><small>%</small></div><div class="sc-grade ' + gr.cls + '" id="scGrade" hidden>' + gr.g + '</div>' : '<div class="sc-host" aria-hidden="true">\u2705</div>') + '</div>' +
+        '<div class="sc-note">' + esc(note) + '</div><div class="sc-actions"><button type="button" class="btn" id="scOk">Continue</button><button type="button" class="btn ghost" id="scShare">Share it</button></div></div>';
+      card.setAttribute('aria-label', improved ? 'New personal best' : 'Map cleared');
+      ov.hidden = false; track('score-reveal');
+      S.map(key).then(function (m) {
+        var c = card.querySelector('.sc-cover'); if (m.cover) { c.src = m.cover; card.querySelector('.sc-bg').style.backgroundImage = 'url("' + m.cover.replace(/"/g, '') + '")'; }
+        card.querySelector('.sc-song').textContent = m.name + (m.sub ? ' ' + m.sub : '');
+        card.querySelector('.sc-meta').textContent = [m.author, m.mapper ? 'mapped by ' + m.mapper : ''].filter(Boolean).join(', ');
+      }, function () {});
+      var num = $('scNum'), done = false;
+      function slam() {
+        var g = $('scGrade'); if (!g || done) return; done = true;
+        num.textContent = (pr.acc * 100).toFixed(2);
+        g.hidden = false; void g.offsetWidth; g.classList.add('go');
+        if (gr.g === 'SS') { sfx.win(); confettiBurst(); } else sfx.good();
+      }
+      if (gr) {
+        var from = improved ? pr.firstAcc * 100 : 0, to = pr.acc * 100, t0 = 0, lastTick = 0, D = X.still() ? 0 : 1300;
+        setTimeout(function () {
+          if (!D) return slam();
+          requestAnimationFrame(function step(t) {
+            if (!t0) t0 = t;
+            var k = Math.min(1, (t - t0) / D), e = 1 - Math.pow(1 - k, 3), v = from + (to - from) * e;
+            if (!done) num.textContent = v.toFixed(2);
+            if (v - lastTick > 6) { lastTick = v; blip(300 + v * 6, .04, 'square', .025); }
+            if (k < 1 && !done) requestAnimationFrame(step); else slam();
+          });
+        }, 450);
+      } else sfx.good();
+      var ok = $('scOk'); setTimeout(function () { ok.focus(); }, 60);
+      function close() { done = true; ov.hidden = true; document.removeEventListener('keydown', key2); resolve(); }
+      function key2(e) { if (e.key === 'Escape' && $('modal').hidden) { e.preventDefault(); close(); } }
+      ok.onclick = close; document.addEventListener('keydown', key2);
+      $('scShare').onclick = function () { slam(); openShare(ev); };
+    });
+  }
+  // New clears that showed up on their own (the server checks BeatLeader every 15 minutes).
+  function checkNewClears() {
+    if (animating || overlayOpen()) return;
+    var pend = pendingReveals(); if (!pend.length) return;
+    animating = true;
+    revealScores(pend).then(function () { animating = false; renderAll(); });
+  }
+
+  // ---- badges ----------------------------------------------------------------------------------
+  function badgeNotice(p, list) {
+    var k = 'cg.badges.' + st().id + '.' + p.id, had = null;
+    try { had = JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) {}
+    var ids = list.map(function (b) { return b.id; });
+    try { localStorage.setItem(k, JSON.stringify(ids)); } catch (e) {}
+    if (!had) return;
+    var fresh = list.filter(function (b) { return had.indexOf(b.id) < 0; });
+    if (!fresh.length) return;
+    var b = fresh[fresh.length - 1];
+    setTimeout(function () { sfx.good(); toast('\uD83C\uDFC5 New badge: ' + b.icon + ' ' + b.name + '. ' + b.desc + '.', 'badge-toast'); track('badge-' + b.id); }, 400);
+  }
+
+  // ---- share a moment ----------------------------------------------------------------------------
+  function shareSpec(ev) {
+    var s = st(), t = theme(), p = s.players[ev.pid] || {}, sp = ev.space ? s.board.spaces[ev.space] : null, kind = sp && sp.kind && t.kinds[sp.kind];
+    var o = { theme: t, player: { name: p.name || '', avatar: p.avatar || '', color: R.playerColor(s, ev.pid) }, foot: 'Day ' + ev.day + (p.route ? ' \u00b7 ' + s.board.routeInfo[p.route].name : ''), badges: (X.badgesFor(s)[ev.pid] || []).map(function (b) { return b.icon; }) };
+    var pr = ev.proof || {};
+    if (ev.t === 'cleared') {
+      var gr = X.grade(pr.acc); o.kicker = pr.firstAcc != null ? 'New personal best' : 'Map cleared'; o.headline = pr.acc ? (pr.acc * 100).toFixed(2) + '%' : 'Cleared'; o.grade = gr ? gr.g : null;
+      return S.map((ev.bsr || [])[0]).then(function (m) { o.sub = m.name + (pr.diff ? ' \u00b7 ' + pr.diff.replace('ExpertPlus', 'Expert+') : ''); o.cover = m.cover; return o; }, function () { o.sub = '!bsr ' + (ev.bsr || [])[0]; return o; });
+    }
+    if (ev.t === 'escaped') { o.kicker = 'The ' + t.goal; o.headline = t.words.escaped; o.sub = ordinal(ev.place) + ' place on day ' + ev.day; }
+    else if (ev.t === 'pass') { o.kicker = 'Overtake'; o.headline = 'Passed ' + (ev.over || []).map(function (q) { return s.players[q] ? s.players[q].name : ''; }).filter(Boolean).join(' & '); o.sub = E.remaining(s, p) + ' spaces to go'; }
+    else if (ev.t === 'start') { o.kicker = 'Ouch'; o.headline = 'Back to the start'; o.sub = kind ? kind.title : ''; }
+    else if (ev.t === 'warp') { var fwd = sp && sp.kind === 'swim'; o.kicker = fwd ? 'Lucky break' : 'Swept away'; o.headline = fwd ? 'Carried ahead' : 'Carried away'; o.sub = 'Now at ' + spaceName(s.board.spaces[ev.to]); }
+    else if (ev.t === 'move') { o.kicker = ev.n > 0 ? 'Boost' : 'Setback'; o.headline = ev.n > 0 ? 'Jumped ahead ' + ev.n : 'Pushed back ' + (-ev.n); o.sub = kind ? kind.title : ''; }
+    else if (ev.t === 'card') { var cd = E.cardById(s, ev.card); o.kicker = (t.card[cd && cd.cls] || 'Card') + ' card'; o.headline = cd ? cd.title : 'A card'; o.sub = cd ? C.cardEffectText(cd) : ''; if (cd && R.isImg(cd.art) && /^https:|^img\//.test(cd.art)) o.cover = cd.art; }
+    return Promise.resolve(o);
+  }
+  function openShare(ev) {
+    track('share-' + ev.t);
+    modal('Share this moment', '<p class="lede">A picture of it for your clan Discord.</p><div id="shBox"><p class="why">Drawing the picture</p></div>', function (body) {
+      shareSpec(ev).then(X.shareCard).then(function (blob) {
+        var url = URL.createObjectURL(blob), name = theme().title.replace(/[^A-Za-z0-9]+/g, '-') + '-' + ev.t + '-day-' + ev.day + '.png';
+        var file = window.File ? new File([blob], name, { type: 'image/png' }) : null;
+        var canShare = !!(file && navigator.canShare && navigator.canShare({ files: [file] }));
+        var canCopy = !!(navigator.clipboard && window.ClipboardItem);
+        body.querySelector('#shBox').innerHTML = '<img class="share-img" src="' + url + '" alt="Picture of this moment">' +
+          '<div class="row" style="margin-top:12px">' + (canShare ? '<button type="button" class="btn" id="shShare">Share</button>' : '') + (canCopy ? '<button type="button" class="btn' + (canShare ? ' ghost' : '') + '" id="shCopy">Copy picture</button>' : '') +
+          '<a class="btn ghost" href="' + url + '" download="' + esc(name) + '">Download</a></div><p class="why">Copy it, then paste it straight into a Discord message.</p>';
+        var sc = body.querySelector('#shCopy'); if (sc) sc.onclick = function () { navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]).then(function () { track('share-copied'); toast('Copied. Paste it into Discord.', 'good'); }, function () { toast('Your browser would not copy the picture. Use Download instead.', 'bad'); }); };
+        var ss = body.querySelector('#shShare'); if (ss) ss.onclick = function () { navigator.share({ files: [file], title: theme().title }).then(function () { track('share-sent'); }, function () {}); };
+      }, function (e) { body.querySelector('#shBox').innerHTML = '<p class="err">' + esc(e && e.message ? e.message : 'Could not draw the picture.') + '</p>'; });
+    });
+  }
+
+  // ---- launch: the last ten seconds before the start ---------------------------------------------
+  var launchFor = null;
+  function startLaunch(at) {
+    launchFor = at;
+    var zone = document.querySelector('.board-zone'), box = $('launch'), n = $('launchN'), sub = $('launchSub'), b = st().board;
+    var A = b.routes.longer || [], B = b.routes.riskier || [], ids = [], seen = {};
+    for (var i = 0; i < Math.max(A.length, B.length); i++) [A[i], B[i]].forEach(function (id) { if (id && !seen[id]) { seen[id] = 1; ids.push(id); } });
+    zone.classList.add('prelaunch'); box.hidden = false; sub.textContent = 'The escape starts in';
+    FX.lightUp(svgEl, ids, Math.max(800, at - Date.now() - 700));
+    track('launch');
+    var lastN = null, iv = setInterval(function () {
+      var l = at - Date.now(), k = Math.ceil(l / 1000);
+      if (k > 0 && k !== lastN) { lastN = k; n.textContent = k; n.className = 'launch-n'; void n.offsetWidth; n.classList.add('tick'); blip(420 + (10 - k) * 40, .12, 'triangle', .07); }
+      if (l <= 0) {
+        clearInterval(iv);
+        n.textContent = 'GO!'; n.className = 'launch-n'; void n.offsetWidth; n.classList.add('go'); sub.textContent = 'Day 1 is open. Roll your d4!';
+        sfx.win(); confettiBurst();
+        setTimeout(function () { box.hidden = true; zone.classList.remove('prelaunch'); if (svgEl) FX.unlight(svgEl); }, 2300);
+      }
+    }, 100);
+  }
+
+  // ---- dusk: the board darkens in the last hour of a game day ------------------------------------
+  var duskTest = (function () { var m = location.search.match(/[?&]dusk=(\d+)/); return m ? Number(m[1]) : null; })();
+  function applyDusk() {
+    var zone = document.querySelector('.board-zone'), d = $('dusk'), s = st(); if (!zone || !d || !s) return;
+    var left = null;
+    if (s.status === 'running') { if (store.mode === 'live') left = E.nextCutoff(s.settings) - Date.now(); else if (duskTest != null) left = duskTest * 60000; }
+    if (left == null || left > 3600000 || left < 0) { d.hidden = true; zone.classList.remove('dusk-on', 'dusk-late'); zone.style.setProperty('--dusk', 0); return; }
+    zone.style.setProperty('--dusk', (0.15 + 0.85 * Math.min(1, 1 - left / 3600000)).toFixed(3));
+    d.hidden = false; zone.classList.add('dusk-on'); zone.classList.toggle('dusk-late', left < 600000);
+    $('duskPill').textContent = '\uD83C\uDF19 Day ' + s.day + ' ends in ' + Math.max(1, Math.ceil(left / 60000)) + ' min';
+  }
+
+  // ---- easter eggs -----------------------------------------------------------------------------------
+  var eggTaps = 0, eggAt = 0, eggSeen = {};
+  var EGG_EXTRA = { grave: '\uD83D\uDC7B', tree: '\uD83E\uDD87', turkey: '\uD83E\uDEB6', scarecrow: '\uD83D\uDC26', snowman: '\u2744\uFE0F', present: '\uD83C\uDF81', pumpkin: '\uD83C\uDF83' };
+  function doEgg(el) {
+    var kind = el.getAttribute('data-egg'), t = Date.now();
+    eggTaps = t - eggAt < 1400 && eggTaps ? eggTaps + 1 : 1; eggAt = t;
+    if (eggTaps < (kind === 'hero' ? 3 : 1)) return;
+    eggTaps = 0; eggSeen[kind] = (eggSeen[kind] || 0) + 1;
+    el.classList.remove('egg-go'); void el.getBBox(); el.classList.add('egg-go');
+    setTimeout(function () { el.classList.remove('egg-go'); }, 1100);
+    var bb = el.getBBox(), xy = { x: bb.x + bb.width / 2, y: bb.y + bb.height * .3 };
+    FX.pop(svgEl, xy, X.eggLine(kind, theme(), eggSeen[kind] - 1), 'egg');
+    if (EGG_EXTRA[kind]) setTimeout(function () { FX.pop(svgEl, { x: xy.x + 26, y: xy.y - 20 }, EGG_EXTRA[kind], ''); }, 250);
+    blip(kind === 'hero' ? 880 : 520, .12, 'sine', .06, kind === 'hero' ? 1320 : 260);
+    track('egg-' + kind);
   }
 
   // ---- space popover -------------------------------------------------------------------------
@@ -812,7 +1108,7 @@
     if (onOpen) onOpen($('modalBody'));
     var f = $('modalBody').querySelector('input,button,select,a'); (f || $('modalX')).focus();
   }
-  function closeModal() { $('modal').hidden = true; if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+  function closeModal() { $('modal').hidden = true; if (lastFocus && lastFocus.focus) lastFocus.focus(); if (store && store.state) setTimeout(checkNewClears, 300); }
 
   // ---- the end of the game ------------------------------------------------------------------
   function openFinale() {
@@ -823,7 +1119,8 @@
     var podium = [fin[1], fin[0], fin[2]].map(function (r, i) {
       if (!r) return '<div class="pod empty"></div>';
       var p = s.players[r.pid], rank = [2, 1, 3][i];
-      return '<div class="pod pod' + rank + '" style="--c:' + R.playerColor(s, r.pid) + '">' + avatarHtml(p, 'pod-ava') + '<b>' + esc(p.name) + '</b><span>' + esc(line(r)) + '</span><div class="pod-step">' + ordinal(r.place) + '</div></div>';
+      var bd = (X.badgesFor(s)[r.pid] || []).map(function (b) { return b.icon; }).join('');
+      return '<div class="pod pod' + rank + '" style="--c:' + R.playerColor(s, r.pid) + '">' + avatarHtml(p, 'pod-ava') + '<b>' + esc(p.name) + '</b><span>' + esc(line(r)) + '</span><span class="pod-badges">' + bd + '</span><div class="pod-step">' + ordinal(r.place) + '</div></div>';
     }).join('');
     var rest = fin.slice(3).map(function (r) { var p = s.players[r.pid]; return '<li' + (r.pid === store.me ? ' class="me"' : '') + '><span class="place">' + ordinal(r.place) + '</span>' + esc(p.name) + '<span class="why">' + esc(line(r)) + '</span></li>'; }).join('');
     var mine = fin.filter(function (r) { return r.pid === store.me; })[0];
@@ -868,8 +1165,8 @@
     var h = Math.round(ms / 3600000), d = Math.floor(ms / 86400000);
     return d >= 1 ? d + (d === 1 ? ' day' : ' days') : h >= 1 ? h + (h === 1 ? ' hour' : ' hours') : 'a little while';
   }
-  function maybeAway() {
-    var s = st(), prev = readSeen();
+  function maybeAway(prev0) {
+    var s = st(), prev = prev0 !== undefined ? prev0 : readSeen();
     if (!prev || Date.now() - prev.at < 30 * 60000) return false;
     var evs = s.events.filter(function (e) { return e.id > prev.id; });
     if (!evs.length) return false;
@@ -882,8 +1179,10 @@
         else if (e.t === 'claim-rejected') mine.push('❌ The host could not confirm your run');
         else if (e.t === 'lost-turn') mine.push('💤 You sat out day ' + e.day);
         else if (e.t === 'host-move' || e.t === 'host-reset') mine.push('🧹 The host moved your token');
+        else if (e.t === 'pass') mine.push('⚡ You passed ' + (e.over || []).map(function (q) { return s.players[q] ? '<b>' + esc(s.players[q].name) + '</b>' : ''; }).filter(Boolean).join(' and '));
         return;
       }
+      if (e.t === 'pass' && (e.over || []).indexOf(store.me) >= 0) { mine.push('⚡ <b>' + who(e) + '</b> passed you'); return; }
       if (e.t === 'card') cards++;
       if (e.t === 'escaped') others.push('🎉 <b>' + who(e) + '</b> escaped, ' + ordinal(e.place) + ' place');
       else if (e.t === 'start') others.push('↩️ <b>' + who(e) + '</b> got sent back to the start');
@@ -906,10 +1205,15 @@
       next = p.finished ? '' : c.ok ? 'Your roll is ready.' : p.tasks.length ? 'Next up: play <b>!bsr ' + esc(p.tasks[0].bsr[0]) + '</b>.' : '';
     }
     var days = s.day > prev.day ? ' The game went from day ' + prev.day + ' to day ' + s.day + '.' : '';
+    var moved = evs.filter(function (e) { return e.t === 'roll' && e.pid !== store.me && s.players[e.pid]; });
     track('away-summary');
     modal('While you were away', '<p class="lede">You were gone ' + agoText(Date.now() - prev.at) + '.' + days + '</p><ul class="away">' + lines.map(function (l) { return '<li>' + l + '</li>'; }).join('') + '</ul>' +
       (more ? '<p class="why">' + more + ' more in the game thread.</p>' : '') + (next ? '<p class="away-next">' + next + '</p>' : '') +
-      '<div class="row"><button type="button" class="btn" data-away-close>Back to the game</button></div>', function (body) { body.querySelector('[data-away-close]').onclick = closeModal; });
+      '<div class="row">' + (moved.length ? '<button type="button" class="btn" data-away-watch>\u25B6 Watch what happened</button>' : '') + '<button type="button" class="btn' + (moved.length ? ' ghost' : '') + '" data-away-close>Back to the game</button></div>', function (body) {
+        body.querySelector('[data-away-close]').onclick = closeModal;
+        var w = body.querySelector('[data-away-watch]');
+        if (w) w.onclick = function () { closeModal(); track('away-replay'); $('boardWrap').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); replayEvents(evs.slice(-160), 'While you were away', "You're all caught up."); };
+      });
     return true;
   }
 
@@ -1020,7 +1324,7 @@
     holder.innerHTML = R.board(s.board, t, { still: true });
     document.body.appendChild(holder);
     var svg = holder.querySelector('svg');
-    R.placeTokens(svg, s, t, { me: null });
+    R.placeTokens(svg, s, t, { me: null, flair: X.flair(s) });
     var imgs = Array.prototype.slice.call(svg.querySelectorAll('image'));
     return Promise.all([fontCss()].concat(imgs.map(function (im) {
       var href = im.getAttribute('href'); if (!href || /^data:/.test(href)) return null;
@@ -1068,7 +1372,7 @@
 
   // ---- host tools ------------------------------------------------------------------------------
   function openHost() { $('hostDrawer').hidden = false; $('scrim').hidden = false; renderHost(); $('hostX').focus(); }
-  function closeHost() { $('hostDrawer').hidden = true; $('scrim').hidden = true; $('hostBtn').focus(); }
+  function closeHost() { $('hostDrawer').hidden = true; $('scrim').hidden = true; $('hostBtn').focus(); setTimeout(checkNewClears, 300); }
   function cutoffLabel(s) { var h = s.settings.cutoffHour || 0, m = s.settings.cutoffMinute || 0; return ((h % 12) || 12) + ':' + pad2(m) + ' ' + (h < 12 ? 'AM' : 'PM'); }
   function toLocalInput(ts) { var d = new Date(ts); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
   function readStart(id) {
@@ -1295,6 +1599,11 @@
   function bind() {
     document.addEventListener('click', function (e) {
       var c = e.target.closest('[data-copy]'); if (c) { copy(c.dataset.copy); return; }
+      var rxa = e.target.closest('[data-rxadd]'); if (rxa) { $('rxPop').hidden ? openRx(rxa) : closeRx(); return; }
+      var rxb = e.target.closest('[data-rx]'); if (rxb) { doReact(rxb); return; }
+      if (!e.target.closest('#rxPop')) closeRx();
+      var shb = e.target.closest('[data-share]'); if (shb) { var sev = st().events.filter(function (x) { return x.id === Number(shb.dataset.share); })[0]; if (sev) openShare(sev); return; }
+      var egg = e.target.closest('.board-svg .egg'); if (egg && !animating) { doEgg(egg); return; }
       if (e.target.closest('#rollBtn') || e.target.closest('#mRoll')) { doRoll(); return; }
       if (e.target.closest('#finaleBtn') || e.target.closest('#mFinale')) { openFinale(); return; }
       if (e.target.closest('#remBtn')) { $('remPop').hidden ? openRem() : closeRem(); return; }
@@ -1331,7 +1640,7 @@
       var hb = e.target.closest('#hostBody [data-h]'); if (hb) { hostAction(hb); return; }
     });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { if (!$('remPop').hidden) closeRem(); else if (!$('modal').hidden) closeModal(); else if (!$('spacePop').hidden) closeSpace(); else if (!$('hostDrawer').hidden) closeHost(); }
+      if (e.key === 'Escape') { if (!$('rxPop').hidden) { closeRx(); return; } if (!$('remPop').hidden) closeRem(); else if (!$('modal').hidden) closeModal(); else if (!$('spacePop').hidden) closeSpace(); else if (!$('hostDrawer').hidden) closeHost(); }
       if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('.board-svg .sp')) { e.preventDefault(); openSpace(e.target.closest('.sp').dataset.id, e.target.closest('.sp')); }
     });
     document.addEventListener('change', function (e) {
@@ -1358,6 +1667,7 @@
     $('zoomBtn').onclick = function () {
       var w = $('boardWrap'), on = !w.classList.contains('zoomed');
       if (on) track('zoom-in');
+      if (cam) { cam.tgt = [0, 0, 1000]; cam.set([0, 0, 1000]); }
       w.classList.toggle('zoomed', on); this.setAttribute('aria-pressed', on ? 'true' : 'false'); this.textContent = on ? 'Zoom out' : 'Zoom in';
       if (on) centerOnMe();
     };
@@ -1472,7 +1782,11 @@
   }).then(function () {
     bind();
     if (store.mode === 'live') track(store.canPlay ? (store.me ? 'visit-player' : 'visit-not-joined') : 'visit-waiting-list');
-    store.on(function () { if (!animating) renderAll(); });
+    store.on(function (x) {
+      if (animating) return;
+      if (x && x.action === 'online') { renderStandings(); placeTokens(); return; }
+      renderAll(); checkNewClears();
+    });
     renderAll();
     if (/^#host$/.test(location.hash)) { history.replaceState(null, '', location.pathname + location.search); if (store.isHost) openHost(); }
     if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', function (e) {
@@ -1488,7 +1802,13 @@
     setInterval(tickClock, 30000);
     setInterval(tickCountdowns, 1000);
     var seen = false; try { seen = localStorage.getItem('cg.seenHow') === '1'; localStorage.setItem('cg.seenHow', '1'); } catch (e) {}
-    if (!seen) openHow(); else if (!maybeFinale()) maybeAway();
+    var prevSeen = readSeen(), pend = pendingReveals();
+    if (!seen) openHow();
+    else if (!maybeFinale()) {
+      if (pend.length) { animating = true; revealScores(pend).then(function () { animating = false; renderAll(); maybeAway(prevSeen); }); }
+      else maybeAway(prevSeen);
+    }
+    setInterval(applyDusk, 30000);
     writeSeen();
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') writeSeen(); });
     window.addEventListener('pagehide', writeSeen);

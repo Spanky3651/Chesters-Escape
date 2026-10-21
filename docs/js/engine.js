@@ -131,8 +131,45 @@
     ev.id = ++s.seq; ev.pid = p ? p.id : null; ev.day = s.day; ev.at = ev.at || now();
     if (s.status === 'signup') ev.pre = true;
     s.events.push(ev);
-    if (s.events.length > 800) s.events.splice(0, s.events.length - 800);
+    if (s.events.length > 800) {
+      s.events.splice(0, s.events.length - 800);
+      if (s.reactions) { var oldest = s.events[0].id; Object.keys(s.reactions).forEach(function (k) { if (Number(k) < oldest) delete s.reactions[k]; }); }
+    }
     return ev;
+  }
+
+  // Emoji reactions on moments in the game thread (scores, escapes, setbacks...). Tapping the
+  // same one again takes it back. Stored per event as { emoji: [player ids] }.
+  var REACTIONS = ['\uD83D\uDC4F', '\uD83D\uDD25', '\uD83D\uDE02', '\uD83D\uDC80', '\uD83D\uDE31', '\uD83C\uDF89'];
+  function react(s, pid, evId, emoji) {
+    need(s, pid);
+    if (REACTIONS.indexOf(emoji) < 0) throw err('bad-emoji', 'Pick one of the reactions.');
+    evId = Number(evId);
+    if (!s.events.some(function (e) { return e.id === evId; })) throw err('no-event', 'That moment is no longer in the thread.');
+    s.reactions = s.reactions || {};
+    var r = s.reactions[evId] = s.reactions[evId] || {}, list = r[emoji] = r[emoji] || [], i = list.indexOf(pid);
+    if (i >= 0) list.splice(i, 1); else list.push(pid);
+    if (!list.length) delete r[emoji];
+    if (!Object.keys(r).length) delete s.reactions[evId];
+    s.seq++;
+    return s.reactions[evId] || {};
+  }
+
+  // Spaces left for everyone still racing (escaped players count as -1).
+  function leftMap(s) {
+    var m = {};
+    s.order.forEach(function (pid) { var q = s.players[pid]; if (q.route) m[pid] = q.finished ? -1 : remaining(s, q); });
+    return m;
+  }
+  // After a roll: who this player moved past in the standings.
+  function passCheck(s, p, before) {
+    if (p.finished || before[p.id] == null) return;
+    var mine = remaining(s, p), over = [];
+    Object.keys(before).forEach(function (q) {
+      if (q === p.id || before[q] < 0 || !s.players[q] || s.players[q].finished) return;
+      if (before[q] < before[p.id] && mine < remaining(s, s.players[q])) over.push(q);
+    });
+    if (over.length) emit(s, p, { t: 'pass', over: over });
   }
 
   // ---- rolling ---------------------------------------------------------------
@@ -158,6 +195,7 @@
     var bonus = p.rolledDay === s.day && p.extraRoll;
     if (bonus) p.extraRoll = false;
     p.rolledDay = s.day; p.rolls++;
+    var before = leftMap(s);
     var start = emit(s, p, { t: 'roll', n: n, from: p.pos, bonus: bonus });
     var steps = [];
     var ctx = { rng: opts.rng, steps: steps, depth: 0, firstEvent: start.id };
@@ -170,6 +208,7 @@
     walk(s, p, Math.min(target, last), ctx);
     land(s, p, 'roll', ctx);
     mustPlay(s, p, ctx);
+    passCheck(s, p, before);
     return result(s, p, n, start.id, steps);
   }
 
@@ -611,7 +650,7 @@
 
   var E = {
     VERSION: VERSION, DEFAULTS: DEFAULTS,
-    createGame: createGame, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, signupsOpen: signupsOpen, chooseRoute: chooseRoute,
+    createGame: createGame, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, react: react, REACTIONS: REACTIONS, signupsOpen: signupsOpen, chooseRoute: chooseRoute,
     canRoll: canRoll, roll: roll, advanceDay: advanceDay,
     completeTask: completeTask, claimTask: claimTask, rejectClaim: rejectClaim, matchScores: matchScores, improveClears: improveClears,
     setPosition: setPosition, hostCard: hostCard, resetPlayer: resetPlayer,

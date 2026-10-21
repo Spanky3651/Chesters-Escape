@@ -319,9 +319,10 @@ export class Game extends DurableObject {
     if (!user) return { error: 'Sign in with Discord to see the game.', code: 'no-access', access: 'signin' };
     const canPlay = this.canUse(user);
     const me = canPlay && pid && s.players[pid] ? pid : null;
+    if (me) this.seen(me);
     if (this.dirty) { this.dirty = false; await this.save(); }
-    if (since === s.seq) return { state: null, me, canPlay };
-    const out = { state: E.publicState(s), me, canPlay, isHost: !!user.isHost, user: { id: user.id, name: user.name, avatar: user.avatar } };
+    if (since === s.seq) return { state: null, me, canPlay, online: this.onlineNow() };
+    const out = { state: E.publicState(s), me, canPlay, isHost: !!user.isHost, user: { id: user.id, name: user.name, avatar: user.avatar }, online: this.onlineNow() };
     if (user && user.isHost) out.access = this.access();
     return out;
   }
@@ -347,6 +348,7 @@ export class Game extends DurableObject {
           break;
         }
         case 'route': result = this.mine(s, pid) && E.chooseRoute(s, pid, a.route); break;
+        case 'react': if (!s.players[pid]) return { error: 'Join the game to react.' }; result = E.react(s, pid, a.id, a.emoji); break;
         case 'roll': this.mine(s, pid); result = E.roll(s, pid, { rng }); delete result.player; break;
         case 'verify': this.mine(s, pid); result = { cleared: await this.check(pid) }; break;
         case 'claim': {
@@ -436,9 +438,18 @@ export class Game extends DurableObject {
     }
     if (wasRunning && this.state.status === 'finished' && action !== 'endNow') await this.announceEnd();
     await this.save();
-    const out = { result, state: E.publicState(this.state), me: this.state.players[pid] ? pid : null, canPlay: true };
+    if (this.state.players[pid]) this.seen(pid);
+    const out = { result, state: E.publicState(this.state), me: this.state.players[pid] ? pid : null, canPlay: true, online: this.onlineNow() };
     if (user.isHost) out.access = this.access();
     return out;
+  }
+  // Who has the game open right now. Open pages check in every 20 seconds while visible, so
+  // anyone heard from in the last 50 seconds counts as online. Kept in memory only: no storage
+  // writes per check-in, and if the game server restarts everyone simply shows up again on their next check.
+  seen(pid) { (this.seenAt = this.seenAt || {})[pid] = Date.now(); }
+  onlineNow() {
+    const s = this.state, at = this.seenAt || {}, cut = Date.now() - 50000;
+    return Object.keys(at).filter((pid) => at[pid] >= cut && s && s.players[pid]);
   }
 
   // --- push notifications for hosts ---

@@ -31,6 +31,7 @@
     this.on = ev.on; this._emit = ev.emit;
     this.isHost = true;
     this.user = null;
+    this.online = ['hummingbird', 'nyx', 'moth'];   // a few bots "have the game open" in the demo
     var saved = null;
     try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
     if (saved && saved.state && saved.state.v === E.VERSION) {
@@ -60,6 +61,7 @@
   DemoStore.prototype._botsPlay = function (advance) {
     var s = this.state;
     if (advance) E.advanceDay(s);
+    var from = s.events.length;
     s.order.forEach(function (pid) {
       var p = s.players[pid]; if (!p.bot || p.finished || !p.route) return;
       p.tasks.slice().forEach(function (t) { if (Math.random() < 0.85) E.completeTask(s, pid, t.id, { by: 'beatleader', demo: true, diff: ['Hard', 'Expert', 'ExpertPlus'][Math.floor(Math.random() * 3)], acc: 0.88 + Math.random() * 0.08 }); });
@@ -67,6 +69,19 @@
       while (E.canRoll(s, pid).ok && guard++ < 4) {
         E.roll(s, pid, { rng: rng });
         p.tasks.slice().forEach(function (t) { if (Math.random() < 0.35) E.completeTask(s, pid, t.id, { by: 'beatleader', demo: true, diff: 'Expert', acc: 0.9 + Math.random() * 0.05 }); });
+      }
+    });
+    // Bots cheer and heckle a few of the new moments, so the demo thread has reactions in it.
+    var bots = s.order.filter(function (pid) { return s.players[pid].bot; });
+    s.events.slice(Math.max(0, from - 12)).forEach(function (e) {
+      if (['cleared', 'escaped', 'start', 'pass', 'card', 'warp'].indexOf(e.t) < 0 || Math.random() > 0.45) return;
+      var n = 1 + Math.floor(Math.random() * 3);
+      for (var k = 0; k < n; k++) {
+        var b = bots[Math.floor(Math.random() * bots.length)]; if (!b || b === e.pid) continue;
+        var pick = e.t === 'start' ? ['\uD83D\uDC80', '\uD83D\uDE02', '\uD83D\uDE31'] : e.t === 'cleared' || e.t === 'escaped' ? ['\uD83D\uDC4F', '\uD83D\uDD25', '\uD83C\uDF89'] : E.REACTIONS;
+        var em = pick[Math.floor(Math.random() * pick.length)];
+        var have = s.reactions && s.reactions[e.id] && s.reactions[e.id][em];
+        if (!have || have.indexOf(b) < 0) try { E.react(s, b, e.id, em); } catch (x) {}
       }
     });
   };
@@ -87,6 +102,7 @@
           return Promise.resolve(done({ pid: id }));
         }
         case 'playAs': self.me = a.pid; return Promise.resolve(done({}));
+        case 'react': if (!s.players[me]) return Promise.reject(new Error('Join the game to react.')); return Promise.resolve(done(E.react(s, me, a.id, a.emoji)));
         case 'route': return Promise.resolve(done(E.chooseRoute(s, me, a.route)));
         case 'roll': return Promise.resolve(done(E.roll(s, me, { rng: rng })));
         case 'verify':
@@ -211,11 +227,13 @@
     if (r.user !== undefined) this.user = r.user;
     if (r.access !== undefined) this.access = r.access;
     if (r.canPlay !== undefined) this.canPlay = r.canPlay;
+    if (r.online !== undefined) this.online = r.online || [];
   };
   LiveStore.prototype.poll = function () {
     var self = this;
     return this._fetch('/api/state?since=' + this._seq).then(function (r) {
       if (r.state && r.state.seq !== self._seq) { self._apply(r); self._emit({ action: 'poll' }); }
+      else if (r.online && (r.online.slice().sort().join() !== (self.online || []).slice().sort().join())) { self.online = r.online; self._emit({ action: 'online' }); }
     }).catch(function () {});
   };
   LiveStore.prototype.act = function (name, a) {

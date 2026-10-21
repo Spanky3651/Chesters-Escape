@@ -336,7 +336,7 @@
       if (hh) {
         // The art's hero on its own layer so it can peek and wiggle (CSS), clipped at the hill line.
         // 'hill': peeks over a hill and dips behind it (clipped at the hill line). 'hop': hops in place.
-        var img = '<image class="art-hero' + (hh.move === 'hop' ? ' hop' : '') + '" href="' + esc(hh.src) + '" x="' + hh.x + '" y="' + hh.y + '" width="' + hh.w + '" height="' + hh.h + '"/>';
+        var img = '<image class="art-hero egg' + (hh.move === 'hop' ? ' hop' : '') + '" data-egg="hero" href="' + esc(hh.src) + '" x="' + hh.x + '" y="' + hh.y + '" width="' + hh.w + '" height="' + hh.h + '"/>';
         o += hh.clip ? '<clipPath id="heroClip"><path d="' + hh.clip + '"/></clipPath><g clip-path="url(#heroClip)">' + img + '</g>' : img;
       }
       return o;
@@ -381,7 +381,7 @@
       var x = pad + q[0] * cell + cell / 2 + (g() - .5) * 18, y = pad + q[1] * cell + cell / 2 + (g() - .5) * 14;
       if (L.decor === 'farm') {
         var k = i % 4, sc = .8 + g() * .3;
-        if (k === 0) o += pumpkin(x, y + 6, sc);
+        if (k === 0) o += '<g class="egg" data-egg="pumpkin">' + pumpkin(x, y + 6, sc) + '</g>';
         else if (k === 1) o += hayBale(x, y + 4, sc * .9);
         else if (k === 2) o += cornShock(x, y + 20, sc);
         else o += pumpkin(x - 8, y + 8, sc * .75) + pumpkin(x + 10, y + 2, sc * .6);
@@ -390,16 +390,16 @@
         else if (i % 3 === 1) o += present(x, y, .9 + g() * .3, ['#d7263d', '#2fb35a', '#3a6ea5', '#f4c542'][i % 4]);
         else o += snowyGrave(x, y, .8 + g() * .3, i % 3 === 2 ? (i % 2) : 2, { stoneDark: '#4f6476' });
       } else {
-        o += tombstone(x, y, .8 + g() * .35, i % 3, pal);
+        o += '<g class="egg" data-egg="grave">' + tombstone(x, y, .8 + g() * .35, i % 3, pal) + '</g>';
       }
     });
     if (L.decor === 'farm') {
-      o += autumnTree(560, 420, 1.15) + scarecrow(330, 780, 1.1) + autumnTree(890, 320, .85) + hayBale(440, 600, 1.2) + turkey(655, 605, 1.05) + pumpkin(820, 405, 1.15);
+      o += autumnTree(560, 420, 1.15) + '<g class="egg" data-egg="scarecrow">' + scarecrow(330, 780, 1.1) + '</g>' + autumnTree(890, 320, .85) + hayBale(440, 600, 1.2) + '<g class="egg" data-egg="turkey">' + turkey(655, 605, 1.05) + '</g>' + '<g class="egg" data-egg="pumpkin">' + pumpkin(820, 405, 1.15) + '</g>';
     } else if (L.decor === 'winter') {
-      o += pine(560, 400, 1.3) + pine(318, 760, 1.2) + snowman(660, 600, 1.1) + present(440, 610, 1.1, '#d7263d') + pine(890, 330, 1.05) +
+      o += pine(560, 400, 1.3) + pine(318, 760, 1.2) + '<g class="egg" data-egg="snowman">' + snowman(660, 600, 1.1) + '</g>' + '<g class="egg" data-egg="present">' + present(440, 610, 1.1, '#d7263d') + '</g>' + pine(890, 330, 1.05) +
         snowyGrave(600, 470, .95, 0, { stoneDark: '#4f6476' }) + snowyGrave(820, 410, .85, 1, { stoneDark: '#4f6476' });
     } else {
-      o += deadTree(560, 410, 1.15) + deadTree(330, 770, 1.05) + deadTree(890, 300, .8) + bush(440, 590, 1, '#1f3a17') + bush(650, 610, .9, '#24431b') + bush(820, 400, .8, '#1f3a17');
+      o += '<g class="egg" data-egg="tree">' + deadTree(560, 410, 1.15) + '</g>' + '<g class="egg" data-egg="tree">' + deadTree(330, 770, 1.05) + '</g>' + deadTree(890, 300, .8) + bush(440, 590, 1, '#1f3a17') + bush(650, 610, .9, '#24431b') + bush(820, 400, .8, '#1f3a17');
     }
     return o;
   }
@@ -448,7 +448,7 @@
     o += '<text x="34" y="92" font-family="' + esc(theme.font) + '" font-size="64" font-weight="700" fill="' + T.ink + '" stroke="' + T.stroke + '" stroke-width="1.5" paint-order="stroke">' + esc(parts[0]) + '</text>';
     o += '<text x="70" y="160" font-family="' + esc(theme.font) + '" font-size="' + t2 + '" font-weight="700" fill="' + T.shadow + '" opacity=".55" transform="translate(4,5)">' + esc(parts[1]) + '</text>';
     o += '<text x="70" y="160" font-family="' + esc(theme.font) + '" font-size="' + t2 + '" font-weight="700" fill="' + T.ink2 + '" stroke="' + T.stroke2 + '" stroke-width="2" paint-order="stroke">' + esc(parts[1]) + '</text>';
-    o += hero(575, 128, 1.05, theme);
+    o += '<g class="egg board-hero" data-egg="hero">' + hero(575, 128, 1.05, theme) + '</g>';
     // tagline down the left edge, one or two words per line like a carved signpost
     var words = theme.tagline.split(' '), lines = [], cur = '';
     words.forEach(function (w) { if ((cur + ' ' + w).trim().length > 8) { if (cur) lines.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); });
@@ -663,9 +663,11 @@
         g = layer.lastElementChild;
         g.style.transform = 'translate(' + L.x + 'px,' + L.y + 'px)';
       }
-      var me = opts.me === pid;
+      var me = opts.me === pid, fl = opts.flair || {};
       var r = L.r * (me ? 1.12 : 1);
       var inner = '';
+      // A gold halo for a day after a 95%+ clear.
+      if (fl.glow && fl.glow[pid]) inner += '<circle r="' + (r + 11) + '" class="glow-halo"/><circle r="' + (r + 8) + '" class="glow-ring"/>';
       inner += '<circle r="' + (r + 4) + '" fill="#000" opacity=".45" cy="3"/>';
       inner += '<circle r="' + (r + 3) + '" fill="' + col + '"/>';
       inner += '<circle r="' + r + '" fill="#1a1d18"/>';
@@ -673,6 +675,9 @@
       if (p.avatar) inner += '<image href="' + esc(p.avatar) + '" x="' + (-r) + '" y="' + (-r) + '" width="' + (2 * r) + '" height="' + (2 * r) + '" clip-path="url(#' + clipId + ')" preserveAspectRatio="xMidYMid slice" onerror="this.remove()"/>';
       if (me) inner += '<circle r="' + (r + 6.5) + '" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4 4" class="me-ring"/>';
       if (p.finished) inner += '<text y="' + (-r - 6) + '" text-anchor="middle" font-size="' + (r * .9) + '">\uD83C\uDF89</text>';
+      if (opts.online && opts.online[pid]) inner += '<circle class="on-dot" cx="' + (r * .74).toFixed(1) + '" cy="' + (r * .74).toFixed(1) + '" r="' + (r * .27).toFixed(1) + '"/>';
+      if (fl.crown === pid) inner += '<g class="crown" transform="translate(' + (r * .62).toFixed(1) + ',' + (-r * .78).toFixed(1) + ') rotate(20)"><text text-anchor="middle" font-size="' + (r * 1.05).toFixed(1) + '" y="' + (r * .3).toFixed(1) + '">\uD83D\uDC51</text></g>';
+      if (fl.lantern === pid) inner += '<g class="lantern" transform="translate(' + (-r * .9).toFixed(1) + ',' + (-r * .7).toFixed(1) + ')"><circle r="' + (r * .75).toFixed(1) + '" class="lantern-glow"/><text text-anchor="middle" font-size="' + (r * 1.05).toFixed(1) + '" y="' + (r * .36).toFixed(1) + '">\uD83C\uDFEE</text></g>';
       inner += '<title>' + esc(p.name) + '</title>';
       if ((L.n === 1 && !crowded[pid]) || me) inner += '<g class="tag"><rect x="-34" y="' + (r + 5) + '" width="68" height="15" rx="7.5" fill="#000" opacity=".78"/><text y="' + (r + 16) + '" text-anchor="middle" font-family="Atkinson Hyperlegible, Arial, sans-serif" font-weight="700" font-size="10.5" fill="#fff">' + esc(trunc(p.name, 11)) + '</text></g>';
       g.querySelector('.tok-in').innerHTML = inner;
