@@ -801,3 +801,10 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .curator .cur-ava { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: none; border: 2px solid var(--accent); background: var(--raise-2); display: grid; place-items: center; font-weight: 800; color: var(--accent); }
 .curator .cur-ava[hidden] { display: none; }
 .hsec .hsub { margin: 16px 0 6px; font-size: 15px; font-weight: 700; color: var(--text); }
+
+/* Host tools: a skull in the header; the board designer opens from inside the drawer */
+.host-btn { position: relative; }
+.host-btn svg { width: 24px; height: 24px; fill: currentColor; display: block; }
+.host-btn:hover svg, .host-btn:focus-visible svg { color: var(--accent); }
+.host-btn .nav-badge { position: absolute; top: -4px; right: -6px; min-width: 18px; height: 18px; font-size: 11.5px; padding: 0 5px; }
+.drawer-head .designer-link { margin-left: auto; margin-right: 52px; }

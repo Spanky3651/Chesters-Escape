@@ -233,12 +233,11 @@
     var todo = store.isHost ? hostTodo() : { total: 0 };
     document.title = (todo.total ? '(' + todo.total + ') ' : '') + t.title;
     var hb = $('hostBtn');
-    hb.innerHTML = '<span class="lg">Host tools</span><span class="sm">Host</span>' + (todo.total ? '<span class="nav-badge" aria-hidden="true">' + todo.total + '</span>' : '');
+    hb.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2.2c-4.9 0-8.7 3.5-8.7 8.1 0 2.7 1.3 4.8 3.3 6.1v2.5c0 .9.7 1.5 1.5 1.5h1.1v-2h1.5v2h2.6v-2h1.5v2h1.1c.8 0 1.5-.6 1.5-1.5v-2.5c2-1.3 3.3-3.4 3.3-6.1 0-4.6-3.8-8.1-8.7-8.1zM6.3 11.2a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0-4.8 0zM12.9 11.2a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0-4.8 0zM12 13.6l-1.1 2.1h2.2z"/></svg>' + (todo.total ? '<span class="nav-badge" aria-hidden="true">' + todo.total + '</span>' : '');
     hb.setAttribute('aria-label', todo.total ? 'Host tools, ' + todo.total + ' waiting on you' : 'Host tools');
     hb.title = todo.total ? [todo.claims ? todo.claims + ' run' + (todo.claims === 1 ? '' : 's') + ' to approve' : '', todo.pending ? todo.pending + ' waiting to get in' : ''].filter(Boolean).join(', ') : '';
     if (todo.total > lastTodo) { var nb = hb.querySelector('.nav-badge'); if (nb) { void nb.offsetWidth; nb.classList.add('bump'); } }
     lastTodo = todo.total;
-    $('designerLink').hidden = !store.isHost;   // host only, like Host tools
     var demo = store.mode === 'demo';
     $('demoBar').hidden = !demo;
     if (demo) {

@@ -21,8 +21,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Grenze+Gotisch:wght@500;700;800&family=Mountains+of+Christmas:wght@700&family=Cherry+Swash:wght@700&family=Creepster&family=Pacifico&family=Sniglet:wght@800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/game.css?v=20261021d">
-<link rel="stylesheet" href="css/fx.css?v=20261021d">
+<link rel="stylesheet" href="css/game.css?v=20261021e">
+<link rel="stylesheet" href="css/fx.css?v=20261021e">
 <script data-goatcounter="https://chesters-escape.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
 </head>
@@ -41,8 +41,7 @@
   <nav class="topnav" aria-label="Game">
     <button type="button" class="nav-btn" id="howBtn"><span class="lg">How to play</span><span class="sm">Rules</span></button>
     <button type="button" class="nav-btn" id="playlistBtn"><span class="lg">Get the maps</span><span class="sm">Maps</span></button>
-    <button type="button" class="nav-btn" id="hostBtn" hidden>Host tools</button>
-    <a class="nav-btn" href="designer.html" id="designerLink" hidden><span class="lg">Board designer</span><span class="sm">Designer</span></a>
+    <button type="button" class="nav-btn icon host-btn" id="hostBtn" hidden title="Host tools" aria-label="Host tools"></button>
     <button type="button" class="nav-btn icon rem-btn" id="remBtn" hidden aria-haspopup="dialog" aria-expanded="false" title="Roll reminders"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a6 6 0 0 0-6 6v3.4L4.3 15a1 1 0 0 0 .9 1.5h13.6a1 1 0 0 0 .9-1.5L18 11.9V8.5a6 6 0 0 0-6-6Z"/><path d="M9.5 18.5a2.5 2.5 0 0 0 5 0"/></svg><span class="rem-dot" aria-hidden="true"></span><span class="sr">Roll reminders</span></button>
     <div class="clan-switch" id="clanSwitch" hidden></div>
   </nav>
@@ -101,7 +100,7 @@
   <div class="foot-more" id="footTools"><span class="fm-label">More Beat Saber tools:</span> <a href="https://spanky3651.github.io/Playlist-Studio/?utm_source=chesters-escape&amp;utm_medium=footer&amp;utm_campaign=site" data-tool="playlist-studio">Playlist Studio</a> <span class="sep">&middot;</span> <a href="https://spanky3651.github.io/HSV-Config-Generator/?utm_source=chesters-escape&amp;utm_medium=footer&amp;utm_campaign=site" data-tool="hsv-config-generator">HSV <span class="fm-long">Config </span>Generator</a> <span class="sep">&middot;</span> <a href="https://spanky3651.github.io/ReeSaber-Studio/?utm_source=chesters-escape&amp;utm_medium=footer&amp;utm_campaign=site" data-tool="reesaber-studio">ReeSaber Studio</a></div>
   <div class="foot-meta">
     <div class="foot-count" id="footCount" hidden></div>
-    <span class="foot-updated" id="footUpdated" data-updated="2026-10-21T12:00:00Z">Site updated recently</span>
+    <span class="foot-updated" id="footUpdated" data-updated="2026-10-21T12:07:00Z">Site updated recently</span>
   </div>
 </footer>
 
@@ -150,7 +149,7 @@
 <!-- host drawer -->
 <div class="scrim" id="scrim" hidden></div>
 <aside class="drawer" id="hostDrawer" aria-label="Host tools" hidden>
-  <div class="drawer-head"><h2>Host tools</h2><button type="button" class="x" id="hostX" aria-label="Close host tools">&times;</button></div>
+  <div class="drawer-head"><h2>Host tools</h2><a class="btn small ghost designer-link" href="designer.html" id="designerLink">Board designer</a><button type="button" class="x" id="hostX" aria-label="Close host tools">&times;</button></div>
   <div class="drawer-body" id="hostBody"></div>
 </aside>
 
@@ -159,14 +158,14 @@
 <div class="mbar" id="mbar" hidden></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="js/config.js?v=20261021d"></script>
-<script src="js/content.js?v=20261021d"></script>
-<script src="js/engine.js?v=20261021d"></script>
-<script src="js/render.js?v=20261021d"></script>
-<script src="js/dice.js?v=20261021d"></script>
-<script src="js/services.js?v=20261021d"></script>
-<script src="js/fx.js?v=20261021d"></script>
-<script src="js/store.js?v=20261021d"></script>
-<script src="js/app.js?v=20261021d"></script>
+<script src="js/config.js?v=20261021e"></script>
+<script src="js/content.js?v=20261021e"></script>
+<script src="js/engine.js?v=20261021e"></script>
+<script src="js/render.js?v=20261021e"></script>
+<script src="js/dice.js?v=20261021e"></script>
+<script src="js/services.js?v=20261021e"></script>
+<script src="js/fx.js?v=20261021e"></script>
+<script src="js/store.js?v=20261021e"></script>
+<script src="js/app.js?v=20261021e"></script>
 </body>
 </html>
