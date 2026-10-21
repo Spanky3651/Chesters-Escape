@@ -133,7 +133,7 @@
 .fd-acts { position: absolute; right: 2px; top: 5px; display: flex; gap: 4px; padding-left: 8px; background: linear-gradient(90deg, transparent, var(--raise) 10px); }
 .fd-acts:empty { display: none; }
 @media (hover: none), (pointer: coarse) { .feed li.has-acts { padding-right: 40px; } .feed li.has-acts.two { padding-right: 74px; } }
-.rx-chip { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 9px 0 6px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--raise-2); color: var(--text); font: 700 14px var(--ui); cursor: pointer; }
+.rx-chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 9px 0 6px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--raise-2); color: var(--text); font: 700 14px var(--ui); cursor: pointer; }
 .rx-chip b { font-size: 13px; }
 .rx-chip[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--raise-2)); }
 .rx-chip:disabled { cursor: default; opacity: .9; }
@@ -235,8 +235,11 @@ button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
 @keyframes rxFlick { from { transform: scale(1, 1) skewX(0); } 50% { transform: scale(1.05, .93) skewX(-3deg); } to { transform: scale(.96, 1.07) skewX(3deg); } }
 @keyframes rxFlick2 { from { transform: scale(.95, 1.06) skewX(4deg); } to { transform: scale(1.06, .92) skewX(-4deg); } }
 @keyframes rxEmber { 0% { transform: translateY(4px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(-7px); opacity: 0; } }
-.rx-letsgo .a-burst { transform-origin: 16px 16px; animation: rxSpin 5s linear infinite; }
-.rx-letsgo .a-pump { transform-origin: 16px 19px; animation: rxPump .7s cubic-bezier(.3,1.6,.5,1) infinite alternate; }
+.rx-letsgo .a-bar1 { transform-origin: 16px 9px; animation: rxBar1 .9s cubic-bezier(.3,1.5,.5,1) infinite alternate; }
+.rx-letsgo .a-bar2 { transform-origin: 16px 23px; animation: rxBar2 .9s cubic-bezier(.3,1.5,.5,1) infinite alternate; }
+.rx-letsgo .a-goflame path:first-child { transform-origin: 16px 30px; animation: rxFlick .45s ease-in-out infinite alternate; }
+@keyframes rxBar1 { from { transform: translateX(-1.5px) rotate(-3deg); } to { transform: translateX(1.5px) rotate(2deg) scale(1.04); } }
+@keyframes rxBar2 { from { transform: translateX(1.5px) rotate(2deg) scale(1.04); } to { transform: translateX(-1.5px) rotate(-3deg); } }
 @keyframes rxSpin { to { transform: rotate(360deg); } }
 @keyframes rxPump { from { transform: scale(.9); } to { transform: scale(1.1); } }
 .rx-sabers .a-sab-r { transform-origin: 6px 26px; animation: rxSwingR 1.1s ease-in-out infinite alternate; }
@@ -264,3 +267,11 @@ button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
 @keyframes rxBob { from { transform: translateY(2px) rotate(-3deg); } to { transform: translateY(-4px) rotate(3deg); } }
 @keyframes rxBounce { from { transform: scale(1.06, .92); } to { transform: translateY(-6px) scale(.97, 1.04); } }
 @media (prefers-reduced-motion: reduce) { .rx-ico * { animation: none !important; } }
+
+/* Discord-style reaction tags: dark rounded tag, count beside the emote, blue when it's yours */
+.rx-chip { background: color-mix(in srgb, var(--raise-2) 80%, #4e5058); border-color: transparent; }
+.rx-chip b { font: 700 14px var(--ui); color: #b5bac1; min-width: 8px; }
+.rx-chip:hover:not(:disabled) { border-color: #4e5058; background: color-mix(in srgb, var(--raise-2) 60%, #4e5058); }
+.rx-chip[aria-pressed="true"] { background: rgba(88,101,242,.22); border-color: #5865f2; }
+.rx-chip[aria-pressed="true"] b { color: #dee0fc; }
+.rx-chip .rx-ico { width: 22px; height: 22px; }
