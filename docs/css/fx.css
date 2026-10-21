@@ -158,6 +158,7 @@
 .me-stats .stat.rival { border-color: color-mix(in srgb, var(--accent) 60%, var(--line-2)); }
 .me-stats .stat.rival b { color: var(--text); }
 .me-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.me-badges:empty { display: none; }
 .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 7px; border-radius: 999px; background: color-mix(in srgb, var(--gold) 14%, var(--raise-2)); border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--line-2)); font: 700 13px var(--ui); color: var(--text); }
 .badge i { font-style: normal; font-size: 16px; }
 .st-badges { margin-left: 4px; font-size: 14px; letter-spacing: 1px; white-space: nowrap; }
@@ -207,7 +208,6 @@
 /* ---- badge guide ---- */
 button.badge { cursor: pointer; }
 button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
-.badge-all { font-size: 13.5px; padding: 4px 6px; }
 .st-badges[data-badges], .pod-badges[data-badges] { cursor: pointer; border-radius: 6px; }
 .st-badges[data-badges]:hover { background: var(--raise-2); }
 .bg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }

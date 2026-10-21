@@ -152,7 +152,7 @@
     { id: 'first', icon: '🥇', name: 'First Out', desc: 'First player to escape' },
     { id: 'risk', icon: '🎲', name: 'Risk Taker', desc: 'Escaped on the riskier route' },
     { id: 'golden', icon: '✨', name: 'Golden Run', desc: 'Cleared a map at 95% or better' },
-    { id: 'triple', icon: '🔥', name: 'On Fire', desc: 'Cleared three maps in one day' },
+    { id: 'streak', icon: '🔥', name: 'On Fire', desc: 'Cleared a map 3 days in a row' },
     { id: 'comeback', icon: '📈', name: 'Comeback', desc: 'Climbed from last place into the top half' },
     { id: 'phoenix', icon: '🔁', name: 'Back From the Start', desc: 'Sent back to the start and still escaped' },
     { id: 'shield', icon: '🛡️', name: 'Untouchable', desc: 'A setback bounced off your protection' },
@@ -168,17 +168,22 @@
     var out = {}, b = s.board;
     s.order.forEach(function (pid) { out[pid] = {}; });
     var give = function (pid, id) { if (out[pid]) out[pid][id] = 1; };
-    var cleared = {}, runs = {}, sent = {};
+    var clearDays = {}, runs = {}, sent = {};
     s.events.forEach(function (e) {
       var p = s.players[e.pid]; if (!p) return;
       if (e.t === 'cleared') {
-        var k = e.pid + '|' + e.day; cleared[k] = (cleared[k] || 0) + 1; if (cleared[k] >= 3) give(e.pid, 'triple');
+        (clearDays[e.pid] = clearDays[e.pid] || {})[e.day] = 1;
         if (e.proof && e.proof.acc >= 0.95) give(e.pid, 'golden');
       }
       if (e.t === 'roll') { runs[e.pid] = e.n === 4 ? (runs[e.pid] || 0) + 1 : 0; if (runs[e.pid] >= 3) give(e.pid, 'fours'); }
       if (e.t === 'shield-used') give(e.pid, 'shield');
       if (e.t === 'start') sent[e.pid] = 1;
       if (e.t === 'warp' && p.route && b.routes[p.route]) { var r = b.routes[p.route]; if (r.indexOf(e.to) > r.indexOf(e.space)) give(e.pid, 'current'); }
+    });
+    // On Fire: a cleared map on three game days in a row.
+    Object.keys(clearDays).forEach(function (pid) {
+      var d = clearDays[pid];
+      if (Object.keys(d).some(function (k) { k = Number(k); return d[k + 1] && d[k + 2]; })) give(pid, 'streak');
     });
     s.order.forEach(function (pid) {
       var p = s.players[pid];

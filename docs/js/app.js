@@ -341,8 +341,7 @@
     el.innerHTML = '<div class="me-row">' + avatarHtml(p, 'me-ava') + '<div><div class="me-name">' + esc(p.name) + '</div><div class="me-sub">' + esc(route) +
       (p.blId ? ' &middot; <a href="https://beatleader.com/u/' + encodeURIComponent(p.blId) + '" target="_blank" rel="noopener">BeatLeader</a>' : '') + '</div></div></div>' +
       (stats.length ? '<div class="me-stats">' + stats.join('') + '</div>' : '') +
-      '<div class="me-badges">' + bl.map(function (b) { return '<button type="button" class="badge" data-badges="' + esc(p.id) + '" title="' + esc(b.desc) + '"><i aria-hidden="true">' + b.icon + '</i>' + esc(b.name) + '</button>'; }).join('') +
-      '<button type="button" class="btn link badge-all" data-badges="' + esc(p.id) + '">' + (bl.length ? 'All badges' : 'Badges you can earn') + '</button></div>';
+      '<div class="me-badges">' + bl.map(function (b) { return '<button type="button" class="badge" data-badges="' + esc(p.id) + '" title="' + esc(b.desc) + '"><i aria-hidden="true">' + b.icon + '</i>' + esc(b.name) + '</button>'; }).join('') + '</div>';
     el.style.setProperty('--c', col);
     badgeNotice(p, bl);
     // Roll reminders live behind the bell in the header.
