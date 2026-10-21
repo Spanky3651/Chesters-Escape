@@ -949,3 +949,4 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
   .hf-table td { padding: 8px 4px; }
   .hf-rank { width: 16px; }
 }
+.hf-rm { margin-left: 10px; color: var(--warn) !important; font-size: 13px; }

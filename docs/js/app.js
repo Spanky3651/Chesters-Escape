@@ -1100,7 +1100,8 @@
     var when = function (ts) { return ts ? new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : ''; };
     var html = !hall.length ? '<p class="lede">No game has finished yet. The first winner goes up here.</p>' :
       '<p class="lede">Every finished game, newest first.</p><div class="hf-games">' + hall.map(function (g) {
-        return '<div class="hf-game"><div class="hf-gh"><b>' + esc(g.title) + '</b><span>' + esc(when(g.endedAt)) + ' · ' + g.days + ' day' + (g.days === 1 ? '' : 's') + ' · ' + g.players + ' player' + (g.players === 1 ? '' : 's') + '</span></div>' +
+        return '<div class="hf-game"><div class="hf-gh"><b>' + esc(g.title) + '</b><span>' + esc(when(g.endedAt)) + ' · ' + g.days + ' day' + (g.days === 1 ? '' : 's') + ' · ' + g.players + ' player' + (g.players === 1 ? '' : 's') +
+          (store.isHost ? '<button type="button" class="btn small link hf-rm" data-hallrm="' + esc(g.id) + '">Remove</button>' : '') + '</span></div>' +
           '<ol class="hf-pod">' + g.top.map(function (t, i) { return '<li class="p' + (i + 1) + '"><span class="hf-m">' + medal[i] + '</span>' + ava(t) + '<b>' + esc(t.name) + '</b><span>' + (t.escaped ? 'Escaped day ' + t.day : t.left + ' to go') + '</span></li>'; }).join('') + '</ol></div>';
       }).join('') + '</div>' +
       '<h3 class="hw-h">All time</h3><table class="hf-table"><thead><tr><th>Player</th><th>Wins</th><th>Podiums</th><th>Escapes</th><th>Games</th></tr></thead><tbody>' +
@@ -1906,6 +1907,12 @@
       if (e.target.closest('#checkAgain')) { location.reload(); return; }
       var stb = e.target.closest('.st[data-pid]'); if (stb) { openPlayer(stb.dataset.pid); return; }
       if (e.target.closest('[data-hall]')) { openHall(); return; }
+      var hr = e.target.closest('[data-hallrm]'); if (hr) {
+        var hid = hr.getAttribute('data-hallrm'), hg = (store.hall || []).filter(function (h) { return h.id === hid; })[0];
+        if (hg && confirm('Remove "' + hg.title + '" (ended ' + new Date(hg.endedAt).toLocaleDateString() + ') from the hall of fame? Its wins and podiums come off the all-time table too. This can\'t be undone.'))
+          store.act('hallRemove', { id: hid }).then(function () { track('host-hall-remove'); toast('Removed from the hall of fame.', 'good'); openHall(); }, fail);
+        return;
+      }
       var pb = e.target.closest('[data-pcard-board]'); if (pb) { closeModal(); pingToken(pb.getAttribute('data-pcard-board')); return; }
       var tk = e.target.closest('.board-svg .tok');
       if (tk) { var tp = st().players[tk.getAttribute('data-pid')], tid = tp && tp.route && tp.pos >= 0 && st().board.routes[tp.route][tp.pos]; if (tid) { openSpace(tid, tk); return; } }

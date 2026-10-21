@@ -128,7 +128,7 @@
     }
     var was = s0.status;
     return this._act(name, a).then(function (res) {
-      if (self.state.status === 'finished' && (was !== 'finished' || self.state !== s0) && E.addToHall(self.hall, self.state)) self._saveHall();
+      if (self.state.status === 'finished' && (was !== 'finished' || self.state !== s0) && (self.hallHidden || []).indexOf(self.state.id) < 0 && E.addToHall(self.hall, self.state)) self._saveHall();
       if (snap) { snap.post = self.state.seq; snap.at = Date.now(); snap.by = 'MSploit'; stack.push(snap); while (stack.length > 5) stack.shift(); self._emit({ action: 'undo-list' }); }
       return res;
     });
@@ -198,6 +198,11 @@
           var words = C.cardsFor(a.theme), byId = {}; words.forEach(function (c) { byId[c.id] = c; });
           s.cards = s.cards.map(function (c) { return byId[c.id] ? Object.assign({}, c, { title: byId[c.id].title, art: byId[c.id].art, text: byId[c.id].text }) : c; });
           return Promise.resolve(done({}));
+        case 'hallRemove': {
+          self.hall = self.hall.filter(function (h) { return h.id !== a.id; });
+          (self.hallHidden = self.hallHidden || []).push(a.id); self._saveHall(); s.seq++;
+          return Promise.resolve(done({}));
+        }
         case 'newGame': {
           var keepMe = self.me;
           var st0 = a.startsAt > Date.now() + 60000 ? a.startsAt : null;

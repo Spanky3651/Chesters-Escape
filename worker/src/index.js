@@ -244,7 +244,7 @@ export class Game extends DurableObject {
       this.visits = (await ctx.storage.get('visits')) || [];
       this.undoList = (await ctx.storage.get('undoList')) || [];
       // A game that ended before the hall of fame existed still gets its place in it.
-      if (this.state && this.state.status === 'finished') E.addToHall(this.meta.hall = this.meta.hall || [], this.state);
+      if (this.state && this.state.status === 'finished') this.recordHall();
     });
   }
 
@@ -280,7 +280,7 @@ export class Game extends DurableObject {
     }
     return this.meta.posts;
   }
-  recordHall() { E.addToHall(this.meta.hall = this.meta.hall || [], this.state); }
+  recordHall() { if ((this.meta.hallHidden || []).includes(this.state.id)) return; E.addToHall(this.meta.hall = this.meta.hall || [], this.state); }
   // The last few host changes, newest last. Each keeps the game as it was before the change.
   async pushUndo(snap, user) {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -474,7 +474,7 @@ export class Game extends DurableObject {
     this.useClan(user);
     const s = this.game(); const pid = this.pidFor(user);
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
-    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo'];
+    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove'];
     if (hostOnly.includes(action) && !user.isHost) return { error: 'Only the host can do that.', status: 403 };
     if (s.status === 'finished' && ['join', 'route', 'roll', 'verify', 'claim'].includes(action)) return { error: 'The game is over.' };
     const wasRunning = s.status === 'running';
@@ -577,6 +577,14 @@ export class Game extends DurableObject {
           const w = ac.pending.find((x) => x.id === id);
           ac.names = ac.names || {}; if (w) ac.names[id] = w.name; else if (a.name) ac.names[id] = String(a.name).slice(0, 60);
           ac.pending = ac.pending.filter((x) => x.id !== id); s.seq++; break;
+        }
+        case 'hallRemove': {
+          const id = String(a.id || ''), hall = this.meta.hall || [];
+          if (!hall.some((h) => h.id === id)) return { error: 'That game is not in the hall of fame.' };
+          this.meta.hall = hall.filter((h) => h.id !== id);
+          (this.meta.hallHidden = this.meta.hallHidden || []).push(id);   // so it never comes back on its own
+          if (this.meta.hallHidden.length > 100) this.meta.hallHidden.shift();
+          s.seq++; break;
         }
         case 'undo': {
           const top = this.undoList[this.undoList.length - 1];
