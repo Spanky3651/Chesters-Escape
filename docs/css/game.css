@@ -896,3 +896,4 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .hsec .hsub .why { font-weight: 400; font-size: 13px; margin-left: 6px; }
 .check input { flex: none; }
 .ptable .btn { white-space: nowrap; }
+.row.nowrap { flex-wrap: nowrap; }

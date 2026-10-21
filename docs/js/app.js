@@ -1561,7 +1561,7 @@
         s.order.forEach(function (pid) {
           var p = s.players[pid];
           T.players += '<tr><td><b>' + esc(p.name) + '</b><br><span class="why">' + (p.finished ? 'Escaped, ' + ordinal(p.finished.place) : p.route ? s.board.routeInfo[p.route].name : 'no route') + (p.tasks.length ? ', on a map' : '') + '</span></td>' +
-            '<td>' + (p.route ? '<input type="number" min="0" max="' + E.routeOf(s, p).length + '" value="' + (p.pos + 1) + '" aria-label="Space for ' + esc(p.name) + '" data-pos="' + esc(pid) + '">' : '') + '</td>' +
+            '<td>' + (p.route ? '<span class="row nowrap"><input type="number" min="0" max="' + E.routeOf(s, p).length + '" value="' + (p.pos + 1) + '" aria-label="Space for ' + esc(p.name) + '" data-posfor="' + esc(pid) + '"><button type="button" class="btn small ghost" data-h="move" data-pid="' + esc(pid) + '">Move</button></span>' : '') + '</td>' +
             '<td>' + (p.route && !p.finished ? '<select data-cardfor="' + esc(pid) + '" aria-label="Give ' + esc(p.name) + ' a card"><option value="">Give a card</option>' + s.cards.map(function (c) { return '<option value="' + c.id + '">' + esc(c.title) + '</option>'; }).join('') + '</select>' : '') + '</td>' +
             '<td><div class="row">' + (p.tasks.length ? '<button type="button" class="btn small ghost" data-h="clearmap" data-pid="' + esc(pid) + '">Clear map</button>' : '') +
             (p.route ? '<button type="button" class="btn small danger" data-h="reset" data-pid="' + esc(pid) + '">Reset</button>' : '') + '</div></td></tr>';
@@ -1729,17 +1729,26 @@
   }
   // The designer keeps a board per clan game; boards saved before clans existed are still found.
   function designerBoard() { try { return JSON.parse((store.clan && localStorage.getItem('cg.designer.board.' + store.clan)) || localStorage.getItem('cg.designer.board') || 'null'); } catch (e) { return null; } }
+  function cssq(v) { return String(v).replace(/["\\]/g, '\\$&'); }
   function hostAction(btn) {
     var h = btn.dataset.h, pid = btn.dataset.pid;
     var run = function (name, args, msg) { return store.act(name, args).then(function () { track('host-' + h); if (msg) toast(msg, 'good'); }, fail); };
     switch (h) {
-      case 'advance': run('advance', {}, 'Day ' + (st().day + 1) + ' has started.'); break;
+      case 'advance': if (store.mode === 'demo' || confirm('Start day ' + (st().day + 1) + ' for everyone now? The day normally turns over by itself at ' + cutoffLabel(st()) + '.')) run('advance', {}, 'Day ' + (st().day + 1) + ' has started.'); break;
       case 'simulate': run('simulate', { days: 3 }, 'Skipped ahead 3 days.'); break;
       case 'tab': showHostTab(btn.dataset.tab); break;
-      case 'discordtest': run('discordTest', {}, 'Test post sent. Check the channel.'); break;
+      case 'move': {
+        var mp = st().players[pid], box = document.querySelector('[data-posfor="' + cssq(pid) + '"]'), to = box ? parseInt(box.value, 10) : NaN, apply = $('applyMove') && $('applyMove').checked;
+        if (isNaN(to)) { toast('Type a space number first.', 'bad'); break; }
+        if (to === mp.pos + 1) { toast(mp.name + ' is already on space ' + to + '.', ''); break; }
+        if (confirm('Move ' + mp.name + ' from space ' + (mp.pos + 1) + ' to space ' + to + '?' + (apply ? ' The space\'s effect applies too.' : ''))) run('setpos', { pid: pid, pos: to - 1, apply: apply }, mp.name + ' moved to space ' + to + '.');
+        else box.value = mp.pos + 1;
+        break;
+      }
+      case 'discordtest': if (confirm('Send a test post to the game\'s Discord channel? Everyone in the channel will see it.')) run('discordTest', {}, 'Test post sent. Check the channel.'); break;
       case 'approve': run('approve', { pid: pid, task: btn.dataset.task }, 'Approved.'); break;
-      case 'reject': run('reject', { pid: pid, task: btn.dataset.task }); break;
-      case 'clearmap': { var p = st().players[pid]; run('approve', { pid: pid, task: p.tasks[0].id }, 'Map cleared for ' + p.name + '.'); break; }
+      case 'reject': if (confirm('Reject ' + st().players[pid].name + '\'s run? They keep the map and can play it again or send a new run.')) run('reject', { pid: pid, task: btn.dataset.task }, 'Run rejected.'); break;
+      case 'clearmap': { var p = st().players[pid]; if (!confirm('Mark ' + p.name + '\'s map as cleared? They can roll again.')) break; run('approve', { pid: pid, task: p.tasks[0].id }, 'Map cleared for ' + p.name + '.'); break; }
       case 'reset': if (confirm('Send ' + st().players[pid].name + ' back to the start and clear their maps?')) run('resetPlayer', { pid: pid }); break;
       case 'newgame': {
         var ns = readStart('newStart'); if (ns === false) break;
@@ -1832,12 +1841,20 @@
     document.addEventListener('change', function (e) {
       var t = e.target;
       if (t.id === 'playAs') { store.act('playAs', { pid: t.value }); return; }
-      if (t.dataset.pos) { store.act('setpos', { pid: t.dataset.pos, pos: parseInt(t.value, 10) - 1, apply: $('applyMove') && $('applyMove').checked }).catch(fail); return; }
-      if (t.dataset.cardfor && t.value) { var pid = t.dataset.cardfor, cid = t.value; store.act('card', { pid: pid, card: cid }).then(function () { toast('Gave ' + st().players[pid].name + ' a card.', 'good'); }, fail); return; }
-      if (t.dataset.set) { var patch = {}; patch[t.dataset.set] = t.checked; store.act('settings', { patch: patch }).catch(fail); return; }
-      if (t.name === 'sumode') { store.act('signups', { closed: t.value === 'closed' }).then(function () { toast(t.value === 'closed' ? 'Sign-ups are closed until the game starts.' : 'Sign-ups are open.', 'good'); }, fail); return; }
+      if (t.dataset.cardfor && t.value) {
+        var pid = t.dataset.cardfor, cid = t.value, card = st().cards.filter(function (c) { return c.id === cid; })[0];
+        if (!confirm('Give ' + st().players[pid].name + ' the card "' + (card ? card.title : cid) + '"? It takes effect right away.')) { t.value = ''; return; }
+        store.act('card', { pid: pid, card: cid }).then(function () { toast('Gave ' + st().players[pid].name + ' a card.', 'good'); }, fail); return; }
+      if (t.dataset.set) {
+        if (st().status === 'running' && !confirm('Change this rule for everyone in the game that is running now?')) { t.checked = !t.checked; return; }
+        var patch = {}; patch[t.dataset.set] = t.checked; store.act('settings', { patch: patch }).catch(fail); return; }
+      if (t.name === 'sumode') {
+        if (t.value === 'closed' && !confirm('Close sign-ups? Nobody new can join until the game starts.')) { renderHost(); return; }
+        store.act('signups', { closed: t.value === 'closed' }).then(function () { toast(t.value === 'closed' ? 'Sign-ups are closed until the game starts.' : 'Sign-ups are open.', 'good'); }, fail); return; }
       if (t.dataset.post) { var on = t.checked; store.act('discordPosts', { kind: t.dataset.post, on: on }).then(function () { track('host-discord-' + t.dataset.post + (on ? '-on' : '-off')); toast(on ? 'That post is on.' : 'That post is off.', 'good'); }, function (e) { t.checked = !on; fail(e); }); return; }
-      if (t.name === 'acmode') { store.act('accessMode', { mode: t.value }).then(function () { track('host-access-' + t.value); toast(t.value === 'open' ? 'Anyone who signs in can play now.' : 'Invite-only again.', 'good'); }, fail); return; }
+      if (t.name === 'acmode') {
+        if (!confirm(t.value === 'open' ? 'Let anyone who signs in with Discord play?' : 'Go back to invite-only? Only people you let in can play.')) { renderHost(); return; }
+        store.act('accessMode', { mode: t.value }).then(function () { track('host-access-' + t.value); toast(t.value === 'open' ? 'Anyone who signs in can play now.' : 'Invite-only again.', 'good'); }, fail); return; }
       if (t.id === 'remindSel') { store.act('settings', { patch: { remindHour: t.value === '' ? null : Number(t.value) } }).then(function () { track('host-reminder-' + (t.value || 'off')); toast(t.value === '' ? 'Roll reminders are off.' : 'Roll reminders go out at ' + hourLabel(t.value) + '.', 'good'); }, fail); return; }
       if (t.id === 'themeSel') { store.act('theme', { theme: t.value }).then(function () { track('host-theme-' + t.value); renderBoard(true); }, fail); }
     });
