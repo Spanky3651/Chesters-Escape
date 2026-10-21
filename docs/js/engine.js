@@ -28,7 +28,7 @@
   var DEFAULTS = {
     dieSides: 4,
     exactFinish: false,      // true = you need the exact roll to reach the exit
-    oneFinishPerDay: true,   // only one player can escape each day; the next one waits at the gate
+    oneFinishPerDay: true,   // the first three escape one per day (the next one waits at the gate); after that, any day
     oneRollPerDay: true,
     cutoffHour: 0,           // local hour the day rolls over (0 = midnight)
     cutoffMinute: 59,
@@ -139,8 +139,21 @@
     if (s.status === 'signup') ev.pre = true;
     s.events.push(ev);
     if (s.events.length > 800) {
-      s.events.splice(0, s.events.length - 800);
-      if (s.reactions) { var oldest = s.events[0].id; Object.keys(s.reactions).forEach(function (k) { if (Number(k) < oldest) delete s.reactions[k]; }); }
+      // The oldest moments leave the log, but what they count toward (stats, badges, reactions
+      // received) is kept in s.tally so nothing earned early in a big game goes missing.
+      var cut = s.events.length - 800;
+      for (var i = 0; i < cut; i++) foldEvent(s, s.events[i]);
+      s.events.splice(0, cut);
+      if (s.reactions) {
+        var oldest = s.events[0].id;
+        Object.keys(s.reactions).forEach(function (k) {
+          if (Number(k) >= oldest) return;
+          var gone = s.tally && s.tally.ev && s.tally.ev[k];
+          if (gone && s.players[gone]) { var r = s.reactions[k]; Object.keys(r).forEach(function (em) { tallyFor(s, gone).rx += r[em].filter(function (q) { return q !== gone; }).length; }); }
+          delete s.reactions[k];
+        });
+      }
+      if (s.tally) delete s.tally.ev;
     }
     return ev;
   }
@@ -490,9 +503,10 @@
 
   function finish(s, p, ctx) {
     if (p.finished) return;
-    // One escape per day: if someone already got out today, wait one space short of the exit.
+    // One escape per day for the podium: if someone already got out today, wait one space short of the exit.
     // Games made before this rule have no setting saved, so they get it too.
-    if (s.settings.oneFinishPerDay !== false && s.finishOrder.some(function (pid) { var q = s.players[pid]; return q && q.finished && q.finished.day === s.day; })) {
+    // Only the podium (the first three out) is held to one escape a day; after that the gate is open.
+    if (s.settings.oneFinishPerDay !== false && s.finishOrder.length < 3 && s.finishOrder.some(function (pid) { var q = s.players[pid]; return q && q.finished && q.finished.day === s.day; })) {
       p.pos = Math.max(-1, exitIndex(s, p) - 1);
       if (ctx && ctx.steps) ctx.steps.push(p.pos);
       emit(s, p, { t: 'gate-closed' });
@@ -661,6 +675,49 @@
     return asUtc - (d.getTime() - d.getUTCSeconds() * 1000 - d.getUTCMilliseconds());
   }
 
+  // ---- running totals for moments trimmed from the log ------------------------------
+  function tallyFor(s, pid) {
+    var T = (s.tally = s.tally || {}), P = (T.p = T.p || {});
+    return (P[pid] = P[pid] || { rolls: 0, total: 0, clears: 0, accSum: 0, accN: 0, best: null, lost: 0, gained: 0, cards: 0, turnsLost: 0, passed: 0, passedBy: 0, pos: -1, run4: 0, days: {}, flags: {}, rx: 0 });
+  }
+  function foldEvent(s, e) {
+    var T = (s.tally = s.tally || {});
+    if (e.pid) (T.ev = T.ev || {})[e.id] = e.pid;   // so reactions on it still count after it's gone
+    if (e.t === 'pass') (e.over || []).forEach(function (q) { if (s.players[q]) tallyFor(s, q).passedBy++; });
+    if (e.t === 'day') {   // who was dead last when this day began (for the Comeback badge)
+      var racers = s.order.filter(function (pid) { return s.players[pid].route; });
+      if (racers.length >= 4) {
+        var pos = positionsBefore(s, e.id), left = {};
+        racers.forEach(function (pid) { var q = s.players[pid], len = (s.board.routes[q.route] || []).length; if (pos[pid] != null) left[pid] = len - 1 - pos[pid]; });
+        var ids = Object.keys(left);
+        if (ids.length >= 4) { var max = Math.max.apply(null, ids.map(function (k) { return left[k]; })), at = ids.filter(function (k) { return left[k] === max; }); if (at.length === 1 && max > 0) tallyFor(s, at[0]).flags.wasLast = 1; }
+      }
+    }
+    var p = s.players[e.pid]; if (!p) return;
+    var t = tallyFor(s, e.pid), r = routeOf(s, p), last = Math.max(0, r.length - 1);
+    switch (e.t) {
+      case 'roll': t.rolls++; t.total += e.n; t.pos = Math.min(last, (e.from == null ? t.pos : e.from) + e.n); t.run4 = e.n === 4 ? t.run4 + 1 : 0; if (t.run4 >= 3) t.flags.fours = 1; break;
+      case 'move': if (e.n < 0) t.lost += Math.min(-e.n, Math.max(0, (e.from == null ? t.pos : e.from) + 1)); else t.gained += e.n; t.pos = e.to; break;
+      case 'warp': { var a = r.indexOf(e.space), b = r.indexOf(e.to); if (a >= 0 && b >= 0) { if (b < a) t.lost += a - b; else { t.gained += b - a; t.flags.current = 1; } t.pos = b; } break; }
+      case 'start': t.lost += Math.max(0, t.pos + 1); t.pos = -1; t.flags.sent = 1; break;
+      case 'host-move': t.pos = e.to; break;
+      case 'host-reset': t.pos = -1; break;
+      case 'card': t.cards++; break;
+      case 'lost-turn': t.turnsLost++; break;
+      case 'pass': t.passed += (e.over || []).length; break;
+      case 'shield-used': t.flags.shield = 1; break;
+      case 'cleared':
+        t.clears++; t.days[e.day] = 1;
+        if (e.proof && e.proof.acc) {
+          t.accSum += e.proof.acc; t.accN++;
+          if (!t.best || e.proof.acc > t.best.acc) t.best = { acc: e.proof.acc, key: (e.bsr || [])[0], diff: e.proof.diff || '' };
+          if (e.proof.acc >= 0.95) t.flags.golden = 1;
+        }
+        break;
+    }
+  }
+  function tallyOf(s, pid) { return s.tally && s.tally.p && s.tally.p[pid] || null; }
+
   // ---- hall of fame ----------------------------------------------------------------
   // One record per finished game, kept by the game server across games.
   function hallEntry(s) {
@@ -728,7 +785,7 @@
     routeOf: routeOf, spaceAt: spaceAt, progress: progress, remaining: remaining, exitIndex: exitIndex,
     cardById: cardById, publicState: publicState, allMapKeys: allMapKeys, checkBoard: checkBoard,
     nextCutoff: nextCutoff, shuffle: shuffle, clone: clone, startGame: startGame, upgradeBonus: upgradeBonus,
-    endGame: endGame, ranking: ranking, hallEntry: hallEntry, addToHall: addToHall, hallTotals: hallTotals, UNDOABLE: UNDOABLE, hostLabel: hostLabel, positionsBefore: positionsBefore, reminderFor: reminderFor, localHour: localHour, remindHour: remindHour, reminderTime: reminderTime
+    endGame: endGame, ranking: ranking, hallEntry: hallEntry, tallyOf: tallyOf, foldEvent: foldEvent, addToHall: addToHall, hallTotals: hallTotals, UNDOABLE: UNDOABLE, hostLabel: hostLabel, positionsBefore: positionsBefore, reminderFor: reminderFor, localHour: localHour, remindHour: remindHour, reminderTime: reminderTime
   };
   root.CGEngine = E;
   if (typeof module !== 'undefined' && module.exports) module.exports = E;

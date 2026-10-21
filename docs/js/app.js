@@ -1055,8 +1055,10 @@
   }
   // ---- player card: one player's game in numbers, worked out from the game log ----
   function playerStats(s, pid) {
-    var p = s.players[pid], r = E.routeOf(s, p), last = Math.max(0, r.length - 1), pos = -1;
-    var o = { rolls: 0, total: 0, clears: 0, accs: [], best: null, lost: 0, gained: 0, cards: 0, turnsLost: 0, passed: 0, passedBy: 0 };
+    var p = s.players[pid], r = E.routeOf(s, p), last = Math.max(0, r.length - 1), t = E.tallyOf(s, pid), pos = t ? t.pos : -1;
+    // start from the running totals for moments already trimmed from the log
+    var o = t ? { rolls: t.rolls, total: t.total, clears: t.clears, accs: [], accSum: t.accSum, accN: t.accN, best: t.best, lost: t.lost, gained: t.gained, cards: t.cards, turnsLost: t.turnsLost, passed: t.passed, passedBy: t.passedBy }
+      : { rolls: 0, total: 0, clears: 0, accs: [], accSum: 0, accN: 0, best: null, lost: 0, gained: 0, cards: 0, turnsLost: 0, passed: 0, passedBy: 0 };
     s.events.forEach(function (e) {
       if (e.t === 'pass' && (e.over || []).indexOf(pid) >= 0) o.passedBy++;
       if (e.pid !== pid) return;
@@ -1077,7 +1079,8 @@
       }
     });
     o.avgRoll = o.rolls ? o.total / o.rolls : 0;
-    o.avgAcc = o.accs.length ? o.accs.reduce(function (x, y) { return x + y; }, 0) / o.accs.length : 0;
+    var accN = o.accN + o.accs.length, accSum = o.accSum + o.accs.reduce(function (x, y) { return x + y; }, 0);
+    o.avgAcc = accN ? accSum / accN : 0; o.accCount = accN;
     return o;
   }
   function openPlayer(pid) {
@@ -1093,7 +1096,7 @@
       '<div class="pc-where">' + esc(where) + (p.route ? ' · ' + esc(s.board.routeInfo[p.route].name) : '') + '</div></div></div>' +
       '<div class="pc-grid">' +
       tile(o.clears, 'Maps cleared') +
-      tile(o.accs.length ? (o.avgAcc * 100).toFixed(2) + '%' : '–', 'Average accuracy') +
+      tile(o.accCount ? (o.avgAcc * 100).toFixed(2) + '%' : '–', 'Average accuracy') +
       tile(o.best ? (o.best.acc * 100).toFixed(2) + '%' : '–', 'Best clear', o.best ? esc((song && song.name) || ('!bsr ' + o.best.key)) + (o.best.diff ? ' · ' + esc(o.best.diff) : '') : '') +
       tile(o.rolls ? o.avgRoll.toFixed(2) : '–', 'Average roll', esc(luck) + (o.rolls ? ' \u00b7 ' + o.rolls + ' roll' + (o.rolls === 1 ? '' : 's') + ', 2.50 is average' : '')) +
       tile(o.lost, 'Spaces lost', 'to setbacks') +
@@ -1416,7 +1419,7 @@
       tip('🎵', 'Every roll ends with a map. Stop on a space without one and you get a bonus map. Safe is the only break.') +
       tip('🔗', 'Moved onto a map by a card or event? Play it. Cards never chain into more cards.') +
       tip('🏁', 'First to the ' + esc(t.goal) + ' wins. Everyone else plays on for their place.') +
-      (s.settings.oneFinishPerDay !== false ? tip('🚪', 'One escape per day. If someone got out today, you wait at the gate until your next roll.') : '') + '</ul>';
+      (s.settings.oneFinishPerDay !== false ? tip('🚪', 'The podium escapes one a day: if someone got out today, you wait at the gate until your next roll. Once the top 3 are out, anyone can escape any day.') : '') + '</ul>';
     var extras = '<ul class="hw-tips">' +
       tip('<span class="hw-rx">' + RX_ICON + '</span>', 'Tap the smiley in the game thread to react to other players. Press and hold a reaction to see who sent it.') +
       tip('<span class="hw-dot"></span>', 'A green dot means that player has the game open.') +
@@ -1689,7 +1692,7 @@
     if (!over) T.game += endSection(s);
     T.game += '<section class="hsec"><h3>Rules' + (over ? ' <span class="why">for the next game</span>' : '') + '</h3>' +
       '<label class="check"><input type="checkbox" data-set="exactFinish"' + (s.settings.exactFinish ? ' checked' : '') + '> <span>Exact roll needed to escape</span></label>' +
-      '<label class="check"><input type="checkbox" data-set="oneFinishPerDay"' + (s.settings.oneFinishPerDay !== false ? ' checked' : '') + '> <span>Only one player can escape per day</span></label>' +
+      '<label class="check"><input type="checkbox" data-set="oneFinishPerDay"' + (s.settings.oneFinishPerDay !== false ? ' checked' : '') + '> <span>Podium escapes one per day (after the top 3, anyone can escape)</span></label>' +
       '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label></section>';
     if (!over) {
       T.game += '<section class="hsec"><h3>Theme and board</h3><div class="row"><label>Theme ' + themeOptions(s, 'themeSel') + '</label></div><p style="margin-top:10px">Changing the theme keeps everyone where they are.</p>';

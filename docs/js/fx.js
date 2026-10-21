@@ -206,7 +206,16 @@
     var out = {}, b = s.board;
     s.order.forEach(function (pid) { out[pid] = {}; });
     var give = function (pid, id) { if (out[pid]) out[pid][id] = 1; };
-    var clearDays = {}, runs = {}, sent = {};
+    var clearDays = {}, runs = {}, sent = {}, wasLastT = {}, gotT = {};
+    // what older moments (trimmed from the log in a big game) already earned
+    s.order.forEach(function (pid) {
+      var t = E.tallyOf && E.tallyOf(s, pid); if (!t) return;
+      ['golden', 'fours', 'shield', 'current'].forEach(function (k) { if (t.flags[k]) give(pid, k); });
+      if (t.flags.sent) sent[pid] = 1;
+      if (t.flags.wasLast) wasLastT[pid] = 1;
+      runs[pid] = t.run4 || 0; gotT[pid] = t.rx || 0;
+      Object.keys(t.days || {}).forEach(function (d) { (clearDays[pid] = clearDays[pid] || {})[d] = 1; });
+    });
     s.events.forEach(function (e) {
       var p = s.players[e.pid]; if (!p) return;
       if (e.t === 'cleared') {
@@ -228,7 +237,7 @@
       if (p.finished) { if (p.finished.place === 1) give(pid, 'first'); if (p.route === 'riskier') give(pid, 'risk'); if (sent[pid]) give(pid, 'phoenix'); }
     });
     // Reactions on your moments.
-    var got = {};
+    var got = Object.assign({}, gotT);
     Object.keys(s.reactions || {}).forEach(function (id) {
       var ev = null; for (var i = s.events.length - 1; i >= 0; i--) if (s.events[i].id === Number(id)) { ev = s.events[i]; break; }
       if (!ev || !ev.pid) return;
@@ -238,7 +247,7 @@
     // Comeback: dead last at the start of some day (with 4+ racing), top half now.
     var racers = s.order.filter(function (pid) { return s.players[pid].route; });
     if (racers.length >= 4) {
-      var wasLast = {};
+      var wasLast = Object.assign({}, wasLastT);
       s.events.forEach(function (e) {
         if (e.t !== 'day') return;
         var pos = E.positionsBefore(s, e.id), left = {};

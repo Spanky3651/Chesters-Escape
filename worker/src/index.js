@@ -297,7 +297,12 @@ export class Game extends DurableObject {
   announcing(kind) { return !!this.webhook() && !!this.posts()[kind]; }
   // A post, optionally with a card linking to the game. The card is built here (not left to
   // Discord's link preview) so each game shows its own art: the taco boards get the taco.
+  // Outside requests per wake-up. Cloudflare caps how many one run can make (50 on the free
+  // plan), so the 15-minute check keeps a budget: Discord posts and reminders first, BeatLeader
+  // checks with what's left, and anything that didn't fit runs a minute later.
+  take(n) { if (this.budget == null) return true; if (this.budget < n) { this.later = true; return false; } this.budget -= n; return true; }
   async discordPost(content, link) {
+    if (!this.take(1)) return 'nobudget';
     const body = { content, allowed_mentions: { parse: [] } };
     if (link && this.page()) body.embeds = [this.gameCard()];
     return fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
@@ -322,40 +327,46 @@ export class Game extends DurableObject {
     }
     const f = m.feed, t = C.themes[s.themeId] || {}, goal = t.goal || 'exit';
     const name = (pid) => md((s.players[pid] || {}).name || 'Someone');
+    // false = out of requests for this run: stop here and pick up from this moment next time
     const say = async (kind, text) => {
-      if (!this.announcing(kind)) return;
+      if (!this.announcing(kind)) return true;
       if (f.capDay !== s.day) { f.capDay = s.day; f.n = 0; }
-      if (kind !== 'escape') { if (f.n >= MOMENT_CAP) return; f.n++; }   // escapes always post
-      await this.discordPost(text, false);
+      if (kind !== 'escape' && f.n >= MOMENT_CAP) return true;   // escapes always post
+      if ((await this.discordPost(text, false)) === 'nobudget') return false;
+      if (kind !== 'escape') f.n++;
+      return true;
     };
     // countdowns
     const open = s.status === 'signup' && E.signupsOpen(s);
-    if (open && !f.open && this.announcing('signups')) await this.discordPost(`📣 **Sign-ups are open for ${md(s.title)}!** Join and pick your route.`, true);
+    if (open && !f.open && this.announcing('signups') && (await this.discordPost(`📣 **Sign-ups are open for ${md(s.title)}!** Join and pick your route.`, true)) === 'nobudget') return;
     f.open = open;
     if (s.status === 'signup' && s.startsAt && !f.hour && now >= s.startsAt - HOUR && now < s.startsAt) {
+      if (this.announcing('hour') && (await this.discordPost(`⏰ **${md(s.title)} starts <t:${Math.round(s.startsAt / 1000)}:R>.** Last chance to join and pick a route.`, true)) === 'nobudget') return;
       f.hour = true;
-      if (this.announcing('hour')) await this.discordPost(`⏰ **${md(s.title)} starts <t:${Math.round(s.startsAt / 1000)}:R>.** Last chance to join and pick a route.`, true);
     }
     if (s.status === 'running' && s.endsAt && !f.lastcall && now >= s.endsAt - DAY && now < s.endsAt) {
+      if (this.announcing('lastcall') && (await this.discordPost(`⏳ **${md(s.title)} ends <t:${Math.round(s.endsAt / 1000)}:R>.** Get your rolls in.`, true)) === 'nobudget') return;
       f.lastcall = true;
-      if (this.announcing('lastcall')) await this.discordPost(`⏳ **${md(s.title)} ends <t:${Math.round(s.endsAt / 1000)}:R>.** Get your rolls in.`, true);
     }
     // moments since last time
     const fresh = s.events.filter((e) => e.id > f.ev);
-    f.ev = last;
     for (const e of fresh) {
       const kd = e.space && s.board.spaces[e.space] && t.kinds ? t.kinds[s.board.spaces[e.space].kind] : null;
       const card = e.card ? (s.cards || []).find((c) => c.id === e.card) : null;
       const why = kd ? `*${kd.title}* ` : card ? `*${card.title || card.name || 'A card'}* ` : '';
-      if (e.t === 'escaped') await say('escape', `🏁 ${why}**${name(e.pid)}** made it to the ${goal}! ${ordinal(e.place)} place, day ${e.day}.`);
-      else if (e.t === 'gate-closed') await say('gate', `🚪 **${name(e.pid)}** reached the ${goal}, but someone already got out today. They wait at the gate until tomorrow.`);
-      else if (e.t === 'start') await say('setback', `💀 ${why}**${name(e.pid)}** is back at the start.`);
-      else if (e.t === 'move' && e.n <= -SETBACK) await say('setback', `💀 ${why}**${name(e.pid)}** got knocked back ${-e.n} spaces.`);
+      let ok = true;
+      if (e.t === 'escaped') ok = await say('escape', `🏁 ${why}**${name(e.pid)}** made it to the ${goal}! ${ordinal(e.place)} place, day ${e.day}.`);
+      else if (e.t === 'gate-closed') ok = await say('gate', `🚪 **${name(e.pid)}** reached the ${goal}, but someone already got out today. They wait at the gate until tomorrow.`);
+      else if (e.t === 'start') ok = await say('setback', `💀 ${why}**${name(e.pid)}** is back at the start.`);
+      else if (e.t === 'move' && e.n <= -SETBACK) ok = await say('setback', `💀 ${why}**${name(e.pid)}** got knocked back ${-e.n} spaces.`);
       else if (e.t === 'warp') {
         const p = s.players[e.pid], r = p && p.route ? s.board.routes[p.route] : [], back = r.indexOf(e.space) - r.indexOf(e.to);
-        if (back >= SETBACK && r.indexOf(e.to) >= 0) await say('setback', `💀 ${why}**${name(e.pid)}** got swept back ${back} spaces.`);
+        if (back >= SETBACK && r.indexOf(e.to) >= 0) ok = await say('setback', `💀 ${why}**${name(e.pid)}** got swept back ${back} spaces.`);
       }
+      if (!ok) return;   // out of requests: this moment and the rest go next run
+      f.ev = e.id;
     }
+    f.ev = last;
     // big scores, including old clears improved past the line
     const big = bigNow(), seen = new Set(f.big);
     for (const k of big) {
@@ -364,8 +375,9 @@ export class Game extends DurableObject {
       const before = f.big.some((x) => x.split(':')[0] === String(id));
       if (e && !before) {
         const key = (e.bsr || [])[0], song = key ? await this.songName(key) : '';
-        await say('big', `✨ **${name(e.pid)}** cleared ${song ? `**${md(song)}**` : `!bsr ${key}`} at **${(e.proof.acc * 100).toFixed(2)}%**` + (e.proof.diff ? ` (${e.proof.diff})` : '') + '.');
+        if (!(await say('big', `✨ **${name(e.pid)}** cleared ${song ? `**${md(song)}**` : `!bsr ${key}`} at **${(e.proof.acc * 100).toFixed(2)}%**` + (e.proof.diff ? ` (${e.proof.diff})` : '') + '.'))) return;
       }
+      f.big.push(k);
     }
     f.big = big;
     // a new leader, at most once a game day
@@ -373,7 +385,7 @@ export class Game extends DurableObject {
     if (lead && f.leader && lead !== f.leader && s.status === 'running' && !s.players[lead].finished && f.leadDay !== s.day) {
       const r = E.ranking(s)[0];
       f.leadDay = s.day;
-      await say('leader', `👑 **${name(lead)}** takes the lead from **${name(f.leader)}**. ${r ? r.left + ' spaces to go.' : ''}`);
+      if (!(await say('leader', `👑 **${name(lead)}** takes the lead from **${name(f.leader)}**. ${r ? r.left + ' spaces to go.' : ''}`))) { f.leadDay = null; return; }
     }
     if (lead) f.leader = lead;
   }
@@ -387,6 +399,7 @@ export class Game extends DurableObject {
   async songName(key) {
     const m = (this.meta.songs = this.meta.songs || {}); key = String(key).toLowerCase();
     if (m[key]) return m[key];
+    if (!this.take(1)) return '';
     const r = await fetch((this.env.BS_API || 'https://api.beatsaver.com') + '/maps/id/' + key, { headers: { 'user-agent': 'ChestersEscape' } }).catch(() => null);
     if (!r || !r.ok) return '';
     const j = await r.json().catch(() => ({}));
@@ -428,7 +441,8 @@ export class Game extends DurableObject {
     // wake up for the one-hour and last-day posts too
     const f = this.meta.feed || {}, soon = [s && s.status === 'signup' && s.startsAt && !f.hour ? s.startsAt - HOUR : 0, s && s.status === 'running' && s.endsAt && !f.lastcall ? s.endsAt - DAY : 0].filter((x) => x > Date.now());
     if (soon.length) next = Math.min(next || Infinity, ...soon);
-    const want = Math.max(Date.now() + 1000, Math.min(next && isFinite(next) ? next : Date.now() + CHECK_EVERY, Date.now() + CHECK_EVERY));
+    let want = Math.max(Date.now() + 1000, Math.min(next && isFinite(next) ? next : Date.now() + CHECK_EVERY, Date.now() + CHECK_EVERY));
+    if (this.later) { want = Math.min(want, Date.now() + 60000); this.later = false; }
     const cur = await this.ctx.storage.getAlarm();
     if (!cur || cur > want) await this.ctx.storage.setAlarm(want);
   }
@@ -772,6 +786,7 @@ export class Game extends DurableObject {
   async bs(key) {
     this.meta.hashes = this.meta.hashes || {};
     if (this.meta.hashes[key]) return this.meta.hashes[key];
+    if (!this.take(1)) return '';
     const r = await fetch((this.env.BS_API || 'https://api.beatsaver.com') + '/maps/id/' + key, { headers: { 'user-agent': 'ChestersEscape' } });
     if (!r.ok) return '';
     const j = await r.json();
@@ -796,6 +811,8 @@ export class Game extends DurableObject {
     const keys = [...new Set(p.tasks.flatMap((t) => t.bsr || []).concat(done.flatMap((e) => e.bsr || [])))];
     const hashes = {};
     for (const k of keys) hashes[String(k).toLowerCase()] = await this.bs(String(k).toLowerCase());
+    if (Object.values(hashes).some((h) => !h) && this.budget != null && this.later) { this.cutShort = true; return []; }
+    if (!this.take(1)) { this.cutShort = true; return []; }
     const r = await fetch((this.env.BL_API || 'https://api.beatleader.xyz') + '/player/' + encodeURIComponent(p.blId) + '/scores?sortBy=date&order=desc&count=50', { headers: { 'user-agent': 'ChestersEscape' } });
     if (!r.ok) return [];
     const j = await r.json();
@@ -823,8 +840,13 @@ export class Game extends DurableObject {
     const done = (this.meta.reminded = this.meta.reminded || {});
     const due = (this.meta.push || []).filter((sub) => done[sub.endpoint] !== s.day && now >= E.reminderTime(cutoff, h, sub.tz || s.settings.timeZone));
     if (!due.length) return;
+    // keep a few requests for Discord and BeatLeader; the rest of the reminders go a minute later
+    const room = this.budget == null ? due.length : Math.max(0, this.budget - 10);
+    const now2 = due.slice(0, room);
+    if (now2.length < due.length) this.later = true;
+    this.take(now2.length);
     const byUid = {};
-    for (const sub of due) { done[sub.endpoint] = s.day; (byUid[sub.uid] = byUid[sub.uid] || []).push(sub); }
+    for (const sub of now2) { done[sub.endpoint] = s.day; (byUid[sub.uid] = byUid[sub.uid] || []).push(sub); }
     for (const uid of Object.keys(byUid)) {
       const msg = E.reminderFor(s, 'd' + uid);
       if (msg) await this.pushTo(byUid[uid], { ...msg, tag: 'remind-' + s.day });
@@ -842,6 +864,10 @@ export class Game extends DurableObject {
   }
 
   async alarm() {
+    this.budget = Number(this.env.OUT_BUDGET) || 45; this.later = false;
+    try { await this.alarmRun(); } finally { this.budget = null; }
+  }
+  async alarmRun() {
     const s = this.game();
     const now = Date.now();
     await this.sweepVisits(now);
@@ -855,6 +881,7 @@ export class Game extends DurableObject {
       this.meta.nextCutoff = E.nextCutoff(s.settings, now + 1000);
     }
     await this.remind(now);
+    await this.discordFeed();
     if (s.status === 'running') {
       // Everyone on a map first, then a rotating batch of the rest (they may have beaten an old
       // clear). Kept small so a sweep stays well under the Worker's outside-request limit.
@@ -866,7 +893,18 @@ export class Game extends DurableObject {
       const take = Math.max(0, 30 - busy.length);
       const batch = idle.slice(off).concat(idle.slice(0, off)).slice(0, take);
       this.meta.sweepOff = off + batch.length;
-      for (const pid of busy.slice(0, 30).concat(batch)) { try { await this.check(pid); } catch { /* try again next sweep */ } }
+      // more than 30 on a map: take turns, so nobody past the 30th waits forever
+      const boff = (this.meta.busyOff || 0) % (busy.length || 1);
+      const turn = busy.slice(boff).concat(busy.slice(0, boff)).slice(0, 30);
+      let checked = 0;
+      for (const pid of turn.concat(batch)) {
+        if (this.budget != null && this.budget < 6) { this.later = true; break; }   // leave room for Discord posts
+        this.cutShort = false;
+        try { await this.check(pid); } catch { /* try again next sweep */ }
+        if (this.cutShort) break;   // ran out partway: this player goes first next time
+        checked++;
+      }
+      this.meta.busyOff = boff + Math.min(checked, turn.length);
     }
     await this.discordFeed();
     await this.save();
