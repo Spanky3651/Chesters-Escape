@@ -338,7 +338,7 @@ export class Game extends DurableObject {
     try {
       switch (action) {
         case 'join': {
-          if (!E.signupsOpen(s) && !user.isHost) return { error: 'Sign-ups are closed until the game starts.' };
+          if (!E.signupsOpen(s)) return { error: 'Sign-ups are closed until the game starts.' };
           const bl = await this.blPlayer(a.blId);
           const taken = s.order.find((id) => id !== pid && s.players[id].blId === bl.id);
           if (taken) return { error: 'That BeatLeader profile is already in the game.' };

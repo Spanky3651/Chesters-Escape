@@ -302,7 +302,7 @@
           '<div class="row"><button type="button" class="btn ghost" id="checkAgain">Check again</button><button type="button" class="btn link" id="logoutBtn">Sign out</button></div>';
         return;
       }
-      if (!E.signupsOpen(s) && !store.isHost) {
+      if (!E.signupsOpen(s)) {
         el.innerHTML = '<h2>Join the escape</h2><p class="lede">You can join as soon as the game starts. Watch your clan Discord for the start.</p>';
       } else if (store.mode === 'live' && !store.user) {
         el.innerHTML = '<h2>Join the escape</h2><p class="lede">Sign in with Discord so the game knows which token is yours. You only do this once.</p><a class="btn" href="' + esc(store.loginUrl()) + '">Sign in with Discord</a>';
@@ -344,7 +344,7 @@
       el.innerHTML = '<h2>You\'re signed up</h2>' + pre + '<p class="why">You\'re on the ' + esc(s.board.routeInfo[p.route].name.toLowerCase()) + '. Your first roll unlocks when the countdown ends. Come back then and roll the d4.</p>';
       return;
     }
-    if (pre && !p && !E.signupsOpen(s) && !store.isHost) { el.innerHTML = '<h2>Sign-ups are closed</h2>' + pre + '<p class="empty">Joining opens when the game starts. Come back then to get a token and pick your route.</p>'; return; }
+    if (pre && !p && !E.signupsOpen(s)) { el.innerHTML = '<h2>Sign-ups are closed</h2>' + pre + '<p class="empty">Joining opens when the game starts. Come back then to get a token and pick your route.</p>'; return; }
     if (pre && !p) { el.innerHTML = '<h2>Sign-ups are open</h2>' + pre + '<p class="empty">' + (store.mode === 'live' && !store.canPlay ? 'Once the host lets you in, you can join and pick your route before the start.' : 'Join now and pick your route. Everyone rolls for the first time when the countdown ends.') + '</p>'; return; }
     if (!p) { el.innerHTML = '<h2>Your turn</h2><p class="empty">' + (store.mode === 'live' && !store.canPlay ? 'Once the host lets you in, you can join and get a token on the board.' : 'Join the game to get a token on the board.') + '</p>'; return; }
     if (!p.route) {

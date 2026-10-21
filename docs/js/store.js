@@ -80,6 +80,7 @@
     try {
       switch (name) {
         case 'join': {
+          if (!E.signupsOpen(s)) return Promise.reject(new Error('Sign-ups are closed until the game starts.'));
           var id = a.id || ('p' + Date.now().toString(36));
           E.addPlayer(s, { id: id, name: a.name, avatar: a.avatar, blId: a.blId });
           self.me = id;
