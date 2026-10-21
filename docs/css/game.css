@@ -804,8 +804,28 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 
 /* Host tools: a skull in the header; the board designer opens from inside the drawer */
 .host-btn { position: relative; }
-.host-btn svg { width: 24px; height: 24px; fill: currentColor; display: block; }
+.host-btn svg { width: 24px; height: 24px; fill: currentColor; display: block; overflow: visible; }
 .host-btn:hover svg, .host-btn:focus-visible svg { color: var(--accent); }
+.skull * { transform-box: view-box; }
+.skull .sk-all { transform-origin: 12px 19px; transition: transform .25s cubic-bezier(.3,1.6,.5,1); }
+.skull .sk-jaw { transform-origin: 12px 18px; }
+.skull .sk-eye { fill: #ff5a36; opacity: 0; transition: opacity .2s; filter: drop-shadow(0 0 1.6px #ff5a36); }
+/* hover: tilt, eyes light up, jaw chatters */
+.host-btn:hover .sk-all, .host-btn:focus-visible .sk-all { transform: rotate(-8deg); }
+.host-btn:hover .sk-eye, .host-btn:focus-visible .sk-eye { opacity: 1; }
+.host-btn:hover .sk-jaw, .host-btn:focus-visible .sk-jaw { animation: skChat .36s ease-in-out 3; }
+@keyframes skChat { 0%, 100% { transform: none; } 50% { transform: translateY(1.6px) rotate(4deg); } }
+/* something waiting: the eyes smoulder and the jaw calls out every few seconds */
+.host-btn.todo .sk-eye { animation: skGlow 2.4s ease-in-out infinite; }
+.host-btn.todo .sk-jaw { animation: skCall 5s ease-in-out infinite; }
+@keyframes skGlow { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+@keyframes skCall { 0%, 18%, 100% { transform: none; } 3%, 9%, 15% { transform: translateY(1.6px) rotate(4deg); } 6%, 12% { transform: none; } }
+/* click: a cackle */
+.host-btn.laugh .sk-all { animation: skCackle .8s ease-in-out; }
+.host-btn.laugh .sk-jaw { animation: skChat .13s linear 6; }
+.host-btn.laugh .sk-eye { opacity: 1; animation: none; }
+@keyframes skCackle { 0%, 100% { transform: none; } 15% { transform: rotate(-12deg) translateY(-1px); } 35% { transform: rotate(10deg) translateY(-1.5px); } 55% { transform: rotate(-8deg); } 75% { transform: rotate(5deg); } }
+@media (prefers-reduced-motion: reduce) { .skull *, .host-btn:hover .sk-jaw, .host-btn.todo .sk-jaw, .host-btn.laugh .sk-all, .host-btn.laugh .sk-jaw { animation: none !important; transition: none !important; } .host-btn:hover .sk-all { transform: none; } }
 .host-btn .nav-badge { position: absolute; top: -4px; right: -6px; min-width: 18px; height: 18px; font-size: 11.5px; padding: 0 5px; }
 .drawer-head .designer-link { margin-left: auto; margin-right: 52px; }
 

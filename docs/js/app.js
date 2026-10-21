@@ -170,6 +170,11 @@
   // ---- header ----------------------------------------------------------------
   // Things waiting on the host: runs to approve and people waiting to get in.
   var lastTodo = 0;
+  // Host tools button: a skull with a jaw that chatters, eyes that light up, and a laugh when you open it.
+  var SKULL = '<svg class="skull" viewBox="0 0 24 24" aria-hidden="true"><g class="sk-all">' +
+    '<g class="sk-head"><path fill-rule="evenodd" d="M12 2.2c-4.9 0-8.7 3.5-8.7 8.1 0 2.7 1.3 4.8 3.3 6.1v1.3h10.8v-1.3c2-1.3 3.3-3.4 3.3-6.1 0-4.6-3.8-8.1-8.7-8.1zM6.3 11.2a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0-4.8 0zM12.9 11.2a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0-4.8 0zM12 13.6l-1.1 2.1h2.2z"/>' +
+    '<circle class="sk-eye" cx="8.7" cy="11.2" r="1.35"/><circle class="sk-eye" cx="15.3" cy="11.2" r="1.35"/></g>' +
+    '<path class="sk-jaw" fill-rule="evenodd" d="M6.6 18.3h10.8v1.7c0 .9-.7 1.5-1.5 1.5H8.1c-.8 0-1.5-.6-1.5-1.5zM9.25 18.3h.7v1.5h-.7zM11.65 18.3h.7v1.5h-.7zM14.05 18.3h.7v1.5h-.7z"/></g></svg>';
   function hostTodo() {
     var s = st(), claims = 0;
     s.order.forEach(function (pid) { claims += s.players[pid].claims.length; });
@@ -233,10 +238,15 @@
     var todo = store.isHost ? hostTodo() : { total: 0 };
     document.title = (todo.total ? '(' + todo.total + ') ' : '') + t.title;
     var hb = $('hostBtn');
-    hb.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2.2c-4.9 0-8.7 3.5-8.7 8.1 0 2.7 1.3 4.8 3.3 6.1v2.5c0 .9.7 1.5 1.5 1.5h1.1v-2h1.5v2h2.6v-2h1.5v2h1.1c.8 0 1.5-.6 1.5-1.5v-2.5c2-1.3 3.3-3.4 3.3-6.1 0-4.6-3.8-8.1-8.7-8.1zM6.3 11.2a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0-4.8 0zM12.9 11.2a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0-4.8 0zM12 13.6l-1.1 2.1h2.2z"/></svg>' + (todo.total ? '<span class="nav-badge" aria-hidden="true">' + todo.total + '</span>' : '');
+    // The skull is drawn once so its animations keep running; only the badge changes.
+    if (!hb.querySelector('.skull')) hb.innerHTML = SKULL;
+    var badge = hb.querySelector('.nav-badge');
+    if (todo.total) { if (!badge) { hb.insertAdjacentHTML('beforeend', '<span class="nav-badge" aria-hidden="true"></span>'); badge = hb.querySelector('.nav-badge'); } badge.textContent = todo.total; }
+    else if (badge) badge.remove();
+    hb.classList.toggle('todo', !!todo.total);
     hb.setAttribute('aria-label', todo.total ? 'Host tools, ' + todo.total + ' waiting on you' : 'Host tools');
     hb.title = todo.total ? [todo.claims ? todo.claims + ' run' + (todo.claims === 1 ? '' : 's') + ' to approve' : '', todo.pending ? todo.pending + ' waiting to get in' : ''].filter(Boolean).join(', ') : '';
-    if (todo.total > lastTodo) { var nb = hb.querySelector('.nav-badge'); if (nb) { void nb.offsetWidth; nb.classList.add('bump'); } }
+    if (todo.total > lastTodo) { var nb = hb.querySelector('.nav-badge'); if (nb) { nb.classList.remove('bump'); void nb.offsetWidth; nb.classList.add('bump'); } }
     lastTodo = todo.total;
     var demo = store.mode === 'demo';
     $('demoBar').hidden = !demo;
@@ -1191,10 +1201,9 @@
     modal('Game over', '<div class="finale"><p class="lede">' + (winner ? esc(winner.name) + (fin[0].escaped ? ' reached the ' + esc(t.goal) + ' first.' : ' got closest to the ' + esc(t.goal) + '.') : 'The final standings are in.') + '</p>' +
       '<div class="podium">' + podium + '</div>' + (rest ? '<ol class="finale-rest">' + rest + '</ol>' : '') +
       (mine ? '<p class="finale-me">You finished <b>' + ordinal(mine.place) + '</b>' + (mine.escaped ? ', escaping on day ' + mine.day : ', ' + mine.left + ' spaces out') + '.</p>' : '') +
-      '<div class="row"><button type="button" class="btn" data-finale-close>Back to the board</button>' + (store.isHost ? '<button type="button" class="btn ghost" data-finale-results>Make the results image</button>' : '') + '</div></div>',
+      '<div class="row"><button type="button" class="btn" data-finale-close>Back to the board</button></div></div>',
       function (body) {
         body.querySelector('[data-finale-close]').onclick = closeModal;
-        var rb = body.querySelector('[data-finale-results]'); if (rb) rb.onclick = function () { closeModal(); openResults(); };
       });
     confettiBurst();
     if (sfx && sfx.win) sfx.win();
@@ -1432,59 +1441,6 @@
       return Promise.all(urls.map(function (u) { var clean = u.slice(4, -1); return toDataUrl(clean).then(function (d) { css = css.split(clean).join(d); }, function () {}); })).then(function () { return css; });
     }).catch(function () { return ''; });
   }
-  function makeResults() {
-    var s = st(), t = theme();
-    var holder = document.createElement('div');
-    holder.style.cssText = 'position:fixed;left:-9999px;top:0;width:1000px;height:1000px';
-    holder.innerHTML = R.board(s.board, t, { still: true });
-    document.body.appendChild(holder);
-    var svg = holder.querySelector('svg');
-    R.placeTokens(svg, s, t, { me: null, flair: X.flair(s) });
-    var imgs = Array.prototype.slice.call(svg.querySelectorAll('image'));
-    return Promise.all([fontCss()].concat(imgs.map(function (im) {
-      var href = im.getAttribute('href'); if (!href || /^data:/.test(href)) return null;
-      return toDataUrl(href).then(function (d) { im.setAttribute('href', d); }, function () { im.remove(); });
-    }))).then(function (r) {
-      var css = r[0];
-      var words = resultsTitle().split(' '), l1 = words.length > 2 ? words.slice(0, 2).join(' ') : words[0], l2 = words.length > 2 ? words.slice(2).join(' ') : words.slice(1).join(' ');
-      var bfill = t.banner ? t.banner[0] : '#3fd04a', bstroke = t.banner ? t.banner[1] : '#3b2208';
-      var banner = '<g transform="translate(40,40) rotate(-7)" font-family="' + esc(t.font) + '" font-weight="700" fill="' + bfill + '" stroke="' + bstroke + '" stroke-width="14" paint-order="stroke">' +
-        // Theme art has its title painted in, so the banner gets a plate to sit on.
-        (t.art ? '<rect x="-22" y="-6" width="560" height="232" rx="28" fill="' + t.palette.ground + '" stroke="' + bfill + '" stroke-width="6" opacity=".96"/>' : '') +
-        '<text x="0" y="100" font-size="118">' + esc(l1) + '</text><text x="40" y="205" font-size="118">' + esc(l2) + '</text></g>';
-      var str = new XMLSerializer().serializeToString(svg).replace('</svg>', banner + '</svg>');
-      if (css) str = str.replace(/<defs>/, '<defs><style>' + css + '</style>');
-      holder.remove();
-      return new Promise(function (resolve, reject) {
-        var img = new Image();
-        img.onload = function () {
-          var c = document.createElement('canvas'); c.width = c.height = 1600;
-          var g = c.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, 1600, 1600); g.drawImage(img, 0, 0, 1600, 1600);
-          c.toBlob(function (b) { b ? resolve(b) : reject(new Error('Could not draw the image.')); }, 'image/png');
-        };
-        img.onerror = function () { reject(new Error('Could not draw the board.')); };
-        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(str);
-      });
-    });
-  }
-  function resultsTitle() { return st().status === 'finished' ? 'Final results' : theme().words.results.replace('{n}', st().day); }
-  function openResults() {
-    track('host-results-image');
-    modal(resultsTitle(), '<p class="lede">The board with everyone\'s token, ready to post in the game channel.</p><div id="resBox"><p class="why">Drawing the board</p></div>', function (body) {
-      makeResults().then(function (blob) {
-        var url = URL.createObjectURL(blob), name = theme().title.replace(/[^A-Za-z0-9]+/g, '-') + '-day-' + st().day + '.png';
-        body.querySelector('#resBox').innerHTML = '<img class="result-img" src="' + url + '" alt="Board with every player\'s position">' +
-          '<div class="row" style="margin-top:12px"><a class="btn" href="' + url + '" download="' + esc(name) + '">Download image</a>' +
-          (store.mode === 'live' && store.isHost ? '<button type="button" class="btn ghost" id="resPost">Post to Discord</button>' : '') + '</div>';
-        var post = body.querySelector('#resPost');
-        if (post) post.addEventListener('click', function () {
-          post.disabled = true; post.textContent = 'Posting';
-          store.postResults(blob, '**' + resultsTitle() + '!!**').then(function () { track('host-results-posted'); post.textContent = 'Posted'; toast('Posted to Discord.', 'good'); }, function (e) { post.disabled = false; post.textContent = 'Post to Discord'; fail(e); });
-        });
-      }, function (e) { body.querySelector('#resBox').innerHTML = '<p class="err">' + esc(e.message) + '</p>'; });
-    });
-  }
-
   // ---- host tools ------------------------------------------------------------------------------
   function openHost(tab) { if (typeof tab === 'string') hostTab = tab; else if (hostTodo().total) hostTab = 'today'; $('hostDrawer').hidden = false; $('scrim').hidden = false; visitsAt = 0; renderHost(); $('hostX').focus(); }
   // ---- visit log (host only) ----
@@ -1543,21 +1499,35 @@
       (n ? '<div class="row"><button type="button" class="btn small danger" data-h="clearplayers">Clear all sign-ups</button></div>' : '') + '</section>';
   }
   // Host tools in four tabs: what needs you today, the players, the game setup, and alerts.
+  // Each tab only shows what makes sense for where the game is: sign-ups, running, or over.
   var hostTab = 'today';
   var HOST_TABS = [['today', 'Today'], ['players', 'Players'], ['game', 'Game'], ['alerts', 'Alerts']];
   var POST_LIST = [
-    ['Countdowns and results', [['signups', 'When sign-ups open'], ['hour', 'One hour before the start'], ['start', 'When the game starts'], ['lastcall', '24 hours before the end'], ['end', 'When the game ends, with the top 3']]],
+    ['Countdowns', [['signups', 'When sign-ups open'], ['hour', 'One hour before the start'], ['start', 'When the game starts'], ['lastcall', '24 hours before the end'], ['end', 'When the game ends, with the top 3']]],
     ['Moments', [['escape', 'Someone escapes'], ['leader', 'Someone takes the lead (once a day at most)'], ['setback', 'Big setbacks: back to the start, or 5 or more spaces back'], ['big', 'Clears at 95% or better'], ['gate', 'Someone reaches the exit but has to wait at the gate']]]
   ];
+  function themeOptions(s, id) {
+    return '<select id="' + id + '">' + Object.keys(C.themes).filter(function (k) { return (C.themes[k].family || 'chester') === (theme().family || 'chester'); }).map(function (k) { return '<option value="' + k + '"' + (k === s.themeId ? ' selected' : '') + '>' + esc(C.themes[k].name) + '</option>'; }).join('') + '</select>';
+  }
+  // Only once a game is over: set up the next one.
+  function newGameSection(s) {
+    return '<section class="hsec"><h3>Start the next game</h3><p>Everyone who played stays signed up and picks a route again.</p>' +
+      '<div class="row"><label>Theme ' + themeOptions(s, 'newTheme') + '</label></div>' +
+      '<label class="start-field"><span>Start time (optional)</span><input type="datetime-local" id="newStart"></label>' +
+      '<label class="start-field"><span>End time (optional)</span><input type="datetime-local" id="newEnd"></label>' +
+      '<p class="why">With a start time, sign-ups open now and the first roll unlocks then. Leave it empty to start right away. Day 1 lasts until the next ' + esc(cutoffLabel(s)) + ' cutoff, so a ' + esc(cutoffLabel(s)) + ' start gives everyone a full first day. With an end time, the game locks then and the standings freeze; without one it runs until everyone escapes.</p><div class="row">' +
+      '<button type="button" class="btn small" data-h="newgame">Start the next game</button>' + (designerBoard() ? '<button type="button" class="btn small ghost" data-h="loadboard">Start it on the designer board</button>' : '') + '</div></section>';
+  }
   function renderHost() {
     var s = st(), demo = store.mode === 'demo', T = { today: '', players: '', game: '', alerts: '' };
+    var signup = s.status === 'signup', running = s.status === 'running', over = s.status === 'finished';
     var claims = [];
     s.order.forEach(function (pid) { s.players[pid].claims.forEach(function (c) { claims.push({ p: s.players[pid], c: c }); }); });
     var ac = !demo && store.access ? store.access : null, waiting = ac ? ac.pending : [], todo = claims.length + waiting.length;
 
-    // ---- Today: what needs the host, then the day ----
+    // ---- Today: what needs the host, where the game is, and who's been on ----
     T.today += '<section class="hsec' + (todo ? ' attn' : '') + '"><h3>Needs you' + (todo ? ' <span class="nav-badge">' + todo + '</span>' : '') + '</h3>';
-    if (!todo) T.today += '<p>Nothing needs you right now. Runs to approve and people waiting to get in show up here.</p>';
+    if (!todo) T.today += '<p>Nothing needs you right now. ' + (over ? 'People waiting to get in show up here.' : 'Runs to approve and people waiting to get in show up here.') + '</p>';
     if (claims.length) T.today += '<h4 class="hsub">Runs to approve</h4>' + claims.map(function (x) {
       var t = x.p.tasks.filter(function (k) { return k.id === x.c.task; })[0];
       return '<div class="claim"><b>' + esc(x.p.name) + '</b> says they played <b>!bsr ' + esc(t ? t.bsr.join(' or ') : '?') + '</b>' + (x.c.url ? ' (<a href="' + esc(x.c.url) + '" target="_blank" rel="noopener">replay</a>)' : '') +
@@ -1568,27 +1538,44 @@
         '<button type="button" class="btn small good" data-h="letin" data-id="' + esc(w.id) + '">Let in</button><button type="button" class="btn small ghost" data-h="dismiss" data-id="' + esc(w.id) + '">Dismiss</button></span></div>';
     }).join('');
     T.today += '</section>';
-    if (s.status === 'finished') T.today += '<section class="hsec"><h3>Game over</h3><p>The standings are frozen. Start a new game in the Game tab when you\'re ready.</p><div class="row"><button type="button" class="btn small" data-h="results">Make the results image</button><button type="button" class="btn small ghost" data-h="finale">Show the final standings</button></div></section>';
-    else if (s.status === 'signup') T.today += startSection(s);
-    else T.today += '<section class="hsec"><h3>Day ' + s.day + '</h3><p>' + (demo ? 'Starting the next day lets every bot clear maps and roll.' : 'The day turns over by itself at ' + esc(cutoffLabel(s)) + '. Use Start the next day only to fix a missed rollover.') + '</p><div class="row">' +
-      '<button type="button" class="btn small" data-h="results">Make the results image</button>' +
+    if (signup) T.today += startSection(s);
+    else if (running) T.today += '<section class="hsec"><h3>Day ' + s.day + '</h3><p>' + (demo ? 'Starting the next day lets every bot clear maps and roll.' : 'The day turns over by itself at ' + esc(cutoffLabel(s)) + '. Start the next day is only for fixing a missed rollover.') + '</p><div class="row">' +
       '<button type="button" class="btn small ghost" data-h="advance">Start the next day</button>' + (demo ? '<button type="button" class="btn small ghost" data-h="simulate">Skip ahead 3 days</button>' : '') + '</div></section>';
+    else T.today += '<section class="hsec"><h3>Game over</h3><p>The standings are frozen.</p><div class="row"><button type="button" class="btn small ghost" data-h="finale">Show the final standings</button></div></section>' + newGameSection(s);
+    T.today += '<section class="hsec"><div class="thread-head"><h3>Visits</h3><button type="button" class="btn small link" data-h="visits-refresh">Refresh</button></div><p>When signed-in people opened the game and when they left. Coming back within 10 minutes counts as the same visit, so a visit ends 10 minutes after they close it, switch away or lock their phone. The last two weeks are kept.</p><div id="visitBox"><p class="why">Loading</p></div></section>';
 
-    // ---- Players: tokens, who can play, visits ----
-    T.players += '<section class="hsec"><h3>Players</h3><p>' + (s.order.length ? 'Space 0 is the start. Moving a token does not apply the space unless you tick the box.' : 'Nobody has joined yet.') + '</p>';
-    if (s.order.length) {
-      T.players += '<table class="ptable"><tbody>';
-      s.order.forEach(function (pid) {
+    // ---- Players ----
+    if (signup) {
+      T.players += '<section class="hsec"><h3>Signed up</h3><p>' + (s.order.length ? 'Tokens go on the board when the game starts.' : 'Nobody has signed up yet.') + '</p>';
+      if (s.order.length) T.players += '<table class="ptable"><tbody>' + s.order.map(function (pid) {
         var p = s.players[pid];
-        T.players += '<tr><td><b>' + esc(p.name) + '</b><br><span class="why">' + (p.route ? s.board.routeInfo[p.route].name : 'no route') + (p.tasks.length ? ', on a map' : '') + '</span></td>' +
-          '<td>' + (p.route ? '<input type="number" min="0" max="' + E.routeOf(s, p).length + '" value="' + (p.pos + 1) + '" aria-label="Space for ' + esc(p.name) + '" data-pos="' + esc(pid) + '">' : '') + '</td>' +
-          '<td><select data-cardfor="' + esc(pid) + '" aria-label="Give ' + esc(p.name) + ' a card"><option value="">Give a card</option>' + s.cards.map(function (c) { return '<option value="' + c.id + '">' + esc(c.title) + '</option>'; }).join('') + '</select></td>' +
-          '<td><div class="row">' + (p.tasks.length ? '<button type="button" class="btn small ghost" data-h="clearmap" data-pid="' + esc(pid) + '">Clear map</button>' : '') +
-          '<button type="button" class="btn small danger" data-h="reset" data-pid="' + esc(pid) + '">Reset</button></div></td></tr>';
-      });
-      T.players += '</tbody></table><label class="check"><input type="checkbox" id="applyMove"> <span>Apply the space after moving a token</span></label>';
+        return '<tr><td><b>' + esc(p.name) + '</b><br><span class="why">' + (p.route ? esc(s.board.routeInfo[p.route].name) : 'No route yet') + '</span></td>' +
+          '<td><div class="row" style="justify-content:flex-end">' + (p.route ? '<button type="button" class="btn small ghost" data-h="clearroute" data-pid="' + esc(pid) + '">Undo route</button>' : '') +
+          '<button type="button" class="btn small danger" data-h="removeplayer" data-pid="' + esc(pid) + '">Remove</button></div></td></tr>';
+      }).join('') + '</tbody></table>';
+      T.players += '</section>';
+    } else if (running) {
+      T.players += '<section class="hsec"><h3>Players</h3><p>' + (s.order.length ? 'Space 0 is the start. Moving a token does not apply the space unless you tick the box.' : 'Nobody has joined yet.') + '</p>';
+      if (s.order.length) {
+        T.players += '<table class="ptable"><tbody>';
+        s.order.forEach(function (pid) {
+          var p = s.players[pid];
+          T.players += '<tr><td><b>' + esc(p.name) + '</b><br><span class="why">' + (p.finished ? 'Escaped, ' + ordinal(p.finished.place) : p.route ? s.board.routeInfo[p.route].name : 'no route') + (p.tasks.length ? ', on a map' : '') + '</span></td>' +
+            '<td>' + (p.route ? '<input type="number" min="0" max="' + E.routeOf(s, p).length + '" value="' + (p.pos + 1) + '" aria-label="Space for ' + esc(p.name) + '" data-pos="' + esc(pid) + '">' : '') + '</td>' +
+            '<td>' + (p.route && !p.finished ? '<select data-cardfor="' + esc(pid) + '" aria-label="Give ' + esc(p.name) + ' a card"><option value="">Give a card</option>' + s.cards.map(function (c) { return '<option value="' + c.id + '">' + esc(c.title) + '</option>'; }).join('') + '</select>' : '') + '</td>' +
+            '<td><div class="row">' + (p.tasks.length ? '<button type="button" class="btn small ghost" data-h="clearmap" data-pid="' + esc(pid) + '">Clear map</button>' : '') +
+            (p.route ? '<button type="button" class="btn small danger" data-h="reset" data-pid="' + esc(pid) + '">Reset</button>' : '') + '</div></td></tr>';
+        });
+        T.players += '</tbody></table><label class="check"><input type="checkbox" id="applyMove"> <span>Apply the space after moving a token</span></label>';
+      }
+      T.players += '</section>';
+    } else {
+      var fin = s.final || E.ranking(s);
+      T.players += '<section class="hsec"><h3>Final standings</h3>' + (fin.length ? '<table class="ptable"><tbody>' + fin.map(function (r) {
+        var p = s.players[r.pid]; if (!p) return '';
+        return '<tr><td><b>' + ordinal(r.place) + '</b></td><td><b>' + esc(p.name) + '</b></td><td class="why">' + (r.escaped ? 'Escaped day ' + r.day : r.left + ' to go') + '</td></tr>';
+      }).join('') + '</tbody></table>' : '<p>Nobody played this game.</p>') + '</section>';
     }
-    T.players += '</section>';
     if (ac) {
       var names = ac.names || {};
       T.players += '<section class="hsec"><h3>Who can play</h3>' +
@@ -1600,21 +1587,19 @@
       }).join('');
       T.players += '</section>';
     }
-    T.players += '<section class="hsec"><div class="thread-head"><h3>Visits</h3><button type="button" class="btn small link" data-h="visits-refresh">Refresh</button></div><p>When signed-in people opened the game and when they left. Coming back within 10 minutes counts as the same visit, so a visit ends 10 minutes after they close it, switch away or lock their phone. The last two weeks are kept.</p><div id="visitBox"><p class="why">Loading</p></div></section>';
 
-    // ---- Game: schedule, rules, theme and a new game ----
-    if (s.status !== 'finished') T.game += endSection(s);
-    T.game += '<section class="hsec"><h3>Rules</h3>' +
+    // ---- Game: end time, rules, theme and board ----
+    if (!over) T.game += endSection(s);
+    T.game += '<section class="hsec"><h3>Rules' + (over ? ' <span class="why">for the next game</span>' : '') + '</h3>' +
       '<label class="check"><input type="checkbox" data-set="exactFinish"' + (s.settings.exactFinish ? ' checked' : '') + '> <span>Exact roll needed to escape</span></label>' +
       '<label class="check"><input type="checkbox" data-set="oneFinishPerDay"' + (s.settings.oneFinishPerDay !== false ? ' checked' : '') + '> <span>Only one player can escape per day</span></label>' +
       '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label></section>';
-    T.game += '<section class="hsec"><h3>Theme and board</h3><div class="row"><label>Theme <select id="themeSel">' + Object.keys(C.themes).filter(function (k) { return (C.themes[k].family || 'chester') === (theme().family || 'chester'); }).map(function (k) { return '<option value="' + k + '"' + (k === s.themeId ? ' selected' : '') + '>' + esc(C.themes[k].name) + '</option>'; }).join('') + '</select></label></div>' +
-      '<p style="margin-top:10px">Changing the theme keeps everyone where they are.</p></section>';
-    T.game += '<section class="hsec danger-zone"><h3>New game</h3><p>Starting a new game puts everyone back at the start.</p>' +
-      '<label class="start-field"><span>Start time (optional)</span><input type="datetime-local" id="newStart"></label>' +
-      '<label class="start-field"><span>End time (optional)</span><input type="datetime-local" id="newEnd"></label>' +
-      '<p class="why">With an end time, the game locks then and the standings freeze: escaped players by place, everyone else by spaces left. Without one it runs until everyone escapes. Leave the start empty to start right away. With a start time set, sign-ups open now, people pick their routes, and the first roll unlocks at that time. Day 1 lasts until the next ' + esc(cutoffLabel(s)) + ' cutoff, so a ' + esc(cutoffLabel(s)) + ' start gives everyone a full first day.</p><div class="row">' +
-      '<button type="button" class="btn small danger" data-h="newgame">Start a new game</button>' + (designerBoard() ? '<button type="button" class="btn small ghost" data-h="loadboard">Start a new game on the designer board</button>' : '') + '</div></section>';
+    if (!over) {
+      T.game += '<section class="hsec"><h3>Theme and board</h3><div class="row"><label>Theme ' + themeOptions(s, 'themeSel') + '</label></div><p style="margin-top:10px">Changing the theme keeps everyone where they are.</p>';
+      if (signup && designerBoard()) T.game += '<h4 class="hsub">Designer board</h4><p>Swap this game onto the board from the designer. Sign-ups and the start time stay, and everyone picks a route again.</p><div class="row"><button type="button" class="btn small ghost" data-h="loadboard">Use the designer board</button></div>';
+      if (running) T.game += '<p class="why">To start a new game, end this one first (End of the game, above). The next game is set up from the Today tab.</p>';
+      T.game += '</section>';
+    }
 
     // ---- Alerts: Discord posts, roll reminders, this device ----
     if (!demo && store.discord) {
@@ -1626,10 +1611,9 @@
             return '<label class="check"><input type="checkbox" data-post="' + k[0] + '"' + (dc[k[0]] ? ' checked' : '') + off + '> <span>' + esc(k[1]) + '</span></label>';
           }).join('');
         }).join('') +
-        '<p class="why" style="margin-top:10px">The results picture only posts when you press Post to Discord.</p>' +
-        (dc.hooked ? '<div class="row"><button type="button" class="btn small ghost" data-h="discordtest">Send a test post</button></div>' : '') + '</section>';
+        (dc.hooked ? '<div class="row" style="margin-top:10px"><button type="button" class="btn small ghost" data-h="discordtest">Send a test post</button></div>' : '') + '</section>';
     }
-    T.alerts += '<section class="hsec"><h3>Roll reminders</h3><label class="start-field"><span>Push reminder for players who turn on notifications</span><select id="remindSel"><option value=""' + (E.remindHour(s) == null ? ' selected' : '') + '>Off</option>' +
+    T.alerts += '<section class="hsec"><h3>Roll reminders' + (over ? ' <span class="why">for the next game</span>' : '') + '</h3><label class="start-field"><span>Push reminder for players who turn on notifications</span><select id="remindSel"><option value=""' + (E.remindHour(s) == null ? ' selected' : '') + '>Off</option>' +
       [17, 18, 19, 20, 21, 22].map(function (h) { return '<option value="' + h + '"' + (E.remindHour(s) === h ? ' selected' : '') + '>' + hourLabel(h) + ' in each player\'s own time</option>'; }).join('') + '</select></label></section>';
     T.alerts += '<section class="hsec"><h3>Notifications on this device</h3><div id="pushBox" class="push-box" data-kind="host"><p>Checking this device.</p></div></section>';
 
@@ -1637,11 +1621,11 @@
       var n = t[0] === 'today' ? todo : 0;
       return '<button type="button" role="tab" class="htab" data-h="tab" data-tab="' + t[0] + '" aria-selected="' + (hostTab === t[0]) + '">' + t[1] + (n ? ' <span class="nav-badge">' + n + '</span>' : '') + '</button>';
     }).join('') + '</div>' + HOST_TABS.map(function (t) { return '<div class="hpane" data-pane="' + t[0] + '" role="tabpanel"' + (hostTab === t[0] ? '' : ' hidden') + '>' + T[t[0]] + '</div>'; }).join('');
-    var keep = {}; ['newStart', 'startEdit', 'newEnd', 'endEdit'].forEach(function (id) { var el = $(id); if (el && el.value && el.dataset.touched) keep[id] = el.value; });
+    var keep = {}; ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme'].forEach(function (id) { var el = $(id); if (el && el.value && el.dataset.touched) keep[id] = el.value; });
     $('hostBody').innerHTML = html;
     fillVisits();
     Object.keys(keep).forEach(function (id) { var el = $(id); if (el) { el.value = keep[id]; el.dataset.touched = '1'; } });
-    ['newStart', 'startEdit', 'newEnd', 'endEdit'].forEach(function (id) { var el = $(id); if (el) el.addEventListener('input', function () { el.dataset.touched = '1'; }); });
+    ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme'].forEach(function (id) { var el = $(id); if (el) el.addEventListener(id === 'newTheme' ? 'change' : 'input', function () { el.dataset.touched = '1'; }); });
     fillPush();
   }
   function showHostTab(id) {
@@ -1751,7 +1735,6 @@
     switch (h) {
       case 'advance': run('advance', {}, 'Day ' + (st().day + 1) + ' has started.'); break;
       case 'simulate': run('simulate', { days: 3 }, 'Skipped ahead 3 days.'); break;
-      case 'results': openResults(); break;
       case 'tab': showHostTab(btn.dataset.tab); break;
       case 'discordtest': run('discordTest', {}, 'Test post sent. Check the channel.'); break;
       case 'approve': run('approve', { pid: pid, task: btn.dataset.task }, 'Approved.'); break;
@@ -1762,7 +1745,7 @@
         var ns = readStart('newStart'); if (ns === false) break;
         var ne = readStart('newEnd'); if (ne === false) break;
         if (ne && ne < (ns || Date.now()) + 3600000) { toast('The end time needs to be at least an hour after the start.', 'bad'); break; }
-        if (confirm((ns ? 'Start a new game with sign-ups open until ' + startWhen(ns) + '?' : 'Start a new game now?') + (ne ? ' It ends ' + startWhen(ne) + '.' : '') + ' Everyone goes back to the start.')) run('newGame', { theme: st().themeId, startsAt: ns, endsAt: ne }, ns ? 'Sign-ups are open.' : 'New game started.');
+        if (confirm((ns ? 'Start a new game with sign-ups open until ' + startWhen(ns) + '?' : 'Start a new game now?') + (ne ? ' It ends ' + startWhen(ne) + '.' : '') + ' Everyone goes back to the start.')) run('newGame', { theme: ($('newTheme') && $('newTheme').value) || st().themeId, startsAt: ns, endsAt: ne }, ns ? 'Sign-ups are open.' : 'New game started.');
         break;
       }
       case 'reschedule': { var rs = readStart('startEdit'); if (!rs) { if (rs === null) toast('Pick a start time first.', 'bad'); break; } run('schedule', { startsAt: rs }, 'Start time saved.'); break; }
@@ -1779,13 +1762,21 @@
       case 'dismiss': run('dismiss', { id: btn.dataset.id }); break;
       case 'unallow': if (confirm('Remove their access? They will see the invite-only screen.')) run('removeAccess', { id: btn.dataset.id }); break;
       case 'loadboard': {
-        var b = designerBoard(), probs = E.checkBoard(b);
+        var b = designerBoard(), probs = E.checkBoard(b), cur = st();
         if (probs.length) { toast(probs[0], 'bad'); break; }
+        if (cur.status === 'signup') {
+          // Still in sign-ups: same start and end, new board.
+          var keepStart = cur.startsAt && cur.startsAt > Date.now() + 60000 ? cur.startsAt : null;
+          if (confirm('Move this game onto "' + (b.title || 'the designer board') + '"? Sign-ups stay and everyone picks a route again.')) run('newGame', { theme: cur.themeId, board: b, startsAt: keepStart, endsAt: cur.endsAt, signup: true }, 'The game is on the designer board now.');
+          break;
+        }
         var ls = readStart('newStart'); if (ls === false) break;
         var le = readStart('newEnd'); if (le === false) break;
-        if (confirm('Start a new game on "' + (b.title || 'the designer board') + '"' + (ls ? ' with sign-ups open until ' + startWhen(ls) : '') + '?')) run('newGame', { theme: st().themeId, board: b, startsAt: ls, endsAt: le && le > (ls || Date.now()) + 3600000 ? le : null }, ls ? 'Sign-ups are open on your board.' : 'New game started on your board.');
+        if (confirm('Start the next game on "' + (b.title || 'the designer board') + '"' + (ls ? ' with sign-ups open until ' + startWhen(ls) : '') + '?')) run('newGame', { theme: ($('newTheme') && $('newTheme').value) || cur.themeId, board: b, startsAt: ls, endsAt: le && le > (ls || Date.now()) + 3600000 ? le : null });
         break;
       }
+      case 'removeplayer': if (confirm('Take ' + st().players[pid].name + ' off the sign-up list? They can join again while sign-ups are open.')) run('removePlayer', { pid: pid }, 'Removed.'); break;
+      case 'clearroute': if (confirm('Clear ' + st().players[pid].name + '\'s route so they can pick again?')) run('clearRoute', { pid: pid }, 'Route cleared.'); break;
     }
   }
 
@@ -1852,7 +1843,11 @@
     });
     $('howBtn').onclick = openHow;
     $('playlistBtn').onclick = openPlaylist;
-    $('hostBtn').onclick = function () { openHost(); };
+    $('hostBtn').onclick = function () {
+      var b = this; b.classList.remove('laugh'); void b.offsetWidth; b.classList.add('laugh');
+      setTimeout(function () { b.classList.remove('laugh'); }, 900);
+      openHost();
+    };
     $('hostX').onclick = closeHost;
     $('scrim').onclick = closeHost;
     $('modalX').onclick = closeModal;

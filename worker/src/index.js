@@ -279,8 +279,17 @@ export class Game extends DurableObject {
   }
   discordInfo() { const p = this.posts(), out = { hooked: !!this.webhook() }; for (const k of POST_KINDS) out[k] = !!p[k]; return out; }
   announcing(kind) { return !!this.webhook() && !!this.posts()[kind]; }
+  // A post, optionally with a card linking to the game. The card is built here (not left to
+  // Discord's link preview) so each game shows its own art: the taco boards get the taco.
   async discordPost(content, link) {
-    await fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: content + (link && this.page() ? `\n${this.page()}` : ''), allowed_mentions: { parse: [] } }) }).catch(() => {});
+    const body = { content, allowed_mentions: { parse: [] } };
+    if (link && this.page()) body.embeds = [this.gameCard()];
+    return fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
+  }
+  gameCard() {
+    const s = this.state, t = C.themes[s.themeId] || {}, base = this.env.GAME_PAGE || '';
+    const pic = (t.artHero && t.artHero.src) || 'img/icon.png', hex = String((t.palette || {}).accent || '#f2a33a').replace('#', '');
+    return { title: s.title, url: this.page(), description: t.tagline || 'Roll the d4 once a day and play the map on the space you land on.', color: parseInt(hex, 16) || 0xf2a33a, thumbnail: { url: base.replace(/\/?$/, '/') + pic } };
   }
   // Game moments for the channel, read from the event log so nothing posts twice. The first run
   // after an update only notes where the log is. Moments are capped per game day so a busy day
@@ -500,6 +509,8 @@ export class Game extends DurableObject {
           break;
         }
         case 'newGame': {
+          if (s.status === 'running') return { error: 'End this game first, then start the next one.' };
+          if (s.status === 'signup' && !a.signup) return { error: 'This game is still in sign-ups.' };
           const themeId = C.themes[a.theme] ? a.theme : s.themeId;
           const board = a.board ? { ...a.board, custom: true } : C.boardFor(mapSetFor(this.clan(), themeId));
           const probs = E.checkBoard(board);
@@ -507,9 +518,9 @@ export class Game extends DurableObject {
           const keep = s.order.map((id) => s.players[id]);
           const startsAt = Number(a.startsAt) > Date.now() + 60000 ? Number(a.startsAt) : null;
           const endsAt = Number(a.endsAt) > (startsAt || Date.now()) + 3600000 ? Number(a.endsAt) : null;
-          this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.themes[themeId].title, settings: s.settings, rng, status: startsAt ? 'signup' : 'running', startsAt, endsAt });
+          this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.themes[themeId].title, settings: s.settings, rng, status: startsAt || a.signup ? 'signup' : 'running', startsAt, endsAt });
           keep.forEach((p) => E.addPlayer(this.state, { id: p.id, discordId: p.discordId, name: p.name, avatar: p.avatar, blId: p.blId }));
-          this.meta.nextCutoff = startsAt ? null : E.nextCutoff(this.state.settings);
+          this.meta.nextCutoff = startsAt || a.signup ? null : E.nextCutoff(this.state.settings);
           if (this.meta.feed) this.meta.feed.game = null;   // a new game: its sign-up post can go out
           break;
         }
@@ -554,8 +565,7 @@ export class Game extends DurableObject {
         }
         case 'discordTest': {
           if (!this.webhook()) return { error: 'No Discord webhook is set up for this game yet.' };
-          const content = `Test post from **${s.title}**. Game posts will show up in this channel.` + (this.page() ? `\n${this.page()}` : '');
-          const r = await fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content, allowed_mentions: { parse: [] } }) }).catch(() => null);
+          const r = await this.discordPost(`Test post from **${md(s.title)}**. Game posts will show up in this channel.`, true);
           if (!r || !r.ok) return { error: 'Discord did not accept the post' + (r ? ' (' + r.status + ').' : '.') };
           break;
         }
@@ -755,8 +765,7 @@ export class Game extends DurableObject {
   // Day rollover at the cutoff, plus a BeatLeader sweep for everyone still on a map.
   async announceStart() {
     if (!this.announcing('start')) return;
-    const content = `**${this.state.title} has started!** Day 1 is open, go roll your first d4.` + (this.page() ? `\n${this.page()}` : '');
-    await fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
+    await this.discordPost(`**${md(this.state.title)} has started!** Day 1 is open, go roll your first d4.`, true);
   }
 
   // Once a game day per device, at the reminder hour in that device's own time zone: nudge
@@ -782,9 +791,8 @@ export class Game extends DurableObject {
     const s = this.state;
     if (!this.announcing('end') || !s.final) return;
     const medal = ['🥇', '🥈', '🥉'];
-    const top = s.final.slice(0, 3).map((r, i) => `${medal[i]} ${s.players[r.pid].name}` + (r.escaped ? ` (escaped day ${r.day})` : ` (${r.left} to go)`)).join('\n');
-    const content = `**${s.title} is over!**\n${top}` + (this.page() ? `\n${this.page()}` : '');
-    await fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content, allowed_mentions: { parse: [] } }) }).catch(() => {});
+    const top = s.final.slice(0, 3).map((r, i) => `${medal[i]} ${md(s.players[r.pid].name)}` + (r.escaped ? ` (escaped day ${r.day})` : ` (${r.left} to go)`)).join('\n');
+    await this.discordPost(`**${md(s.title)} is over!**\n${top}`, true);
   }
 
   async alarm() {
