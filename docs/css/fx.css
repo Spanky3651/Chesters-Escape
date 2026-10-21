@@ -56,10 +56,7 @@
 @keyframes tokVanish { to { transform: rotate(540deg) scale(.15); opacity: .2; } }
 .board-svg .tok.boost .tok-in { filter: drop-shadow(0 0 10px #ffd34d); }
 
-/* token flair: gold halo, leader crown, last-place lantern */
-.board-svg .glow-ring { fill: none; stroke: #ffd34d; stroke-width: 3.5; stroke-dasharray: 6 5; animation: spin 6s linear infinite; }
-.board-svg .glow-halo { fill: rgba(255,211,77,.28); animation: halo 2.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-@keyframes halo { 0%,100% { opacity: .35; transform: scale(.95); } 50% { opacity: .9; transform: scale(1.08); } }
+/* token flair: leader crown, last-place lantern */
 .board-svg .crown text { filter: drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
 .board-svg .crown { animation: crownBob 3s ease-in-out infinite; }
 @keyframes crownBob { 0%,100% { translate: 0 0; } 50% { translate: 0 -2px; } }
@@ -136,7 +133,7 @@
 .fd-acts { position: absolute; right: 2px; top: 5px; display: flex; gap: 4px; padding-left: 8px; background: linear-gradient(90deg, transparent, var(--raise) 10px); }
 .fd-acts:empty { display: none; }
 @media (hover: none), (pointer: coarse) { .feed li.has-acts { padding-right: 40px; } .feed li.has-acts.two { padding-right: 74px; } }
-.rx-chip { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--raise-2); color: var(--text); font: 700 14px var(--ui); cursor: pointer; }
+.rx-chip { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 9px 0 6px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--raise-2); color: var(--text); font: 700 14px var(--ui); cursor: pointer; }
 .rx-chip b { font-size: 13px; }
 .rx-chip[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--raise-2)); }
 .rx-chip:disabled { cursor: default; opacity: .9; }
@@ -145,10 +142,14 @@
 .rx-add svg, .fd-share svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .rx-add:hover, .fd-share:hover, .rx-add:focus-visible, .fd-share:focus-visible { color: var(--text); border-color: var(--accent); border-style: solid; }
 @media (hover: hover) and (pointer: fine) { .feed li .fd-acts { opacity: 0; transition: opacity .15s; } .feed li:hover .fd-acts, .feed li:focus-within .fd-acts { opacity: 1; } }
-.rx-pop { position: fixed; z-index: 40; display: flex; gap: 4px; padding: 6px; border-radius: 999px; background: var(--raise); border: 1px solid var(--line-2); box-shadow: 0 14px 40px rgba(0,0,0,.7); animation: rxIn .18s ease-out; }
+.rx-pop { position: fixed; z-index: 40; display: grid; grid-template-columns: repeat(9, 54px); gap: 2px; padding: 6px; border-radius: 18px; background: var(--raise); border: 1px solid var(--line-2); box-shadow: 0 14px 40px rgba(0,0,0,.7); animation: rxIn .18s ease-out; }
 .rx-pop[hidden] { display: none; }
-.rx-pop button { width: 46px; height: 46px; border-radius: 50%; border: 0; background: none; font-size: 26px; cursor: pointer; transition: transform .12s; }
-.rx-pop button:hover, .rx-pop button:focus-visible { transform: scale(1.25); background: var(--raise-2); }
+.rx-pop button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0 4px; border-radius: 12px; border: 0; background: none; cursor: pointer; color: var(--muted); font: 700 10.5px/1.1 var(--ui); white-space: nowrap; transition: transform .12s, background .12s; }
+.rx-pop button .rx-ico { width: 34px; height: 34px; transition: transform .12s; }
+.rx-pop button:hover .rx-ico, .rx-pop button:focus-visible .rx-ico { transform: scale(1.2) rotate(-4deg); }
+.rx-pop button:nth-child(-n+3) { color: var(--text); }
+@media (max-width: 560px) { .rx-pop { grid-template-columns: repeat(5, 58px); } }
+.rx-pop button:hover, .rx-pop button:focus-visible { background: var(--raise-2); color: var(--text); }
 .rx-pop button[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 30%, transparent); }
 @keyframes rxIn { from { transform: translateY(6px) scale(.9); opacity: 0; } }
 .feed .score-line .song { font-weight: 700; }
@@ -189,7 +190,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .board-svg .fx-pop, .board-svg .fx-cover-in, .launch-n, .sc-grade.go, .score-card, .card3d, .win-medal { animation: none !important; transition: none !important; }
-  .board-svg .glow-ring, .board-svg .glow-halo, .board-svg .crown, .board-svg .lantern-glow { animation: none; }
+  .board-svg .crown, .board-svg .lantern-glow { animation: none; }
 }
 
 /* ---- who has the game open ---- */
@@ -200,3 +201,20 @@
 .online-count { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; padding: 3px 10px; border-radius: 999px; font: 700 13px var(--ui); color: var(--text); background: var(--raise-2); border: 1px solid var(--line-2); vertical-align: middle; }
 .online-count i { width: 9px; height: 9px; border-radius: 50%; background: #3fd04a; box-shadow: 0 0 6px #3fd04a; }
 @media (prefers-reduced-motion: reduce) { .ava-wrap.online::after { animation: none; } }
+
+.rx-chip .rx-ico { width: 22px; height: 22px; flex: none; }
+
+/* ---- badge guide ---- */
+button.badge { cursor: pointer; }
+button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
+.badge-all { font-size: 13.5px; padding: 4px 6px; }
+.st-badges[data-badges], .pod-badges[data-badges] { cursor: pointer; border-radius: 6px; }
+.st-badges[data-badges]:hover { background: var(--raise-2); }
+.bg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.bg-row { display: grid; grid-template-columns: 44px minmax(0,1fr); gap: 12px; align-items: center; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--raise-2); opacity: .62; }
+.bg-row.got { opacity: 1; border-color: color-mix(in srgb, var(--gold) 55%, var(--line-2)); background: color-mix(in srgb, var(--gold) 10%, var(--raise-2)); }
+.bg-ic { font-size: 30px; text-align: center; }
+.bg-row b { font-size: 16px; }
+.bg-got { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--gold); color: #1a1200; font: 800 11.5px var(--ui); vertical-align: 2px; }
+.bg-desc { display: block; font-size: 14.5px; color: var(--muted); margin-top: 2px; }
+.bg-who { display: block; font-size: 13px; color: var(--faint); margin-top: 3px; }

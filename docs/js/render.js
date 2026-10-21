@@ -666,8 +666,6 @@
       var me = opts.me === pid, fl = opts.flair || {};
       var r = L.r * (me ? 1.12 : 1);
       var inner = '';
-      // A gold halo for a day after a 95%+ clear.
-      if (fl.glow && fl.glow[pid]) inner += '<circle r="' + (r + 11) + '" class="glow-halo"/><circle r="' + (r + 8) + '" class="glow-ring"/>';
       inner += '<circle r="' + (r + 4) + '" fill="#000" opacity=".45" cy="3"/>';
       inner += '<circle r="' + (r + 3) + '" fill="' + col + '"/>';
       inner += '<circle r="' + r + '" fill="#1a1d18"/>';

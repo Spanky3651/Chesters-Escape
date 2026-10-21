@@ -214,11 +214,10 @@
     return val;
   }
 
-  // ---- token flair: gold glow after a 95%+ clear, crown for the leader, lantern for last ----
+  // ---- token flair: crown for the leader, lantern for last place ----
   function flair(s) {
-    var o = { glow: {}, crown: null, lantern: null };
+    var o = { crown: null, lantern: null };
     if (s.status !== 'running') return o;
-    s.events.forEach(function (e) { if (e.t === 'cleared' && e.proof && e.proof.acc >= 0.95 && s.day - e.day <= 1) o.glow[e.pid] = 1; });
     var rank = E.ranking(s).filter(function (r) { return !r.escaped; });
     if (rank.length >= 2 && rank[0].left < rank[1].left && s.players[rank[0].pid].pos >= 0) o.crown = rank[0].pid;
     if (rank.length >= 3) { var a = rank[rank.length - 1], b = rank[rank.length - 2]; if (a.left > b.left) o.lantern = a.pid; }
@@ -322,5 +321,55 @@
     return list[n % list.length];
   }
 
-  root.CGFx = { Camera: Camera, fx: fx, grade: grade, BADGES: BADGES, BADGE_BY: BADGE_BY, badgesFor: badgesFor, flair: flair, rivals: rivals, shareCard: shareCard, eggLine: eggLine, still: still };
+  // ---- the game's reactions --------------------------------------------------------------------
+  // Drawn as small pictures (no emoji font differences between phones and PCs).
+  var BLACK = "'Arial Black', 'Atkinson Hyperlegible', Arial, sans-serif";
+  function txt(x, y, size, fill, stroke, sw, t, extra) { return '<text x="' + x + '" y="' + y + '" text-anchor="middle" font-family="' + BLACK + '" font-weight="900" font-size="' + size + '" fill="' + fill + '"' + (stroke ? ' stroke="' + stroke + '" stroke-width="' + sw + '" paint-order="stroke" stroke-linejoin="round"' : '') + (extra || '') + '>' + t + '</text>'; }
+  var RX = {
+    gg: { label: 'GG', svg: function () { return '<rect x="2" y="7" width="28" height="18" rx="6" fill="#26b33f"/><rect x="3.5" y="8.5" width="25" height="7" rx="4" fill="#7ef08a" opacity=".45"/>' + txt(16, 21.3, 13, '#fff', '#0b4416', 2.6, 'GG'); } },
+    fc: { label: 'Full combo', svg: function () { return '<circle cx="16" cy="17" r="12.5" fill="#ffc93a" stroke="#a46d06" stroke-width="2"/><circle cx="16" cy="17" r="9" fill="none" stroke="#fff4b8" stroke-width="1.2" opacity=".85"/>' + txt(16, 21.4, 11.5, '#5a3800', '', 0, 'FC') + '<path d="M26.5 1.5l1.1 2.9 2.9 1.1-2.9 1.1-1.1 2.9-1.1-2.9-2.9-1.1 2.9-1.1z" fill="#fff"/>'; } },
+    ss: { label: 'SS rank', svg: function () { return '<g transform="rotate(-10 16 16)"><circle cx="16" cy="16" r="13" fill="#121212" stroke="#ffd34d" stroke-width="2.6"/>' + txt(16, 20.6, 12.5, '#ffd34d', '', 0, 'SS') + '</g>'; } },
+    sabers: { label: "Let's go", svg: function () {
+      return '<g stroke-linecap="round"><line x1="8" y1="24" x2="27" y2="4" stroke="#ff3b4a" stroke-width="6" opacity=".28"/><line x1="8" y1="24" x2="27" y2="4" stroke="#ff5a66" stroke-width="3"/><line x1="8" y1="24" x2="27" y2="4" stroke="#ffd6da" stroke-width="1"/>' +
+        '<line x1="24" y1="24" x2="5" y2="4" stroke="#2f86ff" stroke-width="6" opacity=".28"/><line x1="24" y1="24" x2="5" y2="4" stroke="#4d9bff" stroke-width="3"/><line x1="24" y1="24" x2="5" y2="4" stroke="#d6e8ff" stroke-width="1"/>' +
+        '<line x1="3.5" y1="28.8" x2="8.5" y2="23.5" stroke="#2b2b2b" stroke-width="4.2"/><line x1="28.5" y1="28.8" x2="23.5" y2="23.5" stroke="#2b2b2b" stroke-width="4.2"/><line x1="7.3" y1="22.5" x2="10" y2="25.3" stroke="#bbb" stroke-width="1.6"/><line x1="24.7" y1="22.5" x2="22" y2="25.3" stroke="#bbb" stroke-width="1.6"/></g>';
+    } },
+    miss: { label: 'Miss', svg: function () { return '<rect x="7.5" y="7.5" width="17" height="17" rx="3.5" fill="#6a2028" stroke="#a83a46" stroke-width="1" transform="rotate(14 16 16)"/><path d="M12 12.5l4 4.5 4-4.5" fill="none" stroke="#ff8a95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="rotate(14 16 16)" opacity=".7"/>' + txt(16.5, 21, 9.6, '#ff3b4a', '#1a0004', 2.8, 'MISS', ' transform="skewX(-12) translate(3.4 0)"'); } },
+    bomb: { label: 'Hit a bomb', svg: function () { return '<circle cx="14.5" cy="18.5" r="10" fill="#22222b" stroke="#000" stroke-width="1"/><circle cx="11" cy="15" r="3" fill="#fff" opacity=".3"/><rect x="17.5" y="6.5" width="6" height="5" rx="1.2" fill="#5b5b66" transform="rotate(40 20.5 9)"/><path d="M22.5 7.5q2.5-4.5 6-3.4" fill="none" stroke="#c9a46a" stroke-width="1.6" stroke-linecap="round"/><path d="M28.6 0.8l.9 2.2 2.2.9-2.2.9-.9 2.2-.9-2.2-2.2-.9 2.2-.9z" fill="#ffb02e"/><circle cx="28.6" cy="4" r="1.1" fill="#fff6c8"/>'; } },
+    salt: { label: 'Salty', svg: function () { return '<path d="M10.2 13h11.6l-1.4 14.4a2.2 2.2 0 0 1-2.2 2H13.8a2.2 2.2 0 0 1-2.2-2z" fill="#f5f7f9" stroke="#8d9aa6" stroke-width="1.2"/><path d="M10.6 13q0-7.6 5.4-7.6t5.4 7.6z" fill="#aab6c2" stroke="#7c8894" stroke-width="1"/><circle cx="14.2" cy="9.6" r=".9" fill="#56606a"/><circle cx="17.8" cy="9.6" r=".9" fill="#56606a"/><circle cx="16" cy="7.8" r=".9" fill="#56606a"/>' + txt(16, 23.6, 5, '#5f6c78', '', 0, 'SALT', ' textLength="8.6" lengthAdjust="spacingAndGlyphs"') + '<rect x="5" y="3" width="1.8" height="1.8" fill="#fff" transform="rotate(20 6 4)"/><rect x="3.2" y="7.5" width="1.5" height="1.5" fill="#fff"/><rect x="6.5" y="9.5" width="1.4" height="1.4" fill="#fff" transform="rotate(35 7 10)"/>'; } },
+    rip: { label: 'RIP', svg: function () { return '<path d="M8 28.5V13.5a8 8 0 0 1 16 0v15z" fill="#a3a9ac" stroke="#5d6366" stroke-width="1.5"/><path d="M10 13.5a6 6 0 0 1 6-6" fill="none" stroke="#fff" stroke-width="1.2" opacity=".5"/>' + txt(16, 21.8, 7.6, '#3b4043', '', 0, 'RIP') + '<path d="M4 29.2h24" stroke="#4f8a2b" stroke-width="2.6" stroke-linecap="round"/>'; } },
+    hero: { label: '', svg: null }
+  };
+  var RX_ORDER = {
+    cleared: ['ss', 'fc', 'gg', 'sabers', 'salt', 'hero', 'miss', 'bomb', 'rip'],
+    escaped: ['gg', 'hero', 'sabers', 'salt', 'ss', 'fc', 'rip', 'bomb', 'miss'],
+    bad: ['rip', 'bomb', 'miss', 'salt', 'gg', 'hero', 'sabers', 'fc', 'ss'],
+    good: ['sabers', 'salt', 'gg', 'hero', 'fc', 'ss', 'rip', 'bomb', 'miss'],
+    other: ['gg', 'hero', 'sabers', 'salt', 'rip', 'bomb', 'miss', 'fc', 'ss']
+  };
+  function rxLabel(id, theme) { return id === 'hero' ? (theme && theme.hero === 'taco' ? 'Taco!' : 'Caw!') : (RX[id] ? RX[id].label : ''); }
+  function rxIcon(id, theme, cls) {
+    if (id === 'hero') return '<svg class="' + (cls || 'rx-ico') + '" viewBox="-36 -40 72 76" aria-hidden="true">' + R.hero(0, 0, 1, theme) + '</svg>';
+    return RX[id] ? '<svg class="' + (cls || 'rx-ico') + '" viewBox="0 0 32 32" aria-hidden="true">' + RX[id].svg() + '</svg>' : '';
+  }
+  // Which reactions to offer first for a moment (all nine are always there).
+  function rxOrder(e) {
+    if (!e) return RX_ORDER.other;
+    if (e.t === 'cleared') return RX_ORDER.cleared;
+    if (e.t === 'escaped') return RX_ORDER.escaped;
+    if (e.t === 'start' || e.t === 'skip' || e.t === 'lost-turn' || e.t === 'gate-closed' || (e.t === 'move' && e.n < 0) || e.t === 'claim-rejected') return RX_ORDER.bad;
+    if (e.t === 'pass' || e.t === 'shield-used' || e.t === 'warp' || (e.t === 'move' && e.n > 0)) return RX_ORDER.good;
+    return RX_ORDER.other;
+  }
+  // One event's reactions as { id: [player ids] }, with old emoji reactions folded in.
+  function rxCounts(r) {
+    var out = {}, L = E.LEGACY_REACTIONS || {};
+    Object.keys(r || {}).forEach(function (k) {
+      var id = E.REACTIONS.indexOf(k) >= 0 ? k : L[k]; if (!id) return;
+      (r[k] || []).forEach(function (q) { out[id] = out[id] || []; if (out[id].indexOf(q) < 0) out[id].push(q); });
+    });
+    return out;
+  }
+
+  root.CGFx = { rxIcon: rxIcon, rxLabel: rxLabel, rxOrder: rxOrder, rxCounts: rxCounts, Camera: Camera, fx: fx, grade: grade, BADGES: BADGES, BADGE_BY: BADGE_BY, badgesFor: badgesFor, flair: flair, rivals: rivals, shareCard: shareCard, eggLine: eggLine, still: still };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

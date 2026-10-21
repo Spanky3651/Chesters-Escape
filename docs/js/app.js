@@ -341,7 +341,8 @@
     el.innerHTML = '<div class="me-row">' + avatarHtml(p, 'me-ava') + '<div><div class="me-name">' + esc(p.name) + '</div><div class="me-sub">' + esc(route) +
       (p.blId ? ' &middot; <a href="https://beatleader.com/u/' + encodeURIComponent(p.blId) + '" target="_blank" rel="noopener">BeatLeader</a>' : '') + '</div></div></div>' +
       (stats.length ? '<div class="me-stats">' + stats.join('') + '</div>' : '') +
-      (bl.length ? '<div class="me-badges">' + bl.map(function (b) { return '<span class="badge" title="' + esc(b.desc) + '"><i aria-hidden="true">' + b.icon + '</i>' + esc(b.name) + '</span>'; }).join('') + '</div>' : '');
+      '<div class="me-badges">' + bl.map(function (b) { return '<button type="button" class="badge" data-badges="' + esc(p.id) + '" title="' + esc(b.desc) + '"><i aria-hidden="true">' + b.icon + '</i>' + esc(b.name) + '</button>'; }).join('') +
+      '<button type="button" class="btn link badge-all" data-badges="' + esc(p.id) + '">' + (bl.length ? 'All badges' : 'Badges you can earn') + '</button></div>';
     el.style.setProperty('--c', col);
     badgeNotice(p, bl);
     // Roll reminders live behind the bell in the header.
@@ -501,20 +502,25 @@
   var REACTABLE = { cleared: 1, escaped: 1, card: 1, move: 1, start: 1, warp: 1, pass: 1, skip: 1, 'lost-turn': 1, join: 1, 'gate-closed': 1, 'shield-used': 1 };
   function shareable(e) { return e.pid === store.me && (e.t === 'cleared' || e.t === 'escaped' || e.t === 'pass' || e.t === 'start' || (e.t === 'warp') || (e.t === 'move' && Math.abs(e.n) >= 3) || e.t === 'card'); }
   function rxRow(e) {
-    var s = st(), r = (s.reactions || {})[e.id] || {}, mine = me(), html = '';
-    E.REACTIONS.forEach(function (em) {
-      var who = (r[em] || []).filter(function (q) { return s.players[q]; }); if (!who.length) return;
-      var on = mine && who.indexOf(mine.id) >= 0;
-      html += '<button type="button" class="rx-chip" data-rx="' + em + '" data-ev="' + e.id + '" aria-pressed="' + (on ? 'true' : 'false') + '" title="' + esc(who.map(function (q) { return s.players[q].name; }).join(', ')) + '"' + (mine ? '' : ' disabled') + '>' + em + ' <b>' + who.length + '</b></button>';
+    var s = st(), r = X.rxCounts((s.reactions || {})[e.id]), mine = me(), html = '', t = theme();
+    E.REACTIONS.forEach(function (id) {
+      var who = (r[id] || []).filter(function (q) { return s.players[q]; }); if (!who.length) return;
+      var on = mine && who.indexOf(mine.id) >= 0, label = X.rxLabel(id, t);
+      html += '<button type="button" class="rx-chip" data-rx="' + id + '" data-ev="' + e.id + '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + ', ' + who.length + '" title="' + esc(label + ': ' + who.map(function (q) { return s.players[q].name; }).join(', ')) + '"' + (mine ? '' : ' disabled') + '>' + X.rxIcon(id, t) + '<b>' + who.length + '</b></button>';
     });
     var acts = '';
     if (mine && REACTABLE[e.t] && e.pid !== mine.id) acts += '<button type="button" class="rx-add" data-rxadd="' + e.id + '" aria-label="React" title="React">' + RX_ICON + '</button>';
     if (shareable(e)) acts += '<button type="button" class="fd-share" data-share="' + e.id + '" aria-label="Share this moment" title="Share this moment">' + SHARE_ICON + '</button>';
     return (html ? '<span class="rx">' + html + '</span>' : '') + (acts ? '<span class="fd-acts">' + acts + '</span>' : '');
   }
+  // The picker leads with what fits the moment: SS and FC for a score, RIP and the bomb for a setback.
   function openRx(btn) {
-    var pop = $('rxPop'), id = Number(btn.dataset.rxadd), s = st(), r = (s.reactions || {})[id] || {}, mine = me();
-    pop.innerHTML = E.REACTIONS.map(function (em) { var on = mine && (r[em] || []).indexOf(mine.id) >= 0; return '<button type="button" data-rx="' + em + '" data-ev="' + id + '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="React ' + em + '">' + em + '</button>'; }).join('');
+    var pop = $('rxPop'), id = Number(btn.dataset.rxadd), s = st(), r = X.rxCounts((s.reactions || {})[id]), mine = me(), t = theme();
+    var ev = s.events.filter(function (x) { return x.id === id; })[0];
+    pop.innerHTML = X.rxOrder(ev).map(function (rid) {
+      var on = mine && (r[rid] || []).indexOf(mine.id) >= 0, label = X.rxLabel(rid, t);
+      return '<button type="button" data-rx="' + rid + '" data-ev="' + id + '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + X.rxIcon(rid, t) + '<span>' + esc(label) + '</span></button>';
+    }).join('');
     pop.hidden = false;
     var b = btn.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight, v = window.visualViewport;
     var L = v ? v.offsetLeft : 0, T = v ? v.offsetTop : 0, VW = v ? v.width : innerWidth;
@@ -539,12 +545,13 @@
     Object.keys(s.reactions || {}).forEach(function (id) {
       var ev = null; for (var i = s.events.length - 1; i >= 0; i--) if (s.events[i].id === Number(id)) { ev = s.events[i]; break; }
       if (!ev || ev.pid !== mine.id) return;
-      Object.keys(s.reactions[id]).forEach(function (em) { s.reactions[id][em].forEach(function (q) { if (q === mine.id) return; var k = id + em + q; now[k] = 1; if (rxSeen && !rxSeen[k] && s.players[q]) news.push({ who: s.players[q].name, em: em, ev: ev }); }); });
+      var rc = X.rxCounts(s.reactions[id]);
+      Object.keys(rc).forEach(function (em) { rc[em].forEach(function (q) { if (q === mine.id) return; var k = id + em + q; now[k] = 1; if (rxSeen && !rxSeen[k] && s.players[q]) news.push({ who: s.players[q].name, em: em, ev: ev }); }); });
     });
     rxSeen = now;
     if (!news.length) return;
     var n = news[news.length - 1], what = n.ev.t === 'cleared' ? 'your clear' : n.ev.t === 'escaped' ? 'your escape' : 'your move';
-    toast(news.length > 1 ? news.length + ' new reactions on your moments ' + news.map(function (x) { return x.em; }).join('') : n.who + ' reacted ' + n.em + ' to ' + what, 'good');
+    toast(news.length > 1 ? news.length + ' new reactions on your moments' : n.who + ' reacted ' + X.rxLabel(n.em, theme()) + ' to ' + what, 'good');
   }
 
   // ---- standings -----------------------------------------------------------------
@@ -554,7 +561,7 @@
   }
   function badgeIcons(pid, max) {
     var list = X.badgesFor(st())[pid] || []; if (!list.length) return '';
-    return '<span class="st-badges" title="' + esc(list.map(function (b) { return b.name; }).join(', ')) + '">' + list.slice(0, max).map(function (b) { return b.icon; }).join('') + (list.length > max ? '+' + (list.length - max) : '') + '</span>';
+    return '<span class="st-badges" data-badges="' + esc(pid) + '" title="' + esc(list.map(function (b) { return b.name; }).join(', ')) + '. Tap for details.">' + list.slice(0, max).map(function (b) { return b.icon; }).join('') + (list.length > max ? '+' + (list.length - max) : '') + '</span>';
   }
   function renderStandings() {
     var s = st();
@@ -976,6 +983,19 @@
     setTimeout(function () { sfx.good(); toast('\uD83C\uDFC5 New badge: ' + b.icon + ' ' + b.name + '. ' + b.desc + '.', 'badge-toast'); track('badge-' + b.id); }, 400);
   }
 
+  // Every badge with what it's for. Earned ones (for this player) light up; the rest show how to get them.
+  function openBadges(pid) {
+    var s = st(), p = s.players[pid], have = {}, list = X.badgesFor(s)[pid] || [];
+    list.forEach(function (b) { have[b.id] = 1; });
+    track('badges');
+    var rows = X.BADGES.slice().sort(function (a, b) { return (have[b.id] || 0) - (have[a.id] || 0); }).map(function (b) {
+      var holders = s.order.filter(function (q) { return (X.badgesFor(s)[q] || []).some(function (x) { return x.id === b.id; }); }).map(function (q) { return s.players[q].name; });
+      return '<li class="bg-row' + (have[b.id] ? ' got' : '') + '"><span class="bg-ic" aria-hidden="true">' + b.icon + '</span><span><b>' + esc(b.name) + '</b>' + (have[b.id] ? ' <span class="bg-got">Earned</span>' : '') +
+        '<span class="bg-desc">' + esc(b.desc) + '</span>' + (holders.length ? '<span class="bg-who">' + esc(holders.length > 4 ? holders.slice(0, 4).join(', ') + ' and ' + (holders.length - 4) + ' more' : holders.join(', ')) + '</span>' : '') + '</span></li>';
+    }).join('');
+    modal(p ? (p.id === store.me ? 'Your badges' : p.name + '\'s badges') : 'Badges', '<p class="lede">' + (p ? list.length + ' of ' + X.BADGES.length + ' earned. ' : '') + 'Badges come from what happens on the board and in your scores. They don\'t change the rules.</p><ul class="bg-list">' + rows + '</ul>');
+  }
+
   // ---- share a moment ----------------------------------------------------------------------------
   function shareSpec(ev) {
     var s = st(), t = theme(), p = s.players[ev.pid] || {}, sp = ev.space ? s.board.spaces[ev.space] : null, kind = sp && sp.kind && t.kinds[sp.kind];
@@ -1120,7 +1140,7 @@
       if (!r) return '<div class="pod empty"></div>';
       var p = s.players[r.pid], rank = [2, 1, 3][i];
       var bd = (X.badgesFor(s)[r.pid] || []).map(function (b) { return b.icon; }).join('');
-      return '<div class="pod pod' + rank + '" style="--c:' + R.playerColor(s, r.pid) + '">' + avatarHtml(p, 'pod-ava') + '<b>' + esc(p.name) + '</b><span>' + esc(line(r)) + '</span><span class="pod-badges">' + bd + '</span><div class="pod-step">' + ordinal(r.place) + '</div></div>';
+      return '<div class="pod pod' + rank + '" style="--c:' + R.playerColor(s, r.pid) + '">' + avatarHtml(p, 'pod-ava') + '<b>' + esc(p.name) + '</b><span>' + esc(line(r)) + '</span><span class="pod-badges" data-badges="' + esc(r.pid) + '">' + bd + '</span><div class="pod-step">' + ordinal(r.place) + '</div></div>';
     }).join('');
     var rest = fin.slice(3).map(function (r) { var p = s.players[r.pid]; return '<li' + (r.pid === store.me ? ' class="me"' : '') + '><span class="place">' + ordinal(r.place) + '</span>' + esc(p.name) + '<span class="why">' + esc(line(r)) + '</span></li>'; }).join('');
     var mine = fin.filter(function (r) { return r.pid === store.me; })[0];
@@ -1231,6 +1251,7 @@
       '<li>Every roll ends with a map. If your turn stops on a space without one, you get a bonus map. A Safe space is the only break.</li>' +
       '<li>First one to the ' + esc(t.goal) + ' wins. Everyone else keeps playing for their place.</li>' +
       (s.settings.oneFinishPerDay !== false ? '<li>Only one player can escape per day. If someone already got out today, you wait at the gate and walk out on your next roll.</li>' : '') + '</ol>' +
+      '<p class="why">Badges are earned from what happens on the board and in your scores. They don\'t change the rules. <button type="button" class="btn link" data-badges="' + esc(store.me || '') + '">See all the badges</button></p>' +
       '<p class="why">If you played a map and the check can\'t find it (for example a replay that wasn\'t a new personal best), use "I played it" and the host can approve it.</p>' +
       '<label class="check sound-opt"><input type="checkbox" id="soundChk"' + (muted ? '' : ' checked') + '> <span>Sound effects</span></label>');
   }
@@ -1604,6 +1625,7 @@
       if (!e.target.closest('#rxPop')) closeRx();
       var shb = e.target.closest('[data-share]'); if (shb) { var sev = st().events.filter(function (x) { return x.id === Number(shb.dataset.share); })[0]; if (sev) openShare(sev); return; }
       var egg = e.target.closest('.board-svg .egg'); if (egg && !animating) { doEgg(egg); return; }
+      var bdg = e.target.closest('[data-badges]'); if (bdg) { e.preventDefault(); openBadges(bdg.getAttribute('data-badges')); return; }
       if (e.target.closest('#rollBtn') || e.target.closest('#mRoll')) { doRoll(); return; }
       if (e.target.closest('#finaleBtn') || e.target.closest('#mFinale')) { openFinale(); return; }
       if (e.target.closest('#remBtn')) { $('remPop').hidden ? openRem() : closeRem(); return; }
