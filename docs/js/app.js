@@ -1476,7 +1476,7 @@
       }).join('');
       html += '</section>';
     }
-    html += '<section class="hsec"><div class="thread-head"><h3>Visits</h3><button type="button" class="btn small link" data-h="visits-refresh">Refresh</button></div><p>When signed-in people opened the game and when they left. A visit ends about a minute after they close it, switch away or lock their phone. The last two weeks are kept.</p><div id="visitBox"><p class="why">Loading</p></div></section>';
+    html += '<section class="hsec"><div class="thread-head"><h3>Visits</h3><button type="button" class="btn small link" data-h="visits-refresh">Refresh</button></div><p>When signed-in people opened the game and when they left. Coming back within 10 minutes counts as the same visit, so a visit ends 10 minutes after they close it, switch away or lock their phone. The last two weeks are kept.</p><div id="visitBox"><p class="why">Loading</p></div></section>';
     html += '<section class="hsec"><h3>Notifications on this device</h3><div id="pushBox" class="push-box" data-kind="host"><p>Checking this device.</p></div></section>';
     html += '<section class="hsec"><h3>Players</h3><p>Space 0 is the start. Moving a token does not apply the space unless you tick the box.</p><table class="ptable"><tbody>';
     s.order.forEach(function (pid) {

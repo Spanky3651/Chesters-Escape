@@ -21,6 +21,7 @@ import { sendPush } from './push.js';
 const E = globalThis.CGEngine;
 const C = globalThis.CGContent;
 const CHECK_EVERY = 15 * 60 * 1000;
+const VISIT_GAP = 10 * 60 * 1000;   // a return within this long continues the same visit
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -460,16 +461,29 @@ export class Game extends DurableObject {
   }
 
   // Sessions for the host: when each signed-in person opened the game and when they left. An open
-  // page checks in every 20 seconds while it's in front of them; a session ends when the check-ins
-  // stop for a minute (closed, switched away or the phone locked). Two weeks are kept.
+  // page checks in every 20 seconds while it's in front of them. Coming back within 10 minutes of
+  // the last check-in continues the same visit, so a quick app switch (or the game server being
+  // unloaded between check-ins) never splits one visit into many. Two weeks are kept.
   async visit(user) {
     if (!user || !user.id || user.isHost) return;   // hosts aren't logged
     const now = Date.now(), live = (this.visitLive = this.visitLive || {}), log = this.visits || (this.visits = []);
     await this.sweepVisits(now);
     const cur = live[user.id];
-    if (cur && now - cur.last < 60000) {
+    if (cur && now - cur.last < VISIT_GAP) {
       cur.last = now;
-      if (now - cur.saved > 300000) { cur.saved = now; cur.entry.last = now; await this.ctx.storage.put('visits', log); }
+      if (now - cur.saved > 120000) { cur.saved = now; cur.entry.last = now; await this.ctx.storage.put('visits', log); }
+      return;
+    }
+    // Their latest visit, if it ended (or was last heard from) less than 10 minutes ago, carries on.
+    let prev = null;
+    for (let i = log.length - 1; i >= 0; i--) if (log[i].id === user.id) { prev = log[i]; break; }
+    if (prev && now - (prev.end || prev.last) < VISIT_GAP) {
+      const wasOpen = prev.end == null, quiet = now - prev.last;
+      live[user.id] = { entry: prev, last: now, saved: wasOpen && quiet < 120000 ? prev.last : now };
+      prev.end = null;
+      if (user.name) prev.name = String(user.name).slice(0, 60);
+      // Save when it reopens or the saved check-in is getting old; otherwise memory is enough for now.
+      if (!wasOpen || quiet >= 120000) { prev.last = now; await this.ctx.storage.put('visits', log); }
       return;
     }
     const entry = { id: user.id, name: String(user.name || '').slice(0, 60), start: now, last: now, end: null };
@@ -482,17 +496,41 @@ export class Game extends DurableObject {
   async sweepVisits(now) {
     const live = this.visitLive || {}, log = this.visits || [];
     let changed = false;
-    Object.keys(live).forEach((id) => { const v = live[id]; if (now - v.last >= 60000) { v.entry.end = v.last; v.entry.last = v.last; delete live[id]; changed = true; } });
-    // After a server restart nobody is in memory: anything still open ends at its last saved check-in.
-    log.forEach((e) => { if (e.end == null && !live[e.id] && now - e.last >= 60000) { e.end = e.last; changed = true; } });
+    // Gone quiet for 10 minutes: the visit ends at their last check-in.
+    Object.keys(live).forEach((id) => { const v = live[id]; if (now - v.last >= VISIT_GAP) { v.entry.end = v.last; v.entry.last = v.last; delete live[id]; changed = true; } });
+    // Nobody in memory (the server was unloaded): an open visit not heard from for 10 minutes ends at its last saved check-in.
+    log.forEach((e) => { if (e.end == null && !live[e.id] && now - e.last >= VISIT_GAP) { e.end = e.last; changed = true; } });
+    if (this.compactVisits()) changed = true;
     if (changed) await this.ctx.storage.put('visits', log);
+  }
+  // Joins any visits by the same person less than 10 minutes apart (also fixes logs split up before this rule).
+  compactVisits() {
+    const log = this.visits || [], live = this.visitLive || {}, keep = [], lastBy = {};
+    let changed = false;
+    log.forEach((e) => {
+      const p = lastBy[e.id];
+      if (p && e.start - (p.end != null ? p.end : p.last) < VISIT_GAP) {
+        p.last = Math.max(p.last, e.last);
+        p.end = p.end == null || e.end == null ? null : Math.max(p.end, e.end);
+        if (live[e.id] && live[e.id].entry === e) live[e.id].entry = p;
+        changed = true;
+        return;
+      }
+      keep.push(e); lastBy[e.id] = e;
+    });
+    if (changed) { log.length = 0; keep.forEach((e) => log.push(e)); }
+    return changed;
   }
   async visitLog(user) {
     if (!user || !user.isHost) return { error: 'Only the host can see this.' };
     const now = Date.now();
     await this.sweepVisits(now);
     const s = this.game(), live = this.visitLive || {};
-    return { now, visits: (this.visits || []).slice(-400).reverse().map((e) => ({ id: e.id, name: e.name, start: e.start, end: e.end, last: live[e.id] && live[e.id].entry === e ? live[e.id].last : e.last, open: !!(live[e.id] && live[e.id].entry === e), player: !!s.players['d' + e.id] })) };
+    // "On now" means heard from in the last minute; within the 10-minute window but quiet is "away".
+    return { now, visits: (this.visits || []).slice(-400).reverse().map((e) => {
+      const lv = live[e.id] && live[e.id].entry === e ? live[e.id].last : null, last = lv || e.last;
+      return { id: e.id, name: e.name, start: e.start, end: e.end, last, open: e.end == null && now - last < 60000, player: !!s.players['d' + e.id] };
+    }) };
   }
 
   // --- push notifications for hosts ---
