@@ -915,6 +915,48 @@
     markRevealed(evs);
     return evs.reduce(function (ch, e) { return ch.then(function () { return showScore(e); }); }, Promise.resolve());
   }
+  // Every so often two tokens sharing a space get into a scuffle. Never while anything else is
+  // happening on the board, and never for reduced motion. ?scuffle=1 speeds it up for testing.
+  var scuffleFast = /[?&]scuffle=1\b/.test(location.search);
+  function scuffleSoon() { setTimeout(scuffle, scuffleFast ? 2600 : 10000 + Math.random() * 10000); }
+  function scuffle() {
+    scuffleSoon();
+    if (!svgEl || animating || replaying || overlayOpen() || X.still() || document.visibilityState !== 'visible') return;
+    var zone = document.querySelector('.board-zone');
+    if (zone && /\b(busy|prelaunch|replaying)\b/.test(zone.className)) return;
+    if (!$('spacePop').hidden || !$('rxPop').hidden || (cam && cam.raf)) return;
+    var s = st(); if (!s || !s.order) return;
+    var pos = R.layoutTokens(s), groups = {}, where = {};
+    s.order.forEach(function (pid) {
+      var p = s.players[pid], L = pos[pid]; if (!p || !p.route || !L || L.n < 2) return;
+      var xy = R.tokenXY(s, p), key = Math.round(xy.x) + ',' + Math.round(xy.y);
+      (groups[key] = groups[key] || []).push(pid); where[pid] = key;
+    });
+    var keys = Object.keys(groups).filter(function (k) { return groups[k].length > 1; });
+    if (!keys.length) return;
+    var a = null, b = null, kind = Math.random() < .25 ? 'knock' : 'shove';
+    // a fresh overtake on a shared space is the likeliest grudge match
+    var since = Date.now() - 48 * 3600e3, grudges = [];
+    (s.events || []).forEach(function (e) {
+      if (e.t !== 'pass' || !e.pid || new Date(e.at).getTime() < since || !where[e.pid]) return;
+      (e.over || []).forEach(function (q) { if (where[q] === where[e.pid]) grudges.push([e.pid, q]); });
+    });
+    if (grudges.length && Math.random() < .6) {
+      var gm = grudges[Math.floor(Math.random() * grudges.length)]; a = gm[0]; b = gm[1];
+      if (Math.random() < .5) kind = 'knock';
+    } else {
+      var g = groups[keys[Math.floor(Math.random() * keys.length)]];
+      a = g[Math.floor(Math.random() * g.length)];
+      g.forEach(function (q) {
+        if (q === a) return;
+        var d = Math.pow(pos[q].x - pos[a].x, 2) + Math.pow(pos[q].y - pos[a].y, 2);
+        if (b === null || d < Math.pow(pos[b].x - pos[a].x, 2) + Math.pow(pos[b].y - pos[a].y, 2)) b = q;
+      });
+    }
+    if (!a || !b || !pos[a] || !pos[b]) return;
+    var lead = X.flair(s).crown, crown = (lead === a || lead === b) && Math.random() < .35 ? lead : null;
+    FX.scuffle(svgEl, { pid: a, x: pos[a].x, y: pos[a].y, r: pos[a].r }, { pid: b, x: pos[b].x, y: pos[b].y, r: pos[b].r }, { kind: kind, crown: crown, small: isPhone() });
+  }
   function overlayOpen() { return !$('modal').hidden || !$('scoreOverlay').hidden || !$('cardOverlay').hidden || !$('winOverlay').hidden || !$('hostDrawer').hidden || replaying; }
   function showScore(ev) {
     return new Promise(function (resolve) {
@@ -1859,6 +1901,7 @@
       else maybeAway(prevSeen);
     }
     setInterval(applyDusk, 30000);
+    scuffleSoon();
     writeSeen();
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') writeSeen(); });
     window.addEventListener('pagehide', writeSeen);

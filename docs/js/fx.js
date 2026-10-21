@@ -8,6 +8,12 @@
   var NS = 'http://www.w3.org/2000/svg';
   function still() { return !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches); }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function cssq(v) { return String(v).replace(/["\\]/g, '\\$&'); }
+  function star(R) {
+    var o = '';
+    for (var i = 0; i < 10; i++) { var a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? R * .45 : R; o += (i ? 'L' : 'M') + (Math.cos(a) * r).toFixed(1) + ' ' + (Math.sin(a) * r).toFixed(1); }
+    return o + 'z';
+  }
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
   // ---- camera: zooms the board's viewBox toward a point and eases back ------------------------
@@ -83,6 +89,38 @@
       var o = '<g transform="translate(' + xy.x + ',' + xy.y + ')">';
       for (var i = 0; i < 10; i++) { var a = (i / 10) * Math.PI * 2; o += '<path class="fx-ray" d="M0,-6 L3,0 L0,6 L-3,0Z" fill="' + color + '" style="--dx:' + (Math.cos(a) * 46).toFixed(1) + 'px;--dy:' + (Math.sin(a) * 46).toFixed(1) + 'px;--r:' + Math.round(a * 57.3 + 90) + 'deg"/>'; }
       add(svg, o + '</g>', 900);
+    },
+    // Two tokens sharing a space scuffle: wind up, knock heads, spring back. A is the attacker; on a
+    // 'knock' B gets sent flying for a moment and sees stars. o.crown names a token whose crown pops off.
+    scuffle: function (svg, A, B, o) {
+      o = o || {};
+      var ga = svg.querySelector('.tok[data-pid="' + cssq(A.pid) + '"]'), gb = svg.querySelector('.tok[data-pid="' + cssq(B.pid) + '"]');
+      if (still() || !ga || !gb) return wait(0);
+      var dx = B.x - A.x, dy = B.y - A.y, d = Math.sqrt(dx * dx + dy * dy) || 1, ux = dx / d, uy = dy / d, k = o.small ? .75 : 1;
+      var knock = o.kind === 'knock', dur = knock ? 1250 : 900, toks = [ga, gb];
+      function go(g, sx, sy, cls) {
+        g.classList.remove('scuf', 'scuf-hit', 'crown-pop');
+        g.style.setProperty('--ux', (sx * k).toFixed(3)); g.style.setProperty('--uy', (sy * k).toFixed(3));
+        g.style.setProperty('--s', Math.abs(sx) < .3 ? 0 : sx > 0 ? 1 : -1);
+        void g.getBoundingClientRect(); g.classList.add(cls);
+      }
+      go(ga, ux, uy, 'scuf'); go(gb, -ux, -uy, knock ? 'scuf-hit' : 'scuf');
+      if (o.crown === A.pid) ga.classList.add('crown-pop');
+      if (o.crown === B.pid) gb.classList.add('crown-pop');
+      setTimeout(function () {
+        var mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2, h = '<g transform="translate(' + mx.toFixed(1) + ',' + my.toFixed(1) + ')">';
+        for (var i = 0; i < 4; i++) { var a = (i / 4) * Math.PI * 2 + .4; h += '<circle class="fx-dust" r="' + (4 + i % 2 * 2) + '" cy="6" style="--dx:' + (Math.cos(a) * 16).toFixed(1) + 'px;--dy:' + (Math.sin(a) * 8 + 4).toFixed(1) + 'px"/>'; }
+        for (var j = 0; j < 6; j++) h += '<g transform="rotate(' + (j * 60 + 30) + ')"><path class="fx-clash" d="M0 -8V-19"/></g>';
+        h += '<path class="fx-star" d="' + star(7) + '" style="--dx:' + (-12 - Math.random() * 6).toFixed(1) + 'px;--dy:-26px"/><path class="fx-star" d="' + star(6) + '" style="--dx:' + (11 + Math.random() * 6).toFixed(1) + 'px;--dy:-30px;animation-delay:60ms"/>';
+        add(svg, h + '</g>', 900);
+      }, 340);
+      if (knock) setTimeout(function () {
+        var h = '<g transform="translate(' + B.x.toFixed(1) + ',' + (B.y - (B.r || 15) - 9).toFixed(1) + ')"><g class="fx-orbit-w">';
+        for (var i = 0; i < 3; i++) h += '<path class="fx-orbit" d="' + star(4.8) + '" style="animation-delay:' + (-i * .3).toFixed(1) + 's"/>';
+        add(svg, h + '</g></g>', 1500);
+      }, 520);
+      setTimeout(function () { toks.forEach(function (g) { g.classList.remove('scuf', 'scuf-hit', 'crown-pop'); }); }, (o.crown ? Math.max(dur, 1150) : dur) + 40);
+      return wait(dur + 60);
     },
     // A song card that flips up out of the space: cover, then the song name.
     coverPop: function (svg, xy, m, label) {
