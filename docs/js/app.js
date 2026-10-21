@@ -514,7 +514,7 @@
     E.REACTIONS.forEach(function (id) {
       var who = (r[id] || []).filter(function (q) { return s.players[q]; }); if (!who.length) return;
       var on = mine && who.indexOf(mine.id) >= 0, label = X.rxLabel(id, t);
-      html += '<button type="button" class="rx-chip" data-rx="' + id + '" data-ev="' + e.id + '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + ', ' + who.length + '" title="' + esc(label + ': ' + who.map(function (q) { return s.players[q].name; }).join(', ')) + '"' + (mine ? '' : ' disabled') + '>' + X.rxIcon(id, t) + '<b>' + who.length + '</b></button>';
+      html += '<button type="button" class="rx-chip" data-rx="' + id + '" data-ev="' + e.id + '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + ', ' + who.length + '" title="' + esc(label + ': ' + who.map(function (q) { return s.players[q].name; }).join(', ')) + '"' + (mine ? '' : ' aria-disabled="true"') + '>' + X.rxIcon(id, t) + '<b>' + who.length + '</b></button>';
     });
     var acts = '';
     if (mine && REACTABLE[e.t] && e.pid !== mine.id) acts += '<button type="button" class="rx-add" data-rxadd="' + e.id + '" aria-label="React" title="React">' + RX_ICON + '</button>';
@@ -1403,7 +1403,7 @@
       tip('🏁', 'First to the ' + esc(t.goal) + ' wins. Everyone else plays on for their place.') +
       (s.settings.oneFinishPerDay !== false ? tip('🚪', 'One escape per day. If someone got out today, you wait at the gate until your next roll.') : '') + '</ul>';
     var extras = '<ul class="hw-tips">' +
-      tip('<span class="hw-rx">' + RX_ICON + '</span>', 'Tap the smiley in the game thread to react to other players.') +
+      tip('<span class="hw-rx">' + RX_ICON + '</span>', 'Tap the smiley in the game thread to react to other players. Press and hold a reaction to see who sent it.') +
       tip('<span class="hw-dot"></span>', 'A green dot means that player has the game open.') +
       tip('▶️', 'Coming back? Watch the moves you missed.') +
       (store.mode === 'live' && E.remindHour(s) != null ? tip('🔔', 'Tap the bell for a reminder when you haven\'t rolled.') : '') +
@@ -1873,11 +1873,49 @@
   }
 
   // ---- events --------------------------------------------------------------------------------
+  // Who reacted: press and hold a reaction (phones), right-click it (computers), or just tap it
+  // when you can't react yourself. Hover still shows the names as a tooltip on computers.
+  var rxHeldAt = 0, rxHoldTimer = null;
+  function closeRxWho() { var w = $('rxWho'); if (w) w.remove(); }
+  function openRxWho(chip) {
+    closeRxWho();
+    var s = st(), t = theme(), id = chip.dataset.rx, r = X.rxCounts((s.reactions || {})[chip.dataset.ev]);
+    var who = (r[id] || []).filter(function (q) { return s.players[q]; }); if (!who.length) return;
+    var box = document.createElement('div'); box.id = 'rxWho'; box.className = 'rx-who'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'Who reacted');
+    box.innerHTML = '<div class="rw-head">' + X.rxIcon(id, t) + '<b>' + esc(X.rxLabel(id, t)) + '</b><span>' + who.length + '</span></div><ul>' +
+      who.map(function (q) { var p = s.players[q]; return '<li>' + avatarHtml(p, 'rw-ava') + '<span>' + esc(p.name) + (q === store.me ? ' <i>(you)</i>' : '') + '</span></li>'; }).join('') + '</ul>';
+    document.body.appendChild(box);
+    var b = chip.getBoundingClientRect(), vw = document.documentElement.clientWidth, w = box.offsetWidth, h = box.offsetHeight;
+    var left = Math.max(8, Math.min(vw - w - 8, b.left + b.width / 2 - w / 2)), top = b.top - h - 8;
+    if (top < 8) top = b.bottom + 8;
+    box.style.left = left + 'px'; box.style.top = top + 'px';
+    if (navigator.vibrate) try { navigator.vibrate(12); } catch (x) {}
+  }
+  function bindRxWho() {
+    var start = null;
+    document.addEventListener('pointerdown', function (e) {
+      var chip = e.target.closest && e.target.closest('.rx-chip'); if (!chip) return;
+      start = { x: e.clientX, y: e.clientY };
+      clearTimeout(rxHoldTimer);
+      rxHoldTimer = setTimeout(function () { rxHeldAt = Date.now(); openRxWho(chip); }, 420);
+    });
+    var cancel = function () { clearTimeout(rxHoldTimer); start = null; };
+    document.addEventListener('pointerup', cancel);
+    document.addEventListener('pointercancel', cancel);
+    document.addEventListener('pointermove', function (e) { if (start && Math.abs(e.clientX - start.x) + Math.abs(e.clientY - start.y) > 12) cancel(); });
+    document.addEventListener('contextmenu', function (e) { var chip = e.target.closest && e.target.closest('.rx-chip'); if (!chip) return; e.preventDefault(); rxHeldAt = Date.now(); openRxWho(chip); });
+    window.addEventListener('scroll', closeRxWho, true);
+    window.addEventListener('resize', closeRxWho);
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeRxWho(); });
+  }
   function bind() {
+    bindRxWho();
     document.addEventListener('click', function (e) {
       var c = e.target.closest('[data-copy]'); if (c) { copy(c.dataset.copy); return; }
       var rxa = e.target.closest('[data-rxadd]'); if (rxa) { $('rxPop').hidden ? openRx(rxa) : closeRx(); return; }
-      var rxb = e.target.closest('[data-rx]'); if (rxb) { doReact(rxb); return; }
+      if (Date.now() - rxHeldAt < 700) { rxHeldAt = 0; if (e.target.closest('.rx-chip')) { e.preventDefault(); return; } }
+      if (!e.target.closest('#rxWho')) closeRxWho();
+      var rxb = e.target.closest('[data-rx]'); if (rxb) { if (rxb.getAttribute('aria-disabled') === 'true') { openRxWho(rxb); return; } doReact(rxb); return; }
       if (!e.target.closest('#rxPop')) closeRx();
       var shb = e.target.closest('[data-share]'); if (shb) { var sev = st().events.filter(function (x) { return x.id === Number(shb.dataset.share); })[0]; if (sev) openShare(sev); return; }
       var egg = e.target.closest('.board-svg .egg'); if (egg && !animating) { doEgg(egg); return; }

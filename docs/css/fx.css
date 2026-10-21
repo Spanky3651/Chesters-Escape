@@ -169,7 +169,8 @@
 .rx-chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 9px 0 6px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--raise-2); color: var(--text); font: 700 14px var(--ui); cursor: pointer; }
 .rx-chip b { font-size: 13px; }
 .rx-chip[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--raise-2)); }
-.rx-chip:disabled { cursor: default; opacity: .9; }
+.rx-chip:disabled, .rx-chip[aria-disabled="true"] { cursor: default; opacity: .9; }
+.rx-chip { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
 .rx-chip.bump { animation: badgePop .5s ease-out; }
 .rx-add, .fd-share { display: inline-grid; place-items: center; width: 30px; height: 28px; border-radius: 999px; border: 1px dashed var(--line-2); background: none; color: var(--muted); cursor: pointer; padding: 0; }
 .rx-add svg, .fd-share svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -383,3 +384,16 @@ button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
 .visit.open .vis-len { color: var(--good); }
 .vis-tag { font: 700 11.5px var(--ui); color: var(--muted); border: 1px solid var(--line-2); border-radius: 999px; padding: 1px 7px; }
 .vis-dot { width: 9px; height: 9px; border-radius: 50%; background: #3fd04a; box-shadow: 0 0 6px #3fd04a; flex: none; display: inline-block; }
+
+/* who reacted: press and hold a reaction */
+.rx-who { position: fixed; z-index: 60; min-width: 180px; max-width: min(280px, calc(100vw - 16px)); max-height: 50vh; overflow: auto; padding: 10px 12px; border-radius: 14px; background: var(--raise); border: 1px solid var(--line-2); box-shadow: 0 14px 34px rgba(0,0,0,.6); animation: rwIn .14s ease-out; }
+@keyframes rwIn { from { opacity: 0; transform: translateY(4px) scale(.97); } }
+.rx-who .rw-head { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
+.rx-who .rw-head .rx-ico { width: 26px; height: 26px; }
+.rx-who .rw-head b { font-size: 15px; flex: 1; }
+.rx-who .rw-head span { font: 700 13px var(--ui); color: var(--muted); }
+.rx-who ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.rx-who li { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.rx-who li i { font-style: normal; color: var(--muted); font-size: 13px; }
+.rw-ava { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex: none; display: grid; place-items: center; background: #1a1d18; border: 2px solid var(--c); font: 700 10px var(--ui); color: #fff; }
+@media (prefers-reduced-motion: reduce) { .rx-who { animation: none; } }
