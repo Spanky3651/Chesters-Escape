@@ -1162,11 +1162,14 @@
 
   // ---- modals --------------------------------------------------------------------------------
   var lastFocus = null;
-  function modal(title, body, onOpen) {
+  function modal(title, body, onOpen, opts) {
+    opts = opts || {};
     lastFocus = document.activeElement;
     $('modalTitle').textContent = title; $('modalBody').innerHTML = body; $('modal').hidden = false;
+    $('modal').querySelector('.modal').className = 'modal' + (opts.cls ? ' ' + opts.cls : '');
+    $('modalBody').scrollTop = 0; $('modal').querySelector('.modal').scrollTop = 0;
     if (onOpen) onOpen($('modalBody'));
-    var f = $('modalBody').querySelector('input,button,select,a'); (f || $('modalX')).focus();
+    var f = opts.focusClose ? null : $('modalBody').querySelector('input,button,select,a'); (f || $('modalX')).focus();
   }
   function closeModal() { $('modal').hidden = true; if (lastFocus && lastFocus.focus) lastFocus.focus(); if (store && store.state) setTimeout(checkNewClears, 300); }
 
@@ -1278,23 +1281,74 @@
   }
 
   function openHow() {
-    var t = theme(), s = st();
+    var t = theme(), s = st(), b = s.board, ri = b.routeInfo, cardWord = t.words.card.join(' ').toLowerCase();
     track('how-to-play');
-    modal('How to play', '<p class="lede">' + esc(t.tagline) + '</p><ol class="rules">' +
-      '<li>Pick a route. The ' + esc(s.board.routeInfo.longer.name.toLowerCase()) + ' is safer but has more spaces. The ' + esc(s.board.routeInfo.riskier.name.toLowerCase()) + ' is shorter, with more ways to get sent back.</li>' +
-      '<li>Roll the d4 once a day and move that many spaces.</li>' +
-      '<li>Landing on a <b>!bsr</b> space means you play that map. Any difficulty, any modifiers. The game checks BeatLeader for your score, so there is nothing to post.</li>' +
-      '<li>You can\'t roll again until your map is cleared, so play daily to keep up.</li>' +
-      '<li>Card drops give you a card on the spot. Some help, some hurt, some add a bonus map.</li>' +
-      '<li>Event spaces can push you ahead, send you back, cost you a turn, or block the way until you play their map.</li>' +
-      '<li>If a card or event moves you onto a map, play it. A card or event never chains into another card.</li>' +
-      '<li>Every roll ends with a map. If your turn stops on a space without one, you get a bonus map. A Safe space is the only break.</li>' +
-      '<li>First one to the ' + esc(t.goal) + ' wins. Everyone else keeps playing for their place.</li>' +
-      (s.settings.oneFinishPerDay !== false ? '<li>Only one player can escape per day. If someone already got out today, you wait at the gate and walk out on your next roll.</li>' : '') + '</ol>' +
-      '<p class="why">Badges are earned from what happens on the board and in your scores. They don\'t change the rules. <button type="button" class="btn link" data-badges="' + esc(store.me || '') + '">See all the badges</button></p>' +
-      '<p class="why">If you played a map and the check can\'t find it (for example a replay that wasn\'t a new personal best), use "I played it" and the host can approve it.</p>' +
-      '<label class="check sound-opt"><input type="checkbox" id="soundChk"' + (muted ? '' : ' checked') + '> <span>Sound effects</span></label>');
+    var step = function (icon, h, p) { return '<li class="hw-step"><span class="hw-ic" aria-hidden="true">' + icon + '</span><b>' + h + '</b><span>' + p + '</span></li>'; };
+    var loop = '<ol class="hw-loop">' +
+      step(R.dieIcon(), 'Roll the d4', 'Once a day. Move that many spaces.') +
+      step(HOW_MAP, 'Play the map', 'Any difficulty, any modifiers.') +
+      step(HOW_CHECK, 'Get cleared', 'BeatLeader is checked for you.') +
+      step(HOW_AGAIN, 'Roll again', 'Unlocks once your map clears.') + '</ol>';
+    var routes = '<div class="hw-routes">' + ['longer', 'riskier'].map(function (r) {
+      return '<div class="hw-route' + (r === 'riskier' ? ' risk' : '') + '"><span class="hw-tag">' + (r === 'riskier' ? 'Shorter, harder' : 'Safer, longer') + '</span><b>' + esc(ri[r].name) + '</b><p>' + esc(routeBlurb(r)) + '</p><span class="hw-stats">' + esc(routeCounts(b, r)) + '</span></div>';
+    }).join('') + '</div>';
+    // One example of every kind of space on this board, cut from the board itself.
+    var kinds = [
+      ['map', function (sp) { return sp.type === 'map'; }, 'Map space', 'Play its map. Some offer two.'],
+      ['card', function (sp) { return sp.type === 'card'; }, cap(cardWord), 'Draw a card. Good, bad or a bonus map.'],
+      ['task', function (sp) { return sp.type === 'task'; }, 'Blocker', 'Play its map to get past.'],
+      ['up', function (sp) { return sp.type === 'move' && sp.n > 0; }, 'Boost', 'Jump ahead.'],
+      ['shortcut', function (sp) { return sp.type === 'warp' && sp.kind === 'swim'; }, 'Shortcut', 'Carried ahead.'],
+      ['safe', function (sp) { return sp.type === 'safe'; }, 'Safe', 'A rest. No map.'],
+      ['down', function (sp) { return sp.type === 'move' && sp.n < 0; }, 'Setback', 'Sent back.'],
+      ['warp', function (sp) { return sp.type === 'warp' && sp.kind !== 'swim'; }, 'Swept away', 'Carried off course.'],
+      ['skip', function (sp) { return sp.type === 'skip'; }, 'Lose a turn', 'Sit out a roll.'],
+      ['start', function (sp) { return sp.type === 'start'; }, 'Back to start', 'All the way back.'],
+      ['exit', function (sp) { return sp.type === 'exit'; }, cap(t.goal), 'First one here wins.']
+    ];
+    var order = (b.routes.longer || []).concat(b.routes.riskier || []), legend = '';
+    kinds.forEach(function (k) {
+      var id = order.filter(function (q) { return b.spaces[q] && k[1](b.spaces[q]); })[0]; if (!id) return;
+      var sp = b.spaces[id];
+      legend += '<li class="hw-sp">' + howTile(sp) + '<span><b>' + esc(k[2]) + '</b><span>' + esc(k[3]) + '</span></span></li>';
+    });
+    var tip = function (icon, html) { return '<li><span class="hw-ti" aria-hidden="true">' + icon + '</span><span>' + html + '</span></li>'; };
+    var tips = '<ul class="hw-tips">' +
+      tip('🎵', 'Every roll ends with a map. Stop on a space without one and you get a bonus map. Safe is the only break.') +
+      tip('🔗', 'Moved onto a map by a card or event? Play it. Cards never chain into more cards.') +
+      tip('🏁', 'First to the ' + esc(t.goal) + ' wins. Everyone else plays on for their place.') +
+      (s.settings.oneFinishPerDay !== false ? tip('🚪', 'One escape per day. If someone got out today, you wait at the gate until your next roll.') : '') + '</ul>';
+    var extras = '<ul class="hw-tips">' +
+      tip('<span class="hw-rx">' + RX_ICON + '</span>', 'Tap the smiley in the game thread to react to other players.') +
+      tip('<span class="hw-dot"></span>', 'A green dot means that player has the game open.') +
+      tip('▶️', 'Coming back? Watch the moves you missed.') +
+      (store.mode === 'live' && E.remindHour(s) != null ? tip('🔔', 'Tap the bell for a reminder when you haven\'t rolled.') : '') +
+      tip('👀', 'Some things on the board tap back.') + '</ul>';
+    modal('How to play',
+      '<div class="hw-hero"><svg viewBox="-31 -36 62 64" aria-hidden="true"><g class="a-bob">' + R.hero(0, 0, 1, t) + '</g></svg><p>' + esc(t.tagline) + '</p></div>' +
+      '<h3 class="hw-h">Every day</h3>' + loop +
+      '<h3 class="hw-h">Pick a route <span>once, no switching</span></h3>' + routes +
+      (legend ? '<h3 class="hw-h">What the spaces do</h3><ul class="hw-legend">' + legend + '</ul>' : '') +
+      '<h3 class="hw-h">Good to know</h3>' + tips +
+      '<h3 class="hw-h">Around the board</h3>' + extras +
+      '<div class="hw-help"><b>Played it but it didn\'t count?</b> Use "I played it" and the host can approve it.</div>' +
+      '<label class="check sound-opt"><input type="checkbox" id="soundChk"' + (muted ? '' : ' checked') + '> <span>Sound effects</span></label>',
+      null, { cls: 'how', focusClose: true });
   }
+  function cap(w) { w = String(w || ''); return w.charAt(0).toUpperCase() + w.slice(1); }
+  // A small window onto the board around one space, so the legend shows the real thing.
+  function howTile(sp) {
+    if (!svgEl) return '<span class="hw-tile"></span>';
+    var c = svgEl.cloneNode(true);
+    ['.tokens', '.hl', '.fxl', '.atmo', '.prev'].forEach(function (q) { Array.prototype.forEach.call(c.querySelectorAll(q), function (n) { n.remove(); }); });
+    Array.prototype.forEach.call(c.querySelectorAll('.sp'), function (n) { n.classList.remove('sel', 'lit', 'mine'); n.setAttribute('tabindex', '-1'); n.removeAttribute('role'); });
+    c.setAttribute('viewBox', (sp.x - 37) + ' ' + (sp.y - 37) + ' 74 74');
+    c.setAttribute('class', 'hw-tile'); c.setAttribute('aria-hidden', 'true'); c.removeAttribute('role'); c.removeAttribute('aria-label');
+    return c.outerHTML;
+  }
+  var HOW_MAP = '<svg viewBox="0 0 40 40"><g transform="rotate(-12 13 22)"><rect x="3" y="12" width="20" height="20" rx="4" fill="#e3263b" stroke="#050507" stroke-width="1.5"/><path d="M7.5 15.5h11l-5.5 5z" fill="#fff"/></g><g transform="rotate(10 27 18)"><rect x="17" y="6" width="20" height="20" rx="4" fill="#2a78f2" stroke="#050507" stroke-width="1.5"/><path d="M21.5 9.5h11l-5.5 5z" fill="#fff"/></g></svg>';
+  var HOW_CHECK = '<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" fill="var(--good)"/><path d="M12 20.5l5.5 5.5L28.5 14" fill="none" stroke="#06200a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var HOW_AGAIN = '<svg viewBox="0 0 40 40"><path d="M31 15a12 12 0 1 0 1.5 9" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round"/><path d="M33 6v10H23" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
   function openJoin(linkOnly) {
     var demo = store.mode === 'demo';
