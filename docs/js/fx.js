@@ -58,8 +58,13 @@
     return el;
   }
   var fx = {
-    pop: function (svg, xy, text, cls) {
-      add(svg, '<g transform="translate(' + xy.x + ',' + (xy.y - 34) + ')"><text class="fx-pop ' + (cls || '') + '" text-anchor="middle">' + esc(text) + '</text></g>', 1500);
+    pop: function (svg, xy, text, cls, ms) {
+      // Long lines wrap onto two or three rows and stay inside the board.
+      var words = String(text).split(' '), rows = [''], cap = 26;
+      words.forEach(function (w) { var r = rows[rows.length - 1]; if (r && (r + ' ' + w).length > cap) rows.push(w); else rows[rows.length - 1] = r ? r + ' ' + w : w; });
+      var wide = Math.max.apply(null, rows.map(function (r) { return r.length; })) * 11.5, x = clamp(xy.x, wide / 2 + 8, 1000 - wide / 2 - 8), lh = 26;
+      var body = rows.length === 1 ? esc(text) : rows.map(function (r, i) { return '<tspan x="0" dy="' + (i ? lh : -(rows.length - 1) * lh) + '">' + esc(r) + '</tspan>'; }).join('');
+      add(svg, '<g transform="translate(' + x.toFixed(1) + ',' + (xy.y - 34) + ')"><text class="fx-pop ' + (cls || '') + '" text-anchor="middle"' + (ms ? ' style="animation-duration:' + (ms / 1000) + 's"' : '') + '>' + body + '</text></g>', ms || 1500);
     },
     ghost: function (svg, xy, color) { add(svg, '<circle class="fx-ghost" cx="' + xy.x + '" cy="' + xy.y + '" r="22" fill="' + color + '"/>', 700); },
     flash: function (svg, xy, color) {
@@ -357,8 +362,16 @@
 
   // ---- easter eggs: a few lines for the hero, and props that react to taps ---------------------
   var LINES = {
-    chester: ['Caw! I am not lost. I am exploring.', 'Have you tried Slower Song?', 'Do not tell the gravekeeper I am out here.', 'One more map, then bed. Probably.', 'I saw a 4 once. It was beautiful.'],
-    taco: ['Extra cheese, please!', 'I am not a snack. I am a contestant.', 'Has anyone seen my hat?', 'Hot sauce gives me +2 speed.', 'Crunchy shell, soft heart.'],
+    chester: ['Caw! I am not lost. I am exploring.', 'Have you tried Slower Song?', 'Do not tell the gravekeeper I am out here.', 'One more map, then bed. Probably.', 'I saw a 4 once. It was beautiful.',
+      'I only collect shiny things. And SS ranks.', 'My wings are basically sabers. Basically.', 'Left, right, duck the wall. I practice every night.', 'Is that a bomb or a black note? Asking for a friend.',
+      'Feathers do not sweat. They glisten.', 'Caw caw. That means GG.', 'I tried Expert+. Expert+ tried me back.', 'The ghosts here have great accuracy. All that free time.',
+      'Please do not roll a 1. Please do not roll a 1.', 'Nobody tells you how hard sabers are with wings.', 'I am 87% crow and 13% vibes.', 'If the gravekeeper asks, I was never here.',
+      'Stream maps are just fast flapping.', 'I would dodge that wall but I am very small.', 'You call it a miss. I call it a feather check.'],
+    taco: ['Extra cheese, please!', 'I am not a snack. I am a contestant.', 'Has anyone seen my hat?', 'Hot sauce gives me +2 speed.', 'Crunchy shell, soft heart.',
+      'I put the TAC in tactical.', 'Lettuce be friends.', 'Never fold under pressure. Unless you are a taco.', 'My shell cracked on that last stream map.',
+      'I would full combo this, but my toppings keep falling.', 'Guac is extra. So is my energy.', 'Taco Tuesday is every day if you believe.', 'Salsa dancing counts as cardio, right?',
+      'Nacho average contestant.', 'Who rolled a 4? Me. I did.', 'If I lose, I am the snack.', 'Spicy maps only. Mild is for spectators.', 'I am 90% shell and 10% swing.',
+      'Hold the onions. Hold the walls too.', 'Shredded lettuce, shredded accuracy.'],
     grave: ['Boo!', 'Shh, I am resting.', 'Five more minutes...'],
     tree: ['*bats scatter*', 'Creak...'],
     turkey: ['GOBBLE!', 'Not today, chef.', 'Gobble gobble?'],
@@ -367,6 +380,24 @@
     snowman: ['Do you want to build a... never mind.', 'Brr!', '*hat flies off*'],
     present: ['Not until the 25th!', '*rattle rattle*']
   };
+  // Lines about this game right now: where you are, who leads, what time it is.
+  function eggContext(s, meId, theme, now) {
+    var out = [], taco = theme.hero === 'taco', goal = theme.goal || 'exit', me = meId && s.players[meId], d = new Date(now || Date.now()), h = d.getHours();
+    if (s.status === 'signup') out.push('The game has not started and you are already poking me?');
+    if (me && me.finished) out.push('You escaped and came back to poke me? Respect.');
+    else if (me && me.tasks && me.tasks.length) out.push('You have a map waiting. Go play it, I will guard your spot.');
+    else if (me && me.route && s.status === 'running') { var left = E.remaining(s, me); if (left > 0) out.push(left + ' spaces to the ' + goal + '. You got this.'); }
+    if (s.status === 'running') {
+      var lead = E.ranking(s).filter(function (r) { return !r.escaped; })[0];
+      if (lead && lead.pid !== meId && s.players[lead.pid]) out.push(s.players[lead.pid].name + ' is out in front. Rude.');
+      out.push('Day ' + s.day + '. Still ' + (taco ? 'crunchy' : 'flapping') + '.');
+    }
+    if (h < 5) out.push('It is ' + ((h % 12) || 12) + ':' + ('0' + d.getMinutes()).slice(-2) + ' AM. Go to bed. After one more map.');
+    else if (h < 9) out.push('Early session? Warm up those wrists.');
+    return out;
+  }
+  var DIZZY = ['Whoa, stop spinning me!', '@_@ Which way is the exit?', 'I see three d4s now.'];
+  var LEGEND = ['Legendary line: you are my favorite player.', 'Legendary line: the next roll is a 4. Trust me.', 'Legendary line: I have seen an SS on every map. In my dreams.'];
   function eggLine(kind, theme, n) {
     var list = LINES[kind === 'hero' ? (theme.hero === 'taco' ? 'taco' : 'chester') : kind] || LINES.grave;
     return list[n % list.length];
@@ -509,5 +540,5 @@
     return out;
   }
 
-  root.CGFx = { rxIcon: rxIcon, rxLabel: rxLabel, rxOrder: rxOrder, rxCounts: rxCounts, Camera: Camera, fx: fx, grade: grade, BADGES: BADGES, BADGE_BY: BADGE_BY, badgesFor: badgesFor, flair: flair, rivals: rivals, shareCard: shareCard, eggLine: eggLine, still: still };
+  root.CGFx = { rxIcon: rxIcon, rxLabel: rxLabel, rxOrder: rxOrder, rxCounts: rxCounts, Camera: Camera, fx: fx, grade: grade, BADGES: BADGES, BADGE_BY: BADGE_BY, badgesFor: badgesFor, flair: flair, rivals: rivals, shareCard: shareCard, eggLine: eggLine, eggContext: eggContext, DIZZY: DIZZY, LEGEND: LEGEND, still: still };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

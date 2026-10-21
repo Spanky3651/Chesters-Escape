@@ -104,6 +104,10 @@
 .board-svg .egg { cursor: default; }
 .board-svg .egg.egg-go { animation: eggHop .8s cubic-bezier(.3,1.6,.4,1); transform-box: fill-box; transform-origin: 50% 100%; }
 .board-svg .board-hero.egg-go { animation: eggFlip 1s cubic-bezier(.3,1.4,.4,1); }
+.board-svg .egg.egg-spin { animation: eggSpin 1.3s cubic-bezier(.3,.9,.4,1); transform-box: fill-box; transform-origin: 50% 60%; }
+.board-svg .egg.egg-hide { animation: eggHide 6.2s ease-in-out; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes eggSpin { 0% { transform: none; } 45% { transform: rotate(540deg) scale(.9); } 70% { transform: rotate(700deg) scale(1.05); } 85% { transform: rotate(705deg) translateX(-3%); } 100% { transform: rotate(720deg); } }
+@keyframes eggHide { 0% { transform: none; opacity: 1; } 8% { transform: translateY(-10%) scale(1.05); opacity: 1; } 16% { transform: translateY(30%) scale(.2); opacity: 0; } 88% { transform: translateY(30%) scale(.2); opacity: 0; } 96% { transform: translateY(-8%) scale(1.08); opacity: 1; } 100% { transform: none; opacity: 1; } }
 @keyframes eggHop { 0%,100% { transform: none; } 30% { transform: translateY(-14%) scale(1.06, .94); } 55% { transform: rotate(-8deg); } 75% { transform: rotate(6deg); } }
 @keyframes eggFlip { 0% { transform: none; } 40% { transform: translateY(-30%) rotate(-180deg); } 80% { transform: translateY(0) rotate(-360deg); } 100% { transform: rotate(-360deg); } }
 
@@ -397,3 +401,4 @@ button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
 .rx-who li i { font-style: normal; color: var(--muted); font-size: 13px; }
 .rw-ava { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex: none; display: grid; place-items: center; background: #1a1d18; border: 2px solid var(--c); font: 700 10px var(--ui); color: #fff; }
 @media (prefers-reduced-motion: reduce) { .rx-who { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .board-svg .egg.egg-spin, .board-svg .egg.egg-hide, .board-svg .egg.egg-go { animation: none; } }

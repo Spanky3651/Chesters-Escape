@@ -1209,18 +1209,54 @@
   // ---- easter eggs -----------------------------------------------------------------------------------
   var eggTaps = 0, eggAt = 0, eggSeen = {};
   var EGG_EXTRA = { grave: '\uD83D\uDC7B', tree: '\uD83E\uDD87', turkey: '\uD83E\uDEB6', scarecrow: '\uD83D\uDC26', snowman: '\u2744\uFE0F', present: '\uD83C\uDF81', pumpkin: '\uD83C\uDF83' };
+  // The hero answers three quick taps with a line. Keep poking and it gets dizzy, hides for a bit,
+  // and eventually gives up its secret. Some lines are about your game right now.
+  var heroCombo = 0, heroLast = 0, heroDeck = [], heroHiding = false;
+  function heroLine() {
+    var s = st(), t = theme(), ctx = X.eggContext(s, store.me, t);
+    if (!heroDeck.length) {   // a shuffled deck so lines don't repeat until you've heard them all
+      var n = (t.hero === 'taco' ? 20 : 20), idx = []; for (var i = 0; i < n; i++) idx.push(i);
+      for (var j = idx.length - 1; j > 0; j--) { var k = Math.floor(Math.random() * (j + 1)), x = idx[j]; idx[j] = idx[k]; idx[k] = x; }
+      heroDeck = idx;
+    }
+    if (ctx.length && Math.random() < .35) return ctx[Math.floor(Math.random() * ctx.length)];
+    return X.eggLine('hero', t, heroDeck.pop());
+  }
+  function eggAnim(el, cls, ms) { ['egg-go', 'egg-spin', 'egg-hide'].forEach(function (c) { el.classList.remove(c); }); void el.getBBox(); el.classList.add(cls); setTimeout(function () { el.classList.remove(cls); }, ms); }
   function doEgg(el) {
     var kind = el.getAttribute('data-egg'), t = Date.now();
+    if (kind === 'hero' && heroHiding) return;
+    // once the hero is talking, single taps keep the conversation going for a while
+    var warm = kind === 'hero' && heroCombo && t - heroLast < 20000;
     eggTaps = t - eggAt < 1400 && eggTaps ? eggTaps + 1 : 1; eggAt = t;
-    if (eggTaps < (kind === 'hero' ? 3 : 1)) return;
+    if (!warm && eggTaps < (kind === 'hero' ? 3 : 1)) return;
     eggTaps = 0; eggSeen[kind] = (eggSeen[kind] || 0) + 1;
-    el.classList.remove('egg-go'); void el.getBBox(); el.classList.add('egg-go');
-    setTimeout(function () { el.classList.remove('egg-go'); }, 1100);
     var bb = el.getBBox(), xy = { x: bb.x + bb.width / 2, y: bb.y + bb.height * .3 };
-    FX.pop(svgEl, xy, X.eggLine(kind, theme(), eggSeen[kind] - 1), 'egg');
-    if (EGG_EXTRA[kind]) setTimeout(function () { FX.pop(svgEl, { x: xy.x + 26, y: xy.y - 20 }, EGG_EXTRA[kind], ''); }, 250);
-    blip(kind === 'hero' ? 880 : 520, .12, 'sine', .06, kind === 'hero' ? 1320 : 260);
     track('egg-' + kind);
+    if (kind !== 'hero') {
+      eggAnim(el, 'egg-go', 1100);
+      FX.pop(svgEl, xy, X.eggLine(kind, theme(), eggSeen[kind] - 1), 'egg');
+      if (EGG_EXTRA[kind]) setTimeout(function () { FX.pop(svgEl, { x: xy.x + 26, y: xy.y - 20 }, EGG_EXTRA[kind], ''); }, 250);
+      blip(520, .12, 'sine', .06, 260);
+      return;
+    }
+    heroCombo = t - heroLast < 20000 ? heroCombo + 1 : 1; heroLast = t;
+    var line, cls = 'egg-go', ms = 1100, hold = 2600;
+    if (heroCombo === 4) line = 'Okay, okay. I am awake.';
+    else if (heroCombo === 5) { line = X.DIZZY[Math.floor(Math.random() * X.DIZZY.length)]; cls = 'egg-spin'; ms = 1300; }
+    else if (heroCombo === 7) {
+      line = 'BRB. Hiding from you.'; cls = 'egg-hide'; ms = 6200; heroHiding = true;
+      FX.puff(svgEl, xy);
+      setTimeout(function () { heroHiding = false; FX.pop(svgEl, xy, 'I am back. Did you miss me?', 'egg', 2600); blip(660, .1, 'sine', .05, 990); }, 6000);
+    } else if (heroCombo === 10) {
+      line = 'You found the secret. Tell no one.'; FX.burst(svgEl, xy, '#ffd34d'); setTimeout(function () { FX.burst(svgEl, xy, '#7fd14f'); }, 250);
+      heroCombo = 0; track('egg-secret');
+    } else if (Math.random() < .03) {   // rare: a legendary line with sparkles
+      line = X.LEGEND[Math.floor(Math.random() * X.LEGEND.length)]; FX.burst(svgEl, xy, '#ffd34d'); track('egg-legend');
+    } else line = heroLine();
+    eggAnim(el, cls, ms);
+    FX.pop(svgEl, xy, line, 'egg', hold);
+    blip(880, .12, 'sine', .06, 1320);
   }
 
   // ---- space popover -------------------------------------------------------------------------
