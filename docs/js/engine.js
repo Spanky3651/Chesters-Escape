@@ -95,6 +95,13 @@
     delete s.players[pid];
     s.order = s.order.filter(function (x) { return x !== pid; });
     s.finishOrder = s.finishOrder.filter(function (x) { return x !== pid; });
+    // Before the game starts, someone who leaves takes their sign-up moments out of the thread too.
+    if (s.status === 'signup') dropOrphans(s);
+  }
+  function dropOrphans(s) {
+    var gone = {};
+    s.events = s.events.filter(function (e) { if (e.pre && e.pid && !s.players[e.pid]) { gone[e.id] = 1; return false; } return true; });
+    if (s.reactions) Object.keys(s.reactions).forEach(function (k) { if (gone[k]) delete s.reactions[k]; });
   }
 
   // Host tool during sign-ups: take everyone off the board.

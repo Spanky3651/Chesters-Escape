@@ -482,8 +482,8 @@
       if (e.t === 'day') { if (feedMode === 'all') html += '<li class="dayline">Day ' + e.day + ' begins</li>'; continue; }
       if (e.t === 'begin') { html += '<li class="dayline">🏁 The game starts. Day 1 begins</li>'; continue; }
       if (feedMode === 'me' && e.pid !== store.me) continue;
+      var p = s.players[e.pid]; if (e.pid && !p) continue;   // someone who left the game
       var x = evText(e); if (!x) continue;
-      var p = s.players[e.pid];
       var rxh = rxRow(e), nActs = (rxh.match(/class="(rx-add|fd-share)"/g) || []).length;
       html += '<li data-ev="' + e.id + '"' + (nActs ? ' class="has-acts' + (nActs > 1 ? ' two' : '') + '"' : '') + '><span class="ic" aria-hidden="true">' + (ICON[e.t] || '•') + '</span><span>' +
         (feedMode === 'all' && p ? '<span class="who">' + esc(p.name) + '</span> ' : '') +
