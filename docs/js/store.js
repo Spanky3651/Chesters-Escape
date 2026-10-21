@@ -236,6 +236,7 @@
     if (r.isHost !== undefined) this.isHost = r.isHost;
     if (r.user !== undefined) this.user = r.user;
     if (r.access !== undefined) this.access = r.access;
+    if (r.discord !== undefined) this.discord = r.discord;
     if (r.canPlay !== undefined) this.canPlay = r.canPlay;
     if (r.online !== undefined) this.online = r.online || [];
   };

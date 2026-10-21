@@ -1486,7 +1486,7 @@
   }
 
   // ---- host tools ------------------------------------------------------------------------------
-  function openHost() { $('hostDrawer').hidden = false; $('scrim').hidden = false; visitsAt = 0; renderHost(); $('hostX').focus(); }
+  function openHost(tab) { if (typeof tab === 'string') hostTab = tab; else if (hostTodo().total) hostTab = 'today'; $('hostDrawer').hidden = false; $('scrim').hidden = false; visitsAt = 0; renderHost(); $('hostX').focus(); }
   // ---- visit log (host only) ----
   var visitsData = null, visitsAt = 0, visitsAll = false, visitsBusy = false;
   function fillVisits(force) {
@@ -1542,66 +1542,113 @@
       '<p style="margin-top:10px">' + (n ? n + (n === 1 ? ' person has' : ' people have') + ' signed up.' : 'Nobody has signed up yet.') + '</p>' +
       (n ? '<div class="row"><button type="button" class="btn small danger" data-h="clearplayers">Clear all sign-ups</button></div>' : '') + '</section>';
   }
+  // Host tools in four tabs: what needs you today, the players, the game setup, and alerts.
+  var hostTab = 'today';
+  var HOST_TABS = [['today', 'Today'], ['players', 'Players'], ['game', 'Game'], ['alerts', 'Alerts']];
+  var POST_LIST = [
+    ['Countdowns and results', [['signups', 'When sign-ups open'], ['hour', 'One hour before the start'], ['start', 'When the game starts'], ['lastcall', '24 hours before the end'], ['end', 'When the game ends, with the top 3']]],
+    ['Moments', [['escape', 'Someone escapes'], ['leader', 'Someone takes the lead (once a day at most)'], ['setback', 'Big setbacks: back to the start, or 5 or more spaces back'], ['big', 'Clears at 95% or better'], ['gate', 'Someone reaches the exit but has to wait at the gate']]]
+  ];
   function renderHost() {
-    var s = st(), demo = store.mode === 'demo', html = '';
+    var s = st(), demo = store.mode === 'demo', T = { today: '', players: '', game: '', alerts: '' };
     var claims = [];
     s.order.forEach(function (pid) { s.players[pid].claims.forEach(function (c) { claims.push({ p: s.players[pid], c: c }); }); });
-    if (s.status === 'finished') html += '<section class="hsec"><h3>Game over</h3><p>The standings are frozen. Start a new game below when you\'re ready.</p><div class="row"><button type="button" class="btn small" data-h="results">Make the results image</button><button type="button" class="btn small ghost" data-h="finale">Show the final standings</button></div></section>';
-    else if (s.status === 'signup') html += startSection(s); else
-    html += '<section class="hsec"><h3>Day ' + s.day + '</h3><p>' + (demo ? 'Starting the next day lets every bot clear maps and roll.' : 'The day turns over by itself at the cutoff. Use this only to fix a missed rollover.') + '</p><div class="row">' +
-      '<button type="button" class="btn small" data-h="advance">Start the next day</button>' + (demo ? '<button type="button" class="btn small ghost" data-h="simulate">Skip ahead 3 days</button>' : '') +
-      '<button type="button" class="btn small ghost" data-h="results">Make the results image</button></div></section>';
-    if (s.status !== 'finished') html += endSection(s);
-    html += '<section class="hsec' + (claims.length ? ' attn' : '') + '"><h3>Runs waiting for approval' + (claims.length ? ' <span class="nav-badge">' + claims.length + '</span>' : '') + '</h3>' + (claims.length ? claims.map(function (x) {
+    var ac = !demo && store.access ? store.access : null, waiting = ac ? ac.pending : [], todo = claims.length + waiting.length;
+
+    // ---- Today: what needs the host, then the day ----
+    T.today += '<section class="hsec' + (todo ? ' attn' : '') + '"><h3>Needs you' + (todo ? ' <span class="nav-badge">' + todo + '</span>' : '') + '</h3>';
+    if (!todo) T.today += '<p>Nothing needs you right now. Runs to approve and people waiting to get in show up here.</p>';
+    if (claims.length) T.today += '<h4 class="hsub">Runs to approve</h4>' + claims.map(function (x) {
       var t = x.p.tasks.filter(function (k) { return k.id === x.c.task; })[0];
       return '<div class="claim"><b>' + esc(x.p.name) + '</b> says they played <b>!bsr ' + esc(t ? t.bsr.join(' or ') : '?') + '</b>' + (x.c.url ? ' (<a href="' + esc(x.c.url) + '" target="_blank" rel="noopener">replay</a>)' : '') +
         '<div class="row" style="margin-top:8px"><button type="button" class="btn small good" data-h="approve" data-pid="' + esc(x.p.id) + '" data-task="' + esc(x.c.task) + '">Approve</button><button type="button" class="btn small ghost" data-h="reject" data-pid="' + esc(x.p.id) + '" data-task="' + esc(x.c.task) + '">Reject</button></div></div>';
-    }).join('') : '<p>Nothing waiting.</p>') + '</section>';
-    if (!demo && store.access) {
-      var ac = store.access, names = ac.names || {};
-      html += '<section class="hsec' + (ac.pending.length ? ' attn' : '') + '"><h3>Who can play' + (ac.pending.length ? ' <span class="nav-badge">' + ac.pending.length + '</span>' : '') + '</h3>' +
-        '<label class="check"><input type="radio" name="acmode" value="testers"' + (ac.mode !== 'open' ? ' checked' : '') + '> <span>Only people I let in</span></label>' +
-        '<label class="check"><input type="radio" name="acmode" value="open"' + (ac.mode === 'open' ? ' checked' : '') + '> <span>Anyone who signs in with Discord' + '</span></label>';
-      html += '<p style="margin-top:10px">' + (ac.pending.length ? 'Waiting to get in:' : 'Nobody is waiting. When someone signs in, they show up here.') + '</p>';
-      ac.pending.forEach(function (w) {
-        html += '<div class="claim row" style="justify-content:space-between"><span><b>' + esc(w.name) + '</b> <span class="why">' + esc(w.id) + '</span></span><span class="row">' +
-          '<button type="button" class="btn small good" data-h="letin" data-id="' + esc(w.id) + '">Let in</button><button type="button" class="btn small ghost" data-h="dismiss" data-id="' + esc(w.id) + '">Dismiss</button></span></div>';
+    }).join('');
+    if (waiting.length) T.today += '<h4 class="hsub">Waiting to get in</h4>' + waiting.map(function (w) {
+      return '<div class="claim row" style="justify-content:space-between"><span><b>' + esc(w.name) + '</b> <span class="why">' + esc(w.id) + '</span></span><span class="row">' +
+        '<button type="button" class="btn small good" data-h="letin" data-id="' + esc(w.id) + '">Let in</button><button type="button" class="btn small ghost" data-h="dismiss" data-id="' + esc(w.id) + '">Dismiss</button></span></div>';
+    }).join('');
+    T.today += '</section>';
+    if (s.status === 'finished') T.today += '<section class="hsec"><h3>Game over</h3><p>The standings are frozen. Start a new game in the Game tab when you\'re ready.</p><div class="row"><button type="button" class="btn small" data-h="results">Make the results image</button><button type="button" class="btn small ghost" data-h="finale">Show the final standings</button></div></section>';
+    else if (s.status === 'signup') T.today += startSection(s);
+    else T.today += '<section class="hsec"><h3>Day ' + s.day + '</h3><p>' + (demo ? 'Starting the next day lets every bot clear maps and roll.' : 'The day turns over by itself at ' + esc(cutoffLabel(s)) + '. Use Start the next day only to fix a missed rollover.') + '</p><div class="row">' +
+      '<button type="button" class="btn small" data-h="results">Make the results image</button>' +
+      '<button type="button" class="btn small ghost" data-h="advance">Start the next day</button>' + (demo ? '<button type="button" class="btn small ghost" data-h="simulate">Skip ahead 3 days</button>' : '') + '</div></section>';
+
+    // ---- Players: tokens, who can play, visits ----
+    T.players += '<section class="hsec"><h3>Players</h3><p>' + (s.order.length ? 'Space 0 is the start. Moving a token does not apply the space unless you tick the box.' : 'Nobody has joined yet.') + '</p>';
+    if (s.order.length) {
+      T.players += '<table class="ptable"><tbody>';
+      s.order.forEach(function (pid) {
+        var p = s.players[pid];
+        T.players += '<tr><td><b>' + esc(p.name) + '</b><br><span class="why">' + (p.route ? s.board.routeInfo[p.route].name : 'no route') + (p.tasks.length ? ', on a map' : '') + '</span></td>' +
+          '<td>' + (p.route ? '<input type="number" min="0" max="' + E.routeOf(s, p).length + '" value="' + (p.pos + 1) + '" aria-label="Space for ' + esc(p.name) + '" data-pos="' + esc(pid) + '">' : '') + '</td>' +
+          '<td><select data-cardfor="' + esc(pid) + '" aria-label="Give ' + esc(p.name) + ' a card"><option value="">Give a card</option>' + s.cards.map(function (c) { return '<option value="' + c.id + '">' + esc(c.title) + '</option>'; }).join('') + '</select></td>' +
+          '<td><div class="row">' + (p.tasks.length ? '<button type="button" class="btn small ghost" data-h="clearmap" data-pid="' + esc(pid) + '">Clear map</button>' : '') +
+          '<button type="button" class="btn small danger" data-h="reset" data-pid="' + esc(pid) + '">Reset</button></div></td></tr>';
       });
-      if (ac.allowed.length) html += '<p style="margin-top:12px">Let in:</p>' + ac.allowed.map(function (id) {
+      T.players += '</tbody></table><label class="check"><input type="checkbox" id="applyMove"> <span>Apply the space after moving a token</span></label>';
+    }
+    T.players += '</section>';
+    if (ac) {
+      var names = ac.names || {};
+      T.players += '<section class="hsec"><h3>Who can play</h3>' +
+        '<label class="check"><input type="radio" name="acmode" value="testers"' + (ac.mode !== 'open' ? ' checked' : '') + '> <span>Only people I let in</span></label>' +
+        '<label class="check"><input type="radio" name="acmode" value="open"' + (ac.mode === 'open' ? ' checked' : '') + '> <span>Anyone who signs in with Discord</span></label>' +
+        (waiting.length ? '<p style="margin-top:10px">' + waiting.length + (waiting.length === 1 ? ' person is' : ' people are') + ' waiting to get in. Let them in from the Today tab.</p>' : '');
+      if (ac.allowed.length) T.players += '<h4 class="hsub">Let in</h4>' + ac.allowed.map(function (id) {
         return '<div class="claim row" style="justify-content:space-between"><span><b>' + esc(names[id] || 'Player') + '</b> <span class="why">' + esc(id) + '</span></span><button type="button" class="btn small danger" data-h="unallow" data-id="' + esc(id) + '">Remove</button></div>';
       }).join('');
-      html += '</section>';
+      T.players += '</section>';
     }
-    html += '<section class="hsec"><div class="thread-head"><h3>Visits</h3><button type="button" class="btn small link" data-h="visits-refresh">Refresh</button></div><p>When signed-in people opened the game and when they left. Coming back within 10 minutes counts as the same visit, so a visit ends 10 minutes after they close it, switch away or lock their phone. The last two weeks are kept.</p><div id="visitBox"><p class="why">Loading</p></div></section>';
-    html += '<section class="hsec"><h3>Notifications on this device</h3><div id="pushBox" class="push-box" data-kind="host"><p>Checking this device.</p></div></section>';
-    html += '<section class="hsec"><h3>Players</h3><p>Space 0 is the start. Moving a token does not apply the space unless you tick the box.</p><table class="ptable"><tbody>';
-    s.order.forEach(function (pid) {
-      var p = s.players[pid];
-      html += '<tr><td><b>' + esc(p.name) + '</b><br><span class="why">' + (p.route ? s.board.routeInfo[p.route].name : 'no route') + (p.tasks.length ? ', on a map' : '') + '</span></td>' +
-        '<td>' + (p.route ? '<input type="number" min="0" max="' + E.routeOf(s, p).length + '" value="' + (p.pos + 1) + '" aria-label="Space for ' + esc(p.name) + '" data-pos="' + esc(pid) + '">' : '') + '</td>' +
-        '<td><select data-cardfor="' + esc(pid) + '" aria-label="Give ' + esc(p.name) + ' a card"><option value="">Give a card</option>' + s.cards.map(function (c) { return '<option value="' + c.id + '">' + esc(c.title) + '</option>'; }).join('') + '</select></td>' +
-        '<td><div class="row">' + (p.tasks.length ? '<button type="button" class="btn small ghost" data-h="clearmap" data-pid="' + esc(pid) + '">Clear map</button>' : '') +
-        '<button type="button" class="btn small danger" data-h="reset" data-pid="' + esc(pid) + '">Reset</button></div></td></tr>';
-    });
-    html += '</tbody></table><label class="check"><input type="checkbox" id="applyMove"> <span>Apply the space after moving a token</span></label></section>';
-    html += '<section class="hsec"><h3>Rules</h3>' +
+    T.players += '<section class="hsec"><div class="thread-head"><h3>Visits</h3><button type="button" class="btn small link" data-h="visits-refresh">Refresh</button></div><p>When signed-in people opened the game and when they left. Coming back within 10 minutes counts as the same visit, so a visit ends 10 minutes after they close it, switch away or lock their phone. The last two weeks are kept.</p><div id="visitBox"><p class="why">Loading</p></div></section>';
+
+    // ---- Game: schedule, rules, theme and a new game ----
+    if (s.status !== 'finished') T.game += endSection(s);
+    T.game += '<section class="hsec"><h3>Rules</h3>' +
       '<label class="check"><input type="checkbox" data-set="exactFinish"' + (s.settings.exactFinish ? ' checked' : '') + '> <span>Exact roll needed to escape</span></label>' +
       '<label class="check"><input type="checkbox" data-set="oneFinishPerDay"' + (s.settings.oneFinishPerDay !== false ? ' checked' : '') + '> <span>Only one player can escape per day</span></label>' +
-      '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label>' +
-      '<label class="start-field"><span>Roll reminder for players who turn on notifications</span><select id="remindSel"><option value=""' + (E.remindHour(s) == null ? ' selected' : '') + '>Off</option>' +
-      [17, 18, 19, 20, 21, 22].map(function (h) { return '<option value="' + h + '"' + (E.remindHour(s) === h ? ' selected' : '') + '>' + hourLabel(h) + ' in each player\'s own time</option>'; }).join('') + '</select></label></section>';
-    html += '<section class="hsec"><h3>Theme and board</h3><div class="row"><label>Theme <select id="themeSel">' + Object.keys(C.themes).filter(function (k) { return (C.themes[k].family || 'chester') === (theme().family || 'chester'); }).map(function (k) { return '<option value="' + k + '"' + (k === s.themeId ? ' selected' : '') + '>' + esc(C.themes[k].name) + '</option>'; }).join('') + '</select></label></div>' +
-      '<p style="margin-top:10px">Changing the theme keeps everyone where they are. Starting a new game puts everyone back at the start.</p>' +
-      '<label class="start-field"><span>Start time for the new game (optional)</span><input type="datetime-local" id="newStart"></label>' +
+      '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label></section>';
+    T.game += '<section class="hsec"><h3>Theme and board</h3><div class="row"><label>Theme <select id="themeSel">' + Object.keys(C.themes).filter(function (k) { return (C.themes[k].family || 'chester') === (theme().family || 'chester'); }).map(function (k) { return '<option value="' + k + '"' + (k === s.themeId ? ' selected' : '') + '>' + esc(C.themes[k].name) + '</option>'; }).join('') + '</select></label></div>' +
+      '<p style="margin-top:10px">Changing the theme keeps everyone where they are.</p></section>';
+    T.game += '<section class="hsec danger-zone"><h3>New game</h3><p>Starting a new game puts everyone back at the start.</p>' +
+      '<label class="start-field"><span>Start time (optional)</span><input type="datetime-local" id="newStart"></label>' +
       '<label class="start-field"><span>End time (optional)</span><input type="datetime-local" id="newEnd"></label>' +
       '<p class="why">With an end time, the game locks then and the standings freeze: escaped players by place, everyone else by spaces left. Without one it runs until everyone escapes. Leave the start empty to start right away. With a start time set, sign-ups open now, people pick their routes, and the first roll unlocks at that time. Day 1 lasts until the next ' + esc(cutoffLabel(s)) + ' cutoff, so a ' + esc(cutoffLabel(s)) + ' start gives everyone a full first day.</p><div class="row">' +
-      '<button type="button" class="btn small ghost" data-h="newgame">Start a new game</button>' + (designerBoard() ? '<button type="button" class="btn small ghost" data-h="loadboard">Start a new game on the designer board</button>' : '') + '</div></section>';
+      '<button type="button" class="btn small danger" data-h="newgame">Start a new game</button>' + (designerBoard() ? '<button type="button" class="btn small ghost" data-h="loadboard">Start a new game on the designer board</button>' : '') + '</div></section>';
+
+    // ---- Alerts: Discord posts, roll reminders, this device ----
+    if (!demo && store.discord) {
+      var dc = store.discord, off = dc.hooked ? '' : ' disabled';
+      T.alerts += '<section class="hsec"><h3>Discord posts</h3>' +
+        (dc.hooked ? '<p>Automatic posts to the game channel. All of them start off.</p>' : '<p class="why">No channel webhook is set up for this game yet, so nothing can post. Add the webhook to the Worker first.</p>') +
+        POST_LIST.map(function (g) {
+          return '<h4 class="hsub">' + g[0] + (g[0] === 'Moments' ? ' <span class="why">up to 5 a day, escapes always post</span>' : '') + '</h4>' + g[1].map(function (k) {
+            return '<label class="check"><input type="checkbox" data-post="' + k[0] + '"' + (dc[k[0]] ? ' checked' : '') + off + '> <span>' + esc(k[1]) + '</span></label>';
+          }).join('');
+        }).join('') +
+        '<p class="why" style="margin-top:10px">The results picture only posts when you press Post to Discord.</p>' +
+        (dc.hooked ? '<div class="row"><button type="button" class="btn small ghost" data-h="discordtest">Send a test post</button></div>' : '') + '</section>';
+    }
+    T.alerts += '<section class="hsec"><h3>Roll reminders</h3><label class="start-field"><span>Push reminder for players who turn on notifications</span><select id="remindSel"><option value=""' + (E.remindHour(s) == null ? ' selected' : '') + '>Off</option>' +
+      [17, 18, 19, 20, 21, 22].map(function (h) { return '<option value="' + h + '"' + (E.remindHour(s) === h ? ' selected' : '') + '>' + hourLabel(h) + ' in each player\'s own time</option>'; }).join('') + '</select></label></section>';
+    T.alerts += '<section class="hsec"><h3>Notifications on this device</h3><div id="pushBox" class="push-box" data-kind="host"><p>Checking this device.</p></div></section>';
+
+    var html = '<div class="htabs" role="tablist">' + HOST_TABS.map(function (t) {
+      var n = t[0] === 'today' ? todo : 0;
+      return '<button type="button" role="tab" class="htab" data-h="tab" data-tab="' + t[0] + '" aria-selected="' + (hostTab === t[0]) + '">' + t[1] + (n ? ' <span class="nav-badge">' + n + '</span>' : '') + '</button>';
+    }).join('') + '</div>' + HOST_TABS.map(function (t) { return '<div class="hpane" data-pane="' + t[0] + '" role="tabpanel"' + (hostTab === t[0] ? '' : ' hidden') + '>' + T[t[0]] + '</div>'; }).join('');
     var keep = {}; ['newStart', 'startEdit', 'newEnd', 'endEdit'].forEach(function (id) { var el = $(id); if (el && el.value && el.dataset.touched) keep[id] = el.value; });
     $('hostBody').innerHTML = html;
     fillVisits();
     Object.keys(keep).forEach(function (id) { var el = $(id); if (el) { el.value = keep[id]; el.dataset.touched = '1'; } });
     ['newStart', 'startEdit', 'newEnd', 'endEdit'].forEach(function (id) { var el = $(id); if (el) el.addEventListener('input', function () { el.dataset.touched = '1'; }); });
     fillPush();
+  }
+  function showHostTab(id) {
+    hostTab = id;
+    Array.prototype.forEach.call(document.querySelectorAll('#hostBody .htab'), function (b) { b.setAttribute('aria-selected', String(b.dataset.tab === id)); });
+    Array.prototype.forEach.call(document.querySelectorAll('#hostBody .hpane'), function (p) { p.hidden = p.dataset.pane !== id; });
+    $('hostBody').scrollTop = 0;
   }
 
   // ---- push notifications (hosts) ------------------------------------------------
@@ -1705,6 +1752,8 @@
       case 'advance': run('advance', {}, 'Day ' + (st().day + 1) + ' has started.'); break;
       case 'simulate': run('simulate', { days: 3 }, 'Skipped ahead 3 days.'); break;
       case 'results': openResults(); break;
+      case 'tab': showHostTab(btn.dataset.tab); break;
+      case 'discordtest': run('discordTest', {}, 'Test post sent. Check the channel.'); break;
       case 'approve': run('approve', { pid: pid, task: btn.dataset.task }, 'Approved.'); break;
       case 'reject': run('reject', { pid: pid, task: btn.dataset.task }); break;
       case 'clearmap': { var p = st().players[pid]; run('approve', { pid: pid, task: p.tasks[0].id }, 'Map cleared for ' + p.name + '.'); break; }
@@ -1796,13 +1845,14 @@
       if (t.dataset.cardfor && t.value) { var pid = t.dataset.cardfor, cid = t.value; store.act('card', { pid: pid, card: cid }).then(function () { toast('Gave ' + st().players[pid].name + ' a card.', 'good'); }, fail); return; }
       if (t.dataset.set) { var patch = {}; patch[t.dataset.set] = t.checked; store.act('settings', { patch: patch }).catch(fail); return; }
       if (t.name === 'sumode') { store.act('signups', { closed: t.value === 'closed' }).then(function () { toast(t.value === 'closed' ? 'Sign-ups are closed until the game starts.' : 'Sign-ups are open.', 'good'); }, fail); return; }
+      if (t.dataset.post) { var on = t.checked; store.act('discordPosts', { kind: t.dataset.post, on: on }).then(function () { track('host-discord-' + t.dataset.post + (on ? '-on' : '-off')); toast(on ? 'That post is on.' : 'That post is off.', 'good'); }, function (e) { t.checked = !on; fail(e); }); return; }
       if (t.name === 'acmode') { store.act('accessMode', { mode: t.value }).then(function () { track('host-access-' + t.value); toast(t.value === 'open' ? 'Anyone who signs in can play now.' : 'Invite-only again.', 'good'); }, fail); return; }
       if (t.id === 'remindSel') { store.act('settings', { patch: { remindHour: t.value === '' ? null : Number(t.value) } }).then(function () { track('host-reminder-' + (t.value || 'off')); toast(t.value === '' ? 'Roll reminders are off.' : 'Roll reminders go out at ' + hourLabel(t.value) + '.', 'good'); }, fail); return; }
       if (t.id === 'themeSel') { store.act('theme', { theme: t.value }).then(function () { track('host-theme-' + t.value); renderBoard(true); }, fail); }
     });
     $('howBtn').onclick = openHow;
     $('playlistBtn').onclick = openPlaylist;
-    $('hostBtn').onclick = openHost;
+    $('hostBtn').onclick = function () { openHost(); };
     $('hostX').onclick = closeHost;
     $('scrim').onclick = closeHost;
     $('modalX').onclick = closeModal;

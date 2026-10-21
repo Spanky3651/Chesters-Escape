@@ -864,3 +864,15 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
   .hw-hero p { font-size: 16px; }
 }
 @media (prefers-reduced-motion: reduce) { .hw-hero .a-bob { animation: none; } }
+
+/* ---- Host tools tabs ---- */
+.htabs { position: sticky; top: -8px; z-index: 2; display: flex; gap: 4px; margin: -8px -20px 4px; padding: 10px 20px; background: var(--raise); border-bottom: 1px solid var(--line); }
+.htab { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 6px; border-radius: 10px; border: 1px solid transparent; background: none; color: var(--muted); font: 700 15px var(--ui); cursor: pointer; }
+.htab:hover { color: var(--text); background: var(--raise-2); }
+.htab[aria-selected="true"] { color: var(--accent-ink); background: var(--accent); }
+.htab[aria-selected="true"] .nav-badge { background: var(--accent-ink); color: var(--accent); }
+.hpane > .hsec:last-child { border-bottom: 0; }
+.hsec.danger-zone { margin-top: 10px; padding: 14px; border: 1px dashed color-mix(in srgb, var(--warn) 55%, transparent); border-radius: var(--r); }
+.hsec .hsub .why { font-weight: 400; font-size: 13px; margin-left: 6px; }
+.check input { flex: none; }
+.ptable .btn { white-space: nowrap; }

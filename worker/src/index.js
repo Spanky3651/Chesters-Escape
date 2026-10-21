@@ -21,6 +21,12 @@ import { sendPush } from './push.js';
 const E = globalThis.CGEngine;
 const C = globalThis.CGContent;
 const CHECK_EVERY = 15 * 60 * 1000;
+const HOUR = 3600000, DAY = 86400000;
+// Discord posts the host can switch on: countdowns and the start/end, then game moments.
+const POST_KINDS = ['signups', 'hour', 'start', 'lastcall', 'end', 'escape', 'leader', 'setback', 'big', 'gate'];
+const MOMENT_CAP = 5, SETBACK = 5, BIG_ACC = 0.95;
+function md(t) { return String(t || '').replace(/([*_~`|>\\])/g, '\\$1'); }
+function ordinal(n) { const v = n % 100; return n + (v >= 11 && v <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'); }
 const VISIT_GAP = 10 * 60 * 1000;   // a return within this long continues the same visit
 
 // ---------------------------------------------------------------------------
@@ -65,7 +71,7 @@ function hosts(env, clan) { return [...list(env.HOSTS), ...((clan && clan.hosts)
 // The clans, from the CLANS setting in wrangler.toml. Each one:
 //   name, guild (Discord server ID, empty = anyone), game (stored game name, defaults to the id),
 //   order (position on the switcher), theme (for a brand-new game), hosts (extra host IDs), webhook (name of the secret holding the
-//   channel webhook), announce ("1" posts every message, or a list of start, day and end, e.g. "start,end").
+//   channel webhook), announce ("1" posts the start and end messages, or just "start" or "end"). The host can switch them in Host tools.
 // Without CLANS it falls back to one clan built from GUILD_ID, stored as the "main" game.
 function clans(env) {
   let c = env.CLANS;
@@ -261,7 +267,108 @@ export class Game extends DurableObject {
   }
   page(hash) { return pageFor(this.env, this.clan(), hash); }
   webhook() { return this.env[this.clan().webhook] || ''; }
-  announcing(kind) { const a = String(this.clan().announce || '0'); return !!this.webhook() && (a === '1' || a.split(',').map((x) => x.trim()).includes(kind)); }
+  // Which automatic Discord posts this game makes. The host switches each one in Host tools; until
+  // then the clan's announce setting decides ("1" turns everything on, or a list like "start,end").
+  posts() {
+    if (!this.meta.posts) {
+      const a = String(this.clan().announce || '0'), all = a === '1', l = a.split(',').map((x) => x.trim());
+      this.meta.posts = {};
+      for (const k of POST_KINDS) this.meta.posts[k] = all || l.includes(k);
+    }
+    return this.meta.posts;
+  }
+  discordInfo() { const p = this.posts(), out = { hooked: !!this.webhook() }; for (const k of POST_KINDS) out[k] = !!p[k]; return out; }
+  announcing(kind) { return !!this.webhook() && !!this.posts()[kind]; }
+  async discordPost(content, link) {
+    await fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: content + (link && this.page() ? `\n${this.page()}` : ''), allowed_mentions: { parse: [] } }) }).catch(() => {});
+  }
+  // Game moments for the channel, read from the event log so nothing posts twice. The first run
+  // after an update only notes where the log is. Moments are capped per game day so a busy day
+  // can't flood the channel; escapes, the game start, end and countdowns don't count toward the cap.
+  async discordFeed() {
+    const s = this.state, m = this.meta, now = Date.now();
+    const last = s.events.length ? s.events[s.events.length - 1].id : 0;
+    const bigNow = () => s.events.filter((e) => e.t === 'cleared' && e.proof && e.proof.acc >= BIG_ACC).map((e) => e.id + ':' + Math.round(e.proof.acc * 10000));
+    if (!m.feed || m.feed.game !== s.id) {
+      const fresh = !!m.feed;
+      m.feed = { game: s.id, ev: last, big: bigNow(), leader: this.leaderNow(), open: E.signupsOpen(s) && s.status === 'signup', hour: false, lastcall: false, capDay: null, n: 0, leadDay: null };
+      if (fresh && m.feed.open && this.announcing('signups')) await this.discordPost(`📣 **Sign-ups are open for ${md(s.title)}!**` + (s.startsAt ? ` It starts <t:${Math.round(s.startsAt / 1000)}:F>.` : '') + ' Join and pick your route.', true);
+      return;
+    }
+    const f = m.feed, t = C.themes[s.themeId] || {}, goal = t.goal || 'exit';
+    const name = (pid) => md((s.players[pid] || {}).name || 'Someone');
+    const say = async (kind, text) => {
+      if (!this.announcing(kind)) return;
+      if (f.capDay !== s.day) { f.capDay = s.day; f.n = 0; }
+      if (kind !== 'escape') { if (f.n >= MOMENT_CAP) return; f.n++; }   // escapes always post
+      await this.discordPost(text, false);
+    };
+    // countdowns
+    const open = s.status === 'signup' && E.signupsOpen(s);
+    if (open && !f.open && this.announcing('signups')) await this.discordPost(`📣 **Sign-ups are open for ${md(s.title)}!** Join and pick your route.`, true);
+    f.open = open;
+    if (s.status === 'signup' && s.startsAt && !f.hour && now >= s.startsAt - HOUR && now < s.startsAt) {
+      f.hour = true;
+      if (this.announcing('hour')) await this.discordPost(`⏰ **${md(s.title)} starts <t:${Math.round(s.startsAt / 1000)}:R>.** Last chance to join and pick a route.`, true);
+    }
+    if (s.status === 'running' && s.endsAt && !f.lastcall && now >= s.endsAt - DAY && now < s.endsAt) {
+      f.lastcall = true;
+      if (this.announcing('lastcall')) await this.discordPost(`⏳ **${md(s.title)} ends <t:${Math.round(s.endsAt / 1000)}:R>.** Get your rolls in.`, true);
+    }
+    // moments since last time
+    const fresh = s.events.filter((e) => e.id > f.ev);
+    f.ev = last;
+    for (const e of fresh) {
+      const kd = e.space && s.board.spaces[e.space] && t.kinds ? t.kinds[s.board.spaces[e.space].kind] : null;
+      const card = e.card ? (s.cards || []).find((c) => c.id === e.card) : null;
+      const why = kd ? `*${kd.title}* ` : card ? `*${card.title || card.name || 'A card'}* ` : '';
+      if (e.t === 'escaped') await say('escape', `🏁 ${why}**${name(e.pid)}** made it to the ${goal}! ${ordinal(e.place)} place, day ${e.day}.`);
+      else if (e.t === 'gate-closed') await say('gate', `🚪 **${name(e.pid)}** reached the ${goal}, but someone already got out today. They wait at the gate until tomorrow.`);
+      else if (e.t === 'start') await say('setback', `💀 ${why}**${name(e.pid)}** is back at the start.`);
+      else if (e.t === 'move' && e.n <= -SETBACK) await say('setback', `💀 ${why}**${name(e.pid)}** got knocked back ${-e.n} spaces.`);
+      else if (e.t === 'warp') {
+        const p = s.players[e.pid], r = p && p.route ? s.board.routes[p.route] : [], back = r.indexOf(e.space) - r.indexOf(e.to);
+        if (back >= SETBACK && r.indexOf(e.to) >= 0) await say('setback', `💀 ${why}**${name(e.pid)}** got swept back ${back} spaces.`);
+      }
+    }
+    // big scores, including old clears improved past the line
+    const big = bigNow(), seen = new Set(f.big);
+    for (const k of big) {
+      if (seen.has(k)) continue;
+      const id = Number(k.split(':')[0]), e = s.events.find((x) => x.id === id);
+      const before = f.big.some((x) => x.split(':')[0] === String(id));
+      if (e && !before) {
+        const key = (e.bsr || [])[0], song = key ? await this.songName(key) : '';
+        await say('big', `✨ **${name(e.pid)}** cleared ${song ? `**${md(song)}**` : `!bsr ${key}`} at **${(e.proof.acc * 100).toFixed(2)}%**` + (e.proof.diff ? ` (${e.proof.diff})` : '') + '.');
+      }
+    }
+    f.big = big;
+    // a new leader, at most once a game day
+    const lead = this.leaderNow();
+    if (lead && f.leader && lead !== f.leader && s.status === 'running' && !s.players[lead].finished && f.leadDay !== s.day) {
+      const r = E.ranking(s)[0];
+      f.leadDay = s.day;
+      await say('leader', `👑 **${name(lead)}** takes the lead from **${name(f.leader)}**. ${r ? r.left + ' spaces to go.' : ''}`);
+    }
+    if (lead) f.leader = lead;
+  }
+  // The one player out in front (nobody when it's a tie).
+  leaderNow() {
+    const s = this.state; if (!s || s.status !== 'running') return null;
+    const r = E.ranking(s); if (!r.length) return null;
+    if (r[1] && r[1].place === r[0].place) return null;
+    return r[0].pid;
+  }
+  async songName(key) {
+    const m = (this.meta.songs = this.meta.songs || {}); key = String(key).toLowerCase();
+    if (m[key]) return m[key];
+    const r = await fetch((this.env.BS_API || 'https://api.beatsaver.com') + '/maps/id/' + key, { headers: { 'user-agent': 'ChestersEscape' } }).catch(() => null);
+    if (!r || !r.ok) return '';
+    const j = await r.json().catch(() => ({}));
+    const n = String((j.metadata && j.metadata.songName) || j.name || '').slice(0, 80);
+    if (n) { m[key] = n; const ks = Object.keys(m); if (ks.length > 300) delete m[ks[0]]; }
+    return n;
+  }
 
   game() {
     if (!this.state) {
@@ -292,7 +399,10 @@ export class Game extends DurableObject {
     await this.ctx.storage.put('state', this.state);
     await this.ctx.storage.put('meta', this.meta);
     const s = this.state;
-    const next = !s ? null : s.status === 'signup' ? s.startsAt : s.status === 'running' ? Math.min(this.meta.nextCutoff || Infinity, s.endsAt || Infinity) : null;
+    let next = !s ? null : s.status === 'signup' ? s.startsAt : s.status === 'running' ? Math.min(this.meta.nextCutoff || Infinity, s.endsAt || Infinity) : null;
+    // wake up for the one-hour and last-day posts too
+    const f = this.meta.feed || {}, soon = [s && s.status === 'signup' && s.startsAt && !f.hour ? s.startsAt - HOUR : 0, s && s.status === 'running' && s.endsAt && !f.lastcall ? s.endsAt - DAY : 0].filter((x) => x > Date.now());
+    if (soon.length) next = Math.min(next || Infinity, ...soon);
     const want = Math.max(Date.now() + 1000, Math.min(next && isFinite(next) ? next : Date.now() + CHECK_EVERY, Date.now() + CHECK_EVERY));
     const cur = await this.ctx.storage.getAlarm();
     if (!cur || cur > want) await this.ctx.storage.setAlarm(want);
@@ -331,7 +441,7 @@ export class Game extends DurableObject {
     if (this.dirty) { this.dirty = false; await this.save(); }
     if (since === s.seq) return { state: null, me, canPlay, online: this.onlineNow() };
     const out = { state: E.publicState(s), me, canPlay, isHost: !!user.isHost, user: { id: user.id, name: user.name, avatar: user.avatar }, online: this.onlineNow() };
-    if (user && user.isHost) out.access = this.access();
+    if (user && user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); }
     return out;
   }
 
@@ -339,7 +449,7 @@ export class Game extends DurableObject {
     this.useClan(user);
     const s = this.game(); const pid = this.pidFor(user);
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
-    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess'];
+    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest'];
     if (hostOnly.includes(action) && !user.isHost) return { error: 'Only the host can do that.', status: 403 };
     if (s.status === 'finished' && ['join', 'route', 'roll', 'verify', 'claim'].includes(action)) return { error: 'The game is over.' };
     const wasRunning = s.status === 'running';
@@ -400,6 +510,7 @@ export class Game extends DurableObject {
           this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.themes[themeId].title, settings: s.settings, rng, status: startsAt ? 'signup' : 'running', startsAt, endsAt });
           keep.forEach((p) => E.addPlayer(this.state, { id: p.id, discordId: p.discordId, name: p.name, avatar: p.avatar, blId: p.blId }));
           this.meta.nextCutoff = startsAt ? null : E.nextCutoff(this.state.settings);
+          if (this.meta.feed) this.meta.feed.game = null;   // a new game: its sign-up post can go out
           break;
         }
         case 'schedule': {
@@ -437,6 +548,17 @@ export class Game extends DurableObject {
           ac.names = ac.names || {}; if (w) ac.names[id] = w.name; else if (a.name) ac.names[id] = String(a.name).slice(0, 60);
           ac.pending = ac.pending.filter((x) => x.id !== id); s.seq++; break;
         }
+        case 'discordPosts': {
+          if (!POST_KINDS.includes(a.kind)) return { error: 'Unknown post.' };
+          this.posts()[a.kind] = !!a.on; s.seq++; break;
+        }
+        case 'discordTest': {
+          if (!this.webhook()) return { error: 'No Discord webhook is set up for this game yet.' };
+          const content = `Test post from **${s.title}**. Game posts will show up in this channel.` + (this.page() ? `\n${this.page()}` : '');
+          const r = await fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content, allowed_mentions: { parse: [] } }) }).catch(() => null);
+          if (!r || !r.ok) return { error: 'Discord did not accept the post' + (r ? ' (' + r.status + ').' : '.') };
+          break;
+        }
         case 'dismiss': { const ac = this.access(); ac.pending = ac.pending.filter((x) => x.id !== String(a.id)); s.seq++; break; }
         case 'removeAccess': { const ac = this.access(); ac.allowed = ac.allowed.filter((x) => x !== String(a.id)); s.seq++; break; }
         default: return { error: 'Unknown action.' };
@@ -444,11 +566,12 @@ export class Game extends DurableObject {
     } catch (e) {
       return { error: e.message || 'That did not work.', code: e.code };
     }
+    await this.discordFeed();
     if (wasRunning && this.state.status === 'finished' && action !== 'endNow') await this.announceEnd();
     await this.save();
     if (this.state.players[pid]) this.seen(pid);
     const out = { result, state: E.publicState(this.state), me: this.state.players[pid] ? pid : null, canPlay: true, online: this.onlineNow() };
-    if (user.isHost) out.access = this.access();
+    if (user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); }
     return out;
   }
   // Who has the game open right now. Open pages check in every 20 seconds while visible, so
@@ -676,11 +799,6 @@ export class Game extends DurableObject {
     } else if (s.status === 'running' && this.meta.nextCutoff && now >= this.meta.nextCutoff - 1000) {
       E.advanceDay(s);
       this.meta.nextCutoff = E.nextCutoff(s.settings, now + 1000);
-      if (this.announcing('day')) {
-        const left = s.order.filter((id) => !s.players[id].finished).length;
-        const content = `**Day ${s.day - 1} is done!** ${left} still trying to escape. Day ${s.day} starts now.` + (this.page() ? `\n${this.page()}` : '');
-        await fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
-      }
     }
     await this.remind(now);
     if (s.status === 'running') {
@@ -696,6 +814,7 @@ export class Game extends DurableObject {
       this.meta.sweepOff = off + batch.length;
       for (const pid of busy.slice(0, 30).concat(batch)) { try { await this.check(pid); } catch { /* try again next sweep */ } }
     }
+    await this.discordFeed();
     await this.save();
   }
 }
