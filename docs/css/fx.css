@@ -432,12 +432,13 @@ button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
 @keyframes rx_hurry_hand{to{transform:rotate(360deg)}}
 @keyframes rx_hurry_jit{50%{transform:rotate(3deg)}}
 @keyframes rx_hurry_tick{50%{opacity:0}}
-.rx-strong .a-arm { transform-origin:8px 27px;animation:rx_strong_flex 1.2s ease-in-out infinite }
-.rx-strong .a-tw { transform-box:fill-box;transform-origin:center;animation:rx_strong_tw 1.2s ease-in-out infinite }
-.rx-strong .t2 { animation-delay:-.6s }
+.rx-strong .a-arm { transform-origin:24px 30px;animation:rx_strong_flex 1.2s ease-in-out infinite }
+.rx-strong .a-pow { transform-origin:7px 11px;animation:rx_strong_pow 1.2s ease-out infinite }
+.rx-strong .a-shine { animation:rx_strong_shn 1.2s ease-in-out infinite }
+@keyframes rx_strong_flex{0%,100%{transform:none}45%,60%{transform:rotate(-5deg) scale(1.05)}}
+@keyframes rx_strong_pow{0%,30%{opacity:0;transform:scale(.6)}50%{opacity:1;transform:scale(1)}80%,100%{opacity:0;transform:scale(1.15)}}
+@keyframes rx_strong_shn{0%,100%{opacity:.35}50%{opacity:.9}}
 
-@keyframes rx_strong_flex{0%,100%{transform:scale(1)}50%{transform:scale(1.08) rotate(-3deg)}}
-@keyframes rx_strong_tw{0%,100%{transform:scale(.4);opacity:.4}50%{transform:scale(1.1) rotate(30deg);opacity:1}}
 
 /* reaction added Oct 22: heartbroken */
 .rx-broken .a-hl { transform-origin:15px 27px;animation:rx_broken_hl 2s ease-in-out infinite }
