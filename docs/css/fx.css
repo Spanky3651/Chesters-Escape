@@ -438,3 +438,12 @@ button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
 
 @keyframes rx_strong_flex{0%,100%{transform:scale(1)}50%{transform:scale(1.08) rotate(-3deg)}}
 @keyframes rx_strong_tw{0%,100%{transform:scale(.4);opacity:.4}50%{transform:scale(1.1) rotate(30deg);opacity:1}}
+
+/* reaction added Oct 22: heartbroken */
+.rx-broken .a-hl { transform-origin:15px 27px;animation:rx_broken_hl 2s ease-in-out infinite }
+.rx-broken .a-hr { transform-origin:17px 27px;animation:rx_broken_hr 2s ease-in-out infinite }
+.rx-broken .a-tear { animation:rx_broken_tear 2s ease-in infinite }
+
+@keyframes rx_broken_hl{0%,30%{transform:none}10%{transform:scale(1.06)}45%,85%{transform:translate(-1.4px,.6px) rotate(-8deg)}100%{transform:none}}
+@keyframes rx_broken_hr{0%,30%{transform:none}10%{transform:scale(1.06)}45%,85%{transform:translate(1.4px,.6px) rotate(8deg)}100%{transform:none}}
+@keyframes rx_broken_tear{0%,50%{opacity:0;transform:none}55%{opacity:1}85%{opacity:0;transform:translateY(6px)}100%{opacity:0}}
