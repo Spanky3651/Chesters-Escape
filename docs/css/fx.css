@@ -402,3 +402,39 @@ button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
 .rw-ava { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex: none; display: grid; place-items: center; background: #1a1d18; border: 2px solid var(--c); font: 700 10px var(--ui); color: #fff; }
 @media (prefers-reduced-motion: reduce) { .rx-who { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .board-svg .egg.egg-spin, .board-svg .egg.egg-hide, .board-svg .egg.egg-go { animation: none; } }
+
+/* reactions added Oct 22: crying, sweating, rage, hurry up, strong */
+.rx-cry .a-sob { transform-origin:16px 26px;animation:rx_cry_sob .5s ease-in-out infinite }
+.rx-cry .a-lip { transform-origin:16px 23px;animation:rx_cry_lip .25s steps(2) infinite }
+.rx-cry .a-stream { animation:rx_cry_flow .5s linear infinite }
+
+@keyframes rx_cry_sob{30%{transform:translateY(-.7px) scale(1.02,.98)}60%{transform:translateY(.3px)}}
+@keyframes rx_cry_lip{50%{transform:translateY(.5px) scaleX(.94)}}
+@keyframes rx_cry_flow{to{stroke-dashoffset:-4.4}}
+.rx-sweat .a-pant { transform-origin:16px 26px;animation:rx_sweat_pant .4s ease-in-out infinite }
+.rx-sweat .a-mouth { transform-origin:16px 21px;animation:rx_sweat_mo .4s ease-in-out infinite }
+.rx-sweat .a-drop { animation:rx_sweat_dr 1s ease-in infinite }
+.rx-sweat .d2 { animation-delay:-.5s }
+
+@keyframes rx_sweat_pant{50%{transform:scale(1.03,.97)}}
+@keyframes rx_sweat_mo{50%{transform:scaleY(.5)}}
+@keyframes rx_sweat_dr{0%{transform:translate(0,0);opacity:0}20%{opacity:1}100%{transform:translate(0,12px);opacity:0}}
+.rx-rage .a-shake { transform-origin:16px 28px;animation:rx_rage_shake .18s linear infinite }
+.rx-rage .a-steam { animation:rx_rage_st 1s ease-out infinite }
+.rx-rage .s2 { animation-delay:-.5s }
+
+@keyframes rx_rage_shake{25%{transform:translateX(-.8px) rotate(-1.5deg)}75%{transform:translateX(.8px) rotate(1.5deg)}}
+@keyframes rx_rage_st{0%{opacity:0;transform:translateY(3px) scale(.5)}30%{opacity:1}100%{opacity:0;transform:translateY(-4px) scale(1.2)}}
+.rx-hurry .a-hand { transform-origin:16px 18px;animation:rx_hurry_hand 2s steps(8) infinite }
+.rx-hurry .a-jit { transform-origin:16px 18px;animation:rx_hurry_jit .25s steps(2) infinite }
+.rx-hurry .a-tick { animation:rx_hurry_tick .5s steps(2) infinite }
+
+@keyframes rx_hurry_hand{to{transform:rotate(360deg)}}
+@keyframes rx_hurry_jit{50%{transform:rotate(3deg)}}
+@keyframes rx_hurry_tick{50%{opacity:0}}
+.rx-strong .a-arm { transform-origin:8px 27px;animation:rx_strong_flex 1.2s ease-in-out infinite }
+.rx-strong .a-tw { transform-box:fill-box;transform-origin:center;animation:rx_strong_tw 1.2s ease-in-out infinite }
+.rx-strong .t2 { animation-delay:-.6s }
+
+@keyframes rx_strong_flex{0%,100%{transform:scale(1)}50%{transform:scale(1.08) rotate(-3deg)}}
+@keyframes rx_strong_tw{0%,100%{transform:scale(.4);opacity:.4}50%{transform:scale(1.1) rotate(30deg);opacity:1}}

@@ -92,7 +92,7 @@
       var n = 1 + Math.floor(Math.random() * 3);
       for (var k = 0; k < n; k++) {
         var b = bots[Math.floor(Math.random() * bots.length)]; if (!b || b === e.pid) continue;
-        var pick = e.t === 'start' ? ['rip', 'lol', 'popcorn', 'pressf', 'salt'] : e.t === 'cleared' ? ['ss', 'fire', 'medal', 'love', 'jaw', 'letsgo', 'sabers', 'salt'] : e.t === 'escaped' ? ['medal', 'letsgo', 'bump', 'love', 'hero', 'fire', 'salt'] : e.t === 'pass' ? ['fire', 'jaw', 'sabers', 'salt', 'popcorn'] : E.REACTIONS;
+        var pick = e.t === 'start' ? ['rip', 'lol', 'popcorn', 'pressf', 'salt', 'cry', 'rage'] : e.t === 'cleared' ? ['ss', 'fire', 'medal', 'love', 'jaw', 'letsgo', 'sabers', 'salt', 'strong', 'sweat'] : e.t === 'escaped' ? ['medal', 'letsgo', 'bump', 'love', 'hero', 'fire', 'salt'] : e.t === 'pass' ? ['fire', 'jaw', 'sabers', 'salt', 'popcorn'] : E.REACTIONS;
         var em = pick[Math.floor(Math.random() * pick.length)];
         var have = s.reactions && s.reactions[e.id] && s.reactions[e.id][em];
         if (!have || have.indexOf(b) < 0) try { E.react(s, b, e.id, em); } catch (x) {}
