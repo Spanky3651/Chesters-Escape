@@ -754,13 +754,9 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
   .layout > .standings .st { padding: 8px 10px; }
 }
 
-/* Roll reminders: a bell in the header that opens a small panel. */
+/* Roll reminders: a bell in the header that opens a small panel. The bell looks the same on or off; the panel shows which. */
 .rem-btn { position: relative; }
 .rem-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.rem-btn.on { color: var(--good); }
-.rem-btn.on svg { fill: color-mix(in srgb, var(--good) 25%, transparent); }
-.rem-dot { position: absolute; top: 7px; right: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 2px var(--bg); display: none; }
-.rem-btn.on .rem-dot { display: block; }
 .rem-pop { position: fixed; z-index: 45; width: min(380px, calc(100vw - 24px)); padding: 8px; border-radius: 16px; background: var(--raise); border: 1px solid var(--line-2); box-shadow: 0 24px 60px rgba(0,0,0,.6); }
 .rem-pop .rem { border: 0; background: none; box-shadow: none; }
 .rem-pop .push-box:empty::before { content: 'Checking this device.'; display: block; padding: 12px; color: var(--muted); font-size: 14px; }
@@ -820,12 +816,15 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .host-btn.todo .sk-jaw { animation: skCall 5s ease-in-out infinite; }
 @keyframes skGlow { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
 @keyframes skCall { 0%, 18%, 100% { transform: none; } 3%, 9%, 15% { transform: translateY(1.6px) rotate(4deg); } 6%, 12% { transform: none; } }
+/* page load: the jaw opens and shuts once to say hello */
+.host-btn.hello .sk-jaw { animation: skHello .55s ease-in-out 1; }
+@keyframes skHello { 0%, 100% { transform: none; } 45% { transform: translateY(2px) rotate(6deg); } }
 /* click: a cackle */
 .host-btn.laugh .sk-all { animation: skCackle .8s ease-in-out; }
 .host-btn.laugh .sk-jaw { animation: skChat .13s linear 6; }
 .host-btn.laugh .sk-eye { opacity: 1; animation: none; }
 @keyframes skCackle { 0%, 100% { transform: none; } 15% { transform: rotate(-12deg) translateY(-1px); } 35% { transform: rotate(10deg) translateY(-1.5px); } 55% { transform: rotate(-8deg); } 75% { transform: rotate(5deg); } }
-@media (prefers-reduced-motion: reduce) { .skull *, .host-btn:hover .sk-jaw, .host-btn.todo .sk-jaw, .host-btn.laugh .sk-all, .host-btn.laugh .sk-jaw { animation: none !important; transition: none !important; } .host-btn:hover .sk-all { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .skull *, .host-btn:hover .sk-jaw, .host-btn.todo .sk-jaw, .host-btn.hello .sk-jaw, .host-btn.laugh .sk-all, .host-btn.laugh .sk-jaw { animation: none !important; transition: none !important; } .host-btn:hover .sk-all { transform: none; } }
 .host-btn .nav-badge { position: absolute; top: -4px; right: -6px; min-width: 18px; height: 18px; font-size: 11.5px; padding: 0 5px; }
 .drawer-head .designer-link { margin-left: auto; margin-right: 52px; }
 

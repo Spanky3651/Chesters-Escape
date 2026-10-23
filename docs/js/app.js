@@ -169,7 +169,7 @@
 
   // ---- header ----------------------------------------------------------------
   // Things waiting on the host: runs to approve and people waiting to get in.
-  var lastTodo = 0;
+  var lastTodo = 0, skullSaidHi = false;
   // Host tools button: a skull with a jaw that chatters, eyes that light up, and a laugh when you open it.
   var SKULL = '<svg class="skull" viewBox="0 0 24 24" aria-hidden="true"><g class="sk-all">' +
     '<g class="sk-head"><path fill-rule="evenodd" d="M12 2.2c-4.9 0-8.7 3.5-8.7 8.1 0 2.7 1.3 4.8 3.3 6.1v1.3h10.8v-1.3c2-1.3 3.3-3.4 3.3-6.1 0-4.6-3.8-8.1-8.7-8.1zM6.3 11.2a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0-4.8 0zM12.9 11.2a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0-4.8 0zM12 13.6l-1.1 2.1h2.2z"/>' +
@@ -240,6 +240,8 @@
     var hb = $('hostBtn');
     // The skull is drawn once so its animations keep running; only the badge changes.
     if (!hb.querySelector('.skull')) hb.innerHTML = SKULL;
+    // The first time the skull shows on this page load, its jaw opens and shuts once.
+    if (!hb.hidden && !skullSaidHi) { skullSaidHi = true; setTimeout(function () { hb.classList.add('hello'); setTimeout(function () { hb.classList.remove('hello'); }, 650); }, 700); }
     var badge = hb.querySelector('.nav-badge');
     if (todo.total) { if (!badge) { hb.insertAdjacentHTML('beforeend', '<span class="nav-badge" aria-hidden="true"></span>'); badge = hb.querySelector('.nav-badge'); } badge.textContent = todo.total; }
     else if (badge) badge.remove();
