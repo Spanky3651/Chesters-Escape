@@ -416,6 +416,10 @@
     if (c.code === 'skip') return p.skip ? 'You sit this one out. ' + p.skip + ' more after today.' : 'You sit this one out. You can roll again tomorrow.';
     return c.reason;
   }
+  // Opens Playlist Studio with the task's map(s) already looked up (a single map opens its preview).
+  function studioLink(keys) {
+    return 'https://spanky3651.github.io/Playlist-Studio/?bsr=' + keys.map(encodeURIComponent).join(',') + '&utm_source=chester&utm_campaign=bsr-link';
+  }
   function taskHtml(p, task) {
     var s = st(), why = '';
     if (task.bonus) why = 'Bonus map';
@@ -432,6 +436,7 @@
     } else {
       html += '<div class="task-actions"><button type="button" class="btn small" data-verify>Check BeatLeader</button>' +
         '<a class="btn small ghost" target="_blank" rel="noopener" href="https://beatsaver.com/maps/' + esc(task.bsr[0]) + '">BeatSaver</a>' +
+        '<a class="btn small ghost" target="_blank" rel="noopener" href="' + esc(studioLink(task.bsr)) + '" title="Open this map in Playlist Studio">Playlist Studio</a>' +
         '<button type="button" class="btn small link" data-claim>I played it but it didn\'t show up</button>' +
         (store.mode === 'demo' ? '<button type="button" class="btn small link" data-pass>Pretend I passed it</button>' : '') + '</div>' +
         '<div class="task-claim" data-claimform hidden><input type="url" placeholder="Replay link (optional)" aria-label="Replay link"><button type="button" class="btn small ghost" data-claimsend>Send to the host</button></div>';
