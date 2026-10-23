@@ -460,3 +460,15 @@ button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
 @keyframes rx_hbird_flapn{0%{transform:rotate(-6deg)}100%{transform:rotate(62deg) scaleY(.85)}}
 @keyframes rx_hbird_flapf{0%{transform:rotate(-14deg)}100%{transform:rotate(48deg) scaleY(.8)}}
 @keyframes rx_hbird_sway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+
+/* secret reaction: long-press Fire in the picker */
+.rx-msploit .a-glow { animation:rx_msploit_hum .16s ease-in-out infinite alternate }
+.rx-msploit .a-sb { transform-origin:19.2px 28.6px;animation:rx_msploit_swb 1.8s ease-in-out infinite }
+.rx-msploit .a-sr { transform-origin:12.8px 28.6px;animation:rx_msploit_swr 1.8s ease-in-out infinite }
+.rx-msploit .a-tm { transform-origin:16px 20px;animation:rx_msploit_wig 1.8s ease-in-out infinite }
+.rx-msploit .a-glint { animation:rx_msploit_gl 1.8s ease-in-out infinite }
+@keyframes rx_msploit_hum{0%{opacity:.25}100%{opacity:.55}}
+@keyframes rx_msploit_swb{0%,100%{transform:rotate(0)}45%{transform:rotate(4deg)}}
+@keyframes rx_msploit_swr{0%,100%{transform:rotate(0)}45%{transform:rotate(-4deg)}}
+@keyframes rx_msploit_wig{0%,100%{transform:scale(1)}50%{transform:scale(1.05,1.08)}}
+@keyframes rx_msploit_gl{0%,62%,100%{opacity:0}76%{opacity:1}}
