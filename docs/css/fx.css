@@ -183,6 +183,7 @@
 .rx-pop { position: fixed; z-index: 40; display: grid; grid-template-columns: repeat(7, 60px); gap: 2px; padding: 6px; border-radius: 18px; background: var(--raise); border: 1px solid var(--line-2); box-shadow: 0 14px 40px rgba(0,0,0,.7); animation: rxIn .18s ease-out; }
 .rx-pop[hidden] { display: none; }
 .rx-pop button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0 4px; border-radius: 12px; border: 0; background: none; cursor: pointer; color: var(--muted); font: 700 10.5px/1.1 var(--ui); white-space: nowrap; transition: transform .12s, background .12s; }
+.rx-pop button { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .rx-pop button .rx-ico { width: 34px; height: 34px; transition: transform .12s; }
 .rx-pop button:hover .rx-ico, .rx-pop button:focus-visible .rx-ico { transform: scale(1.2) rotate(-4deg); }
 .rx-pop button:nth-child(-n+3) { color: var(--text); }
@@ -448,3 +449,14 @@ button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
 @keyframes rx_broken_hl{0%,30%{transform:none}10%{transform:scale(1.06)}45%,85%{transform:translate(-1.4px,.6px) rotate(-8deg)}100%{transform:none}}
 @keyframes rx_broken_hr{0%,30%{transform:none}10%{transform:scale(1.06)}45%,85%{transform:translate(1.4px,.6px) rotate(8deg)}100%{transform:none}}
 @keyframes rx_broken_tear{0%,50%{opacity:0;transform:none}55%{opacity:1}85%{opacity:0;transform:translateY(6px)}100%{opacity:0}}
+
+/* secret reaction: long-press Strong in the picker */
+.rx-hbird .a-hov { transform-origin:16px 15px;animation:rx_hbird_hov 1.6s ease-in-out infinite }
+.rx-hbird .a-wnear { transform-origin:17px 14.6px;animation:rx_hbird_flapn .14s ease-in-out infinite alternate }
+.rx-hbird .a-wfar { transform-origin:17px 14px;animation:rx_hbird_flapf .14s ease-in-out infinite alternate }
+.rx-hbird .a-fl { transform-origin:6px 31px;animation:rx_hbird_sway 1.6s ease-in-out infinite }
+
+@keyframes rx_hbird_hov{0%,100%{transform:translate(.4px,-.9px) rotate(-2deg)}50%{transform:translate(-.3px,.7px) rotate(2.5deg)}}
+@keyframes rx_hbird_flapn{0%{transform:rotate(-6deg)}100%{transform:rotate(62deg) scaleY(.85)}}
+@keyframes rx_hbird_flapf{0%{transform:rotate(-14deg)}100%{transform:rotate(48deg) scaleY(.8)}}
+@keyframes rx_hbird_sway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}

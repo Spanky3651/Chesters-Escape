@@ -161,9 +161,9 @@
   // Emoji reactions on moments in the game thread (scores, escapes, setbacks...). Tapping the
   // same one again takes it back. Stored per event as { emoji: [player ids] }.
   // The game's own reactions (drawn and animated by the page): SS, fire, let's go, love it (the cat), no way, fist bump, medal, the saber cube, popcorn, LOL, press F,
-  // salty, RIP, the theme's hero, crying, sweating, rage, hurry up, strong and heartbroken. Reactions saved under an older set (plain emoji, then
+  // salty, RIP, the theme's hero, crying, sweating, rage, hurry up, strong and heartbroken, plus the secret hummingbird (hold Strong in the picker). Reactions saved under an older set (plain emoji, then
   // GG, full combo, miss, bomb, o7, pat pat) map onto the closest current one so they still count and can be taken back.
-  var REACTIONS = ['ss', 'fire', 'letsgo', 'love', 'jaw', 'bump', 'medal', 'sabers', 'popcorn', 'lol', 'pressf', 'salt', 'rip', 'hero', 'cry', 'sweat', 'rage', 'hurry', 'strong', 'broken'];
+  var REACTIONS = ['ss', 'fire', 'letsgo', 'love', 'jaw', 'bump', 'medal', 'sabers', 'popcorn', 'lol', 'pressf', 'salt', 'rip', 'hero', 'cry', 'sweat', 'rage', 'hurry', 'strong', 'broken', 'hbird'];
   var LEGACY_REACTIONS = { '\uD83D\uDC4F': 'letsgo', '\uD83C\uDF89': 'letsgo', '\uD83D\uDD25': 'fire', '\uD83D\uDE02': 'salt', '\uD83D\uDC80': 'rip', '\uD83D\uDE31': 'jaw', gg: 'letsgo', fc: 'ss', miss: 'pressf', bomb: 'pressf', salute: 'bump', pat: 'pressf' };
   function react(s, pid, evId, emoji) {
     need(s, pid);

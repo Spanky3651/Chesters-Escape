@@ -1945,19 +1945,34 @@
     box.style.left = left + 'px'; box.style.top = top + 'px';
     if (navigator.vibrate) try { navigator.vibrate(12); } catch (x) {}
   }
+  // The secret hummingbird: press and hold Strong in the picker (right-click on a computer).
+  // The click that ends the hold is swallowed so it doesn't also send Strong or land on what's under the closed picker.
+  var birdAt = 0, birdSwallow = false;
+  function secretBird(btn) {
+    if (Date.now() - birdAt < 1200) return;
+    birdAt = rxHeldAt = Date.now(); birdSwallow = true; clearTimeout(rxHoldTimer);
+    var ev = btn.dataset.ev, mine = me(), had = mine && ((X.rxCounts((st().reactions || {})[ev]).hbird || []).indexOf(mine.id) >= 0);
+    if (navigator.vibrate) try { navigator.vibrate([10, 40, 10]); } catch (x) {}
+    doReact({ dataset: { rx: 'hbird', ev: ev } });
+    if (mine && !had) toast('You found the secret hummingbird!', '');
+  }
   function bindRxWho() {
     var start = null;
     document.addEventListener('pointerdown', function (e) {
+      birdSwallow = false;
+      var sb = e.target.closest && e.target.closest('#rxPop button[data-rx="strong"]');
+      if (sb) { start = { x: e.clientX, y: e.clientY }; clearTimeout(rxHoldTimer); rxHoldTimer = setTimeout(function () { secretBird(sb); }, 550); return; }
       var chip = e.target.closest && e.target.closest('.rx-chip'); if (!chip) return;
       start = { x: e.clientX, y: e.clientY };
       clearTimeout(rxHoldTimer);
       rxHoldTimer = setTimeout(function () { rxHeldAt = Date.now(); openRxWho(chip); }, 420);
     });
+    window.addEventListener('click', function (e) { if (birdSwallow) { birdSwallow = false; e.preventDefault(); e.stopPropagation(); } }, true);
     var cancel = function () { clearTimeout(rxHoldTimer); start = null; };
     document.addEventListener('pointerup', cancel);
     document.addEventListener('pointercancel', cancel);
     document.addEventListener('pointermove', function (e) { if (start && Math.abs(e.clientX - start.x) + Math.abs(e.clientY - start.y) > 12) cancel(); });
-    document.addEventListener('contextmenu', function (e) { var chip = e.target.closest && e.target.closest('.rx-chip'); if (!chip) return; e.preventDefault(); rxHeldAt = Date.now(); openRxWho(chip); });
+    document.addEventListener('contextmenu', function (e) { var sb = e.target.closest && e.target.closest('#rxPop button[data-rx="strong"]'); if (sb) { e.preventDefault(); secretBird(sb); return; } var chip = e.target.closest && e.target.closest('.rx-chip'); if (!chip) return; e.preventDefault(); rxHeldAt = Date.now(); openRxWho(chip); });
     window.addEventListener('scroll', closeRxWho, true);
     window.addEventListener('resize', closeRxWho);
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeRxWho(); });
