@@ -417,6 +417,8 @@
     return c.reason;
   }
   // Opens Playlist Studio with the task's map(s) already looked up (a single map opens its preview).
+  // The button wears Studio's own logo and colors, since it leads out to that app.
+  var STUDIO_LOGO = '<span class="studio-logo" aria-hidden="true"><svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#ff2740"/><path d="M0 64L64 0V64Z" fill="#2f7bff"/><path d="M25 21L46 32 25 43Z" fill="#fff"/></svg></span>';
   function studioLink(keys) {
     return 'https://spanky3651.github.io/Playlist-Studio/?bsr=' + keys.map(encodeURIComponent).join(',') + '&utm_source=chester&utm_campaign=bsr-link';
   }
@@ -436,7 +438,7 @@
     } else {
       html += '<div class="task-actions"><button type="button" class="btn small" data-verify>Check BeatLeader</button>' +
         '<a class="btn small ghost" target="_blank" rel="noopener" href="https://beatsaver.com/maps/' + esc(task.bsr[0]) + '">BeatSaver</a>' +
-        '<a class="btn small ghost" target="_blank" rel="noopener" href="' + esc(studioLink(task.bsr)) + '" title="Open this map in Playlist Studio">Playlist Studio</a>' +
+        '<a class="btn small ghost studio-btn" target="_blank" rel="noopener" href="' + esc(studioLink(task.bsr)) + '" title="Open this map in Playlist Studio">' + STUDIO_LOGO + '<span>Playlist <b>Studio</b></span></a>' +
         '<button type="button" class="btn small link" data-claim>I played it but it didn\'t show up</button>' +
         (store.mode === 'demo' ? '<button type="button" class="btn small link" data-pass>Pretend I passed it</button>' : '') + '</div>' +
         '<div class="task-claim" data-claimform hidden><input type="url" placeholder="Replay link (optional)" aria-label="Replay link"><button type="button" class="btn small ghost" data-claimsend>Send to the host</button></div>';

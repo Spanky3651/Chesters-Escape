@@ -312,6 +312,11 @@ body[data-theme="thanksgiving"] .chip.long { border-color: #4a6a2a; color: #c8e3
 .key { font: 700 14px var(--ui); background: #000; border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 8px; cursor: pointer; }
 .key:hover { border-color: var(--accent); }
 .task-actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 12px 12px; }
+.studio-btn b { color: #4f8fff; }
+.studio-logo { width: 22px; height: 22px; border-radius: 6px; overflow: hidden; flex: none; display: block; box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
+.studio-logo svg { width: 100%; height: 100%; display: block; transition: transform .2s; }
+.studio-btn:hover .studio-logo svg, .studio-btn:focus-visible .studio-logo svg { transform: scale(1.12) rotate(-6deg); }
+@media (prefers-reduced-motion: reduce) { .studio-logo svg { transition: none; } }
 .task-note { padding: 0 12px 12px; font-size: 13.5px; color: var(--muted); }
 .task-claim { padding: 0 12px 12px; display: flex; gap: 8px; flex-wrap: wrap; }
 .task-claim input { flex: 1 1 180px; min-width: 0; }
