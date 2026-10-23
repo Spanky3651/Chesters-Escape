@@ -478,11 +478,12 @@
         '<g class="a-armR"><path d="M19.6 20.4L17.8 19.4" stroke="#1b1b22" stroke-width="2" stroke-linecap="round"/>' + fist(18.2, 19.2, '#93c4ff') + '</g>' +
         '<g class="a-spark"><path d="M16 11.2l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="#ffd34d" stroke="#5a3a00" stroke-width=".5"/><path d="M12.8 12.4l-1.4-1.6M19.2 12.4l1.4-1.6M16 9.6V8" stroke="#ffd34d" stroke-width="1" stroke-linecap="round"/></g>';
     } },
-    medal: { label: 'Medal', svg: function () {
+    medal: { label: 'Acc medal', svg: function () {
       var id = 'mclip' + (++uid);
       return '<g class="a-swing"><path d="M10.2 0.6h5.2l3 11.6h-5.2z" fill="#e3263b" stroke="#050507" stroke-width="1.1" stroke-linejoin="round"/><path d="M21.8 0.6h-5.2l-3 11.6h5.2z" fill="#2a78f2" stroke="#050507" stroke-width="1.1" stroke-linejoin="round"/>' +
         '<circle cx="16" cy="20.4" r="9" fill="#e8a417" stroke="#5a3a00" stroke-width="1.4"/><circle cx="16" cy="20.4" r="6.6" fill="#ffd34d" stroke="#b07a10" stroke-width="1"/>' +
-        '<path d="M16 15.6l1.4 2.9 3.2.4-2.3 2.2.6 3.2-2.9-1.5-2.9 1.5.6-3.2-2.3-2.2 3.2-.4z" fill="#fff4b8" stroke="#a46d06" stroke-width=".7" stroke-linejoin="round"/>' +
+        '<circle cx="16" cy="20.4" r="4.4" fill="none" stroke="#b0420e" stroke-width="1.3"/><circle cx="16" cy="20.4" r="1.6" fill="#e3263b"/>' +
+        '<path d="M16 14.6v2.4M16 23.8v2.4M10.2 20.4h2.4M19.4 20.4h2.4" stroke="#b0420e" stroke-width="1.2" stroke-linecap="round"/>' +
         '<clipPath id="' + id + '"><circle cx="16" cy="20.4" r="8.3"/></clipPath><g clip-path="url(#' + id + ')"><g class="a-glint"><rect x="9" y="10" width="2.4" height="22" fill="#fff" opacity=".7" transform="rotate(30 16 20.4)"/></g></g></g>' +
         '<path class="a-twinkle" d="M27.4 9.4l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" fill="#fff"/>';
     } },
