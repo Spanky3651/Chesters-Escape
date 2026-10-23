@@ -293,7 +293,7 @@
   // Runs every second while sign-ups are open. At zero, start the demo or ask the server.
   var kickAt = 0, starting = false;
   function tickCountdowns() {
-    Array.prototype.forEach.call(document.querySelectorAll('[data-ago]'), function (el) { var t = agoText(Number(el.dataset.ago)); if (el.textContent !== t) el.textContent = t; });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-ago]'), function (el) { var t = visitAgo(Number(el.dataset.ago)); if (el.textContent !== t) el.textContent = t; });
     var els = document.querySelectorAll('[data-countdown]');
     Array.prototype.forEach.call(els, function (el) {
       var left = Number(el.dataset.countdown) - Date.now();
@@ -1583,28 +1583,48 @@
     visitsBusy = true;
     store.visits().then(function (r) { visitsBusy = false; if (r && r.visits) { visitsData = r; visitsAt = Date.now(); } var b = $('visitBox'); if (b) drawVisits(b); }, function () { visitsBusy = false; var b = $('visitBox'); if (b && !visitsData) b.innerHTML = '<p class="why">Couldn\'t load the visits right now.</p>'; });
   }
-  // How long ago a visit ended: just now, 5 min ago, 1 hour ago, then 12+ hours ago.
-  function agoText(t) {
-    var m = Math.floor((Date.now() - t) / 60000), h = Math.floor(m / 60);
+  // How long ago a visit ended: just now, minutes, then hours up to a day, days, months and years.
+  // (Named apart from agoText, which the "while you were away" note uses for a plain length of time.)
+  function visitAgo(t) {
+    var m = Math.floor((Date.now() - t) / 60000), h = Math.floor(m / 60), d = Math.floor(h / 24);
+    var n = function (k, unit) { return k + ' ' + unit + (k === 1 ? '' : 's') + ' ago'; };
     if (m < 1) return 'just now';
     if (m < 60) return m + ' min ago';
-    if (h < 12) return h + (h === 1 ? ' hour ago' : ' hours ago');
-    return '12+ hours ago';
+    if (h < 24) return n(h, 'hour');
+    if (d < 30) return n(d, 'day');
+    if (d < 365) return n(Math.floor(d / 30), 'month');
+    return n(Math.floor(d / 365), 'year');
   }
   function drawVisits(box) {
-    var list = (visitsData && visitsData.visits) || [];
+    var list = (visitsData && visitsData.visits) || [], s = st();
     if (!list.length) { box.innerHTML = '<p class="why">No visits yet.</p>'; return; }
     var clock = function (t) { return new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); };
     var dayOf = function (t) { var d = new Date(t), today = new Date(), y = new Date(Date.now() - 86400000); if (d.toDateString() === today.toDateString()) return 'Today'; if (d.toDateString() === y.toDateString()) return 'Yesterday'; return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }); };
     var dur = function (ms) { var m = Math.round(ms / 60000); if (m < 1) return 'under a minute'; if (m < 60) return m + ' min'; return Math.floor(m / 60) + ' h ' + (m % 60) + ' min'; };
-    var onNow = list.filter(function (v) { return v.open; }).length, shown = visitsAll ? list : list.slice(0, 30), html = '', lastDay = '';
-    html += '<p class="visit-sum">' + (onNow ? '<span class="vis-dot" aria-hidden="true"></span>' + onNow + ' on the game now \u00b7 ' : '') + list.length + ' visits in the last two weeks</p><ol class="visit-list">';
-    shown.forEach(function (v) {
-      var day = dayOf(v.start); if (day !== lastDay) { html += '<li class="visit-day">' + esc(day) + '</li>'; lastDay = day; }
-      var endT = v.end || v.last, end = v.open ? 'now' : clock(endT), len = (v.open ? Date.now() : endT) - v.start;
-      html += '<li class="visit' + (v.open ? ' open' : '') + '"><span class="vis-name">' + (v.open ? '<span class="vis-dot" aria-hidden="true"></span>' : '') + esc(v.name) + (v.player ? '' : ' <span class="vis-tag">not playing</span>') + '</span><span class="vis-time">' + clock(v.start) + ' \u2013 ' + end + '</span><span class="vis-len">' + (v.open ? 'on now, ' : '') + dur(len) + '</span>' + (v.open ? '' : '<span class="vis-ago" data-ago="' + endT + '">' + agoText(endT) + '</span>') + '</li>';
-    });
-    html += '</ol>' + (list.length > shown.length ? '<button type="button" class="btn small ghost" data-h="visits-more">Show all ' + list.length + '</button>' : '');
+    var who = function (v) { return (s && (s.players['d' + v.id] || s.players[v.id])) || null; };
+    var ava = function (v) { var p = who(v); return p ? avatarHtml(p, 'vis-ava') : '<span class="vis-ava guest">' + esc(R.initials(v.name || '?')) + '</span>'; };
+    var nameOf = function (v) { return '<span class="vis-name"><b>' + esc(v.name) + '</b>' + (v.player ? '' : '<span class="vis-tag">not playing</span>') + '</span>'; };
+    var plural = function (k, w) { return '<b>' + k + '</b> ' + w + (k === 1 ? '' : 's'); };
+    var live = list.filter(function (v) { return v.open; }), past = list.filter(function (v) { return !v.open; });
+    var people = {}; list.forEach(function (v) { people[v.id] = 1; });
+    var html = '<div class="vis-stats">' + (live.length ? '<span class="vis-stat on"><span class="vis-dot" aria-hidden="true"></span><b>' + live.length + '</b> on now</span>' : '') +
+      '<span class="vis-stat">' + plural(list.length, 'visit') + '</span><span class="vis-stat">' + plural(Object.keys(people).length, 'person').replace('persons', 'people') + '</span><span class="vis-stat soft">last 2 weeks</span></div>';
+    if (live.length) html += '<div class="vis-live">' + live.map(function (v) {
+      return '<div class="vis-row live">' + ava(v) + '<div class="vis-main">' + nameOf(v) + '<span class="vis-sub">On since ' + clock(v.start) + ' · ' + dur(Date.now() - v.start) + '</span></div><span class="vis-now"><span class="vis-dot" aria-hidden="true"></span>On now</span></div>';
+    }).join('') + '</div>';
+    var shown = visitsAll ? past : past.slice(0, 30), count = {};
+    shown.forEach(function (v) { var d = dayOf(v.start); count[d] = (count[d] || 0) + 1; });
+    var lastDay = '';
+    if (shown.length) {
+      html += '<ol class="visit-list">';
+      shown.forEach(function (v) {
+        var day = dayOf(v.start); if (day !== lastDay) { html += '<li class="visit-day"><span>' + esc(day) + '</span><span class="vd-n">' + count[day] + (count[day] === 1 ? ' visit' : ' visits') + '</span></li>'; lastDay = day; }
+        var endT = v.end || v.last;
+        html += '<li class="vis-row">' + ava(v) + '<div class="vis-main">' + nameOf(v) + '<span class="vis-sub">' + clock(v.start) + ' – ' + clock(endT) + ' · ' + dur(endT - v.start) + '</span></div><span class="vis-ago" data-ago="' + endT + '">' + visitAgo(endT) + '</span></li>';
+      });
+      html += '</ol>';
+    }
+    if (past.length > shown.length) html += '<button type="button" class="btn small ghost" data-h="visits-more">Show all ' + past.length + '</button>';
     box.innerHTML = html;
   }
   function closeHost() { $('hostDrawer').hidden = true; $('scrim').hidden = true; $('hostBtn').focus(); setTimeout(checkNewClears, 300); }

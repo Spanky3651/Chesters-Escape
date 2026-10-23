@@ -377,19 +377,31 @@ button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
 @keyframes rxRipple { 0%, 26% { transform: scale(.75); opacity: 0; } 32% { opacity: .9; } 80%, 100% { transform: scale(1.25); opacity: 0; } }
 
 /* ---- host: visit log ---- */
-.visit-sum { display: flex; align-items: center; gap: 6px; font-weight: 700; color: var(--text) !important; }
-.visit-list { list-style: none; margin: 0 0 10px; padding: 0; max-height: 420px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
-.visit-day { padding: 8px 12px 4px; font: 700 13px var(--ui); color: var(--gold); letter-spacing: .4px; text-transform: uppercase; border-top: 1px solid var(--line); }
+.vis-stats { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
+.vis-stat { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--raise-2); border: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.vis-stat b { color: var(--text); font-size: 14px; }
+.vis-stat.on { border-color: color-mix(in srgb, var(--good) 55%, transparent); background: color-mix(in srgb, var(--good) 14%, var(--raise-2)); color: var(--good); }
+.vis-stat.on b { color: var(--good); }
+.vis-stat.soft { background: none; border-style: dashed; }
+.vis-live { display: grid; gap: 6px; margin-bottom: 10px; }
+.vis-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 12px; }
+.vis-row.live { border: 1px solid color-mix(in srgb, var(--good) 45%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--good) 8%, var(--raise-2)); }
+.vis-row.live .vis-ava { box-shadow: 0 0 0 2px var(--raise-2), 0 0 0 4px #3fd04a; }
+.vis-ava { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex: none; display: grid; place-items: center; background: #1a1d18; border: 2px solid var(--c, var(--line-2)); font: 700 11.5px var(--ui); color: #fff; }
+.vis-ava.guest { border-style: dashed; color: var(--muted); }
+.vis-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.vis-name { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 15px; }
+.vis-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vis-sub { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vis-ago { font-size: 13px; font-weight: 700; color: var(--text); text-align: right; white-space: nowrap; padding: 3px 8px; border-radius: 8px; background: var(--raise-2); }
+.vis-now { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--good); white-space: nowrap; }
+.visit-list { list-style: none; margin: 0 0 10px; padding: 0; max-height: 460px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
+.visit-list .vis-row { border-top: 1px solid var(--line); }
+.visit-day { display: flex; justify-content: space-between; align-items: baseline; padding: 9px 12px 5px; font: 700 12.5px var(--ui); color: var(--gold); letter-spacing: .4px; text-transform: uppercase; border-top: 1px solid var(--line); position: sticky; top: 0; background: var(--raise, #121410); z-index: 1; }
 .visit-day:first-child { border-top: 0; }
-.visit { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 7px 12px; font-size: 14.5px; border-top: 1px solid var(--line); }
-.visit-day + .visit { border-top: 0; }
-.vis-name { font-weight: 700; display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vis-time { color: var(--muted); text-align: right; white-space: nowrap; }
-.vis-len { grid-column: 1; font-size: 13px; color: var(--faint); }
-.visit.open .vis-len { grid-column: 1 / -1; }
-.vis-ago { font-size: 13px; color: var(--muted); text-align: right; white-space: nowrap; }
-.visit.open .vis-len { color: var(--good); }
-.vis-tag { font: 700 11.5px var(--ui); color: var(--muted); border: 1px solid var(--line-2); border-radius: 999px; padding: 1px 7px; }
+.visit-day + .vis-row { border-top: 0; }
+.vd-n { font-size: 12px; color: var(--muted); letter-spacing: 0; text-transform: none; font-weight: 600; }
+.vis-tag { font: 700 11px var(--ui); color: var(--muted); border: 1px solid var(--line-2); border-radius: 999px; padding: 1px 7px; flex: none; }
 .vis-dot { width: 9px; height: 9px; border-radius: 50%; background: #3fd04a; box-shadow: 0 0 6px #3fd04a; flex: none; display: inline-block; }
 
 /* who reacted: press and hold a reaction */
