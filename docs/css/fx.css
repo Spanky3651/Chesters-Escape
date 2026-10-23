@@ -487,7 +487,7 @@ button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
 @keyframes rx_msploit_wig{0%,100%{transform:scale(1)}50%{transform:scale(1.05,1.08)}}
 @keyframes rx_msploit_gl{0%,62%,100%{opacity:0}76%{opacity:1}}
 
-/* Replays: a chip in the thread; on a computer it plays in a dock at the top of the Game thread */
+/* Replays: a chip in the thread; on a computer it plays big over the page (theater mode) */
 .rp-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px 0 3px; margin-left: 4px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--raise-2); color: var(--text) !important; font: 700 12.5px/1 var(--ui); text-decoration: none !important; vertical-align: middle; white-space: nowrap; transition: border-color .15s, background .15s; }
 .rp-chip:hover, .rp-chip:focus-visible { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--raise-2)); }
 .rp-ico { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; flex: none; }

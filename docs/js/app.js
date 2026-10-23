@@ -494,13 +494,11 @@
       default: return null;
     }
   }
-  // ---- replays: a Replay chip in the thread. On a computer it plays in a dock at the top of the
-  // Game thread (outside the list, so the thread can redraw without restarting it), with a theater
-  // mode. On phones it opens BeatLeader's viewer in a new tab like before.
+  // ---- replays: a Replay chip in the thread. On a computer it plays big over the page (theater mode),
+  // in a player that lives outside the thread so a redraw doesn't restart it. On phones it opens
+  // BeatLeader's viewer in a new tab like before.
   var RP_ICON = '<span class="rp-ico" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M4 2.4L9.8 6 4 9.6Z"/></svg></span>';
   var RD_SVG = {
-    big: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>',
-    small: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>',
     out: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
     close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>'
   };
@@ -514,26 +512,24 @@
   function openReplay(a) {
     var url = a.dataset.replay, ev = Number(a.dataset.rpev), d = $('replayDock');
     if (!d || !isBLReplay(url)) return false;
-    if (dockEv === ev && !d.hidden) { d.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return true; }
+    if (dockEv === ev && !d.hidden) return true;
     var s = st(), e = s.events.filter(function (x) { return x.id === ev; })[0], p = e && s.players[e.pid];
     var song = e ? songFor((e.bsr || [])[0]) : null, pr = (e && e.proof) || {};
     var title = (p ? esc(p.name) : 'Replay') + (song ? ' \u00b7 ' + esc(song.name) : '') + (pr.acc ? ' \u00b7 ' + (pr.acc * 100).toFixed(2) + '%' : '');
     dockEv = ev;
     d.innerHTML = '<div class="rd-head"><span class="rd-title">' + RP_ICON + '<b>' + title + '</b></span><span class="rd-btns">' +
-      '<button type="button" class="rd-btn" data-rd="big" aria-label="Theater mode" title="Theater mode">' + RD_SVG.big + '</button>' +
       '<a class="rd-btn" href="' + esc(url) + '" target="_blank" rel="noopener" aria-label="Open on BeatLeader" title="Open on BeatLeader">' + RD_SVG.out + '</a>' +
       '<button type="button" class="rd-btn" data-rd="close" aria-label="Close the replay" title="Close">' + RD_SVG.close + '</button></span></div>' +
       '<div class="rd-frame"><iframe src="' + esc(url) + '" title="Replay" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen></iframe></div>';
-    d.classList.remove('big'); d.hidden = false;
+    d.hidden = false; bigReplay(true);
     renderFeed();
-    d.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    var x = d.querySelector('[data-rd="close"]'); if (x) x.focus();
     track('replay-embed');
     return true;
   }
   function bigReplay(on) {
     var d = $('replayDock'); if (!d || d.hidden) return;
     d.classList.toggle('big', on); document.body.classList.toggle('rd-theater', on);
-    var b = d.querySelector('[data-rd="big"]'); if (b) { b.innerHTML = on ? RD_SVG.small : RD_SVG.big; b.title = on ? 'Back to the thread' : 'Theater mode'; b.setAttribute('aria-label', b.title); }
   }
   function closeReplay() {
     var d = $('replayDock'); if (!d || d.hidden) return;
@@ -2065,8 +2061,8 @@
     bindRxWho();
     document.addEventListener('click', function (e) {
       var rpa = e.target.closest('[data-replay]'); if (rpa && replayEmbedOK() && openReplay(rpa)) { e.preventDefault(); return; }
-      var rdb = e.target.closest('[data-rd]'); if (rdb) { if (rdb.dataset.rd === 'close') closeReplay(); else bigReplay(!$('replayDock').classList.contains('big')); return; }
-      if (e.target.id === 'replayDock') { bigReplay(false); return; }
+      var rdb = e.target.closest('[data-rd]'); if (rdb) { closeReplay(); return; }
+      if (e.target.id === 'replayDock') { closeReplay(); return; }
       var c = e.target.closest('[data-copy]'); if (c) { copy(c.dataset.copy); return; }
       var rxa = e.target.closest('[data-rxadd]'); if (rxa) { $('rxPop').hidden ? openRx(rxa) : closeRx(); return; }
       if (Date.now() - rxHeldAt < 700) { rxHeldAt = 0; if (e.target.closest('.rx-chip')) { e.preventDefault(); return; } }
@@ -2118,7 +2114,7 @@
       var hb = e.target.closest('#hostBody [data-h]'); if (hb) { hostAction(hb); return; }
     });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { if ($('replayDock') && $('replayDock').classList.contains('big')) { bigReplay(false); return; } if (!$('rxPop').hidden) { closeRx(); return; } if (!$('remPop').hidden) closeRem(); else if (!$('modal').hidden) closeModal(); else if (!$('spacePop').hidden) closeSpace(); else if (!$('hostDrawer').hidden) closeHost(); }
+      if (e.key === 'Escape') { if ($('replayDock') && !$('replayDock').hidden) { closeReplay(); return; } if (!$('rxPop').hidden) { closeRx(); return; } if (!$('remPop').hidden) closeRem(); else if (!$('modal').hidden) closeModal(); else if (!$('spacePop').hidden) closeSpace(); else if (!$('hostDrawer').hidden) closeHost(); }
       if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('.board-svg .sp')) { e.preventDefault(); openSpace(e.target.closest('.sp').dataset.id, e.target.closest('.sp')); }
     });
     document.addEventListener('change', function (e) {
