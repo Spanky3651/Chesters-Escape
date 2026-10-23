@@ -293,6 +293,7 @@
   // Runs every second while sign-ups are open. At zero, start the demo or ask the server.
   var kickAt = 0, starting = false;
   function tickCountdowns() {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-ago]'), function (el) { var t = agoText(Number(el.dataset.ago)); if (el.textContent !== t) el.textContent = t; });
     var els = document.querySelectorAll('[data-countdown]');
     Array.prototype.forEach.call(els, function (el) {
       var left = Number(el.dataset.countdown) - Date.now();
@@ -1582,6 +1583,14 @@
     visitsBusy = true;
     store.visits().then(function (r) { visitsBusy = false; if (r && r.visits) { visitsData = r; visitsAt = Date.now(); } var b = $('visitBox'); if (b) drawVisits(b); }, function () { visitsBusy = false; var b = $('visitBox'); if (b && !visitsData) b.innerHTML = '<p class="why">Couldn\'t load the visits right now.</p>'; });
   }
+  // How long ago a visit ended: just now, 5 min ago, 1 hour ago, then 12+ hours ago.
+  function agoText(t) {
+    var m = Math.floor((Date.now() - t) / 60000), h = Math.floor(m / 60);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + ' min ago';
+    if (h < 12) return h + (h === 1 ? ' hour ago' : ' hours ago');
+    return '12+ hours ago';
+  }
   function drawVisits(box) {
     var list = (visitsData && visitsData.visits) || [];
     if (!list.length) { box.innerHTML = '<p class="why">No visits yet.</p>'; return; }
@@ -1592,8 +1601,8 @@
     html += '<p class="visit-sum">' + (onNow ? '<span class="vis-dot" aria-hidden="true"></span>' + onNow + ' on the game now \u00b7 ' : '') + list.length + ' visits in the last two weeks</p><ol class="visit-list">';
     shown.forEach(function (v) {
       var day = dayOf(v.start); if (day !== lastDay) { html += '<li class="visit-day">' + esc(day) + '</li>'; lastDay = day; }
-      var end = v.open ? 'now' : clock(v.end || v.last), len = (v.open ? Date.now() : (v.end || v.last)) - v.start;
-      html += '<li class="visit' + (v.open ? ' open' : '') + '"><span class="vis-name">' + (v.open ? '<span class="vis-dot" aria-hidden="true"></span>' : '') + esc(v.name) + (v.player ? '' : ' <span class="vis-tag">not playing</span>') + '</span><span class="vis-time">' + clock(v.start) + ' \u2013 ' + end + '</span><span class="vis-len">' + (v.open ? 'on now, ' : '') + dur(len) + '</span></li>';
+      var endT = v.end || v.last, end = v.open ? 'now' : clock(endT), len = (v.open ? Date.now() : endT) - v.start;
+      html += '<li class="visit' + (v.open ? ' open' : '') + '"><span class="vis-name">' + (v.open ? '<span class="vis-dot" aria-hidden="true"></span>' : '') + esc(v.name) + (v.player ? '' : ' <span class="vis-tag">not playing</span>') + '</span><span class="vis-time">' + clock(v.start) + ' \u2013 ' + end + '</span><span class="vis-len">' + (v.open ? 'on now, ' : '') + dur(len) + '</span>' + (v.open ? '' : '<span class="vis-ago" data-ago="' + endT + '">' + agoText(endT) + '</span>') + '</li>';
     });
     html += '</ol>' + (list.length > shown.length ? '<button type="button" class="btn small ghost" data-h="visits-more">Show all ' + list.length + '</button>' : '');
     box.innerHTML = html;

@@ -385,7 +385,9 @@ button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
 .visit-day + .visit { border-top: 0; }
 .vis-name { font-weight: 700; display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vis-time { color: var(--muted); text-align: right; white-space: nowrap; }
-.vis-len { grid-column: 1 / -1; font-size: 13px; color: var(--faint); }
+.vis-len { grid-column: 1; font-size: 13px; color: var(--faint); }
+.visit.open .vis-len { grid-column: 1 / -1; }
+.vis-ago { font-size: 13px; color: var(--muted); text-align: right; white-space: nowrap; }
 .visit.open .vis-len { color: var(--good); }
 .vis-tag { font: 700 11.5px var(--ui); color: var(--muted); border: 1px solid var(--line-2); border-radius: 999px; padding: 1px 7px; }
 .vis-dot { width: 9px; height: 9px; border-radius: 50%; background: #3fd04a; box-shadow: 0 0 6px #3fd04a; flex: none; display: inline-block; }
