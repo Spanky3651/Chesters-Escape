@@ -486,3 +486,27 @@ button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
 @keyframes rx_msploit_swr{0%,100%{transform:rotate(0)}45%{transform:rotate(-4deg)}}
 @keyframes rx_msploit_wig{0%,100%{transform:scale(1)}50%{transform:scale(1.05,1.08)}}
 @keyframes rx_msploit_gl{0%,62%,100%{opacity:0}76%{opacity:1}}
+
+/* Replays: a chip in the thread; on a computer it plays in a dock at the top of the Game thread */
+.rp-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px 0 3px; margin-left: 4px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--raise-2); color: var(--text) !important; font: 700 12.5px/1 var(--ui); text-decoration: none !important; vertical-align: middle; white-space: nowrap; transition: border-color .15s, background .15s; }
+.rp-chip:hover, .rp-chip:focus-visible { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--raise-2)); }
+.rp-ico { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; flex: none; }
+.rp-ico svg { width: 10px; height: 10px; fill: var(--accent-ink); margin-left: 1px; }
+.rp-chip[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 20%, var(--raise-2)); }
+.rp-chip[aria-pressed="true"] .rp-ico { animation: rpPulse 1.4s ease-in-out infinite; }
+@keyframes rpPulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); } 50% { box-shadow: 0 0 0 4px transparent; } }
+.replay-dock { margin: 0 0 10px; border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden; background: #000; }
+.replay-dock[hidden] { display: none; }
+.rd-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 6px 6px 8px; background: var(--raise-2); border-bottom: 1px solid var(--line); }
+.rd-title { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 14px; }
+.rd-title b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rd-btns { display: flex; gap: 4px; flex: none; }
+.rd-btn { width: 32px; height: 30px; display: grid; place-items: center; border-radius: 8px; border: 1px solid var(--line-2); background: none; color: var(--muted); cursor: pointer; }
+.rd-btn:hover, .rd-btn:focus-visible { color: var(--text); border-color: var(--accent); }
+.rd-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.rd-frame { aspect-ratio: 16 / 10; background: #000; }
+.rd-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+.replay-dock.big { position: fixed; z-index: 70; inset: 0; margin: auto; width: min(1280px, 92vw); height: fit-content; box-shadow: 0 30px 80px rgba(0,0,0,.7); }
+.replay-dock.big::before { content: ''; position: fixed; inset: 0; z-index: -1; background: rgba(0,0,0,.78); }
+.replay-dock.big .rd-frame { aspect-ratio: 16 / 9; max-height: calc(90vh - 44px); }
+@media (prefers-reduced-motion: reduce) { .rp-chip[aria-pressed="true"] .rp-ico { animation: none; } }

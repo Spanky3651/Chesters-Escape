@@ -471,11 +471,11 @@
       case 'cleared': {
         var pr = e.proof || {}, how = pr.by === 'beatleader' ? 'on BeatLeader' : pr.by === 'host' ? 'by the host' : '';
         var detail = pr.diff ? ' (' + esc(pr.diff.replace('ExpertPlus', 'Expert+')) + (pr.acc ? ', ' + (pr.acc * 100).toFixed(2) + '%' : '') + (pr.firstAcc != null ? ', improved' : '') + ')' : '';
-        var rp = pr.score ? ' <a href="' + esc(S.replayUrl(pr.score)) + '" target="_blank" rel="noopener">Replay</a>' : '';
+        var rp = pr.score ? replayChip(S.replayUrl(pr.score), e.id) : '';
         var gr = X.grade(pr.acc), song = songFor((e.bsr || [])[0]);
         return { html: '<span class="score-line">' + (gr ? '<span class="grade-chip ' + gr.cls + '" title="' + gr.g + ' rank">' + gr.g + '</span>' : '') + 'Cleared <b>' + (song ? esc(song.name) : '!bsr ' + esc((e.bsr || []).join(' or '))) + '</b> ' + how + detail + rp + '</span>', cls: 'good' };
       }
-      case 'claim': return { html: 'Asked the host to approve a run' + (e.url ? ' (<a href="' + esc(e.url) + '" target="_blank" rel="noopener">replay</a>)' : '') };
+      case 'claim': return { html: 'Asked the host to approve a run' + (e.url ? (isBLReplay(e.url) ? replayChip(e.url, e.id) : ' (<a href="' + esc(e.url) + '" target="_blank" rel="noopener">replay</a>)') : '') };
       case 'claim-rejected': return { html: 'The host could not confirm that run', cls: 'bad' };
       case 'lost-turn': return { html: 'Sat out this turn', cls: 'bad' };
       case 'escaped': return { html: '<b>Escaped!</b> ' + ordinal(e.place) + ' place', cls: 'good' };
@@ -493,6 +493,51 @@
       case 'pass': { var nm = (e.over || []).map(function (q) { return s.players[q] ? '<b>' + esc(s.players[q].name) + '</b>' : ''; }).filter(Boolean); return nm.length ? { html: 'Passed ' + (nm.length > 2 ? nm.slice(0, -1).join(', ') + ' and ' + nm[nm.length - 1] : nm.join(' and ')), cls: 'good' } : null; }
       default: return null;
     }
+  }
+  // ---- replays: a Replay chip in the thread. On a computer it plays in a dock at the top of the
+  // Game thread (outside the list, so the thread can redraw without restarting it), with a theater
+  // mode. On phones it opens BeatLeader's viewer in a new tab like before.
+  var RP_ICON = '<span class="rp-ico" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M4 2.4L9.8 6 4 9.6Z"/></svg></span>';
+  var RD_SVG = {
+    big: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>',
+    small: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>',
+    out: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+    close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+  };
+  var dockEv = null;
+  function isBLReplay(url) { return /^https:\/\/replay\.beatleader\.(com|xyz)\//.test(String(url || '')); }
+  function replayEmbedOK() { return window.matchMedia('(min-width: 900px) and (hover: hover) and (pointer: fine)').matches; }
+  function replayChip(url, evId) {
+    var on = dockEv === evId;
+    return ' <a class="rp-chip" href="' + esc(url) + '" target="_blank" rel="noopener" data-replay="' + esc(url) + '" data-rpev="' + evId + '"' + (on ? ' aria-pressed="true"' : '') + ' title="Watch the replay">' + RP_ICON + '<span>' + (on ? 'Watching' : 'Replay') + '</span></a>';
+  }
+  function openReplay(a) {
+    var url = a.dataset.replay, ev = Number(a.dataset.rpev), d = $('replayDock');
+    if (!d || !isBLReplay(url)) return false;
+    if (dockEv === ev && !d.hidden) { d.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return true; }
+    var s = st(), e = s.events.filter(function (x) { return x.id === ev; })[0], p = e && s.players[e.pid];
+    var song = e ? songFor((e.bsr || [])[0]) : null, pr = (e && e.proof) || {};
+    var title = (p ? esc(p.name) : 'Replay') + (song ? ' \u00b7 ' + esc(song.name) : '') + (pr.acc ? ' \u00b7 ' + (pr.acc * 100).toFixed(2) + '%' : '');
+    dockEv = ev;
+    d.innerHTML = '<div class="rd-head"><span class="rd-title">' + RP_ICON + '<b>' + title + '</b></span><span class="rd-btns">' +
+      '<button type="button" class="rd-btn" data-rd="big" aria-label="Theater mode" title="Theater mode">' + RD_SVG.big + '</button>' +
+      '<a class="rd-btn" href="' + esc(url) + '" target="_blank" rel="noopener" aria-label="Open on BeatLeader" title="Open on BeatLeader">' + RD_SVG.out + '</a>' +
+      '<button type="button" class="rd-btn" data-rd="close" aria-label="Close the replay" title="Close">' + RD_SVG.close + '</button></span></div>' +
+      '<div class="rd-frame"><iframe src="' + esc(url) + '" title="Replay" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen></iframe></div>';
+    d.classList.remove('big'); d.hidden = false;
+    renderFeed();
+    d.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    track('replay-embed');
+    return true;
+  }
+  function bigReplay(on) {
+    var d = $('replayDock'); if (!d || d.hidden) return;
+    d.classList.toggle('big', on); document.body.classList.toggle('rd-theater', on);
+    var b = d.querySelector('[data-rd="big"]'); if (b) { b.innerHTML = on ? RD_SVG.small : RD_SVG.big; b.title = on ? 'Back to the thread' : 'Theater mode'; b.setAttribute('aria-label', b.title); }
+  }
+  function closeReplay() {
+    var d = $('replayDock'); if (!d || d.hidden) return;
+    bigReplay(false); d.hidden = true; d.innerHTML = ''; dockEv = null; renderFeed();
   }
   function renderFeed() {
     var s = st(), list = $('feed'), html = '', lastDay = null, shown = 0;
@@ -2019,6 +2064,9 @@
   function bind() {
     bindRxWho();
     document.addEventListener('click', function (e) {
+      var rpa = e.target.closest('[data-replay]'); if (rpa && replayEmbedOK() && openReplay(rpa)) { e.preventDefault(); return; }
+      var rdb = e.target.closest('[data-rd]'); if (rdb) { if (rdb.dataset.rd === 'close') closeReplay(); else bigReplay(!$('replayDock').classList.contains('big')); return; }
+      if (e.target.id === 'replayDock') { bigReplay(false); return; }
       var c = e.target.closest('[data-copy]'); if (c) { copy(c.dataset.copy); return; }
       var rxa = e.target.closest('[data-rxadd]'); if (rxa) { $('rxPop').hidden ? openRx(rxa) : closeRx(); return; }
       if (Date.now() - rxHeldAt < 700) { rxHeldAt = 0; if (e.target.closest('.rx-chip')) { e.preventDefault(); return; } }
@@ -2070,7 +2118,7 @@
       var hb = e.target.closest('#hostBody [data-h]'); if (hb) { hostAction(hb); return; }
     });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { if (!$('rxPop').hidden) { closeRx(); return; } if (!$('remPop').hidden) closeRem(); else if (!$('modal').hidden) closeModal(); else if (!$('spacePop').hidden) closeSpace(); else if (!$('hostDrawer').hidden) closeHost(); }
+      if (e.key === 'Escape') { if ($('replayDock') && $('replayDock').classList.contains('big')) { bigReplay(false); return; } if (!$('rxPop').hidden) { closeRx(); return; } if (!$('remPop').hidden) closeRem(); else if (!$('modal').hidden) closeModal(); else if (!$('spacePop').hidden) closeSpace(); else if (!$('hostDrawer').hidden) closeHost(); }
       if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('.board-svg .sp')) { e.preventDefault(); openSpace(e.target.closest('.sp').dataset.id, e.target.closest('.sp')); }
     });
     document.addEventListener('change', function (e) {
