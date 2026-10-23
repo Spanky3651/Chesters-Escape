@@ -512,6 +512,9 @@
   function openReplay(a) {
     var url = a.dataset.replay, ev = Number(a.dataset.rpev), d = $('replayDock');
     if (!d || !isBLReplay(url)) return false;
+    // The thread column is sticky, which traps anything inside it under the board's own buttons
+    // (like Replay day). Living directly on the page lets theater mode sit above everything.
+    if (d.parentNode !== document.body) document.body.appendChild(d);
     if (dockEv === ev && !d.hidden) return true;
     var s = st(), e = s.events.filter(function (x) { return x.id === ev; })[0], p = e && s.players[e.pid];
     var song = e ? songFor((e.bsr || [])[0]) : null, pr = (e && e.proof) || {};
