@@ -418,7 +418,7 @@
   }
   // Opens Playlist Studio with the task's map(s) already looked up (a single map opens its preview).
   // The button wears Studio's own logo and colors, since it leads out to that app.
-  var STUDIO_LOGO = '<span class="studio-logo" aria-hidden="true"><svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#ff2740"/><path d="M0 64L64 0V64Z" fill="#2f7bff"/><path d="M25 21L46 32 25 43Z" fill="#fff"/></svg></span>';
+  var STUDIO_LOGO = '<span class="studio-logo" aria-hidden="true"><svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#08090c"/><path d="M8.06 30.33A24 24 0 0 1 51.9 18.58" stroke="#ff2740" stroke-width="7" stroke-linecap="round" fill="none"/><path d="M55.94 33.67A24 24 0 0 1 12.1 45.42" stroke="#2f7bff" stroke-width="7" stroke-linecap="round" fill="none"/><circle cx="32" cy="32" r="13.8" fill="#fff"/><path d="M28.12 24.24L40.05 32 28.12 39.76Z" fill="#08090c" stroke="#08090c" stroke-width="1.87" stroke-linejoin="round"/></svg></span>';
   function studioLink(keys) {
     return 'https://spanky3651.github.io/Playlist-Studio/?bsr=' + keys.map(encodeURIComponent).join(',') + '&utm_source=chester&utm_campaign=bsr-link';
   }
