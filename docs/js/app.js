@@ -438,6 +438,15 @@
   }
   // Opens Playlist Studio with the task's map(s) already looked up (a single map opens its preview).
   // The button wears Studio's own logo and colors, since it leads out to that app.
+  // The whole board as a Playlist Studio share link (#p= is Studio's own share format: title, author
+  // and [hash, difficulty, mode] per song; an empty difficulty lets each player pick one there).
+  var STUDIO_HOME = 'https://spanky3651.github.io/Playlist-Studio/?utm_source=chester&utm_campaign=get-the-maps';
+  var STUDIO_SYNC = 'https://github.com/Spanky3651/Studio-Sync/releases/latest';
+  function studioPlaylistLink(title, rows) {
+    var json = JSON.stringify({ v: 1, t: String(title || '').slice(0, 120), a: 'MSploit', s: rows });
+    var b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return STUDIO_HOME + '#p=' + b64;
+  }
   var STUDIO_LOGO = '<span class="studio-logo" aria-hidden="true"><svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#08090c"/><path d="M8.06 30.33A24 24 0 0 1 51.9 18.58" stroke="#ff2740" stroke-width="7" stroke-linecap="round" fill="none"/><path d="M55.94 33.67A24 24 0 0 1 12.1 45.42" stroke="#2f7bff" stroke-width="7" stroke-linecap="round" fill="none"/><circle cx="32" cy="32" r="13.8" fill="#fff"/><path d="M28.12 24.24L40.05 32 28.12 39.76Z" fill="#08090c" stroke="#08090c" stroke-width="1.87" stroke-linejoin="round"/></svg></span>';
   function studioLink(keys) {
     return 'https://spanky3651.github.io/Playlist-Studio/?bsr=' + keys.map(encodeURIComponent).join(',') + '&utm_source=chester&utm_campaign=bsr-link';
@@ -1604,7 +1613,17 @@
     var s = st(), keys = E.allMapKeys(s.board, s.cards);
     modal('Get the maps', '<p class="lede">Every map on this board' + (s.board.bonusMaps && s.board.bonusMaps.length ? ' plus the bonus maps from cards' : '') + ', ' + keys.length + ' in all, as a playlist for the game.</p>' +
       '<p class="why">Save it to your Beat Saber Playlists folder, or open it with a playlist mod. In game you can also type the key into Better Song Search.</p>' +
-      '<div class="row"><button type="button" class="btn" id="plGo">Download playlist</button></div><p class="err" id="plErr" hidden></p>', function (body) {
+      '<div class="row"><button type="button" class="btn" id="plGo">Download playlist</button>' +
+      '<a class="btn ghost studio-btn" id="plStudio" target="_blank" rel="noopener" href="' + STUDIO_HOME + '" aria-disabled="true" title="Open these maps in Playlist Studio">' + STUDIO_LOGO + '<span>Open in Playlist <b>Studio</b></span></a></div>' +
+      '<p class="why">In Studio you can drop songs you\'ve already played, pick a difficulty for each song or rename it. On Quest? <a href="' + STUDIO_SYNC + '" target="_blank" rel="noopener">Studio Sync</a> sends it straight to your headset.</p>' +
+      '<p class="err" id="plErr" hidden></p>', function (body) {
+      var st0 = body.querySelector('#plStudio');
+      st0.addEventListener('click', function (e) { if (st0.getAttribute('aria-disabled') === 'true') { e.preventDefault(); toast('Getting the maps ready. Try again in a second.', ''); return; } track('get-maps-studio'); });
+      S.maps(keys).then(function (found) {
+        var rows = keys.map(function (k) { var m = found[k]; return m && m.hash ? [m.hash, '', 'Standard'] : null; }).filter(Boolean);
+        if (!rows.length) return;
+        st0.href = studioPlaylistLink(theme().title, rows); st0.removeAttribute('aria-disabled');
+      });
       body.querySelector('#plGo').addEventListener('click', function () {
         var b = this; b.disabled = true; b.textContent = 'Building playlist';
         crowCover().then(function (img) { return S.playlist(theme().title, keys, img); }).then(function (pl) {
@@ -1675,7 +1694,7 @@
     var dayOf = function (t) { var d = new Date(t), today = new Date(), y = new Date(Date.now() - 86400000); if (d.toDateString() === today.toDateString()) return 'Today'; if (d.toDateString() === y.toDateString()) return 'Yesterday'; return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }); };
     var dur = function (ms) { var m = Math.round(ms / 60000); if (m < 1) return 'under a minute'; if (m < 60) return m + ' min'; return Math.floor(m / 60) + ' h ' + (m % 60) + ' min'; };
     var who = function (v) { return (s && (s.players['d' + v.id] || s.players[v.id])) || null; };
-    var ava = function (v) { var p = who(v); return p ? avatarHtml(p, 'vis-ava') : '<span class="vis-ava guest">' + esc(R.initials(v.name || '?')) + '</span>'; };
+    var ava = function (v) { var p = who(v) || (v.avatar ? { id: 'd' + v.id, name: v.name || '?', avatar: v.avatar } : null); return p ? avatarHtml(p, 'vis-ava') : '<span class="vis-ava guest">' + esc(R.initials(v.name || '?')) + '</span>'; };
     var nameOf = function (v) { return '<span class="vis-name"><b>' + esc(v.name) + '</b>' + (v.player ? '' : '<span class="vis-tag">not playing</span>') + '</span>'; };
     var plural = function (k, w) { return '<b>' + k + '</b> ' + w + (k === 1 ? '' : 's'); };
     var live = list.filter(function (v) { return v.open; }), past = list.filter(function (v) { return !v.open; });

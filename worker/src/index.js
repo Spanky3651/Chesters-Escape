@@ -154,7 +154,9 @@ async function authCallback(env, req, url) {
     if (g && g.icon) icons[c.id] = `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=96`;
   }
   if (!member.length) return new Response('This game is for members of the clan Discord servers.', { status: 403 });
-  const avatar = me.avatar ? `https://cdn.discordapp.com/avatars/${me.id}/${me.avatar}.png?size=128` : '';
+  // No picture of their own: Discord's default one for that account, so nobody shows as bare initials.
+  let dflt = ''; try { dflt = `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(me.id) >> 22n) % 6n)}.png`; } catch (e) {}
+  const avatar = me.avatar ? `https://cdn.discordapp.com/avatars/${me.id}/${me.avatar}.png?size=128` : dflt;
   const session = await sign(env, { id: me.id, name: me.global_name || me.username, avatar, clans: member, icons, exp: Date.now() + 60 * 24 * 3600 * 1000 });
   return Response.redirect(st.r + '#token=' + encodeURIComponent(session), 302);
 }
@@ -705,11 +707,12 @@ export class Game extends DurableObject {
       live[user.id] = { entry: prev, last: now, saved: wasOpen && quiet < 120000 ? prev.last : now };
       prev.end = null;
       if (user.name) prev.name = String(user.name).slice(0, 60);
+      if (user.avatar) prev.avatar = String(user.avatar).slice(0, 300);
       // Save when it reopens or the saved check-in is getting old; otherwise memory is enough for now.
       if (!wasOpen || quiet >= 120000) { prev.last = now; await this.ctx.storage.put('visits', log); }
       return;
     }
-    const entry = { id: user.id, name: String(user.name || '').slice(0, 60), start: now, last: now, end: null };
+    const entry = { id: user.id, name: String(user.name || '').slice(0, 60), avatar: String(user.avatar || '').slice(0, 300), start: now, last: now, end: null };
     log.push(entry);
     const cut = now - 14 * 86400000;
     while (log.length && (log.length > 1500 || (log[0].end || log[0].last) < cut)) log.shift();
@@ -752,7 +755,9 @@ export class Game extends DurableObject {
     // "On now" means heard from in the last minute; within the 10-minute window but quiet is "away".
     return { now, visits: (this.visits || []).slice(-400).reverse().map((e) => {
       const lv = live[e.id] && live[e.id].entry === e ? live[e.id].last : null, last = lv || e.last;
-      return { id: e.id, name: e.name, start: e.start, end: e.end, last, open: e.end == null && now - last < 60000, player: !!s.players['d' + e.id] };
+      // Their Discord picture (visits logged before pictures were kept borrow one from a reaction).
+      const avatar = e.avatar || ((s.fans || {})['d' + e.id] || {}).avatar || '';
+      return { id: e.id, name: e.name, avatar, start: e.start, end: e.end, last, open: e.end == null && now - last < 60000, player: !!s.players['d' + e.id] };
     }) };
   }
 
