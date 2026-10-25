@@ -255,12 +255,15 @@ export class Game extends DurableObject {
     this.syncMaps();
   }
   // Before the first roll, keep the board's songs in step with the theme and clan (a game made
-  // before its map set existed picks it up here). Once the game runs, the songs stay put.
+  // before its map set existed, or before the set's songs changed, picks them up here). Once the
+  // game runs, the songs stay put.
   syncMaps() {
     const s = this.state;
     if (!s || s.status !== 'signup' || s.board.custom || s.board.id !== 'chester-escape') return false;
     const want = mapSetFor(this.clan(), s.themeId);
-    if ((s.board.mapSet || '') === want) return false;
+    // Same set but its songs changed since this game was made: pick up the new songs too.
+    const songs = (b) => JSON.stringify([Object.keys(b.spaces).sort().map((id) => b.spaces[id].bsr || null), b.bonusMaps || []]);
+    if ((s.board.mapSet || '') === want && songs(s.board) === songs(C.boardFor(want))) return false;
     C.applyMapSet(s.board, want); s.seq++; this.dirty = true;
     return true;
   }
