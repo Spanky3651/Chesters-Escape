@@ -441,7 +441,7 @@
   // The whole board as a Playlist Studio share link (#p= is Studio's own share format: title, author
   // and [hash, difficulty, mode] per song; an empty difficulty lets each player pick one there).
   var STUDIO_HOME = 'https://spanky3651.github.io/Playlist-Studio/?utm_source=chester&utm_campaign=get-the-maps';
-  var STUDIO_SYNC = 'https://github.com/Spanky3651/Studio-Sync/releases/latest';
+  var STUDIO_SYNC = 'https://spanky3651.github.io/Playlist-Studio/?utm_source=chester&utm_campaign=get-the-maps-sync#studio-sync';
   function studioPlaylistLink(title, rows) {
     var json = JSON.stringify({ v: 1, t: String(title || '').slice(0, 120), a: 'MSploit', s: rows });
     var b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
