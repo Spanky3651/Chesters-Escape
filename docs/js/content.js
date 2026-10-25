@@ -266,7 +266,7 @@
       hat: "pilgrim",
       look: "thanksgiving",
       art: "img/themes/taco-thanksgiving.jpg?v=20261020",   // Hummingbird's board art, title included
-      mapSet: 'taco-thanksgiving',   // Hummingbird's 50 maps
+      mapSet: 'taco-thanksgiving',   // Taco's Thanksgiving playlist, 50 maps
       artHero: {"src": "img/themes/taco-thanksgiving-taco.png?v=20261020", "x": 126.0, "y": 122.01, "w": 121.21, "h": 79.74, "move": "hop"},
       banner: ["#d9661f", "#fff4dc"],
       palette: {"ground": "#f3d27a", "ground2": "#d9a24a", "stone": "#fff7e6", "stoneDark": "#9a6a2e", "ink": "#4a2a10", "accent": "#d9661f", "good": "#4f8a2b", "bad": "#b23a1c", "water": "#5f9bbd"},
@@ -763,62 +763,63 @@
   // Another set of songs for the same board: a map key for every map and blocker space
   // (by space id) and its own bonus maps. A theme or a clan picks one; the layout is unchanged.
   var MAP_SETS = {
-    // Hummingbird's 50 maps for the Beaters board (Oct 20, 2026). Spread for fairness: both routes
-    // get the same average song length and density, every d4 roll reaches a similar mix, and no
-    // mapper repeats back to back. The 7 lightest songs are the bonus maps.
+    // Taco's Thanksgiving maps for the Beaters board (Oct 25, 2026): Thanksgiving, food, family and
+    // friends songs, unranked. Spread for fairness: both routes get the same average song length and
+    // density, every d4 roll reaches a similar mix, and no mapper repeats back to back. The 7 lightest
+    // songs are the bonus maps.
     'taco-thanksgiving': {
       title: "Taco's Thanksgiving",
       author: 'hummingbird',
       authorUrl: 'https://beatleader.com/u/76561198786758592',
       authorBl: '76561198786758592',
       authorAvatar: 'https://cdn.assets.beatleader.com/76561198786758592R27.png',
-      credit: 'Every map on this board was hand-picked by hummingbird for this game. The spaces were then balanced so both routes play fair.',
+      credit: 'Every map on this board was picked to the song rules hummingbird set for this game. The spaces were then balanced so both routes play fair.',
       spaces: {
-        L1: ['54624'],   // Confession・Farewell (wangyufy, 2:51)
-        L2: ['40490'],   // Hazy Moon Night (Ken_Monogatari, 3:14)
-        L3: ['4ecbf'],   // Party In The U.S.A. (Tonkie, 3:24)
-        L5: ['4ba2c'],   // What It Sounds Like (TheGeriatricJedi, 4:13)
-        L6: ['53666'],   // さくらさくらさくら (Hanari, 2:04)
-        L8: ['5077a'],   // LOOK AT ME (Danny., 2:41)
-        L9: ['4f850'],   // ESCAPE (hickeychan, 3:14)
-        L10: ['4d273'],   // body (Jonas, 2:50)
-        L11: ['4a950'],   // Kinmokusei (Vassa, 3:17)
-        L13: ['4d85d'],   // Chromatically (Tiku, 3:20)
-        L14: ['45612'],   // Normal Complex (wangyufy, 2:52)
-        L16: ['547a7'],   // COOK (TheGeriatricJedi, 2:52)
-        L17: ['2e6b2'],   // MOONLIGHT SUNRISE (Lalahti, 3:02)
-        L18: ['40555'],   // Diamond Eyes (Amo, 3:36)
-        L19: ['46db5'],   // Purrfect (Danny., 2:41)
-        L20: ['3b34c'],   // Lucky Girl Syndrome (Lalahti, 2:21)
-        L22: ['4d425'],   // 夜行少女 (wangyufy, 4:12)
-        L24: ['36f01'],   // CAKE (Jonas, 3:21)
-        L25: ['41a10'],   // Drip (minsiii, 3:01)
-        L26: ['3934b'],   // Brain Power (hickeychan, 5:11)
-        L27: ['52514'],   // Perfume (lustrgreed, 2:50)
-        L28: ['45459'],   // Cola Song (3ggcake, 1:59)
-        L30: ['4c979'],   // strangers once again (Pashankie, 3:19)
-        L31: ['30a91'],   // SET ME FREE (Lalahti, 3:03)
-        L32: ['4e71a'],   // 横竖撇点折 (wangyufy, 3:50)
-        L33: ['48e81'],   // LOVETiCON (Danny., 3:01)
-        L35: ['4ed84'],   // RUDE! (Jonas, 3:21)
-        L36: ['3b319'],   // Bezos I (hickeychan, 2:17)
-        L38: ['333f4'],   // Wings of Silence (Amo, 2:33)
-        R1: ['32c6f'],   // EUNOIA (minsiii, 3:26)
-        R3: ['2ed72'],   // LP (hickeychan, 2:13)
-        R5: ['49f1d'],   // Love Me Like You Do (wangyufy, 4:12)
-        R7: ['53b36'],   // The Right Song (TheGeriatricJedi, 3:27)
-        R9: ['4e0fd'],   // ASTRO+NYAUT (yabje, 2:26)
-        R10: ['4b6f1'],   // FOCUS (Jonas, 2:59)
-        R12: ['3a789'],   // Who\'s That Boy (hickeychan, 3:23)
-        R13: ['4f76a'],   // Zoka no michi, Ayumeba (Hanari, 3:05)
-        R15: ['47979'],   // See You Next Crossing (wangyufy, 3:32)
-        R16: ['5408b'],   // UNFORGIVEN Japanese ver. (Sped up) (Dark_Waffle, 2:19)
-        R19: ['50f9e'],   // I Just Might (TheGeriatricJedi, 3:34)
-        R21: ['32c94'],   // GOT THE THRILLS (Lalahti, 2:55)
-        R22: ['531c0'],   // God-ish (Cush, 3:25)
-        s2: ['471f0']   // lemons (olbmaphlee, 2:30)
+        L1: ['1672e'],   // Peanut Butter Jelly (Halcyon12 & JohnnyDee, 3:24)
+        L2: ['15a5b'],   // All My Friends (officialMECH, 3:26)
+        L3: ['79db'],   // Chicken Soup (xScaramouche, 3:30)
+        L5: ['3aaf'],   // Cool Friends (Murtagh & Veschell Remix) (WolfBeats, 4:01)
+        L6: ['94d2'],   // Boogie Oogie Oogie (TechButterfly, 3:45)
+        L8: ['4bc3f'],   // Sugar (Andynak, 3:24)
+        L9: ['30890'],   // Magical Girl and Chocolate (Kerokichi, 3:09)
+        L10: ['4eb7f'],   // Candy (Bellus, 1:56)
+        L11: ['43f4c'],   // Sugar (Najoko, 3:41)
+        L13: ['193c1'],   // Sunset Tea Cup (Kival Evan & shad, 3:06)
+        L14: ['7d93'],   // FRIENDS (fruhead, 3:26)
+        L16: ['30c23'],   // Sugar Rush Ride (eurnkung, 3:08)
+        L17: ['3d69b'],   // The Phoenix (Kival Evan, 4:05)
+        L18: ['1abb5'],   // Cha Kai Mook (Bubble Tea) (NoteIIEvil, 4:11)
+        L19: ['547a7'],   // COOK (TheGeriatricJedi, 2:52)
+        L20: ['38930'],   // Chasing That Feeling (eurnkung, 3:04)
+        L22: ['e0ac'],   // Fall for the Team (ConnorJC, 3:14)
+        L24: ['ae5f'],   // BUBBLE TEA (officialMECH, 2:36)
+        L25: ['7468'],   // What a Fool Believes (TechButterfly, 3:38)
+        L26: ['a68b'],   // Bad Apple!! (Bloodcloak, 6:10)
+        L27: ['4024b'],   // Sweet Dreams (eurnkung, 3:11)
+        L28: ['184ba'],   // Butter (aggrogahu & SimplyMarvellous, 2:44)
+        L30: ['1f078'],   // Sharing The World (Danrabomb, 4:08)
+        L31: ['1194'],   // Honey I\'m Good (Ayeywn, 3:14)
+        L32: ['248e'],   // Dance, Dance (Skyler Wallace, 3:02)
+        L33: ['339bb'],   // Chocolate Adventure (rinka_michibiki, 3:26)
+        L35: ['3ea'],   // Welcome to the Family (Invidia, 3:47)
+        L36: ['2452d'],   // ABC Chak Kra Took (NoteIIEvil, 2:22)
+        L38: ['1669'],   // Donut Hole feat. Gumi (Todokete, 3:30)
+        R1: ['36f1f'],   // Honey or Spice (Bellus, 3:04)
+        R3: ['26ee5'],   // Together (minsiii, 3:46)
+        R5: ['1ccdb'],   // LALISA & friends "A Kpop RAP ATTACK" (Nuggetz, 3:19)
+        R7: ['32c72'],   // Sweet Juice (fatahkent, 3:15)
+        R9: ['b005'],   // Mission Accomplished (Wolfb, 4:19)
+        R10: ['4ee5b'],   // Wannabe (grizlor, 2:48)
+        R12: ['1ff9c'],   // Koisuru Fortune Cookie (NoteIIEvil, 4:48)
+        R13: ['36f01'],   // CAKE (Jonas, 3:21)
+        R15: ['32e02'],   // Sugar Rush (winteredge, 3:11)
+        R16: ['27a13'],   // The Middle (TetsuBeats, 2:49)
+        R19: ['15db5'],   // Powersnake (DNQ, 3:46)
+        R21: ['8e13'],   // Brotherswing (Booj, 3:43)
+        R22: ['1cd24'],   // Taco Tuesday (ODC, 2:14)
+        s2: ['a751']   // Virtual Friends (Skyler Wallace, 3:38)
       },
-      bonusMaps: ['4d995', '551d8', '4ef66', '544cc', '4e0e1', '44505', '4b917']
+      bonusMaps: ['19000', '22b2d', '31c05', '36312', 'bbb', '41f8b', '10c24']
     }
   }; /*MAPSETS*/
 

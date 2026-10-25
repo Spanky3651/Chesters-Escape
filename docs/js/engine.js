@@ -531,10 +531,11 @@
       if (A.finished || B.finished) return (A.finished ? A.finished.place : 1e6) - (B.finished ? B.finished.place : 1e6);
       return remaining(s, A) - remaining(s, B) || s.order.indexOf(a) - s.order.indexOf(b);
     });
+    // Ties share a place and the next player takes the very next number (1, 1, 2), not a skipped one.
     var out = [], place = 0, prevLeft = null;
-    ids.forEach(function (pid, i) {
+    ids.forEach(function (pid) {
       var p = s.players[pid], left = p.finished ? 0 : remaining(s, p);
-      if (p.finished) place = p.finished.place; else if (left !== prevLeft) place = i + 1;
+      if (p.finished) place = p.finished.place; else if (left !== prevLeft) place = place + 1;
       prevLeft = p.finished ? null : left;
       out.push({ pid: pid, place: place, escaped: !!p.finished, left: left, day: p.finished ? p.finished.day : null });
     });
@@ -750,7 +751,7 @@
 
   // ---- host undo -------------------------------------------------------------------
   // Host changes that can be taken back, and how each reads in the undo list.
-  var UNDOABLE = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow'];
+  var UNDOABLE = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'clearGame'];
   function hostLabel(s, action, a) {
     a = a || {};
     var nm = (s.players[a.pid] || {}).name || 'a player', card = a.card ? (s.cards || []).filter(function (c) { return c.id === a.card; })[0] : null;
@@ -772,6 +773,7 @@
       case 'startNow': return 'Started the game';
       case 'setEnd': return a.endsAt == null ? 'Cleared the end time' : 'Changed the end time';
       case 'endNow': return 'Ended the game';
+      case 'clearGame': return 'Cleared the old game';
       default: return action;
     }
   }

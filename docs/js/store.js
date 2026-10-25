@@ -210,6 +210,13 @@
           if (keepMe && !self.state.players[keepMe]) self.me = 'msploit';
           return Promise.resolve(done({}));
         }
+        case 'clearGame': {
+          if (s.status === 'running') { E.endGame(s, Date.now()); if ((self.hallHidden || []).indexOf(s.id) < 0 && E.addToHall(self.hall, s)) self._saveHall(); }
+          var cs = a.startsAt > Date.now() + 60000 ? a.startsAt : null, ct = a.theme || s.themeId;
+          var ns = E.createGame({ board: C.boardFor((C.themes[ct] || {}).mapSet), cards: C.cardsFor(ct), themeId: ct, title: C.themes[ct].title, settings: s.settings, status: 'signup', startsAt: cs, endsAt: a.endsAt > (cs || Date.now()) + 3600000 ? a.endsAt : null });
+          ns.seq = (s.seq || 0) + 1; self.state = ns; self.me = null;
+          return Promise.resolve(done({}));
+        }
         default: return Promise.reject(new Error('Unknown action ' + name));
       }
     } catch (e) { return Promise.reject(e); }

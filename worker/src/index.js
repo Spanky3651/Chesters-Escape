@@ -488,7 +488,7 @@ export class Game extends DurableObject {
     this.useClan(user);
     const s = this.game(); const pid = this.pidFor(user);
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
-    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove'];
+    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove'];
     if (hostOnly.includes(action) && !user.isHost) return { error: 'Only the host can do that.', status: 403 };
     if (s.status === 'finished' && ['join', 'route', 'roll', 'verify', 'claim'].includes(action)) return { error: 'The game is over.' };
     const wasRunning = s.status === 'running';
@@ -553,6 +553,21 @@ export class Game extends DurableObject {
           this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.themes[themeId].title, settings: s.settings, rng, status: startsAt || a.signup ? 'signup' : 'running', startsAt, endsAt });
           keep.forEach((p) => E.addPlayer(this.state, { id: p.id, discordId: p.discordId, name: p.name, avatar: p.avatar, blId: p.blId }));
           this.meta.nextCutoff = startsAt || a.signup ? null : E.nextCutoff(this.state.settings);
+          if (this.meta.feed) this.meta.feed.game = null;   // a new game: its sign-up post can go out
+          break;
+        }
+        // Wipe the old game: a fresh sign-up board with nobody on it and an empty thread. A game
+        // still running ends first so it keeps its place in the hall of fame. Rules, who can play,
+        // Discord settings and the hall of fame stay.
+        case 'clearGame': {
+          if (s.status === 'running') { E.endGame(s, Date.now()); this.recordHall(); }
+          const themeId = C.themes[a.theme] ? a.theme : s.themeId;
+          const board = C.boardFor(mapSetFor(this.clan(), themeId));
+          const startsAt = Number(a.startsAt) > Date.now() + 60000 ? Number(a.startsAt) : null;
+          const endsAt = Number(a.endsAt) > (startsAt || Date.now()) + 3600000 ? Number(a.endsAt) : null;
+          this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.themes[themeId].title, settings: s.settings, rng, status: 'signup', startsAt, endsAt });
+          this.state.seq = (s.seq || 0) + 1;   // keep counting up so open pages pick up the change
+          this.meta.nextCutoff = null;
           if (this.meta.feed) this.meta.feed.game = null;   // a new game: its sign-up post can go out
           break;
         }

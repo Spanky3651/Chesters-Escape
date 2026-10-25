@@ -410,9 +410,24 @@
     return info.blurb || '';
   }
   function rollTitle(c) { return { task: 'Play your map', rolled: 'Rolled for today', skip: 'Turn lost', 'not-running': 'Waiting', finished: 'Escaped' }[c.code] || 'Not yet'; }
+  // A lost turn waiting after today's roll pushes the next roll past tomorrow.
+  function nextRollDay(s, p) { return s.day + (p.skip || 0) + 1; }
+  function lostAhead(s, p) {
+    if (!p.skip) return '';
+    return (p.skip > 1 ? 'You lose your next ' + p.skip + ' turns' : 'You lose your next turn') + ', so your next roll is on day ' + nextRollDay(s, p) + '.';
+  }
   function rollWhy(c, p) {
-    if (c.code === 'task') return 'Your next roll unlocks once BeatLeader shows a pass on ' + (p.tasks.length > 1 ? 'each of these maps' : 'this map') + '. Any difficulty, any modifiers.';
-    if (c.code === 'rolled') return store.mode === 'demo' ? 'Come back tomorrow. In the demo, use Start the next day.' : 'Your next roll opens when the day turns over.';
+    var s = st();
+    if (c.code === 'task') {
+      var why = 'Your next roll unlocks once BeatLeader shows a pass on ' + (p.tasks.length > 1 ? 'each of these maps' : 'this map') + '. Any difficulty, any modifiers.';
+      if (p.skippedDay === s.day) why += ' You\'re sitting out today, so play it now and roll on day ' + nextRollDay(s, p) + '.';
+      else if (p.rolledDay === s.day && p.skip) why += ' ' + lostAhead(s, p);
+      return why;
+    }
+    if (c.code === 'rolled') {
+      if (p.skip) return lostAhead(s, p) + (store.mode === 'demo' ? ' In the demo, use Start the next day.' : '');
+      return store.mode === 'demo' ? 'Come back tomorrow. In the demo, use Start the next day.' : 'Your next roll opens when the day turns over.';
+    }
     if (c.code === 'skip') return p.skip ? 'You sit this one out. ' + p.skip + ' more after today.' : 'You sit this one out. You can roll again tomorrow.';
     return c.reason;
   }
@@ -690,7 +705,7 @@
     } else {
       var c = E.canRoll(s, p.id);
       if (c.ok) html = ava + '<span class="mb-txt"><b>Ready to roll</b><span>' + E.remaining(s, p) + ' spaces to go</span></span><button type="button" class="btn small" id="mRoll">Roll the d4</button>';
-      else html = ava + '<span class="mb-txt"><b>' + esc(rollTitle(c)) + '</b><span>' + esc(c.code === 'rolled' ? (store.mode === 'demo' ? 'Next roll tomorrow' : 'Next roll after the cutoff') : c.reason) + '</span></span><button type="button" class="btn small ghost" id="mGo">Details</button>';
+      else html = ava + '<span class="mb-txt"><b>' + esc(rollTitle(c)) + '</b><span>' + esc(c.code === 'rolled' ? (p.skip ? 'Next turn lost. Roll again on day ' + nextRollDay(s, p) : store.mode === 'demo' ? 'Next roll tomorrow' : 'Next roll after the cutoff') : c.reason) + '</span></span><button type="button" class="btn small ghost" id="mGo">Details</button>';
     }
     bar.innerHTML = html; bar.hidden = false; document.body.classList.add('has-mbar');
   }
@@ -1719,7 +1734,19 @@
       '<label class="start-field"><span>Start time (optional)</span><input type="datetime-local" id="newStart"></label>' +
       '<label class="start-field"><span>End time (optional)</span><input type="datetime-local" id="newEnd"></label>' +
       '<p class="why">With a start time, sign-ups open now and the first roll unlocks then. Leave it empty to start right away. Day 1 lasts until the next ' + esc(cutoffLabel(s)) + ' cutoff, so a ' + esc(cutoffLabel(s)) + ' start gives everyone a full first day. With an end time, the game locks then and the standings freeze; without one it runs until everyone escapes.</p><div class="row">' +
-      '<button type="button" class="btn small" data-h="newgame">Start the next game</button>' + (designerBoard() ? '<button type="button" class="btn small ghost" data-h="loadboard">Start it on the designer board</button>' : '') + '</div></section>';
+      '<button type="button" class="btn small" data-h="newgame">Start the next game</button>' + (designerBoard() ? '<button type="button" class="btn small ghost" data-h="loadboard">Start it on the designer board</button>' : '') + '</div>' +
+      '<h4 class="hsub">Start fresh instead</h4><p>Clears everyone off the board and empties the thread, so the next game opens with nobody signed up. It uses the theme and times above.</p>' +
+      '<div class="row"><button type="button" class="btn small danger" data-h="cleargame" data-f="new">Clear the old game</button></div></section>';
+  }
+  // Any time: wipe the old game and open a fresh one for sign-ups with nobody on the board.
+  function clearSection(s) {
+    var running = s.status === 'running';
+    return '<section class="hsec"><h3>Clear the old game</h3><p>Takes everyone off the board, empties the thread and opens a fresh game for sign-ups' + (running ? '. This game ends first and keeps its place in the hall of fame' : '') + '. Rules, who can play, Discord settings and the hall of fame stay.</p>' +
+      '<div class="row"><label>Theme ' + themeOptions(s, 'clrTheme') + '</label></div>' +
+      '<label class="start-field"><span>Start time (optional)</span><input type="datetime-local" id="clrStart"></label>' +
+      '<label class="start-field"><span>End time (optional)</span><input type="datetime-local" id="clrEnd"></label>' +
+      '<p class="why">With a start time, the first roll unlocks then. Without one, sign-ups stay open until you start it.</p>' +
+      '<div class="row"><button type="button" class="btn small danger" data-h="cleargame" data-f="clr">Clear the old game</button></div></section>';
   }
   function renderHost() {
     var s = st(), demo = store.mode === 'demo', T = { today: '', players: '', game: '', alerts: '' };
@@ -1809,6 +1836,7 @@
       if (signup && designerBoard()) T.game += '<h4 class="hsub">Designer board</h4><p>Swap this game onto the board from the designer. Sign-ups and the start time stay, and everyone picks a route again.</p><div class="row"><button type="button" class="btn small ghost" data-h="loadboard">Use the designer board</button></div>';
       if (running) T.game += '<p class="why">To start a new game, end this one first (End of the game, above). The next game is set up from the Today tab.</p>';
       T.game += '</section>';
+      T.game += clearSection(s);
     }
 
     // ---- Alerts: Discord posts, roll reminders, this device ----
@@ -1831,11 +1859,11 @@
       var n = t[0] === 'today' ? todo : 0;
       return '<button type="button" role="tab" class="htab" data-h="tab" data-tab="' + t[0] + '" aria-selected="' + (hostTab === t[0]) + '">' + t[1] + (n ? ' <span class="nav-badge">' + n + '</span>' : '') + '</button>';
     }).join('') + '</div>' + HOST_TABS.map(function (t) { return '<div class="hpane" data-pane="' + t[0] + '" role="tabpanel"' + (hostTab === t[0] ? '' : ' hidden') + '>' + T[t[0]] + '</div>'; }).join('');
-    var keep = {}; ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme'].forEach(function (id) { var el = $(id); if (el && el.value && el.dataset.touched) keep[id] = el.value; });
+    var keep = {}; ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme', 'clrStart', 'clrEnd', 'clrTheme'].forEach(function (id) { var el = $(id); if (el && el.value && el.dataset.touched) keep[id] = el.value; });
     $('hostBody').innerHTML = html;
     fillVisits();
     Object.keys(keep).forEach(function (id) { var el = $(id); if (el) { el.value = keep[id]; el.dataset.touched = '1'; } });
-    ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme'].forEach(function (id) { var el = $(id); if (el) el.addEventListener(id === 'newTheme' ? 'change' : 'input', function () { el.dataset.touched = '1'; }); });
+    ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme', 'clrStart', 'clrEnd', 'clrTheme'].forEach(function (id) { var el = $(id); if (el) el.addEventListener((id === 'newTheme' || id === 'clrTheme') ? 'change' : 'input', function () { el.dataset.touched = '1'; }); });
     fillPush();
   }
   function showHostTab(id) {
@@ -1966,6 +1994,15 @@
         var ne = readStart('newEnd'); if (ne === false) break;
         if (ne && ne < (ns || Date.now()) + 3600000) { toast('The end time needs to be at least an hour after the start.', 'bad'); break; }
         if (confirm((ns ? 'Start a new game with sign-ups open until ' + startWhen(ns) + '?' : 'Start a new game now?') + (ne ? ' It ends ' + startWhen(ne) + '.' : '') + ' Everyone goes back to the start.')) run('newGame', { theme: ($('newTheme') && $('newTheme').value) || st().themeId, startsAt: ns, endsAt: ne }, ns ? 'Sign-ups are open.' : 'New game started.');
+        break;
+      }
+      case 'cleargame': {
+        var f = btn.dataset.f || 'clr', cs = readStart(f + 'Start'); if (cs === false) break;
+        var ce = readStart(f + 'End'); if (ce === false) break;
+        if (ce && ce < (cs || Date.now()) + 3600000) { toast('The end time needs to be at least an hour after the start.', 'bad'); break; }
+        var cur = st(), n = cur.order.length;
+        if (confirm('Clear the old game?' + (cur.status === 'running' ? ' It ends now and goes in the hall of fame.' : '') + (n ? ' All ' + n + (n === 1 ? ' player comes' : ' players come') + ' off the board,' : '') + ' the thread starts empty and sign-ups open' + (cs ? ' until ' + startWhen(cs) : '') + '.' + (ce ? ' The new game ends ' + startWhen(ce) + '.' : '') + ' You can undo it until someone joins.'))
+          run('clearGame', { theme: ($(f + 'Theme') && $(f + 'Theme').value) || cur.themeId, startsAt: cs, endsAt: ce }, 'The old game is cleared. Sign-ups are open.');
         break;
       }
       case 'reschedule': { var rs = readStart('startEdit'); if (!rs) { if (rs === null) toast('Pick a start time first.', 'bad'); break; } run('schedule', { startsAt: rs }, 'Start time saved.'); break; }
