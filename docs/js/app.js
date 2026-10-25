@@ -324,7 +324,7 @@
     if (!p) {
       if (store.mode === 'live' && store.isHost && store.hostOut) {
         el.innerHTML = '<h2>' + esc(store.user ? store.user.name : 'Host') + ' <span class="admin-badge">Admin</span></h2><p class="lede">You\'re running this game, not playing in it. Runs to approve and the game setup are in Host tools.</p>' +
-          '<div class="row"><button type="button" class="btn" id="meHost">User log</button><button type="button" class="btn ghost" id="meTools">Host tools</button><button type="button" class="btn link" id="logoutBtn">Sign out</button></div>';
+          '<div class="row"><button type="button" class="btn" id="meTools">Host tools</button><button type="button" class="btn ghost" id="meHost">User log</button><button type="button" class="btn link" id="logoutBtn">Sign out</button></div>';
         return;
       }
       if (store.mode === 'live' && store.user && !store.canPlay) {
