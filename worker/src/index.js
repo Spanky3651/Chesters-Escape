@@ -516,7 +516,7 @@ export class Game extends DurableObject {
           break;
         }
         case 'route': result = this.mine(s, pid) && E.chooseRoute(s, pid, a.route); break;
-        case 'react': if (!s.players[pid]) return { error: 'Join the game to react.' }; result = E.react(s, pid, a.id, a.emoji); break;
+        case 'react': result = E.react(s, pid, a.id, a.emoji, s.players[pid] ? null : { name: user.name, avatar: user.avatar }); break;
         case 'roll': this.mine(s, pid); result = E.roll(s, pid, { rng }); delete result.player; break;
         case 'verify': this.mine(s, pid); result = { cleared: await this.check(pid) }; break;
         case 'claim': {

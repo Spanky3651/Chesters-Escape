@@ -62,7 +62,7 @@
     return sp.type;
   }
   function avatarHtml(p, cls) {
-    var col = R.playerColor(st(), p.id);
+    var col = R.playerColor(st(), p.id) || '#8a8f98';
     if (p.avatar) return '<img class="' + cls + '" style="--c:' + col + '" src="' + esc(p.avatar) + '" alt="" onerror="if(this.parentNode)this.outerHTML=\'<span class=&quot;' + cls + '&quot; style=&quot;--c:' + col + '&quot;>' + esc(R.initials(p.name)) + '</span>\'">';
     return '<span class="' + cls + '" style="--c:' + col + '">' + esc(R.initials(p.name)) + '</span>';
   }
@@ -583,12 +583,18 @@
   var SHARE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>';
   var REACTABLE = { cleared: 1, escaped: 1, card: 1, move: 1, start: 1, warp: 1, pass: 1, skip: 1, 'lost-turn': 1, join: 1, 'gate-closed': 1, 'shield-used': 1 };
   function shareable(e) { return e.pid === store.me && (e.t === 'cleared' || e.t === 'escaped' || e.t === 'pass' || e.t === 'start' || (e.t === 'warp') || (e.t === 'move' && Math.abs(e.n) >= 3) || e.t === 'card'); }
+  // Who reacts from this browser: your player, or (live) anyone signed in and let in, joined or not.
+  function rxMe() {
+    var p = me(); if (p) return p;
+    if (store.mode === 'live' && store.user && store.canPlay) return { id: 'd' + store.user.id, name: store.user.name, avatar: store.user.avatar };
+    return null;
+  }
   function rxRow(e) {
-    var s = st(), r = X.rxCounts((s.reactions || {})[e.id]), mine = me(), html = '', t = theme();
+    var s = st(), r = X.rxCounts((s.reactions || {})[e.id]), mine = rxMe(), html = '', t = theme();
     E.REACTIONS.forEach(function (id) {
-      var who = (r[id] || []).filter(function (q) { return s.players[q]; }); if (!who.length) return;
+      var who = (r[id] || []).filter(function (q) { return E.reactor(s, q); }); if (!who.length) return;
       var on = mine && who.indexOf(mine.id) >= 0, label = X.rxLabel(id, t);
-      html += '<button type="button" class="rx-chip" data-rx="' + id + '" data-ev="' + e.id + '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + ', ' + who.length + '" title="' + esc(label + ': ' + who.map(function (q) { return s.players[q].name; }).join(', ')) + '"' + (mine ? '' : ' aria-disabled="true"') + '>' + X.rxIcon(id, t) + '<b>' + who.length + '</b></button>';
+      html += '<button type="button" class="rx-chip" data-rx="' + id + '" data-ev="' + e.id + '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + ', ' + who.length + '" title="' + esc(label + ': ' + who.map(function (q) { return E.reactor(s, q).name; }).join(', ')) + '"' + (mine ? '' : ' aria-disabled="true"') + '>' + X.rxIcon(id, t) + '<b>' + who.length + '</b></button>';
     });
     var acts = '';
     if (mine && REACTABLE[e.t] && e.pid !== mine.id) acts += '<button type="button" class="rx-add" data-rxadd="' + e.id + '" aria-label="React" title="React">' + RX_ICON + '</button>';
@@ -597,7 +603,7 @@
   }
   // The picker leads with what fits the moment: SS and FC for a score, RIP and the bomb for a setback.
   function openRx(btn) {
-    var pop = $('rxPop'), id = Number(btn.dataset.rxadd), s = st(), r = X.rxCounts((s.reactions || {})[id]), mine = me(), t = theme();
+    var pop = $('rxPop'), id = Number(btn.dataset.rxadd), s = st(), r = X.rxCounts((s.reactions || {})[id]), mine = rxMe(), t = theme();
     var ev = s.events.filter(function (x) { return x.id === id; })[0];
     pop.innerHTML = X.rxOrder(ev).map(function (rid) {
       var on = mine && (r[rid] || []).indexOf(mine.id) >= 0, label = X.rxLabel(rid, t);
@@ -612,7 +618,7 @@
   }
   function closeRx() { var p = $('rxPop'); if (p && !p.hidden) p.hidden = true; }
   function doReact(btn) {
-    if (!me()) { toast('Join the game to react.', ''); return; }
+    if (!rxMe()) { toast(store.mode === 'live' && !store.user ? 'Sign in to react.' : 'You can react once the host lets you in.', ''); return; }
     var em = btn.dataset.rx, id = Number(btn.dataset.ev);
     closeRx(); track('react');
     store.act('react', { id: id, emoji: em }).then(function () {
@@ -628,7 +634,7 @@
       var ev = null; for (var i = s.events.length - 1; i >= 0; i--) if (s.events[i].id === Number(id)) { ev = s.events[i]; break; }
       if (!ev || ev.pid !== mine.id) return;
       var rc = X.rxCounts(s.reactions[id]);
-      Object.keys(rc).forEach(function (em) { rc[em].forEach(function (q) { if (q === mine.id) return; var k = id + em + q; now[k] = 1; if (rxSeen && !rxSeen[k] && s.players[q]) news.push({ who: s.players[q].name, em: em, ev: ev }); }); });
+      Object.keys(rc).forEach(function (em) { rc[em].forEach(function (q) { if (q === mine.id) return; var k = id + em + q; now[k] = 1; if (rxSeen && !rxSeen[k] && E.reactor(s, q)) news.push({ who: E.reactor(s, q).name, em: em, ev: ev }); }); });
     });
     rxSeen = now;
     if (!news.length) return;
@@ -2040,10 +2046,10 @@
   function openRxWho(chip) {
     closeRxWho();
     var s = st(), t = theme(), id = chip.dataset.rx, r = X.rxCounts((s.reactions || {})[chip.dataset.ev]);
-    var who = (r[id] || []).filter(function (q) { return s.players[q]; }); if (!who.length) return;
-    var box = document.createElement('div'); box.id = 'rxWho'; box.className = 'rx-who'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'Who reacted');
+    var who = (r[id] || []).filter(function (q) { return E.reactor(s, q); }); if (!who.length) return;
+    var me0 = rxMe(), box = document.createElement('div'); box.id = 'rxWho'; box.className = 'rx-who'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'Who reacted');
     box.innerHTML = '<div class="rw-head">' + X.rxIcon(id, t) + '<b>' + esc(X.rxLabel(id, t)) + '</b><span>' + who.length + '</span></div><ul>' +
-      who.map(function (q) { var p = s.players[q]; return '<li>' + avatarHtml(p, 'rw-ava') + '<span>' + esc(p.name) + (q === store.me ? ' <i>(you)</i>' : '') + '</span></li>'; }).join('') + '</ul>';
+      who.map(function (q) { var p = E.reactor(s, q); return '<li>' + avatarHtml(p, 'rw-ava') + '<span>' + esc(p.name) + (me0 && q === me0.id ? ' <i>(you)</i>' : '') + '</span></li>'; }).join('') + '</ul>';
     document.body.appendChild(box);
     var b = chip.getBoundingClientRect(), vw = document.documentElement.clientWidth, w = box.offsetWidth, h = box.offsetHeight;
     var left = Math.max(8, Math.min(vw - w - 8, b.left + b.width / 2 - w / 2)), top = b.top - h - 8;
@@ -2058,7 +2064,7 @@
   function secretRx(btn) {
     if (Date.now() - secretAt < 1200) return;
     secretAt = rxHeldAt = Date.now(); secretSwallow = true; clearTimeout(rxHoldTimer);
-    var ev = btn.dataset.ev, rx = SECRET_RX[btn.dataset.rx], mine = me(), had = mine && ((X.rxCounts((st().reactions || {})[ev])[rx] || []).indexOf(mine.id) >= 0);
+    var ev = btn.dataset.ev, rx = SECRET_RX[btn.dataset.rx], mine = rxMe(), had = mine && ((X.rxCounts((st().reactions || {})[ev])[rx] || []).indexOf(mine.id) >= 0);
     if (navigator.vibrate) try { navigator.vibrate([10, 40, 10]); } catch (x) {}
     doReact({ dataset: { rx: rx, ev: ev } });
     if (mine && !had) toast(SECRET_MSG[rx], '');

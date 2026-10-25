@@ -165,8 +165,14 @@
   // GG, full combo, miss, bomb, o7, pat pat) map onto the closest current one so they still count and can be taken back.
   var REACTIONS = ['ss', 'fire', 'letsgo', 'love', 'jaw', 'bump', 'medal', 'sabers', 'popcorn', 'lol', 'pressf', 'salt', 'rip', 'hero', 'cry', 'sweat', 'rage', 'hurry', 'strong', 'broken', 'hbird', 'msploit'];
   var LEGACY_REACTIONS = { '\uD83D\uDC4F': 'letsgo', '\uD83C\uDF89': 'letsgo', '\uD83D\uDD25': 'fire', '\uD83D\uDE02': 'salt', '\uD83D\uDC80': 'rip', '\uD83D\uDE31': 'jaw', gg: 'letsgo', fc: 'ss', miss: 'pressf', bomb: 'pressf', salute: 'bump', pat: 'pressf' };
-  function react(s, pid, evId, emoji) {
-    need(s, pid);
+  // Someone signed in who isn't on the board can react too: pass who ({ name, avatar }) and
+  // their name is kept with the game so the thread can show it.
+  function react(s, pid, evId, emoji, who) {
+    if (!s.players[pid]) {
+      if (!who || !who.name) need(s, pid);
+      s.fans = s.fans || {};
+      s.fans[pid] = { id: pid, name: String(who.name).slice(0, 60), avatar: String(who.avatar || '').slice(0, 300) };
+    }
     if (REACTIONS.indexOf(emoji) < 0) throw err('bad-emoji', 'Pick one of the reactions.');
     evId = Number(evId);
     if (!s.events.some(function (e) { return e.id === evId; })) throw err('no-event', 'That moment is no longer in the thread.');
@@ -180,6 +186,9 @@
     s.seq++;
     return s.reactions[evId] || {};
   }
+
+  // A player, or someone who only reacted. Null when neither.
+  function reactor(s, pid) { return s.players[pid] || (s.fans && s.fans[pid]) || null; }
 
   // Spaces left for everyone still racing (escaped players count as -1).
   function leftMap(s) {
@@ -780,7 +789,7 @@
 
   var E = {
     VERSION: VERSION, DEFAULTS: DEFAULTS,
-    createGame: createGame, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, react: react, REACTIONS: REACTIONS, LEGACY_REACTIONS: LEGACY_REACTIONS, signupsOpen: signupsOpen, chooseRoute: chooseRoute,
+    createGame: createGame, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, react: react, reactor: reactor, REACTIONS: REACTIONS, LEGACY_REACTIONS: LEGACY_REACTIONS, signupsOpen: signupsOpen, chooseRoute: chooseRoute,
     canRoll: canRoll, roll: roll, advanceDay: advanceDay,
     completeTask: completeTask, claimTask: claimTask, rejectClaim: rejectClaim, matchScores: matchScores, improveClears: improveClears,
     setPosition: setPosition, hostCard: hostCard, resetPlayer: resetPlayer,
