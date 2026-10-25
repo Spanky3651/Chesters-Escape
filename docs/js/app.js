@@ -324,7 +324,7 @@
     if (!p) {
       if (store.mode === 'live' && store.isHost && store.hostOut) {
         el.innerHTML = '<h2>' + esc(store.user ? store.user.name : 'Host') + ' <span class="admin-badge">Admin</span></h2><p class="lede">You\'re running this game, not playing in it. Runs to approve and the game setup are in Host tools.</p>' +
-          '<div class="row"><button type="button" class="btn" id="meHost">User log</button><button type="button" class="btn link" id="logoutBtn">Sign out</button></div>';
+          '<div class="row"><button type="button" class="btn" id="meHost">User log</button><button type="button" class="btn ghost" id="meTools">Host tools</button><button type="button" class="btn link" id="logoutBtn">Sign out</button></div>';
         return;
       }
       if (store.mode === 'live' && store.user && !store.canPlay) {
@@ -2148,6 +2148,7 @@
       if (e.target.closest('#joinBtn')) { openJoin(false); return; }
       if (e.target.closest('a[href*="/auth/login"]')) track('sign-in');
       if (e.target.closest('#logoutBtn')) { track('sign-out'); store.logout(); return; }
+      if (e.target.closest('#meTools')) { openHost(); return; }
       if (e.target.closest('#meHost')) { openHost('today'); var vb = $('visitBox'), vs = vb && vb.closest('section'); if (vs) setTimeout(function () { vs.scrollIntoView({ block: 'start' }); }, 60); return; }
       if (e.target.closest('#checkAgain')) { location.reload(); return; }
       var stb = e.target.closest('.st[data-pid]'); if (stb) { openPlayer(stb.dataset.pid); return; }
