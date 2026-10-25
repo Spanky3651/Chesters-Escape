@@ -1614,7 +1614,7 @@
     modal('Get the maps', '<p class="lede">Every map on this board' + (s.board.bonusMaps && s.board.bonusMaps.length ? ' plus the bonus maps from cards' : '') + ', ' + keys.length + ' in all, as a playlist for the game.</p>' +
       '<p class="why">Save it to your Beat Saber Playlists folder, or open it with a playlist mod. In game you can also type the key into Better Song Search.</p>' +
       '<div class="row"><button type="button" class="btn" id="plGo">Download playlist</button>' +
-      '<a class="btn ghost studio-btn" id="plStudio" target="_blank" rel="noopener" href="' + STUDIO_HOME + '" aria-disabled="true" title="Open these maps in Playlist Studio">' + STUDIO_LOGO + '<span>Open in Playlist <b>Studio</b></span></a></div>' +
+      '<a class="btn ghost studio-btn" id="plStudio" target="_blank" rel="noopener" href="' + STUDIO_HOME + '" aria-disabled="true" title="Open these maps in Playlist Studio">' + STUDIO_LOGO + '<span>Playlist <b>Studio</b></span></a></div>' +
       '<p class="why">In Studio you can drop songs you\'ve already played, pick a difficulty for each song or rename it. On Quest? <a href="' + STUDIO_SYNC + '" target="_blank" rel="noopener">Studio Sync</a> sends it straight to your headset.</p>' +
       '<p class="err" id="plErr" hidden></p>', function (body) {
       var st0 = body.querySelector('#plStudio');
