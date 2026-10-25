@@ -965,3 +965,4 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .pile-list .ava-wrap { position: relative; flex: none; display: inline-flex; }
 .pile-list .ava { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; display: grid; place-items: center; background: #1a1d18; border: 2px solid var(--c); font: 700 12px var(--ui); color: #fff; }
 .pl-place { font: 700 13px var(--ui); color: var(--muted); min-width: 34px; text-align: right; }
+.admin-badge { display: inline-block; vertical-align: middle; margin-left: 8px; padding: 3px 10px; border-radius: 999px; background: var(--accent); color: #000; font: 800 12px/1.2 var(--ui); letter-spacing: .08em; text-transform: uppercase; }

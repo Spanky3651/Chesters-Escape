@@ -292,6 +292,7 @@
     if (r.access !== undefined) this.access = r.access;
     if (r.discord !== undefined) this.discord = r.discord;
     if (r.undo !== undefined) this.undo = r.undo;
+    if (r.hostOut !== undefined) this.hostOut = r.hostOut;
     if (r.hall !== undefined) this.hall = r.hall;
     if (r.canPlay !== undefined) this.canPlay = r.canPlay;
     if (r.online !== undefined) this.online = r.online || [];

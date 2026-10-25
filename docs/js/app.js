@@ -322,6 +322,11 @@
     // The demo plays as MSploit for everyone, so only a real sign-in can mark the owner's browser.
     if (store.mode === 'live' && window.CGSkipOwner) window.CGSkipOwner(store.user && store.user.id, p && p.blId);
     if (!p) {
+      if (store.mode === 'live' && store.isHost && store.hostOut) {
+        el.innerHTML = '<h2>' + esc(store.user ? store.user.name : 'Host') + ' <span class="admin-badge">Admin</span></h2><p class="lede">You\'re running this game, not playing in it. Runs to approve and the game setup are in Host tools.</p>' +
+          '<div class="row"><button type="button" class="btn" id="meHost">Open Host tools</button><button type="button" class="btn link" id="logoutBtn">Sign out</button></div>';
+        return;
+      }
       if (store.mode === 'live' && store.user && !store.canPlay) {
         el.innerHTML = '<h2>You\'re on the list</h2><p class="lede">Thanks, ' + esc(store.user.name) + '. You can watch the game now. The host will let you in to play.</p>' +
           '<div class="row"><button type="button" class="btn ghost" id="checkAgain">Check again</button><button type="button" class="btn link" id="logoutBtn">Sign out</button></div>';
@@ -1772,6 +1777,7 @@
     T.today += '<section class="hsec"><div class="thread-head"><h3>Visits</h3><button type="button" class="btn small link" data-h="visits-refresh">Refresh</button></div><p>When signed-in people opened the game and when they left. Coming back within 10 minutes counts as the same visit, so a visit ends 10 minutes after they close it, switch away or lock their phone. The last two weeks are kept.</p><div id="visitBox"><p class="why">Loading</p></div></section>';
 
     // ---- Players ----
+    if (!demo) T.players += '<section class="hsec"><h3>You</h3><label class="check"><input type="checkbox" id="hostOutBox"' + (store.hostOut ? ' checked' : '') + '> <span>I\'m hosting this game, not playing. You get an Admin badge instead of the Join button.</span></label><p class="why">Only for this clan\'s game. Your other games stay the same.</p></section>';
     if (signup) {
       T.players += '<section class="hsec"><h3>Signed up</h3><p>' + (s.order.length ? 'Tokens go on the board when the game starts.' : 'Nobody has signed up yet.') + '</p>';
       if (s.order.length) T.players += '<table class="ptable"><tbody>' + s.order.map(function (pid) {
@@ -2115,6 +2121,7 @@
       if (e.target.closest('#joinBtn')) { openJoin(false); return; }
       if (e.target.closest('a[href*="/auth/login"]')) track('sign-in');
       if (e.target.closest('#logoutBtn')) { track('sign-out'); store.logout(); return; }
+      if (e.target.closest('#meHost')) { openHost(); return; }
       if (e.target.closest('#checkAgain')) { location.reload(); return; }
       var stb = e.target.closest('.st[data-pid]'); if (stb) { openPlayer(stb.dataset.pid); return; }
       if (e.target.closest('[data-hall]')) { openHall(); return; }
@@ -2148,6 +2155,7 @@
       if (t.dataset.set) {
         if (st().status === 'running' && !confirm('Change this rule for everyone in the game that is running now?')) { t.checked = !t.checked; return; }
         var patch = {}; patch[t.dataset.set] = t.checked; store.act('settings', { patch: patch }).catch(fail); return; }
+      if (t.id === 'hostOutBox') { var out = t.checked; store.act('hostPlays', { plays: !out }).then(function () { toast(out ? 'You\'re hosting only. The Admin badge is on.' : 'You can join this game again.', 'good'); }, function (e) { t.checked = !out; fail(e); }); return; }
       if (t.name === 'sumode') {
         if (t.value === 'closed' && !confirm('Close sign-ups? Nobody new can join until the game starts.')) { renderHost(); return; }
         store.act('signups', { closed: t.value === 'closed' }).then(function () { toast(t.value === 'closed' ? 'Sign-ups are closed until the game starts.' : 'Sign-ups are open.', 'good'); }, fail); return; }

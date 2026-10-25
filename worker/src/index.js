@@ -296,6 +296,8 @@ export class Game extends DurableObject {
   // A cleared game can always come back while the fresh one is still in sign-ups: nobody has
   // rolled there, so only sign-ups would be lost.
   clearUndoable(top) { return !!top && top.label === 'Cleared the old game' && !!this.state && this.state.status === 'signup' && !this.state.events.some((e) => e.t !== 'join' && e.t !== 'route'); }
+  // Hosts who run this clan's game without playing in it. They get an Admin card instead of Join.
+  hostOut(user) { return !!user && (this.meta.hostOut || []).includes(String(user.id)); }
   discordInfo() { const p = this.posts(), out = { hooked: !!this.webhook() }; for (const k of POST_KINDS) out[k] = !!p[k]; return out; }
   announcing(kind) { return !!this.webhook() && !!this.posts()[kind]; }
   // A post, optionally with a card linking to the game. The card is built here (not left to
@@ -483,7 +485,7 @@ export class Game extends DurableObject {
     if (this.dirty) { this.dirty = false; await this.save(); }
     if (since === s.seq) return { state: null, me, canPlay, online: this.onlineNow() };
     const out = { state: E.publicState(s), me, canPlay, isHost: !!user.isHost, user: { id: user.id, name: user.name, avatar: user.avatar }, online: this.onlineNow(), hall: this.meta.hall || [] };
-    if (user && user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); }
+    if (user && user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); out.hostOut = this.hostOut(user); }
     return out;
   }
 
@@ -491,7 +493,7 @@ export class Game extends DurableObject {
     this.useClan(user);
     const s = this.game(); const pid = this.pidFor(user);
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
-    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove'];
+    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove', 'hostPlays'];
     if (hostOnly.includes(action) && !user.isHost) return { error: 'Only the host can do that.', status: 403 };
     if (s.status === 'finished' && ['join', 'route', 'roll', 'verify', 'claim'].includes(action)) return { error: 'The game is over.' };
     const wasRunning = s.status === 'running';
@@ -501,6 +503,7 @@ export class Game extends DurableObject {
     try {
       switch (action) {
         case 'join': {
+          if (user.isHost && this.hostOut(user)) return { error: "You're hosting this game, not playing. Switch that off in Host tools to join." };
           if (!E.signupsOpen(s)) return { error: 'Sign-ups are closed until the game starts.' };
           const bl = await this.blPlayer(a.blId);
           const taken = s.order.find((id) => id !== pid && s.players[id].blId === bl.id);
@@ -635,6 +638,11 @@ export class Game extends DurableObject {
           result = { undone: top.label };
           break;
         }
+        case 'hostPlays': {
+          const id = String(user.id), l = (this.meta.hostOut = this.meta.hostOut || []).filter((x) => x !== id);
+          if (!a.plays) { if (s.players[pid]) return { error: 'You are signed up for this game. Take yourself off it in the Players tab first.' }; l.push(id); }
+          this.meta.hostOut = l; s.seq++; break;
+        }
         case 'discordPosts': {
           if (!POST_KINDS.includes(a.kind)) return { error: 'Unknown post.' };
           this.posts()[a.kind] = !!a.on; s.seq++; break;
@@ -658,7 +666,7 @@ export class Game extends DurableObject {
     await this.save();
     if (this.state.players[pid]) this.seen(pid);
     const out = { result, state: E.publicState(this.state), me: this.state.players[pid] ? pid : null, canPlay: true, online: this.onlineNow(), hall: this.meta.hall || [] };
-    if (user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); }
+    if (user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); out.hostOut = this.hostOut(user); }
     return out;
   }
   // Who has the game open right now. Open pages check in every 20 seconds while visible, so
