@@ -794,13 +794,6 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .cfront .cart.pic { background: #000; padding: 0; }
 .cfront .cart-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-.curator { margin: 4px 0 14px; padding: 12px 14px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line-2)); background: color-mix(in srgb, var(--accent) 8%, var(--raise-2)); }
-.curator .cur-k { font-size: 12.5px; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); font-weight: 700; }
-.curator a, .curator b { font-size: 18px; font-weight: 800; color: var(--accent); }
-.curator p { margin: 6px 0 0; color: var(--text); font-size: 15px; }
-.curator .cur-who { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
-.curator .cur-ava { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: none; border: 2px solid var(--accent); background: var(--raise-2); display: grid; place-items: center; font-weight: 800; color: var(--accent); }
-.curator .cur-ava[hidden] { display: none; }
 .hsec .hsub { margin: 16px 0 6px; font-size: 15px; font-weight: 700; color: var(--text); }
 
 /* Host tools: a skull in the header; the board designer opens from inside the drawer */

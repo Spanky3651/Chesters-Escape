@@ -1574,20 +1574,12 @@
 
   function openPlaylist() {
     var s = st(), keys = E.allMapKeys(s.board, s.cards);
-    var set = C.mapSets[s.board.mapSet], by = set && set.author;
     modal('Get the maps', '<p class="lede">Every map on this board' + (s.board.bonusMaps && s.board.bonusMaps.length ? ' plus the bonus maps from cards' : '') + ', ' + keys.length + ' in all, as a playlist for the game.</p>' +
-      (by ? '<div class="curator"><span class="cur-k">Curated by</span><div class="cur-who">' +
-        (set.authorAvatar ? '<img class="cur-ava" src="' + esc(set.authorAvatar) + '" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="cur-ava" hidden>' + esc(R.initials(by)) + '</span>' : '') +
-        (set.authorUrl ? '<a href="' + esc(set.authorUrl) + '" target="_blank" rel="noopener">' + esc(by) + '</a>' : '<b>' + esc(by) + '</b>') + '</div><p>' + esc(set.credit || '') + '</p></div>' : '') +
       '<p class="why">Save it to your Beat Saber Playlists folder, or open it with a playlist mod. In game you can also type the key into Better Song Search.</p>' +
       '<div class="row"><button type="button" class="btn" id="plGo">Download playlist</button></div><p class="err" id="plErr" hidden></p>', function (body) {
-      var ci = body.querySelector('img.cur-ava');
-      if (ci && set.authorBl) fetch('https://api.beatleader.com/player/' + set.authorBl).then(function (r) { return r.ok ? r.json() : null; }).then(function (p) {
-        if (p && p.avatar && p.avatar !== ci.src) { var t = new Image(); t.onload = function () { ci.src = p.avatar; }; t.src = p.avatar; }
-      }).catch(function () {});
       body.querySelector('#plGo').addEventListener('click', function () {
         var b = this; b.disabled = true; b.textContent = 'Building playlist';
-        crowCover().then(function (img) { return S.playlist(theme().title, keys, img, by, set && [set.credit, set.authorUrl].filter(Boolean).join(' ')); }).then(function (pl) {
+        crowCover().then(function (img) { return S.playlist(theme().title, keys, img); }).then(function (pl) {
           track('get-maps');
           var blob = new Blob([JSON.stringify(pl, null, 2)], { type: 'application/json' });
           var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = theme().title.replace(/[^A-Za-z0-9]+/g, '-').replace(/-+$/, '') + '.bplist'; a.click();
