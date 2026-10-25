@@ -300,6 +300,8 @@ export class Game extends DurableObject {
   // rolled there, so only sign-ups would be lost.
   clearUndoable(top) { return !!top && top.label === 'Cleared the old game' && !!this.state && this.state.status === 'signup' && !this.state.events.some((e) => e.t !== 'join' && e.t !== 'route'); }
   // Hosts who run this clan's game without playing in it. They get an Admin card instead of Join.
+  // Player ids of hosts running this game without playing, so the page can mark their name "admin".
+  admins() { return (this.meta.hostOut || []).map((id) => 'd' + id); }
   hostOut(user) { return !!user && (this.meta.hostOut || []).includes(String(user.id)); }
   discordInfo() { const p = this.posts(), out = { hooked: !!this.webhook() }; for (const k of POST_KINDS) out[k] = !!p[k]; return out; }
   announcing(kind) { return !!this.webhook() && !!this.posts()[kind]; }
@@ -487,7 +489,7 @@ export class Game extends DurableObject {
     await this.visit(user);
     if (this.dirty) { this.dirty = false; await this.save(); }
     if (since === s.seq) return { state: null, me, canPlay, online: this.onlineNow() };
-    const out = { state: E.publicState(s), me, canPlay, isHost: !!user.isHost, user: { id: user.id, name: user.name, avatar: user.avatar }, online: this.onlineNow(), hall: this.meta.hall || [] };
+    const out = { state: E.publicState(s), me, canPlay, isHost: !!user.isHost, user: { id: user.id, name: user.name, avatar: user.avatar }, online: this.onlineNow(), hall: this.meta.hall || [], admins: this.admins() };
     if (user && user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); out.hostOut = this.hostOut(user); }
     return out;
   }
@@ -668,7 +670,7 @@ export class Game extends DurableObject {
     if (snap) await this.pushUndo(snap, user);
     await this.save();
     if (this.state.players[pid]) this.seen(pid);
-    const out = { result, state: E.publicState(this.state), me: this.state.players[pid] ? pid : null, canPlay: true, online: this.onlineNow(), hall: this.meta.hall || [] };
+    const out = { result, state: E.publicState(this.state), me: this.state.players[pid] ? pid : null, canPlay: true, online: this.onlineNow(), hall: this.meta.hall || [], admins: this.admins() };
     if (user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); out.hostOut = this.hostOut(user); }
     return out;
   }

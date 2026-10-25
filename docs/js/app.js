@@ -589,6 +589,8 @@
     if (store.mode === 'live' && store.user && store.canPlay) return { id: 'd' + store.user.id, name: store.user.name, avatar: store.user.avatar };
     return null;
   }
+  // A host running this game without playing in it.
+  function isAdmin(s, pid) { return !s.players[pid] && (store.admins || []).indexOf(pid) >= 0; }
   function rxRow(e) {
     var s = st(), r = X.rxCounts((s.reactions || {})[e.id]), mine = rxMe(), html = '', t = theme();
     E.REACTIONS.forEach(function (id) {
@@ -2049,7 +2051,7 @@
     var who = (r[id] || []).filter(function (q) { return E.reactor(s, q); }); if (!who.length) return;
     var me0 = rxMe(), box = document.createElement('div'); box.id = 'rxWho'; box.className = 'rx-who'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'Who reacted');
     box.innerHTML = '<div class="rw-head">' + X.rxIcon(id, t) + '<b>' + esc(X.rxLabel(id, t)) + '</b><span>' + who.length + '</span></div><ul>' +
-      who.map(function (q) { var p = E.reactor(s, q); return '<li>' + avatarHtml(p, 'rw-ava') + '<span>' + esc(p.name) + (me0 && q === me0.id ? ' <i>(you)</i>' : '') + '</span></li>'; }).join('') + '</ul>';
+      who.map(function (q) { var p = E.reactor(s, q); return '<li>' + avatarHtml(p, 'rw-ava') + '<span>' + esc(p.name) + (me0 && q === me0.id ? ' <i>(you)</i>' : isAdmin(s, q) ? ' <i>(admin)</i>' : '') + '</span></li>'; }).join('') + '</ul>';
     document.body.appendChild(box);
     var b = chip.getBoundingClientRect(), vw = document.documentElement.clientWidth, w = box.offsetWidth, h = box.offsetHeight;
     var left = Math.max(8, Math.min(vw - w - 8, b.left + b.width / 2 - w / 2)), top = b.top - h - 8;
