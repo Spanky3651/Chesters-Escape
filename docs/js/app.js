@@ -1738,16 +1738,6 @@
       '<h4 class="hsub">Start fresh instead</h4><p>Clears everyone off the board and empties the thread, so the next game opens with nobody signed up. It uses the theme and times above.</p>' +
       '<div class="row"><button type="button" class="btn small danger" data-h="cleargame" data-f="new">Clear the old game</button></div></section>';
   }
-  // Any time: wipe the old game and open a fresh one for sign-ups with nobody on the board.
-  function clearSection(s) {
-    var running = s.status === 'running';
-    return '<section class="hsec"><h3>Clear the old game</h3><p>Takes everyone off the board, empties the thread and opens a fresh game for sign-ups' + (running ? '. This game ends first and keeps its place in the hall of fame' : '') + '. Rules, who can play, Discord settings and the hall of fame stay.</p>' +
-      '<div class="row"><label>Theme ' + themeOptions(s, 'clrTheme') + '</label></div>' +
-      '<label class="start-field"><span>Start time (optional)</span><input type="datetime-local" id="clrStart"></label>' +
-      '<label class="start-field"><span>End time (optional)</span><input type="datetime-local" id="clrEnd"></label>' +
-      '<p class="why">With a start time, the first roll unlocks then. Without one, sign-ups stay open until you start it.</p>' +
-      '<div class="row"><button type="button" class="btn small danger" data-h="cleargame" data-f="clr">Clear the old game</button></div></section>';
-  }
   function renderHost() {
     var s = st(), demo = store.mode === 'demo', T = { today: '', players: '', game: '', alerts: '' };
     var signup = s.status === 'signup', running = s.status === 'running', over = s.status === 'finished';
@@ -1836,7 +1826,6 @@
       if (signup && designerBoard()) T.game += '<h4 class="hsub">Designer board</h4><p>Swap this game onto the board from the designer. Sign-ups and the start time stay, and everyone picks a route again.</p><div class="row"><button type="button" class="btn small ghost" data-h="loadboard">Use the designer board</button></div>';
       if (running) T.game += '<p class="why">To start a new game, end this one first (End of the game, above). The next game is set up from the Today tab.</p>';
       T.game += '</section>';
-      T.game += clearSection(s);
     }
 
     // ---- Alerts: Discord posts, roll reminders, this device ----
@@ -1859,11 +1848,11 @@
       var n = t[0] === 'today' ? todo : 0;
       return '<button type="button" role="tab" class="htab" data-h="tab" data-tab="' + t[0] + '" aria-selected="' + (hostTab === t[0]) + '">' + t[1] + (n ? ' <span class="nav-badge">' + n + '</span>' : '') + '</button>';
     }).join('') + '</div>' + HOST_TABS.map(function (t) { return '<div class="hpane" data-pane="' + t[0] + '" role="tabpanel"' + (hostTab === t[0] ? '' : ' hidden') + '>' + T[t[0]] + '</div>'; }).join('');
-    var keep = {}; ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme', 'clrStart', 'clrEnd', 'clrTheme'].forEach(function (id) { var el = $(id); if (el && el.value && el.dataset.touched) keep[id] = el.value; });
+    var keep = {}; ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme'].forEach(function (id) { var el = $(id); if (el && el.value && el.dataset.touched) keep[id] = el.value; });
     $('hostBody').innerHTML = html;
     fillVisits();
     Object.keys(keep).forEach(function (id) { var el = $(id); if (el) { el.value = keep[id]; el.dataset.touched = '1'; } });
-    ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme', 'clrStart', 'clrEnd', 'clrTheme'].forEach(function (id) { var el = $(id); if (el) el.addEventListener((id === 'newTheme' || id === 'clrTheme') ? 'change' : 'input', function () { el.dataset.touched = '1'; }); });
+    ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme'].forEach(function (id) { var el = $(id); if (el) el.addEventListener(id === 'newTheme' ? 'change' : 'input', function () { el.dataset.touched = '1'; }); });
     fillPush();
   }
   function showHostTab(id) {
@@ -1997,11 +1986,11 @@
         break;
       }
       case 'cleargame': {
-        var f = btn.dataset.f || 'clr', cs = readStart(f + 'Start'); if (cs === false) break;
+        var f = btn.dataset.f || 'new', cs = readStart(f + 'Start'); if (cs === false) break;
         var ce = readStart(f + 'End'); if (ce === false) break;
         if (ce && ce < (cs || Date.now()) + 3600000) { toast('The end time needs to be at least an hour after the start.', 'bad'); break; }
         var cur = st(), n = cur.order.length;
-        if (confirm('Clear the old game?' + (cur.status === 'running' ? ' It ends now and goes in the hall of fame.' : '') + (n ? ' All ' + n + (n === 1 ? ' player comes' : ' players come') + ' off the board,' : '') + ' the thread starts empty and sign-ups open' + (cs ? ' until ' + startWhen(cs) : '') + '.' + (ce ? ' The new game ends ' + startWhen(ce) + '.' : '') + ' You can undo it until someone joins.'))
+        if (confirm('Clear the old game?' + (n ? ' All ' + n + (n === 1 ? ' player comes' : ' players come') + ' off the board,' : '') + ' the thread starts empty and sign-ups open' + (cs ? ' until ' + startWhen(cs) : '') + '.' + (ce ? ' The new game ends ' + startWhen(ce) + '.' : '') + ' You can undo it until someone joins.'))
           run('clearGame', { theme: ($(f + 'Theme') && $(f + 'Theme').value) || cur.themeId, startsAt: cs, endsAt: ce }, 'The old game is cleared. Sign-ups are open.');
         break;
       }

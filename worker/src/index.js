@@ -291,8 +291,11 @@ export class Game extends DurableObject {
   }
   undoInfo() {
     const l = this.undoList, top = l[l.length - 1];
-    return { ok: !!top && top.post === (this.state && this.state.seq), list: l.slice().reverse().map((x) => ({ label: x.label, at: x.at, by: x.by })) };
+    return { ok: !!top && (top.post === (this.state && this.state.seq) || this.clearUndoable(top)), list: l.slice().reverse().map((x) => ({ label: x.label, at: x.at, by: x.by })) };
   }
+  // A cleared game can always come back while the fresh one is still in sign-ups: nobody has
+  // rolled there, so only sign-ups would be lost.
+  clearUndoable(top) { return !!top && top.label === 'Cleared the old game' && !!this.state && this.state.status === 'signup' && !this.state.events.some((e) => e.t !== 'join' && e.t !== 'route'); }
   discordInfo() { const p = this.posts(), out = { hooked: !!this.webhook() }; for (const k of POST_KINDS) out[k] = !!p[k]; return out; }
   announcing(kind) { return !!this.webhook() && !!this.posts()[kind]; }
   // A post, optionally with a card linking to the game. The card is built here (not left to
@@ -556,11 +559,10 @@ export class Game extends DurableObject {
           if (this.meta.feed) this.meta.feed.game = null;   // a new game: its sign-up post can go out
           break;
         }
-        // Wipe the old game: a fresh sign-up board with nobody on it and an empty thread. A game
-        // still running ends first so it keeps its place in the hall of fame. Rules, who can play,
-        // Discord settings and the hall of fame stay.
+        // Wipe a game that's over: a fresh sign-up board with nobody on it and an empty thread.
+        // A running game can't be cleared. Rules, who can play, Discord settings and the hall of fame stay.
         case 'clearGame': {
-          if (s.status === 'running') { E.endGame(s, Date.now()); this.recordHall(); }
+          if (s.status === 'running') return { error: 'This game is still running. End it first, then clear it.' };
           const themeId = C.themes[a.theme] ? a.theme : s.themeId;
           const board = C.boardFor(mapSetFor(this.clan(), themeId));
           const startsAt = Number(a.startsAt) > Date.now() + 60000 ? Number(a.startsAt) : null;
@@ -618,7 +620,7 @@ export class Game extends DurableObject {
         case 'undo': {
           const top = this.undoList[this.undoList.length - 1];
           if (!top) return { error: 'There is nothing to undo.' };
-          if (top.post !== s.seq) return { error: 'Players have done things since then, so undoing it would wipe their moves too.' };
+          if (top.post !== s.seq && !this.clearUndoable(top)) return { error: 'Players have done things since then, so undoing it would wipe their moves too.' };
           const raw = await this.ctx.storage.get('undo:' + top.id);
           if (!raw) return { error: 'That change can no longer be undone.' };
           const old = JSON.parse(raw);
