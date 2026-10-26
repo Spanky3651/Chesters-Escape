@@ -316,7 +316,11 @@ body[data-theme="thanksgiving"] .chip.long { border-color: #4a6a2a; color: #c8e3
 .studio-logo { width: 22px; height: 22px; border-radius: 6px; overflow: hidden; flex: none; display: block; box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
 .studio-logo svg { width: 100%; height: 100%; display: block; transition: transform .2s; }
 .studio-btn:hover .studio-logo svg, .studio-btn:focus-visible .studio-logo svg { transform: scale(1.12) rotate(-6deg); }
-@media (prefers-reduced-motion: reduce) { .studio-logo svg { transition: none; } }
+/* Get the maps: the logo's white middle blinks once, like an eye, when the window opens. */
+.studio-logo .eye { transform-box: fill-box; transform-origin: center; }
+.studio-btn.blink .studio-logo .eye { animation: studioBlink .36s ease-in-out .6s 1; }
+@keyframes studioBlink { 0%, 100% { transform: scaleY(1); } 42%, 58% { transform: scaleY(.08); } }
+@media (prefers-reduced-motion: reduce) { .studio-logo svg { transition: none; } .studio-btn.blink .studio-logo .eye { animation: none; } }
 .task-note { padding: 0 12px 12px; font-size: 13.5px; color: var(--muted); }
 .task-claim { padding: 0 12px 12px; display: flex; gap: 8px; flex-wrap: wrap; }
 .task-claim input { flex: 1 1 180px; min-width: 0; }
