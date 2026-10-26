@@ -1546,7 +1546,8 @@
       tip('🎵', 'Every roll ends with a map. Stop on a space without one and you get a bonus map. Safe is the only break.') +
       tip('🔗', 'Moved onto a map by a card or event? Play it. Cards never chain into more cards.') +
       tip('🏁', 'First to the ' + esc(t.goal) + ' wins. Everyone else plays on for their place.') +
-      (s.settings.oneFinishPerDay !== false ? tip('🚪', 'The podium escapes one a day: if someone got out today, you wait at the gate until your next roll. Once the top 3 are out, anyone can escape any day.') : '') + '</ul>';
+      (s.settings.oneFinishPerDay !== false ? tip('🚪', 'The podium escapes one a day: if someone got out today, you wait at the gate until your next roll. Once the top 3 are out, anyone can escape any day.') : '') +
+      (s.endsAt && s.status !== 'finished' ? tip('⏳', 'The game ends <b>' + esc(startWhen(s.endsAt)) + '</b>. Not out by then? You\'re placed by how close you got, fewest spaces left first. Players tied on spaces share a place.') : '') + '</ul>';
     var extras = '<ul class="hw-tips">' +
       tip('<span class="hw-rx">' + RX_ICON + '</span>', 'Tap the smiley in the game thread to react to other players. Press and hold a reaction to see who sent it.') +
       tip('<span class="hw-dot"></span>', 'A green dot means that player has the game open.') +
