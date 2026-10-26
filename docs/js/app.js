@@ -1720,6 +1720,20 @@
     if (past.length > shown.length) html += '<button type="button" class="btn small ghost" data-h="visits-more">Show all ' + past.length + '</button>';
     box.innerHTML = html;
   }
+  // User log: Host tools on Today, scrolled so the Visits heading sits just under the tab bar (which
+  // stays stuck to the top and would otherwise cover it). Tried again while the list and pictures load
+  // and push things around, and never again once you scroll or tap.
+  function jumpToVisits() {
+    var hb = $('hostBody'), stop = false, quit = function () { stop = true; };
+    ['wheel', 'touchstart', 'keydown', 'pointerdown'].forEach(function (ev) { hb.addEventListener(ev, quit, { once: true, passive: true }); });
+    var go = function () {
+      if (stop || $('hostDrawer').hidden || hostTab !== 'today') return;
+      var vb = $('visitBox'), sec = vb && vb.closest('section'); if (!sec) return;
+      var tabs = hb.querySelector('.htabs'), under = hb.getBoundingClientRect().top + (tabs ? tabs.getBoundingClientRect().bottom - hb.getBoundingClientRect().top : 0);
+      hb.scrollTop += sec.getBoundingClientRect().top - under - 10;
+    };
+    [50, 300, 800, 1500, 2500].forEach(function (ms) { setTimeout(go, ms); });
+  }
   function closeHost() { $('hostDrawer').hidden = true; $('scrim').hidden = true; $('hostBtn').focus(); setTimeout(checkNewClears, 300); }
   function cutoffLabel(s) { var h = s.settings.cutoffHour || 0, m = s.settings.cutoffMinute || 0; return ((h % 12) || 12) + ':' + pad2(m) + ' ' + (h < 12 ? 'AM' : 'PM'); }
   function toLocalInput(ts) { var d = new Date(ts); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
@@ -2150,7 +2164,7 @@
       if (e.target.closest('a[href*="/auth/login"]')) track('sign-in');
       if (e.target.closest('#logoutBtn')) { track('sign-out'); store.logout(); return; }
       if (e.target.closest('#meTools')) { openHost(); return; }
-      if (e.target.closest('#meHost')) { openHost('today'); var vb = $('visitBox'), vs = vb && vb.closest('section'); if (vs) setTimeout(function () { vs.scrollIntoView({ block: 'start' }); }, 60); return; }
+      if (e.target.closest('#meHost')) { openHost('today'); jumpToVisits(); return; }
       if (e.target.closest('#checkAgain')) { location.reload(); return; }
       var stb = e.target.closest('.st[data-pid]'); if (stb) { openPlayer(stb.dataset.pid); return; }
       if (e.target.closest('[data-hall]')) { openHall(); return; }
