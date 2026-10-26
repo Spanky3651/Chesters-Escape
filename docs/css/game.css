@@ -824,6 +824,10 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 @keyframes skCackle { 0%, 100% { transform: none; } 15% { transform: rotate(-12deg) translateY(-1px); } 35% { transform: rotate(10deg) translateY(-1.5px); } 55% { transform: rotate(-8deg); } 75% { transform: rotate(5deg); } }
 @media (prefers-reduced-motion: reduce) { .skull *, .host-btn:hover .sk-jaw, .host-btn.todo .sk-jaw, .host-btn.hello .sk-jaw, .host-btn.laugh .sk-all, .host-btn.laugh .sk-jaw { animation: none !important; transition: none !important; } .host-btn:hover .sk-all { transform: none; } }
 .host-btn .nav-badge { position: absolute; top: -4px; right: -6px; min-width: 18px; height: 18px; font-size: 11.5px; padding: 0 5px; }
+/* the Admin card's Host tools button: the same skull, left of the words */
+.btn.host-btn { display: inline-flex; align-items: center; gap: 8px; }
+.btn.host-btn svg { width: 20px; height: 20px; }
+.btn.host-btn:hover svg, .btn.host-btn:focus-visible svg { color: inherit; }
 .drawer-head .designer-link { margin-left: auto; margin-right: 52px; }
 
 /* ---- How to play ---- */

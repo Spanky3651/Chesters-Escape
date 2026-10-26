@@ -234,7 +234,7 @@
     $('gameTitle').textContent = t.title;
     $('brandCrow').innerHTML = R.hero(0, 0, 1, t);
     $('dayNum').textContent = s.status === 'finished' ? 'Game over' : s.status === 'signup' ? (E.signupsOpen(s) ? 'Sign-ups open' : 'Sign-ups closed') : 'Day ' + s.day;
-    $('hostBtn').hidden = !store.isHost;
+    $('hostBtn').hidden = !store.isHost || adminCard();
     var todo = store.isHost ? hostTodo() : { total: 0 };
     document.title = (todo.total ? '(' + todo.total + ') ' : '') + t.title;
     var hb = $('hostBtn');
@@ -317,14 +317,18 @@
   }
 
   // ---- me panel ----------------------------------------------------------------
+  // A host running the game without playing gets the Admin card, which has its own Host tools button,
+  // so the skull in the header steps aside.
+  function adminCard() { return store.mode === 'live' && !!store.isHost && !!store.hostOut && !me(); }
   function renderMe() {
     var p = me(), el = $('mePanel'), s = st();
     // The demo plays as MSploit for everyone, so only a real sign-in can mark the owner's browser.
     if (store.mode === 'live' && window.CGSkipOwner) window.CGSkipOwner(store.user && store.user.id, p && p.blId);
     if (!p) {
-      if (store.mode === 'live' && store.isHost && store.hostOut) {
+      if (adminCard()) {
+        var todo = hostTodo().total;
         el.innerHTML = '<h2>' + esc(store.user ? store.user.name : 'Host') + ' <span class="admin-badge">Admin</span></h2><p class="lede">You\'re running this game, not playing in it. Runs to approve and the game setup are in Host tools.</p>' +
-          '<div class="row"><button type="button" class="btn" id="meTools">Host tools</button><button type="button" class="btn ghost" id="meHost">User log</button><button type="button" class="btn link" id="logoutBtn">Sign out</button></div>';
+          '<div class="row"><button type="button" class="btn host-btn' + (todo ? ' todo' : '') + '" id="meTools"' + (todo ? ' aria-label="Host tools, ' + todo + ' waiting on you"' : '') + '>' + SKULL + '<span>Host tools</span>' + (todo ? '<span class="nav-badge" aria-hidden="true">' + todo + '</span>' : '') + '</button><button type="button" class="btn ghost" id="meHost">User log</button><button type="button" class="btn link" id="logoutBtn">Sign out</button></div>';
         return;
       }
       if (store.mode === 'live' && store.user && !store.canPlay) {
@@ -1734,7 +1738,7 @@
     };
     [50, 300, 800, 1500, 2500].forEach(function (ms) { setTimeout(go, ms); });
   }
-  function closeHost() { $('hostDrawer').hidden = true; $('scrim').hidden = true; $('hostBtn').focus(); setTimeout(checkNewClears, 300); }
+  function closeHost() { $('hostDrawer').hidden = true; $('scrim').hidden = true; ($('hostBtn').hidden && $('meTools') ? $('meTools') : $('hostBtn')).focus(); setTimeout(checkNewClears, 300); }
   function cutoffLabel(s) { var h = s.settings.cutoffHour || 0, m = s.settings.cutoffMinute || 0; return ((h % 12) || 12) + ':' + pad2(m) + ' ' + (h < 12 ? 'AM' : 'PM'); }
   function toLocalInput(ts) { var d = new Date(ts); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
   function readStart(id) {
