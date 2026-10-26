@@ -276,6 +276,7 @@ input::placeholder { color: var(--faint); }
 .st:hover { border-color: var(--line-2); }
 .st.me { border-color: var(--accent); }
 .st .place { font: 700 20px/1 var(--display); color: var(--muted); text-align: center; }
+.st-list.no-places .st { grid-template-columns: 36px minmax(0,1fr); }   /* sign-ups: no places yet */
 .st .ava { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 3px solid var(--c, var(--accent)); background: var(--raise-2); display: grid; place-items: center; font-weight: 700; font-size: 13px; }
 .st .nm { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .st .sub { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

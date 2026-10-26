@@ -669,14 +669,17 @@
   function renderStandings() {
     var s = st();
     var rank = s.status === 'finished' && s.final ? s.final : E.ranking(s);
-    var ids = rank.map(function (r) { return r.pid; }).filter(function (pid) { return s.players[pid]; });
+    // Before anyone has moved, places only say which route is shorter, so there are none yet:
+    // players are listed in the order they signed up until the first token leaves the start.
+    var moved = s.status === 'finished' || s.order.some(function (pid) { var q = s.players[pid]; return q.route && (q.pos >= 0 || q.finished); });
+    var ids = moved ? rank.map(function (r) { return r.pid; }).filter(function (pid) { return s.players[pid]; }) : s.order.filter(function (pid) { return s.players[pid].route; });
     var placeOf = {}; rank.forEach(function (r) { placeOf[r.pid] = r.place; });
     var on = onlineMap(), nOn = Object.keys(on).length;
-    var html = '<div class="st-head"><h2>' + (s.status === 'finished' ? 'Final standings' : 'Standings') + (nOn ? ' <span class="online-count" title="Players with the game open right now"><i aria-hidden="true"></i>' + nOn + ' online</span>' : '') + '</h2><button type="button" class="btn small ghost hall-btn" data-hall>\uD83C\uDFC6 Hall of fame</button></div><ol class="st-list">';
+    var html = '<div class="st-head"><h2>' + (s.status === 'finished' ? 'Final standings' : 'Standings') + (nOn ? ' <span class="online-count" title="Players with the game open right now"><i aria-hidden="true"></i>' + nOn + ' online</span>' : '') + '</h2><button type="button" class="btn small ghost hall-btn" data-hall>\uD83C\uDFC6 Hall of fame</button></div><ol class="st-list' + (moved ? '' : ' no-places') + '">';
     ids.forEach(function (pid, i) {
       var p = s.players[pid], col = R.playerColor(s, pid), pct = Math.round(E.progress(s, p) * 100);
       html += '<li><button type="button" class="st' + (pid === store.me ? ' me' : '') + (p.finished ? ' done' : '') + '" data-pid="' + esc(pid) + '" style="--c:' + col + '">' +
-        '<span class="place">' + (p.finished ? ordinal(p.finished.place) : s.status === 'finished' ? ordinal(placeOf[pid]) : placeOf[pid] || i + 1) + '</span><span class="ava-wrap' + (on[pid] ? ' online' : '') + '"' + (on[pid] ? ' title="Online now"' : '') + '>' + avatarHtml(p, 'ava') + '</span>' +
+        (moved ? '<span class="place">' + (p.finished ? ordinal(p.finished.place) : s.status === 'finished' ? ordinal(placeOf[pid]) : placeOf[pid] || i + 1) + '</span>' : '') + '<span class="ava-wrap' + (on[pid] ? ' online' : '') + '"' + (on[pid] ? ' title="Online now"' : '') + '>' + avatarHtml(p, 'ava') + '</span>' +
         '<span style="min-width:0"><span class="nm">' + esc(p.name) + '</span> <span class="chip ' + (p.route === 'riskier' ? 'risk' : 'long') + '">' + (p.route === 'riskier' ? 'Riskier' : 'Longer') + '</span>' + badgeIcons(pid, 4) +
         '<span class="sub" style="display:block"' + (p.tasks.length ? ' title="!bsr ' + esc(p.tasks.map(function (t) { return t.bsr.join(' or '); }).join(', ')) + '"' : '') + '>' + songCover(p) + '<span class="st-t">' + esc(statusLine(p)) + '</span></span><span class="bar"><i style="width:' + pct + '%"></i></span></span></button></li>';
     });
