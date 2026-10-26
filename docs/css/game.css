@@ -708,6 +708,16 @@ body.gated .foot { border-top: 0; margin-top: 0; }
   .nav-btn .sm { display: inline; }
   .nav-btn { padding: 7px 8px; }
 }
+/* Phones: Rules and Maps sit together on the left as bold links with an orange icon, and the bell,
+   skull and clan switcher keep the right edge, so the row looks right with any mix of them. */
+.nav-btn .nv-ic { display: none; width: 18px; height: 18px; color: var(--accent); flex: none; }
+@media (max-width: 640px) {
+  .topnav { justify-content: flex-start; gap: 18px; align-items: center; padding-left: 2px; }
+  #playlistBtn { margin-right: auto; }   /* the bell, skull and clan switcher go to the right edge */
+  #howBtn, #playlistBtn { padding: 6px 0; color: var(--text); font-weight: 700; border: 0; border-radius: 0; border-bottom: 2px solid transparent; }
+  #howBtn:hover, #playlistBtn:hover, #howBtn:focus-visible, #playlistBtn:focus-visible { border-bottom-color: var(--accent); }
+  .nav-btn .nv-ic { display: inline-block; }
+}
 /* Phones: Zoom and Replay sit in a row under the board instead of over its last row. */
 @media (max-width: 760px) {
   .board-zone { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
