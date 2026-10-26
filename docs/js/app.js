@@ -1820,7 +1820,7 @@
     else if (running) T.today += '<section class="hsec"><h3>Day ' + s.day + '</h3><p>' + (demo ? 'Starting the next day lets every bot clear maps and roll.' : 'The day turns over by itself at ' + esc(cutoffLabel(s)) + '. Start the next day is only for fixing a missed rollover.') + '</p><div class="row">' +
       '<button type="button" class="btn small ghost" data-h="advance">Start the next day</button>' + (demo ? '<button type="button" class="btn small ghost" data-h="simulate">Skip ahead 3 days</button>' : '') + '</div></section>';
     else T.today += '<section class="hsec"><h3>Game over</h3><p>The standings are frozen.</p><div class="row"><button type="button" class="btn small ghost" data-h="finale">Show the final standings</button></div></section>' + newGameSection(s);
-    T.today += '<section class="hsec"><div class="thread-head"><h3>Visits</h3><button type="button" class="btn small link" data-h="visits-refresh">Refresh</button></div><p>When signed-in people opened the game and when they left. Coming back within 10 minutes counts as the same visit, so a visit ends 10 minutes after they close it, switch away or lock their phone. The last two weeks are kept.</p><div id="visitBox"><p class="why">Loading</p></div></section>';
+    T.today += '<section class="hsec"><div class="thread-head"><h3>Visits</h3><button type="button" class="icon-btn refresh-btn" data-h="visits-refresh" aria-label="Refresh" title="Refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20.5V16h-4.5"/></svg></button></div><p>When signed-in people opened the game and when they left. Coming back within 10 minutes counts as the same visit, so a visit ends 10 minutes after they close it, switch away or lock their phone. The last two weeks are kept.</p><div id="visitBox"><p class="why">Loading</p></div></section>';
 
     // ---- Players ----
     if (!demo) T.players += '<section class="hsec"><h3>You</h3><label class="check"><input type="checkbox" id="hostOutBox"' + (store.hostOut ? ' checked' : '') + '> <span>I\'m hosting this game, not playing. You get an Admin badge instead of the Join button.</span></label><p class="why">Only for this clan\'s game. Your other games stay the same.</p></section>';
@@ -2050,7 +2050,7 @@
       case 'setend': { var se = readStart('endEdit'); if (!se) { if (se === null) toast('Pick an end time first.', 'bad'); break; } run('setEnd', { endsAt: se }, 'End time saved.'); break; }
       case 'finale': closeHost(); openFinale(); break;
       case 'clearend': run('setEnd', { endsAt: null }, 'End time cleared.'); break;
-      case 'visits-refresh': fillVisits(true); break;
+      case 'visits-refresh': btn.classList.remove('spin'); void btn.offsetWidth; btn.classList.add('spin'); setTimeout(function () { btn.classList.remove('spin'); }, 700); fillVisits(true); break;
       case 'visits-more': visitsAll = true; fillVisits(); break;
       case 'clearplayers': if (confirm('Take all ' + st().order.length + ' sign-ups off the board? They can join again whenever sign-ups are open.')) run('clearPlayers', {}, 'Sign-ups cleared.'); break;
       case 'clearstart': if (confirm('Cancel the countdown? Sign-ups stay open and nobody can roll until you set a new start time.')) run('schedule', { startsAt: null }, 'Countdown canceled. Sign-ups are still open.'); break;

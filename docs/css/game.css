@@ -354,6 +354,13 @@ body[data-theme="thanksgiving"] .route-card.risk b { color: #ff9a6a; }
 /* ---- feed ---- */
 .thread-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .thread-head h2 { margin: 0; }
+/* Visits: a round refresh button that spins once when pressed */
+.refresh-btn { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--raise); color: var(--muted); cursor: pointer; padding: 0; flex: none; }
+.refresh-btn svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.refresh-btn:hover, .refresh-btn:focus-visible { color: var(--accent); border-color: var(--accent); }
+.refresh-btn.spin svg { animation: refreshSpin .7s ease-in-out 1; }
+@keyframes refreshSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .refresh-btn.spin svg { animation: none; } }
 .seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
 .seg button { background: none; border: 0; padding: 6px 12px; color: var(--muted); cursor: pointer; font-size: 14px; }
 .seg button[aria-selected="true"] { background: var(--raise-2); color: var(--text); }
