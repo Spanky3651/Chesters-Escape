@@ -2343,7 +2343,21 @@
       if ((d.type === 'open-host' || /#host$/.test(d.url || '')) && store.isHost) openHost();
       store.poll && store.poll();
     });
-    if (store.mode === 'live') { setInterval(function () { if (!animating && document.visibilityState === 'visible') store.poll(); }, 20000); }
+    // Check for news every 20 seconds while someone is using the page. A tab left open and untouched
+    // slows down (every 40 seconds after 5 minutes, every 2 minutes after 30) so idle tabs don't eat the
+    // server's daily allowance; any tap, key or scroll brings it back to full speed.
+    if (store.mode === 'live') {
+      var lastUse = Date.now(), lastPoll = Date.now();
+      var used = function () { var idle = Date.now() - lastUse; lastUse = Date.now(); if (idle > 300000 && Date.now() - lastPoll > 20000 && document.visibilityState === 'visible') { lastPoll = Date.now(); store.poll(); } };
+      ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach(function (ev) { window.addEventListener(ev, used, { passive: true, capture: true }); });
+      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') used(); });
+      setInterval(function () {
+        if (animating || document.visibilityState !== 'visible') return;
+        var idle = Date.now() - lastUse, gap = idle < 300000 ? 0 : idle < 1800000 ? 40000 : 120000;
+        if (Date.now() - lastPoll < gap - 1000) return;
+        lastPoll = Date.now(); store.poll();
+      }, 20000);
+    }
     setInterval(tickClock, 30000);
     setInterval(tickCountdowns, 1000);
     var seen = false; try { seen = localStorage.getItem('cg.seenHow') === '1'; localStorage.setItem('cg.seenHow', '1'); } catch (e) {}

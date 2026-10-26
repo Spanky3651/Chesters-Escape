@@ -892,9 +892,10 @@ export class Game extends DurableObject {
 
   async announceEnd() {
     const s = this.state;
-    if (!this.announcing('end') || !s.final) return;
+    if (!this.announcing('end') || !s.final || !s.final.length) return;   // nobody played: nothing to announce
+    // Medals follow the place, so players tied on spaces share one (two golds, then a silver).
     const medal = ['🥇', '🥈', '🥉'];
-    const top = s.final.slice(0, 3).map((r, i) => `${medal[i]} ${md(s.players[r.pid].name)}` + (r.escaped ? ` (escaped day ${r.day})` : ` (${r.left} to go)`)).join('\n');
+    const top = s.final.filter((r) => r.place <= 3).slice(0, 6).map((r) => `${medal[r.place - 1]} ${md(s.players[r.pid].name)}` + (r.escaped ? ` (escaped day ${r.day})` : ` (${r.left} to go)`)).join('\n');
     await this.discordPost(`**${md(s.title)} is over!**\n${top}`, true);
   }
 
