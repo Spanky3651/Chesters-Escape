@@ -1204,7 +1204,8 @@
       (o.turnsLost ? tile(o.turnsLost, 'Turns lost') : '') +
       '</div>' +
       (list.length ? '<div class="pc-badges"><span>Badges</span>' + list.map(function (b) { return '<button type="button" class="badge" data-badges="' + esc(pid) + '" title="' + esc(b.name + ': ' + b.desc) + '"><i aria-hidden="true">' + b.icon + '</i> ' + esc(b.name) + '</button>'; }).join('') + '</div>' : '') +
-      '<div class="row" style="margin-top:14px">' + (p.route ? '<button type="button" class="btn ghost" data-pcard-board="' + esc(pid) + '">Show on the board</button>' : '') + '</div>',
+      '<div class="row" style="margin-top:14px">' + (p.route ? '<button type="button" class="btn ghost" data-pcard-board="' + esc(pid) + '">Show on the board</button>' : '') +
+      (p.blId ? '<a class="btn ghost" href="https://beatleader.com/u/' + encodeURIComponent(p.blId) + '" target="_blank" rel="noopener">BeatLeader profile</a>' : '') + '</div>',
       null, { cls: 'pcard', focusClose: true });
   }
   // ---- hall of fame: every finished game in this clan, and the all-time table ----
@@ -1702,7 +1703,9 @@
     var dayOf = function (t) { var d = new Date(t), today = new Date(), y = new Date(Date.now() - 86400000); if (d.toDateString() === today.toDateString()) return 'Today'; if (d.toDateString() === y.toDateString()) return 'Yesterday'; return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }); };
     var dur = function (ms) { var m = Math.round(ms / 60000); if (m < 1) return 'under a minute'; if (m < 60) return m + ' min'; return Math.floor(m / 60) + ' h ' + (m % 60) + ' min'; };
     var who = function (v) { return (s && (s.players['d' + v.id] || s.players[v.id])) || null; };
-    var ava = function (v) { var p = who(v) || (v.avatar ? { id: 'd' + v.id, name: v.name || '?', avatar: v.avatar } : null); return p ? avatarHtml(p, 'vis-ava') : '<span class="vis-ava guest">' + esc(R.initials(v.name || '?')) + '</span>'; };
+    var ava = function (v) { var p = who(v) || (v.avatar ? { id: 'd' + v.id, name: v.name || '?', avatar: v.avatar } : null); var pl = who(v), img = p ? avatarHtml(p, 'vis-ava') : '<span class="vis-ava guest">' + esc(R.initials(v.name || '?')) + '</span>';
+      if (pl && pl.blId) return '<a class="vis-bl" href="https://beatleader.com/u/' + encodeURIComponent(pl.blId) + '" target="_blank" rel="noopener" title="' + esc(pl.name) + ' on BeatLeader" aria-label="Open ' + esc(pl.name) + ' on BeatLeader">' + img + '</a>';
+      return img; };
     var nameOf = function (v) { return '<span class="vis-name"><b>' + esc(v.name) + '</b>' + (v.player ? '' : '<span class="vis-tag">not playing</span>') + '</span>'; };
     var plural = function (k, w) { return '<b>' + k + '</b> ' + w + (k === 1 ? '' : 's'); };
     var live = list.filter(function (v) { return v.open; }), past = list.filter(function (v) { return !v.open; });
