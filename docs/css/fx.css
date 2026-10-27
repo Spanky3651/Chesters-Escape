@@ -413,6 +413,7 @@ button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
 .rx-who .rw-head span { font: 700 13px var(--ui); color: var(--muted); }
 .rx-who ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .rx-who li { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.rx-who li > span { min-width: 0; overflow-wrap: anywhere; }
 .rx-who li i { font-style: normal; color: var(--muted); font-size: 13px; }
 .rw-ava { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex: none; display: grid; place-items: center; background: #1a1d18; border: 2px solid var(--c); font: 700 10px var(--ui); color: #fff; }
 @media (prefers-reduced-motion: reduce) { .rx-who { animation: none; } }

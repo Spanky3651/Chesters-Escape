@@ -678,9 +678,9 @@
     var html = '<div class="st-head"><h2>' + (s.status === 'finished' ? 'Final standings' : 'Standings') + (nOn ? ' <span class="online-count" title="Players with the game open right now"><i aria-hidden="true"></i>' + nOn + ' online</span>' : '') + '</h2><button type="button" class="btn small ghost hall-btn" data-hall>\uD83C\uDFC6 Hall of fame</button></div><ol class="st-list' + (moved ? '' : ' no-places') + '">';
     ids.forEach(function (pid, i) {
       var p = s.players[pid], col = R.playerColor(s, pid), pct = Math.round(E.progress(s, p) * 100);
-      html += '<li><button type="button" class="st' + (pid === store.me ? ' me' : '') + (p.finished ? ' done' : '') + '" data-pid="' + esc(pid) + '" style="--c:' + col + '">' +
-        (moved ? '<span class="place">' + (p.finished ? ordinal(p.finished.place) : s.status === 'finished' ? ordinal(placeOf[pid]) : placeOf[pid] || i + 1) + '</span>' : '') + '<span class="ava-wrap' + (on[pid] ? ' online' : '') + '"' + (on[pid] ? ' title="Online now"' : '') + '>' + avatarHtml(p, 'ava') + '</span>' +
-        '<span style="min-width:0"><span class="nm">' + esc(p.name) + '</span> <span class="chip ' + (p.route === 'riskier' ? 'risk' : 'long') + '">' + (p.route === 'riskier' ? 'Riskier' : 'Longer') + '</span>' + badgeIcons(pid, 4) +
+      html += '<li><button type="button" class="st' + (pid === store.me ? ' me' : '') + (p.finished ? ' done' : '') + '" data-pid="' + esc(pid) + '" title="' + esc(p.name) + '" style="--c:' + col + '">' +
+        (moved ? '<span class="place' + (p.finished || s.status === 'finished' ? ' ord' : '') + '">' + (p.finished ? ordinal(p.finished.place) : s.status === 'finished' ? ordinal(placeOf[pid]) : placeOf[pid] || i + 1) + '</span>' : '') + '<span class="ava-wrap' + (on[pid] ? ' online' : '') + '"' + (on[pid] ? ' title="Online now"' : '') + '>' + avatarHtml(p, 'ava') + '</span>' +
+        '<span style="min-width:0"><span class="st-line"><span class="nm">' + esc(p.name) + '</span><span class="chip ' + (p.route === 'riskier' ? 'risk' : 'long') + '">' + (p.route === 'riskier' ? 'Riskier' : 'Longer') + '</span>' + badgeIcons(pid, 4) + '</span>' +
         '<span class="sub" style="display:block"' + (p.tasks.length ? ' title="!bsr ' + esc(p.tasks.map(function (t) { return t.bsr.join(' or '); }).join(', ')) + '"' : '') + '>' + songCover(p) + '<span class="st-t">' + esc(statusLine(p)) + '</span></span><span class="bar"><i style="width:' + pct + '%"></i></span></span></button></li>';
     });
     $('standings').innerHTML = html + '</ol>';
@@ -1826,12 +1826,13 @@
     T.today += '<section class="hsec"><div class="thread-head"><h3>Visits</h3><button type="button" class="icon-btn refresh-btn" data-h="visits-refresh" aria-label="Refresh" title="Refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20.5V16h-4.5"/></svg></button></div><p>When signed-in people opened the game and when they left. Coming back within 10 minutes counts as the same visit, so a visit ends 10 minutes after they close it, switch away or lock their phone. The last two weeks are kept.</p><div id="visitBox"><p class="why">Loading</p></div></section>';
 
     // ---- Players ----
+    if (s.order.length > 6 || (ac && ac.allowed.length > 6)) T.players += '<div class="psearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input type="search" id="pSearch" placeholder="Find a player" aria-label="Find a player" autocomplete="off" value="' + esc(playerQuery) + '"><span class="psearch-n" id="pSearchN" aria-live="polite"></span></div>';
     if (!demo) T.players += '<section class="hsec"><h3>You</h3><label class="check"><input type="checkbox" id="hostOutBox"' + (store.hostOut ? ' checked' : '') + '> <span>I\'m hosting this game, not playing. You get an Admin badge instead of the Join button.</span></label><p class="why">Only for this clan\'s game. Your other games stay the same.</p></section>';
     if (signup) {
       T.players += '<section class="hsec"><h3>Signed up</h3><p>' + (s.order.length ? 'Tokens go on the board when the game starts.' : 'Nobody has signed up yet.') + '</p>';
       if (s.order.length) T.players += '<table class="ptable"><tbody>' + s.order.map(function (pid) {
         var p = s.players[pid];
-        return '<tr><td><b>' + esc(p.name) + '</b><br><span class="why">' + (p.route ? esc(s.board.routeInfo[p.route].name) : 'No route yet') + '</span></td>' +
+        return '<tr data-pname="' + esc(p.name.toLowerCase()) + '"><td><b>' + esc(p.name) + '</b><br><span class="why">' + (p.route ? esc(s.board.routeInfo[p.route].name) : 'No route yet') + '</span></td>' +
           '<td><div class="row" style="justify-content:flex-end">' + (p.route ? '<button type="button" class="btn small ghost" data-h="clearroute" data-pid="' + esc(pid) + '">Undo route</button>' : '') +
           '<button type="button" class="btn small danger" data-h="removeplayer" data-pid="' + esc(pid) + '">Remove</button></div></td></tr>';
       }).join('') + '</tbody></table>';
@@ -1842,7 +1843,7 @@
         T.players += '<table class="ptable"><tbody>';
         s.order.forEach(function (pid) {
           var p = s.players[pid];
-          T.players += '<tr><td><b>' + esc(p.name) + '</b><br><span class="why">' + (p.finished ? 'Escaped, ' + ordinal(p.finished.place) : p.route ? s.board.routeInfo[p.route].name : 'no route') + (p.tasks.length ? ', on a map' : '') + '</span></td>' +
+          T.players += '<tr data-pname="' + esc(p.name.toLowerCase()) + '"><td><b>' + esc(p.name) + '</b><br><span class="why">' + (p.finished ? 'Escaped, ' + ordinal(p.finished.place) : p.route ? s.board.routeInfo[p.route].name : 'no route') + (p.tasks.length ? ', on a map' : '') + '</span></td>' +
             '<td>' + (p.route ? '<span class="row nowrap"><input type="number" min="0" max="' + E.routeOf(s, p).length + '" value="' + (p.pos + 1) + '" aria-label="Space for ' + esc(p.name) + '" data-posfor="' + esc(pid) + '"><button type="button" class="btn small ghost" data-h="move" data-pid="' + esc(pid) + '">Move</button></span>' : '') + '</td>' +
             '<td>' + (p.route && !p.finished ? '<select data-cardfor="' + esc(pid) + '" aria-label="Give ' + esc(p.name) + ' a card"><option value="">Give a card</option>' + s.cards.map(function (c) { return '<option value="' + c.id + '">' + esc(c.title) + '</option>'; }).join('') + '</select>' : '') + '</td>' +
             '<td><div class="row">' + (p.tasks.length ? '<button type="button" class="btn small ghost" data-h="clearmap" data-pid="' + esc(pid) + '">Clear map</button>' : '') +
@@ -1855,7 +1856,7 @@
       var fin = s.final || E.ranking(s);
       T.players += '<section class="hsec"><h3>Final standings</h3>' + (fin.length ? '<table class="ptable"><tbody>' + fin.map(function (r) {
         var p = s.players[r.pid]; if (!p) return '';
-        return '<tr><td><b>' + ordinal(r.place) + '</b></td><td><b>' + esc(p.name) + '</b></td><td class="why">' + (r.escaped ? 'Escaped day ' + r.day : r.left + ' to go') + '</td></tr>';
+        return '<tr data-pname="' + esc(p.name.toLowerCase()) + '"><td><b>' + ordinal(r.place) + '</b></td><td><b>' + esc(p.name) + '</b></td><td class="why">' + (r.escaped ? 'Escaped day ' + r.day : r.left + ' to go') + '</td></tr>';
       }).join('') + '</tbody></table>' : '<p>Nobody played this game.</p>') + '</section>';
     }
     if (ac) {
@@ -1865,7 +1866,7 @@
         '<label class="check"><input type="radio" name="acmode" value="open"' + (ac.mode === 'open' ? ' checked' : '') + '> <span>Anyone who signs in with Discord</span></label>' +
         (waiting.length ? '<p style="margin-top:10px">' + waiting.length + (waiting.length === 1 ? ' person is' : ' people are') + ' waiting to get in. Let them in from the Today tab.</p>' : '');
       if (ac.allowed.length) T.players += '<h4 class="hsub">Let in</h4>' + ac.allowed.map(function (id) {
-        return '<div class="claim row" style="justify-content:space-between"><span><b>' + esc(names[id] || 'Player') + '</b> <span class="why">' + esc(id) + '</span></span><button type="button" class="btn small danger" data-h="unallow" data-id="' + esc(id) + '">Remove</button></div>';
+        return '<div class="claim row" data-pname="' + esc(String(names[id] || 'Player').toLowerCase() + ' ' + id) + '" style="justify-content:space-between"><span><b>' + esc(names[id] || 'Player') + '</b> <span class="why">' + esc(id) + '</span></span><button type="button" class="btn small danger" data-h="unallow" data-id="' + esc(id) + '">Remove</button></div>';
       }).join('');
       T.players += '</section>';
     }
@@ -1904,11 +1905,21 @@
       return '<button type="button" role="tab" class="htab" data-h="tab" data-tab="' + t[0] + '" aria-selected="' + (hostTab === t[0]) + '">' + t[1] + (n ? ' <span class="nav-badge">' + n + '</span>' : '') + '</button>';
     }).join('') + '</div>' + HOST_TABS.map(function (t) { return '<div class="hpane" data-pane="' + t[0] + '" role="tabpanel"' + (hostTab === t[0] ? '' : ' hidden') + '>' + T[t[0]] + '</div>'; }).join('');
     var keep = {}; ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme'].forEach(function (id) { var el = $(id); if (el && el.value && el.dataset.touched) keep[id] = el.value; });
+    var ae = document.activeElement, typing = ae && ae.id === 'pSearch' ? [ae.selectionStart, ae.selectionEnd] : null;
     $('hostBody').innerHTML = html;
+    filterPlayers();
+    if (typing && $('pSearch')) { $('pSearch').focus(); try { $('pSearch').setSelectionRange(typing[0], typing[1]); } catch (e) {} }
     fillVisits();
     Object.keys(keep).forEach(function (id) { var el = $(id); if (el) { el.value = keep[id]; el.dataset.touched = '1'; } });
     ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme'].forEach(function (id) { var el = $(id); if (el) el.addEventListener(id === 'newTheme' ? 'change' : 'input', function () { el.dataset.touched = '1'; }); });
     fillPush();
+  }
+  // Players tab search: hides rows whose name doesn't match, and says how many do.
+  var playerQuery = '';
+  function filterPlayers() {
+    var q = playerQuery.trim().toLowerCase(), rows = document.querySelectorAll('#hostBody [data-pname]'), shown = 0;
+    Array.prototype.forEach.call(rows, function (r) { var hit = !q || r.dataset.pname.indexOf(q) >= 0; r.hidden = !hit; if (hit) shown++; });
+    var n = $('pSearchN'); if (n) n.textContent = q ? (shown ? shown + ' found' : 'Nobody matches') : '';
   }
   function showHostTab(id) {
     hostTab = id;
@@ -2195,6 +2206,7 @@
       if (e.key === 'Escape') { if ($('replayDock') && !$('replayDock').hidden) { closeReplay(); return; } if (!$('rxPop').hidden) { closeRx(); return; } if (!$('remPop').hidden) closeRem(); else if (!$('modal').hidden) closeModal(); else if (!$('spacePop').hidden) closeSpace(); else if (!$('hostDrawer').hidden) closeHost(); }
       if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('.board-svg .sp')) { e.preventDefault(); openSpace(e.target.closest('.sp').dataset.id, e.target.closest('.sp')); }
     });
+    document.addEventListener('input', function (e) { if (e.target.id === 'pSearch') { playerQuery = e.target.value; filterPlayers(); } });
     document.addEventListener('change', function (e) {
       var t = e.target;
       if (t.id === 'playAs') { store.act('playAs', { pid: t.value }); return; }

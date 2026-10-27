@@ -272,13 +272,19 @@ input::placeholder { color: var(--faint); }
 .standings { margin-top: 18px; }
 .standings h2 { font: 700 24px/1 var(--display); margin: 0 0 10px; }
 .st-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
-.st { display: grid; grid-template-columns: 28px 36px minmax(0,1fr); gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--raise); cursor: pointer; text-align: left; width: 100%; }
+.st { display: grid; grid-template-columns: 34px 36px minmax(0,1fr); gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--raise); cursor: pointer; text-align: left; width: 100%; }
 .st:hover { border-color: var(--line-2); }
 .st.me { border-color: var(--accent); }
 .st .place { font: 700 20px/1 var(--display); color: var(--muted); text-align: center; }
 .st-list.no-places .st { grid-template-columns: 36px minmax(0,1fr); }   /* sign-ups: no places yet */
 .st .ava { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 3px solid var(--c, var(--accent)); background: var(--raise-2); display: grid; place-items: center; font-weight: 700; font-size: 13px; }
-.st .nm { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st .nm { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* name, route and badges on one line; a name too long to share the line gets it to itself (the route
+   and badges move under it), and only a name wider than the whole row shortens with "..." */
+.st-line { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; min-width: 0; }
+.st-line > .nm { max-width: 100%; }
+.st-line > :not(.nm) { flex: none; }
+.st .place.ord { font-size: 16px; letter-spacing: -.3px; }   /* "1st", "12th" fit the column */
 .st .sub { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .st .bar { height: 5px; border-radius: 3px; background: var(--raise-2); margin-top: 5px; overflow: hidden; }
 .st .bar i { display: block; height: 100%; background: var(--c, var(--accent)); border-radius: 3px; }
@@ -292,7 +298,7 @@ body[data-theme="thanksgiving"] .chip.long { border-color: #4a6a2a; color: #c8e3
 /* ---- me panel ---- */
 .me-row { display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 12px; align-items: center; }
 .me-ava { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 3px solid var(--c, var(--accent)); background: var(--raise-2); display: grid; place-items: center; font-weight: 700; }
-.me-name { font: 700 24px/1.1 var(--display); }
+.me-name { font: 700 24px/1.1 var(--display); overflow-wrap: anywhere; }   /* a long name wraps instead of running off the card */
 .me-sub { color: var(--muted); font-size: 14.5px; }
 .me-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .stat { font-size: 13.5px; padding: 5px 9px; border-radius: 8px; background: var(--raise-2); color: var(--text); }
@@ -418,7 +424,7 @@ body[data-theme="thanksgiving"] .cback { background: repeating-linear-gradient(9
 @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
 
 .modal { position: relative; width: min(640px, 100%); max-height: calc(100vh - 40px); overflow: auto; background: var(--raise); border: 1px solid var(--line-2); border-radius: 16px; padding: 24px; }
-.modal h2 { margin: 0 0 14px; font: 700 30px/1.1 var(--display); padding-right: 40px; }
+.modal h2 { margin: 0 0 14px; font: 700 30px/1.1 var(--display); padding-right: 40px; overflow-wrap: anywhere; }
 .modal p { color: var(--text); }
 .modal .lede { color: var(--muted); }
 .x { position: absolute; z-index: 3; right: 14px; top: 12px; width: 40px; height: 40px; border-radius: 10px; background: none; border: 1px solid var(--line-2); color: var(--muted); font-size: 24px; line-height: 1; cursor: pointer; }
@@ -443,7 +449,7 @@ body[data-theme="thanksgiving"] .cback { background: repeating-linear-gradient(9
 .hsec h3 { margin: 0 0 6px; font-size: 17px; }
 .hsec p { margin: 0 0 10px; color: var(--muted); font-size: 14.5px; }
 .ptable { width: 100%; border-collapse: collapse; font-size: 14.5px; }
-.ptable td { padding: 8px 4px; border-top: 1px solid var(--line); vertical-align: middle; }
+.ptable td { padding: 8px 4px; border-top: 1px solid var(--line); vertical-align: middle; overflow-wrap: anywhere; }
 .ptable input[type="number"] { width: 70px; }
 .ptable select { max-width: 150px; }
 .check { display: flex; gap: 10px; align-items: flex-start; margin: 8px 0; cursor: pointer; }
@@ -1000,3 +1006,12 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .pl-place { font: 700 13px var(--ui); color: var(--muted); min-width: 34px; text-align: right; }
 .admin-badge { display: inline-block; vertical-align: middle; margin-left: 8px; padding: 3px 10px; border-radius: 999px; background: var(--accent); color: #000; font: 800 12px/1.2 var(--ui); letter-spacing: .08em; text-transform: uppercase; }
 .studio-btn[aria-disabled="true"] { opacity: .6; cursor: progress; }
+/* long names with no spaces wrap in the thread, the finale and the who-reacted list */
+#feed li, .finale-rest li, .finale-me, .pc-head > div { overflow-wrap: anywhere; min-width: 0; }
+/* Host tools, Players: find a player */
+.psearch { position: sticky; top: 52px; z-index: 1; display: flex; align-items: center; gap: 8px; margin: 4px 0 10px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--raise-2); }
+.psearch:focus-within { border-color: var(--accent); }
+.psearch svg { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--muted); stroke-width: 2.2; stroke-linecap: round; }
+.psearch input { flex: 1; min-width: 0; border: 0; background: none; color: var(--text); font: 15px var(--ui); padding: 10px 0; outline: none; }
+.psearch-n { flex: none; font-size: 13px; color: var(--muted); }
+#hostBody [data-pname][hidden] { display: none !important; }
