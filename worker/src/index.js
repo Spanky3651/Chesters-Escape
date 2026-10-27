@@ -515,8 +515,14 @@ export class Game extends DurableObject {
           const bl = await this.blPlayer(a.blId);
           const taken = s.order.find((id) => id !== pid && s.players[id].blId === bl.id);
           if (taken) return { error: 'That BeatLeader profile is already in the game.' };
+          const isNew = !s.players[pid];
           E.addPlayer(s, { id: pid, discordId: user.id, name: bl.name || user.name, avatar: bl.avatar || user.avatar, blId: bl.id });
           result = { pid };
+          // Hosts hear about each new sign-up (not their own, and not someone just relinking a profile).
+          if (isNew && !user.isHost) {
+            const n = s.order.length, who = s.players[pid].name;
+            await this.notifyHosts({ title: who + ' signed up', body: n + (n === 1 ? ' player is' : ' players are') + ' in ' + s.title + (s.status === 'signup' ? ' so far.' : ' now.'), tag: 'join-' + pid });
+          }
           break;
         }
         case 'route': result = this.mine(s, pid) && E.chooseRoute(s, pid, a.route); break;
