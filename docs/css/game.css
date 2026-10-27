@@ -317,7 +317,18 @@ body[data-theme="thanksgiving"] .chip.long { border-color: #4a6a2a; color: #c8e3
 .studio-logo { width: 22px; height: 22px; border-radius: 6px; overflow: hidden; flex: none; display: block; box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
 .studio-logo svg { width: 100%; height: 100%; display: block; transition: transform .2s; }
 .studio-btn:hover .studio-logo svg, .studio-btn:focus-visible .studio-logo svg { transform: scale(1.12) rotate(-6deg); }
-@media (prefers-reduced-motion: reduce) { .studio-logo svg { transition: none; } }
+/* Get the maps: the logo's play button kicks on two beats while the sabers flash, the same move as
+   Playlist Studio's own logo. Once when the window opens, and again on hover. */
+.studio-logo .ptri { transform-box: fill-box; transform-origin: 50% 50%; }
+.studio-btn.kick .studio-logo .ptri { animation: studioTriKick .75s cubic-bezier(.2,.8,.3,1) .45s; }
+.studio-btn.kick .studio-logo .hr, .studio-btn.kick .studio-logo .hb { animation: studioArcKick .75s ease-out .45s; }
+.studio-btn.kick:hover .studio-logo .ptri { animation: studioTriKick2 .75s cubic-bezier(.2,.8,.3,1); }
+.studio-btn.kick:hover .studio-logo .hr, .studio-btn.kick:hover .studio-logo .hb { animation: studioArcKick2 .75s ease-out; }
+@keyframes studioTriKick { 0% { transform: scale(1); } 12% { transform: scale(1.2); } 30% { transform: scale(.96); } 48% { transform: scale(1.14); } 70% { transform: scale(.98); } 100% { transform: scale(1); } }
+@keyframes studioTriKick2 { 0% { transform: scale(1); } 12% { transform: scale(1.2); } 30% { transform: scale(.96); } 48% { transform: scale(1.14); } 70% { transform: scale(.98); } 100% { transform: scale(1); } }
+@keyframes studioArcKick { 0%, 100% { stroke-width: 7; } 12%, 48% { stroke-width: 9.5; } 30% { stroke-width: 7; } }
+@keyframes studioArcKick2 { 0%, 100% { stroke-width: 7; } 12%, 48% { stroke-width: 9.5; } 30% { stroke-width: 7; } }
+@media (prefers-reduced-motion: reduce) { .studio-logo svg { transition: none; } .studio-btn.kick .studio-logo *, .studio-btn.kick:hover .studio-logo * { animation: none !important; } }
 .task-note { padding: 0 12px 12px; font-size: 13.5px; color: var(--muted); }
 .task-claim { padding: 0 12px 12px; display: flex; gap: 8px; flex-wrap: wrap; }
 .task-claim input { flex: 1 1 180px; min-width: 0; }
