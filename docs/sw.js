@@ -9,7 +9,7 @@ self.addEventListener('push', function (e) {
     body: d.body || '',
     tag: d.tag || 'chester',
     renotify: true,
-    icon: 'img/icon-192.png',
+    icon: d.icon || 'img/icon-192.png',
     badge: 'img/badge.png',
     data: { url: d.url || self.registration.scope }
   }));
