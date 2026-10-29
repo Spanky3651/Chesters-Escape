@@ -1979,8 +1979,8 @@
       var rb = $('remBtn'); if (rb) { rb.classList.toggle('on', !!on); rb.title = on ? 'Roll reminders are on' : 'Roll reminders'; }
       set(function (k) {
         if (k === 'host') return on
-          ? '<p class="push-on">On for this device. You\'ll get a notification when someone is waiting to get in or asks you to approve a run, plus your own roll reminders.</p><div class="row"><button type="button" class="btn small" data-push="test">Send a test</button><button type="button" class="btn small ghost" data-push="off">Turn off</button></div>'
-          : '<p>Get a notification on this device when someone is waiting to get in or asks you to approve a run, even with the game closed.</p><div class="row"><button type="button" class="btn small" data-push="on">Turn on notifications</button></div>';
+          ? '<p class="push-on">On for this device. You\'ll get a notification when someone signs up, is waiting to get in or asks you to approve a run. It covers every clan you host.</p><div class="row"><button type="button" class="btn small" data-push="test">Send a test</button><button type="button" class="btn small ghost" data-push="off">Turn off</button></div>'
+          : '<p>Get a notification on this device when someone signs up, is waiting to get in or asks you to approve a run, even with the game closed.</p><div class="row"><button type="button" class="btn small" data-push="on">Turn on notifications</button></div>';
         var bell = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a6 6 0 0 0-6 6v3.4L4.3 15a1 1 0 0 0 .9 1.5h13.6a1 1 0 0 0 .9-1.5L18 11.9V8.5a6 6 0 0 0-6-6Z"/><path d="M9.5 18.5a2.5 2.5 0 0 0 5 0"/></svg>';
         return '<div class="rem' + (on ? ' on' : '') + '"><span class="rem-bell">' + bell + '</span>' +
           '<span class="rem-txt"><b>Roll reminders</b><span>' + (on ? 'On. You\'ll get a nudge at ' + esc(at) + ' if your roll or map is still waiting.' : 'Get a nudge at ' + esc(at) + ' if your roll or map is still waiting.') + '</span>' +
@@ -2363,6 +2363,8 @@
   }).then(function () {
     bind();
     if (store.mode === 'live') track(store.canPlay ? (store.me ? 'visit-player' : 'visit-not-joined') : 'visit-waiting-list');
+    // Re-send this device's notification subscription once per visit so every clan has a working copy.
+    if (store.mode === 'live' && store.vapidKey && pushSupported() && Notification.permission === 'granted') currentSub().then(refreshZone);
     store.on(function (x) {
       if (animating) return;
       if (x && x.action === 'online') { renderStandings(); placeTokens(); return; }

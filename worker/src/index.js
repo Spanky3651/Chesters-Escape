@@ -208,7 +208,14 @@ export default {
       if (url.pathname.startsWith('/api/push/') && req.method === 'POST') {
         if (!user) return json(env, req, { error: 'Sign in with Discord first.' }, 401);
         const body = await req.json().catch(() => ({}));
-        const r = await gameStub(env, user.clan).pushOp(user, url.pathname.slice('/api/push/'.length), body);
+        const op = url.pathname.slice('/api/push/'.length);
+        const r = await gameStub(env, user.clan).pushOp(user, op, body);
+        // A browser has one subscription for the whole site, so it goes to every clan this person is in.
+        // Otherwise turning it on in one clan leaves a dead copy in the other.
+        if (op === 'subscribe' || op === 'unsubscribe') {
+          const others = clans(env).filter((c) => c.id !== user.clan.id && user.clans.some((x) => x.id === c.id));
+          await Promise.all(others.map((c) => gameStub(env, c).pushOp({ ...user, clan: c, isHost: hosts(env, c).includes(user.id) }, op, body).catch(() => null)));
+        }
         return json(env, req, r, r.error ? 400 : 200);
       }
       if (url.pathname === '/api/host/results' && req.method === 'POST') {
@@ -813,7 +820,7 @@ export class Game extends DurableObject {
     }
     if (op === 'test') {
       const ep = String(body && body.endpoint || '');
-      const r = await this.pushTo((this.meta.push || []).filter((x) => x.uid === user.id && (!ep || x.endpoint === ep)), { title: 'Notifications are on', body: user.isHost ? 'This device will hear about sign-ins, runs to approve, and your roll reminders.' : 'This device will remind you when your roll or map is waiting.', tag: 'test' });
+      const r = await this.pushTo((this.meta.push || []).filter((x) => x.uid === user.id && (!ep || x.endpoint === ep)), { title: 'Notifications are on', body: user.isHost ? 'This device will hear when someone signs up, is waiting to get in or has a run to approve.' : 'This device will remind you when your roll or map is waiting.', tag: 'test' });
       await this.save();
       if (r.sent) return { ok: true, sent: r.sent };
       return { error: r.failed ? 'The push did not go through. Turn notifications off and on again on this device.' : 'Turn on notifications on this device first.' };
