@@ -1999,13 +1999,19 @@
   }
   function closeRem() { var pop = $('remPop'); if (pop && !pop.hidden) { pop.hidden = true; $('remBtn').setAttribute('aria-expanded', 'false'); } }
   function pushOn() {
-    var key = urlKey(store.vapidKey);
-    Notification.requestPermission().then(function (perm) {
-      if (perm !== 'granted') throw new Error('Notifications were not allowed. You can allow them in the browser\'s site settings.');
-      return navigator.serviceWorker.register('sw.js').then(function () { return navigator.serviceWorker.ready; });
-    }).then(function (reg) {
-      return reg.pushManager.getSubscription().then(function (old) { return old ? old.unsubscribe() : null; })
-        .then(function () { return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }); });
+    var key = urlKey(store.vapidKey), t0 = Date.now(), before = Notification.permission, said = '';
+    var ready = function () { return navigator.serviceWorker.register('sw.js').then(function () { return navigator.serviceWorker.ready; }); };
+    var fresh = function (reg) { return reg.pushManager.getSubscription().then(function (old) { return old ? old.unsubscribe() : null; }).then(function () { return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }); }); };
+    Promise.resolve(Notification.requestPermission()).then(function (perm) {
+      said = String(perm);
+      // Some Android Chrome setups answer the plain request without asking. Subscribing for push asks on its own, so try it either way.
+      return ready().then(function (reg) {
+        return fresh(reg).catch(function (e) {
+          var ms = Date.now() - t0;
+          track('push-fail-' + said + '-' + Notification.permission + (ms < 400 ? '-instant' : ''));
+          throw new Error('Chrome turned notifications down. It answered "' + said + '" in ' + (ms < 1000 ? ms + ' ms' : Math.round(ms / 1000) + ' s') + '. Permission was "' + before + '", now "' + Notification.permission + '". ' + (e && e.name ? e.name + ': ' : '') + ((e && e.message) || ''));
+        });
+      });
     }).then(function (sub) {
       return store.post('/api/push/subscribe', { subscription: sub.toJSON(), label: deviceLabel(), tz: myZone() });
     }).then(function () { track('push-on'); toast('Notifications are on for this device.', 'good'); pushTest(); fillPush(); }, function (e) { fail(e); fillPush(); });
