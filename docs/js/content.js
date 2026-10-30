@@ -267,6 +267,7 @@
       look: "thanksgiving",
       art: "img/themes/taco-thanksgiving.jpg?v=20261020",   // Hummingbird's board art, title included
       mapSet: 'taco-thanksgiving',   // Taco's Thanksgiving playlist, 50 maps
+      shot: "img/boards/taco-thanksgiving.jpg?v=20261030",   // the board with its maps, for the day-before Discord post
       artHero: {"src": "img/themes/taco-thanksgiving-taco.png?v=20261020", "x": 126.0, "y": 122.01, "w": 121.21, "h": 79.74, "move": "hop"},
       banner: ["#d9661f", "#fff4dc"],
       palette: {"ground": "#f3d27a", "ground2": "#d9a24a", "stone": "#fff7e6", "stoneDark": "#9a6a2e", "ink": "#4a2a10", "accent": "#d9661f", "good": "#4f8a2b", "bad": "#b23a1c", "water": "#5f9bbd"},

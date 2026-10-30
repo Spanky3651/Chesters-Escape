@@ -23,7 +23,7 @@ const C = globalThis.CGContent;
 const CHECK_EVERY = 15 * 60 * 1000;
 const HOUR = 3600000, DAY = 86400000;
 // Discord posts the host can switch on: countdowns and the start/end, then game moments.
-const POST_KINDS = ['signups', 'hour', 'start', 'lastcall', 'end', 'escape', 'leader', 'setback', 'big', 'gate'];
+const POST_KINDS = ['signups', 'day', 'hour', 'start', 'lastcall', 'end', 'escape', 'leader', 'setback', 'big', 'gate'];
 const MOMENT_CAP = 5, SETBACK = 5, BIG_ACC = 0.95, UNDO_KEEP = 5;
 function md(t) { return String(t || '').replace(/([*_~`|>\\])/g, '\\$1'); }
 function ordinal(n) { const v = n % 100; return n + (v >= 11 && v <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'); }
@@ -290,6 +290,8 @@ export class Game extends DurableObject {
       this.meta.posts = {};
       for (const k of POST_KINDS) this.meta.posts[k] = all || l.includes(k);
     }
+    // The day-before post came later: games set up before it follow their one-hour post setting.
+    if (this.meta.posts.day === undefined) this.meta.posts.day = !!this.meta.posts.hour;
     return this.meta.posts;
   }
   recordHall() { if ((this.meta.hallHidden || []).includes(this.state.id)) return; E.addToHall(this.meta.hall = this.meta.hall || [], this.state); }
@@ -320,16 +322,52 @@ export class Game extends DurableObject {
   // plan), so the 15-minute check keeps a budget: Discord posts and reminders first, BeatLeader
   // checks with what's left, and anything that didn't fit runs a minute later.
   take(n) { if (this.budget == null) return true; if (this.budget < n) { this.later = true; return false; } this.budget -= n; return true; }
-  async discordPost(content, link) {
+  async discordPost(content, link, card) {
     if (!this.take(1)) return 'nobudget';
     const body = { content, allowed_mentions: { parse: [] } };
-    if (link && this.page()) body.embeds = [this.gameCard()];
+    if (card) body.embeds = [card];
+    else if (link && this.page()) body.embeds = [this.gameCard()];
     return fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
   }
   gameCard() {
     const s = this.state, t = C.themes[s.themeId] || {}, base = this.env.GAME_PAGE || '';
     const pic = (t.artHero && t.artHero.src) || 'img/icon.png', hex = String((t.palette || {}).accent || '#f2a33a').replace('#', '');
     return { title: s.title, url: this.page(), description: t.tagline || 'Roll the d4 once a day and play the map on the space you land on.', color: parseInt(hex, 16) || 0xf2a33a, thumbnail: { url: base.replace(/\/?$/, '/') + pic } };
+  }
+  // The post a day before the start: what the game is, when it runs and everyone who's in so far.
+  dayPost() {
+    const s = this.state, t = C.themes[s.themeId] || {}, base = (this.env.GAME_PAGE || '').replace(/\/?$/, '/');
+    const sec = (ms) => Math.round(ms / 1000), n = s.order.length;
+    const plural = (k, w) => k + ' ' + w + (k === 1 ? '' : 's');
+    const maps = new Set();
+    for (const sp of Object.values(s.board.spaces)) for (const k of sp.bsr || []) maps.add(k);
+    for (const k of s.board.bonusMaps || []) maps.add(k);
+    const fields = [{ name: '🎲 Starts', value: `<t:${sec(s.startsAt)}:F>`, inline: true }];
+    if (s.endsAt) {
+      const d = Math.round((s.endsAt - s.startsAt) / DAY);
+      fields.push({ name: '⏳ Runs', value: (d % 7 === 0 ? plural(d / 7, 'week') : plural(d, 'day')) + `, ends <t:${sec(s.endsAt)}:D>`, inline: true });
+    }
+    fields.push({ name: '🎵 Maps', value: (maps.size ? maps.size + ' maps, ' : '') + 'about one a day', inline: true });
+    // Everyone who's in, in sign-up order. Discord caps a field at 1024 characters.
+    let list = '';
+    const names = s.order.map((pid) => md(s.players[pid].name));
+    for (let i = 0; i < names.length; i++) {
+      const next = (list ? list + ', ' : '') + names[i];
+      if (next.length > 980) { list += ' and ' + (names.length - i) + ' more'; break; }
+      list = next;
+    }
+    fields.push({ name: (t.family === 'taco' ? '🌮' : '🎟️') + ` Signed up (${n})`, value: list || 'Nobody yet. Be the first!', inline: false });
+    const hex = String((t.palette || {}).accent || '#f2a33a').replace('#', '');
+    const card = {
+      title: 'Join ' + s.title, url: this.page(), color: parseInt(hex, 16) || 0xf2a33a, fields,
+      description: (t.tagline ? t.tagline + ' ' : '') + 'Roll a d4 once a day and play the map you land on. Cards, shortcuts and setbacks along the way. First three to the ' + (t.goal || 'exit') + ' take the podium.',
+      thumbnail: { url: base + ((t.artHero && t.artHero.src) || 'img/icon.png') }
+    };
+    if (t.shot) card.image = { url: base + t.shot };
+    const icon = { thanksgiving: '🦃', halloween: '🎃', christmas: '🎄', newyear: '🎉', valentine: '💘', spring: '🐣', summer: '☀️' }[t.look] || '📅';
+    const clan = String(this.clan().name || ''), who = n === 1 ? '1 player is' : n + ' ' + (/s$/i.test(clan) ? md(clan) : 'players') + ' are';
+    const call = t.look === 'thanksgiving' ? 'Grab a seat at the table before the first roll.' : 'Join and pick your route before the first roll.';
+    return { text: `${icon} **${md(s.title)} starts <t:${sec(s.startsAt)}:R>!** ` + (n ? who + ' already in. ' : '') + call, card };
   }
   // Game moments for the channel, read from the event log so nothing posts twice. The first run
   // after an update only notes where the log is. Moments are capped per game day so a busy day
@@ -340,7 +378,7 @@ export class Game extends DurableObject {
     const bigNow = () => s.events.filter((e) => e.t === 'cleared' && e.proof && e.proof.acc >= BIG_ACC).map((e) => e.id + ':' + Math.round(e.proof.acc * 10000));
     if (!m.feed || m.feed.game !== s.id) {
       const fresh = !!m.feed;
-      m.feed = { game: s.id, ev: last, big: bigNow(), leader: this.leaderNow(), open: E.signupsOpen(s) && s.status === 'signup', hour: false, lastcall: false, capDay: null, n: 0, leadDay: null };
+      m.feed = { game: s.id, ev: last, big: bigNow(), leader: this.leaderNow(), open: E.signupsOpen(s) && s.status === 'signup', day: false, hour: false, lastcall: false, capDay: null, n: 0, leadDay: null };
       if (fresh && m.feed.open && this.announcing('signups')) await this.discordPost(`📣 **Sign-ups are open for ${md(s.title)}!**` + (s.startsAt ? ` It starts <t:${Math.round(s.startsAt / 1000)}:F>.` : '') + ' Join and pick your route.', true);
       return;
     }
@@ -359,6 +397,11 @@ export class Game extends DurableObject {
     const open = s.status === 'signup' && E.signupsOpen(s);
     if (open && !f.open && this.announcing('signups') && (await this.discordPost(`📣 **Sign-ups are open for ${md(s.title)}!** Join and pick your route.`, true)) === 'nobudget') return;
     f.open = open;
+    if (s.status === 'signup' && s.startsAt && !f.day && now >= s.startsAt - DAY && now < s.startsAt - HOUR) {
+      const d = this.dayPost();
+      if (this.announcing('day') && (await this.discordPost(d.text, true, d.card)) === 'nobudget') return;
+      f.day = true;
+    }
     if (s.status === 'signup' && s.startsAt && !f.hour && now >= s.startsAt - HOUR && now < s.startsAt) {
       if (this.announcing('hour') && (await this.discordPost(`⏰ **${md(s.title)} starts <t:${Math.round(s.startsAt / 1000)}:R>.** Last chance to join and pick a route.`, true)) === 'nobudget') return;
       f.hour = true;
@@ -457,8 +500,8 @@ export class Game extends DurableObject {
     await this.ctx.storage.put('meta', this.meta);
     const s = this.state;
     let next = !s ? null : s.status === 'signup' ? s.startsAt : s.status === 'running' ? Math.min(this.meta.nextCutoff || Infinity, s.endsAt || Infinity) : null;
-    // wake up for the one-hour and last-day posts too
-    const f = this.meta.feed || {}, soon = [s && s.status === 'signup' && s.startsAt && !f.hour ? s.startsAt - HOUR : 0, s && s.status === 'running' && s.endsAt && !f.lastcall ? s.endsAt - DAY : 0].filter((x) => x > Date.now());
+    // wake up for the day-before, one-hour and last-day posts too
+    const f = this.meta.feed || {}, soon = [s && s.status === 'signup' && s.startsAt && !f.day ? s.startsAt - DAY : 0, s && s.status === 'signup' && s.startsAt && !f.hour ? s.startsAt - HOUR : 0, s && s.status === 'running' && s.endsAt && !f.lastcall ? s.endsAt - DAY : 0].filter((x) => x > Date.now());
     if (soon.length) next = Math.min(next || Infinity, ...soon);
     let want = Math.max(Date.now() + 1000, Math.min(next && isFinite(next) ? next : Date.now() + CHECK_EVERY, Date.now() + CHECK_EVERY));
     if (this.later) { want = Math.min(want, Date.now() + 60000); this.later = false; }
