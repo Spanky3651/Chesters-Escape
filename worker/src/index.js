@@ -26,6 +26,8 @@ const HOUR = 3600000, DAY = 86400000;
 const POST_KINDS = ['signups', 'day', 'hour', 'start', 'lastcall', 'end', 'escape', 'leader', 'setback', 'big', 'gate'];
 const MOMENT_CAP = 5, SETBACK = 5, BIG_ACC = 0.95, UNDO_KEEP = 5;
 function md(t) { return String(t || '').replace(/([*_~`|>\\])/g, '\\$1'); }
+function sec(ms) { return Math.round(ms / 1000); }
+function plural(k, w) { return k + ' ' + w + (k === 1 ? '' : 's'); }
 function ordinal(n) { const v = n % 100; return n + (v >= 11 && v <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'); }
 const VISIT_GAP = 10 * 60 * 1000;   // a return within this long continues the same visit
 
@@ -325,7 +327,7 @@ export class Game extends DurableObject {
   async discordPost(content, link, card) {
     if (!this.take(1)) return 'nobudget';
     const body = { content, allowed_mentions: { parse: [] } };
-    if (card) body.embeds = [card];
+    if (card && this.page()) body.embeds = [card];
     else if (link && this.page()) body.embeds = [this.gameCard()];
     return fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
   }
@@ -334,42 +336,115 @@ export class Game extends DurableObject {
     const pic = (t.artHero && t.artHero.src) || 'img/icon.png', hex = String((t.palette || {}).accent || '#f2a33a').replace('#', '');
     return { title: s.title, url: this.page(), description: t.tagline || 'Roll the d4 once a day and play the map on the space you land on.', color: parseInt(hex, 16) || 0xf2a33a, thumbnail: { url: base.replace(/\/?$/, '/') + pic } };
   }
-  // The post a day before the start: what the game is, when it runs and everyone who's in so far.
-  dayPost() {
-    const s = this.state, t = C.themes[s.themeId] || {}, base = (this.env.GAME_PAGE || '').replace(/\/?$/, '/');
-    const sec = (ms) => Math.round(ms / 1000), n = s.order.length;
-    const plural = (k, w) => k + ' ' + w + (k === 1 ? '' : 's');
-    const maps = new Set();
+  // ---- Discord post pieces ----
+  theme() { return C.themes[this.state.themeId] || {}; }
+  card(title, extra) {
+    const t = this.theme(), base = (this.env.GAME_PAGE || '').replace(/\/?$/, '/');
+    const hex = String((t.palette || {}).accent || '#f2a33a').replace('#', '');
+    return { title, url: this.page(), color: parseInt(hex, 16) || 0xf2a33a, thumbnail: { url: base + ((t.artHero && t.artHero.src) || 'img/icon.png') }, ...extra };
+  }
+  mapCount() {
+    const s = this.state, maps = new Set();
     for (const sp of Object.values(s.board.spaces)) for (const k of sp.bsr || []) maps.add(k);
     for (const k of s.board.bonusMaps || []) maps.add(k);
-    const fields = [{ name: '🎲 Starts', value: `<t:${sec(s.startsAt)}:F>`, inline: true }];
-    if (s.endsAt) {
-      const d = Math.round((s.endsAt - s.startsAt) / DAY);
-      fields.push({ name: '⏳ Runs', value: (d % 7 === 0 ? plural(d / 7, 'week') : plural(d, 'day')) + `, ends <t:${sec(s.endsAt)}:D>`, inline: true });
-    }
-    fields.push({ name: '🎵 Maps', value: (maps.size ? maps.size + ' maps, ' : '') + 'about one a day', inline: true });
-    // Everyone who's in, in sign-up order. Discord caps a field at 1024 characters.
-    let list = '';
-    const names = s.order.map((pid) => md(s.players[pid].name));
-    for (let i = 0; i < names.length; i++) {
-      const next = (list ? list + ', ' : '') + names[i];
-      if (next.length > 980) { list += ' and ' + (names.length - i) + ' more'; break; }
-      list = next;
-    }
-    fields.push({ name: (t.family === 'taco' ? '🌮' : '🎟️') + ` Signed up (${n})`, value: list || 'Nobody yet. Be the first!', inline: false });
-    const hex = String((t.palette || {}).accent || '#f2a33a').replace('#', '');
-    const card = {
-      title: 'Join ' + s.title, url: this.page(), color: parseInt(hex, 16) || 0xf2a33a, fields,
-      description: (t.tagline ? t.tagline + ' ' : '') + 'Roll a d4 once a day and play the map you land on. Cards, shortcuts and setbacks along the way. First three to the ' + (t.goal || 'exit') + ' take the podium.',
-      thumbnail: { url: base + ((t.artHero && t.artHero.src) || 'img/icon.png') }
-    };
-    if (t.shot) card.image = { url: base + t.shot };
-    const icon = { thanksgiving: '🦃', halloween: '🎃', christmas: '🎄', newyear: '🎉', valentine: '💘', spring: '🐣', summer: '☀️' }[t.look] || '📅';
-    const clan = String(this.clan().name || ''), who = n === 1 ? '1 player is' : n + ' ' + (/s$/i.test(clan) ? md(clan) : 'players') + ' are';
-    const call = t.look === 'thanksgiving' ? 'Grab a seat at the table before the first roll.' : 'Join and pick your route before the first roll.';
-    return { text: `${icon} **${md(s.title)} starts <t:${sec(s.startsAt)}:R>!** ` + (n ? who + ' already in. ' : '') + call, card };
+    return maps.size;
   }
-  // Game moments for the channel, read from the event log so nothing posts twice. The first run
+  span() {
+    const s = this.state; if (!s.endsAt || !s.startsAt) return '';
+    const d = Math.round((s.endsAt - s.startsAt) / DAY);
+    return d % 7 === 0 ? plural(d / 7, 'week') : plural(d, 'day');
+  }
+  routeName(key) { const i = (this.state.board.routeInfo || {})[key]; return (i && i.name) || key; }
+  // How many players are on each route, in board order, plus anyone who hasn't picked one.
+  routeSplit() {
+    const s = this.state, out = Object.keys(s.board.routes).map((k) => ({ key: k, name: this.routeName(k), n: 0 }));
+    let none = 0;
+    for (const pid of s.order) { const r = out.find((x) => x.key === s.players[pid].route); if (r) r.n++; else none++; }
+    return { routes: out, none };
+  }
+  routeIcon(i) { return ['🛤️', '🌊', '🧭', '🗺️'][i] || '🧭'; }
+  who(n) {
+    const clan = String(this.clan().name || '');
+    return n === 1 ? '1 player is' : n + ' ' + (/s$/i.test(clan) ? md(clan) : 'players') + ' are';
+  }
+  // The full pitch card: what the game is, when it runs, and either how to join or who's in.
+  pitch(list) {
+    const s = this.state, t = this.theme(), n = s.order.length, maps = this.mapCount(), span = this.span();
+    const fields = [];
+    if (s.startsAt) fields.push({ name: '🎲 Starts', value: `<t:${sec(s.startsAt)}:F>` + (list ? '' : ` (<t:${sec(s.startsAt)}:R>)`), inline: true });
+    if (span) fields.push({ name: '⏳ Runs', value: span + `, ends <t:${sec(s.endsAt)}:D>`, inline: true });
+    fields.push({ name: '🎵 Maps', value: (maps ? maps + ' maps, ' : '') + 'about one a day', inline: true });
+    if (list) {
+      // Everyone who's in, in sign-up order. Discord caps a field at 1024 characters.
+      let names = '';
+      const all = s.order.map((pid) => md(s.players[pid].name));
+      for (let i = 0; i < all.length; i++) {
+        const next = (names ? names + ', ' : '') + all[i];
+        if (next.length > 980) { names += ' and ' + (all.length - i) + ' more'; break; }
+        names = next;
+      }
+      fields.push({ name: (t.family === 'taco' ? '🌮' : '🎟️') + ` Signed up (${n})`, value: names || 'Nobody yet. Be the first!', inline: false });
+    } else {
+      const r = this.routeSplit().routes.map((x) => x.name.replace(/ route$/i, '')).join(' or ');
+      fields.push({ name: '📝 How to join', value: `Open the game, sign in with Discord, paste your BeatLeader profile and pick the ${r} route.`, inline: false });
+    }
+    const card = this.card('Join ' + s.title, {
+      description: (t.tagline ? t.tagline + ' ' : '') + 'Roll a d4 once a day and play the map you land on. Cards, shortcuts and setbacks along the way. First three to the ' + (t.goal || 'exit') + ' take the podium.',
+      fields
+    });
+    if (t.shot) card.image = { url: (this.env.GAME_PAGE || '').replace(/\/?$/, '/') + t.shot };
+    return card;
+  }
+  icon() { return { thanksgiving: '🦃', halloween: '🎃', christmas: '🎄', newyear: '🎉', valentine: '💘', spring: '🐣', summer: '☀️' }[this.theme().look] || '📅'; }
+  // Sign-ups open.
+  signupsPost() {
+    const s = this.state, maps = this.mapCount(), span = this.span();
+    const what = maps ? maps + ' maps' + (span ? ' over ' + span : '') + '. ' : '';
+    return { text: `📣 **Sign-ups are open for ${md(s.title)}!** ${what}Sign up any time before the first roll.`, card: this.pitch(false) };
+  }
+  // The post a day before the start: what the game is, when it runs and everyone who's in so far.
+  dayPost() {
+    const s = this.state, n = s.order.length;
+    const call = this.theme().look === 'thanksgiving' ? 'Grab a seat at the table before the first roll.' : 'Join and pick your route before the first roll.';
+    return { text: `${this.icon()} **${md(s.title)} starts <t:${sec(s.startsAt)}:R>!** ` + (n ? this.who(n) + ' already in. ' : '') + call, card: this.pitch(true) };
+  }
+  // An hour before: last call, and how the routes split.
+  hourPost() {
+    const s = this.state, n = s.order.length, sp = this.routeSplit();
+    const fields = sp.routes.map((r, i) => ({ name: this.routeIcon(i) + ' ' + r.name, value: plural(r.n, 'player'), inline: true }));
+    if (sp.none) fields.push({ name: '🤔 No route yet', value: plural(sp.none, 'player'), inline: true });
+    return {
+      text: `⏰ **${md(s.title)} starts <t:${sec(s.startsAt)}:R>!** ` + (n ? this.who(n) + ' in. Last call to sign up.' : 'Nobody has signed up yet. Be the first!'),
+      card: this.card('Join ' + s.title, { description: `The first roll unlocks at <t:${sec(s.startsAt)}:t>.`, fields })
+    };
+  }
+  // A day before the end: the podium so far and who can still reach it.
+  lastCallPost() {
+    const s = this.state, t = this.theme(), goal = t.goal || 'exit', r = E.ranking(s), medal = ['🥇', '🥈', '🥉'];
+    const out = r.filter((x) => x.escaped && x.place <= 3), open = 3 - out.length, chasing = r.filter((x) => !x.escaped);
+    const fields = out.map((x) => ({ name: medal[x.place - 1] + ' ' + md(s.players[x.pid].name), value: 'Made it, day ' + x.day, inline: true }));
+    for (let i = out.length; i < 3 && chasing.length; i++) {
+      const c = chasing[i - out.length];
+      fields.push({ name: medal[i] + ' Open spot', value: c ? `${md(s.players[c.pid].name)} is ${plural(c.left, 'space')} away` : 'Anyone', inline: true });
+    }
+    const rest = chasing.slice(open > 0 ? open : 0, (open > 0 ? open : 0) + 5);
+    if (rest.length) fields.push({ name: 'Chasing', value: rest.map((x) => `**${md(s.players[x.pid].name)}** ${x.left} to go`).join(' · '), inline: false });
+    const head = open > 0 ? `${open === 1 ? 'One spot' : open + ' spots'} left on the podium. Every roll counts now.` : `The podium is set, but every place still counts. Get to the ${goal}!`;
+    return { text: `⏳ **${md(s.title)} ends <t:${sec(s.endsAt)}:R>!** ` + head, card: this.card('Standings', { fields }) };
+  }
+  // The game's totals, counting moments that have aged out of the log.
+  totals() {
+    const s = this.state, T = (s.tally && s.tally.p) || {};
+    let clears = 0, best = null;
+    for (const pid of Object.keys(T)) { clears += T[pid].clears || 0; if (T[pid].best && (!best || T[pid].best.acc > best.acc)) best = { pid, ...T[pid].best }; }
+    for (const e of s.events) {
+      if (e.t !== 'cleared') continue;
+      clears++;
+      if (e.proof && e.proof.acc && (!best || e.proof.acc > best.acc)) best = { pid: e.pid, acc: e.proof.acc, key: (e.bsr || [])[0], diff: e.proof.diff || '' };
+    }
+    return { clears, best };
+  }
+  // Game moments for the channel,  // Game moments for the channel, read from the event log so nothing posts twice. The first run
   // after an update only notes where the log is. Moments are capped per game day so a busy day
   // can't flood the channel; escapes, the game start, end and countdowns don't count toward the cap.
   async discordFeed() {
@@ -379,7 +454,7 @@ export class Game extends DurableObject {
     if (!m.feed || m.feed.game !== s.id) {
       const fresh = !!m.feed;
       m.feed = { game: s.id, ev: last, big: bigNow(), leader: this.leaderNow(), open: E.signupsOpen(s) && s.status === 'signup', day: false, hour: false, lastcall: false, capDay: null, n: 0, leadDay: null };
-      if (fresh && m.feed.open && this.announcing('signups')) await this.discordPost(`📣 **Sign-ups are open for ${md(s.title)}!**` + (s.startsAt ? ` It starts <t:${Math.round(s.startsAt / 1000)}:F>.` : '') + ' Join and pick your route.', true);
+      if (fresh && m.feed.open && this.announcing('signups')) { const p = this.signupsPost(); await this.discordPost(p.text, true, p.card); }
       return;
     }
     const f = m.feed, t = C.themes[s.themeId] || {}, goal = t.goal || 'exit';
@@ -395,7 +470,7 @@ export class Game extends DurableObject {
     };
     // countdowns
     const open = s.status === 'signup' && E.signupsOpen(s);
-    if (open && !f.open && this.announcing('signups') && (await this.discordPost(`📣 **Sign-ups are open for ${md(s.title)}!** Join and pick your route.`, true)) === 'nobudget') return;
+    if (open && !f.open && this.announcing('signups')) { const p = this.signupsPost(); if ((await this.discordPost(p.text, true, p.card)) === 'nobudget') return; }
     f.open = open;
     if (s.status === 'signup' && s.startsAt && !f.day && now >= s.startsAt - DAY && now < s.startsAt - HOUR) {
       const d = this.dayPost();
@@ -403,11 +478,11 @@ export class Game extends DurableObject {
       f.day = true;
     }
     if (s.status === 'signup' && s.startsAt && !f.hour && now >= s.startsAt - HOUR && now < s.startsAt) {
-      if (this.announcing('hour') && (await this.discordPost(`⏰ **${md(s.title)} starts <t:${Math.round(s.startsAt / 1000)}:R>.** Last chance to join and pick a route.`, true)) === 'nobudget') return;
+      if (this.announcing('hour')) { const p = this.hourPost(); if ((await this.discordPost(p.text, true, p.card)) === 'nobudget') return; }
       f.hour = true;
     }
     if (s.status === 'running' && s.endsAt && !f.lastcall && now >= s.endsAt - DAY && now < s.endsAt) {
-      if (this.announcing('lastcall') && (await this.discordPost(`⏳ **${md(s.title)} ends <t:${Math.round(s.endsAt / 1000)}:R>.** Get your rolls in.`, true)) === 'nobudget') return;
+      if (this.announcing('lastcall')) { const p = this.lastCallPost(); if ((await this.discordPost(p.text, true, p.card)) === 'nobudget') return; }
       f.lastcall = true;
     }
     // moments since last time
@@ -416,14 +491,25 @@ export class Game extends DurableObject {
       const kd = e.space && s.board.spaces[e.space] && t.kinds ? t.kinds[s.board.spaces[e.space].kind] : null;
       const card = e.card ? (s.cards || []).find((c) => c.id === e.card) : null;
       const why = kd ? `*${kd.title}* ` : card ? `*${card.title || card.name || 'A card'}* ` : '';
+      // Setbacks lead with the space's or card's own icon, so a taco game doesn't get the cemetery skull.
+      const what = kd ? kd.title : card ? card.title || card.name : '', art = (kd && kd.icon) || (card && card.art) || (t.family === 'taco' ? '😬' : '💀');
+      const ow = (pid) => { const r = E.ranking(s).find((x) => x.pid === pid); return r && !r.escaped ? ` and is now ${plural(r.left, 'space')} from the ${goal}` : ''; };
+      const hit = (pid, did) => `${art} ${what ? `*${/[!?.]$/.test(what) ? what : what + '!'}* ` : ''}**${name(pid)}** ${did}${ow(pid)}.`;
       let ok = true;
-      if (e.t === 'escaped') ok = await say('escape', `🏁 ${why}**${name(e.pid)}** made it to the ${goal}! ${ordinal(e.place)} place, day ${e.day}.`);
-      else if (e.t === 'gate-closed') ok = await say('gate', `🚪 **${name(e.pid)}** reached the ${goal}, but someone already got out today. They wait at the gate until tomorrow.`);
-      else if (e.t === 'start') ok = await say('setback', `💀 ${why}**${name(e.pid)}** is back at the start.`);
-      else if (e.t === 'move' && e.n <= -SETBACK) ok = await say('setback', `💀 ${why}**${name(e.pid)}** got knocked back ${-e.n} spaces.`);
+      if (e.t === 'escaped') {
+        const p = s.players[e.pid], medal = ['🥇 ', '🥈 ', '🥉 '][e.place - 1] || '', left = 3 - e.place;
+        const tail = e.place > 3 ? '' : left > 0 ? ` ${left === 1 ? '1 podium spot' : left + ' podium spots'} left.` : ' The podium is full.';
+        ok = await say('escape', `🏁 ${why}**${name(e.pid)}** made it to the ${goal}! ${medal}**${ordinal(e.place)} place** on day ${e.day}` + (p && p.route ? `, by the ${this.routeName(p.route)}.` : '.') + tail);
+      } else if (e.t === 'gate-closed') {
+        const first = s.finishOrder.find((pid) => s.players[pid] && s.players[pid].finished && s.players[pid].finished.day === e.day);
+        const when = this.meta.nextCutoff ? `<t:${sec(this.meta.nextCutoff)}:R>` : 'tomorrow';
+        ok = await say('gate', `🚪 **${name(e.pid)}** reached the ${goal}, but ${first ? `**${name(first)}**` : 'someone'} already got out today. ${name(e.pid)} waits one space short and can roll for it again ${when}.`);
+      }
+      else if (e.t === 'start') ok = await say('setback', hit(e.pid, 'is sent back to the start').replace(/ and is now [^.]*/, ''));
+      else if (e.t === 'move' && e.n <= -SETBACK) ok = await say('setback', hit(e.pid, `goes back ${-e.n} spaces`));
       else if (e.t === 'warp') {
         const p = s.players[e.pid], r = p && p.route ? s.board.routes[p.route] : [], back = r.indexOf(e.space) - r.indexOf(e.to);
-        if (back >= SETBACK && r.indexOf(e.to) >= 0) ok = await say('setback', `💀 ${why}**${name(e.pid)}** got swept back ${back} spaces.`);
+        if (back >= SETBACK && r.indexOf(e.to) >= 0) ok = await say('setback', hit(e.pid, `gets swept back ${back} spaces`));
       }
       if (!ok) return;   // out of requests: this moment and the rest go next run
       f.ev = e.id;
@@ -437,7 +523,9 @@ export class Game extends DurableObject {
       const before = f.big.some((x) => x.split(':')[0] === String(id));
       if (e && !before) {
         const key = (e.bsr || [])[0], song = key ? await this.songName(key) : '';
-        if (!(await say('big', `✨ **${name(e.pid)}** cleared ${song ? `**${md(song)}**` : `!bsr ${key}`} at **${(e.proof.acc * 100).toFixed(2)}%**` + (e.proof.diff ? ` (${e.proof.diff})` : '') + '.'))) return;
+        // The best on this map this game, counting every clear still in the log.
+        const top = s.events.filter((x) => x.t === 'cleared' && x.proof && x.proof.acc && (x.bsr || [])[0] === key).every((x) => x.proof.acc <= e.proof.acc);
+        if (!(await say('big', `✨ **${name(e.pid)}** cleared ${song ? `**${md(song)}**` : 'a map'}` + (e.proof.diff ? ` (${e.proof.diff})` : '') + ` at **${(e.proof.acc * 100).toFixed(2)}%**` + (top ? ', the best on that map this game.' : '.') + (key ? ` \`!bsr ${key}\`` : '')))) return;
       }
       f.big.push(k);
     }
@@ -447,7 +535,8 @@ export class Game extends DurableObject {
     if (lead && f.leader && lead !== f.leader && s.status === 'running' && !s.players[lead].finished && f.leadDay !== s.day) {
       const r = E.ranking(s)[0];
       f.leadDay = s.day;
-      if (!(await say('leader', `👑 **${name(lead)}** takes the lead from **${name(f.leader)}**. ${r ? r.left + ' spaces to go.' : ''}`))) { f.leadDay = null; return; }
+      const was = E.ranking(s).find((x) => x.pid === f.leader), gap = r && was && !was.escaped ? was.left - r.left : 0;
+      if (!(await say('leader', `👑 **${name(lead)}** passes **${name(f.leader)}** for the lead on day ${s.day}!` + (r ? ` ${plural(r.left, 'space')} from the ${goal}` + (gap > 0 ? `, ${name(f.leader)} is ${gap} behind.` : '.') : '')))) { f.leadDay = null; return; }
     }
     if (lead) f.leader = lead;
   }
@@ -921,7 +1010,12 @@ export class Game extends DurableObject {
   // Day rollover at the cutoff, plus a BeatLeader sweep for everyone still on a map.
   async announceStart() {
     if (!this.announcing('start')) return;
-    await this.discordPost(`**${md(this.state.title)} has started!** Day 1 is open, go roll your first d4.`, true);
+    const s = this.state, n = s.order.length, sp = this.routeSplit(), fields = [{ name: '👥 Players', value: String(n), inline: true }];
+    if (sp.routes.length) fields.push({ name: '🛤️ Routes', value: sp.routes.map((r) => r.n + ' ' + r.name.replace(/ route$/i, '')).join(', '), inline: true });
+    if (s.endsAt) fields.push({ name: '🏁 Ends', value: `<t:${sec(s.endsAt)}:D>`, inline: true });
+    const reset = this.meta.nextCutoff ? ` One roll a day, and the roll resets at <t:${sec(this.meta.nextCutoff)}:t> every night.` : ' One roll a day.';
+    await this.discordPost(`🎲 **${md(s.title)} has started!** Day 1 is open: roll your d4 and play the map you land on.`, true,
+      this.card('Play ' + s.title, { description: (n ? `${plural(n, 'player')} ${n === 1 ? 'is' : 'are'} off.` : 'Sign up and roll your first d4.') + reset, fields }));
   }
 
   // Once a game day per device, at the reminder hour in that device's own time zone: nudge
@@ -953,8 +1047,14 @@ export class Game extends DurableObject {
     if (!this.announcing('end') || !s.final || !s.final.length) return;   // nobody played: nothing to announce
     // Medals follow the place, so players tied on spaces share one (two golds, then a silver).
     const medal = ['🥇', '🥈', '🥉'];
-    const top = s.final.filter((r) => r.place <= 3).slice(0, 6).map((r) => `${medal[r.place - 1]} ${md(s.players[r.pid].name)}` + (r.escaped ? ` (escaped day ${r.day})` : ` (${r.left} to go)`)).join('\n');
-    await this.discordPost(`**${md(s.title)} is over!**\n${top}`, true);
+    const goal = this.theme().goal || 'exit', tot = this.totals(), out = s.final.filter((r) => r.escaped).length;
+    const fields = s.final.filter((r) => r.place <= 3).slice(0, 6).map((r) => ({ name: `${medal[r.place - 1]} ${md(s.players[r.pid].name)}`, value: r.escaped ? `Day ${r.day}` : `${r.left} to go`, inline: true }));
+    fields.push({ name: '📊 By the numbers', value: `${plural(s.final.length, 'player')} · ${plural(tot.clears, 'map')} cleared · ${out} made it to the ${goal}`, inline: false });
+    if (tot.best && s.players[tot.best.pid]) {
+      const song = tot.best.key ? await this.songName(tot.best.key) : '';
+      fields.push({ name: '✨ Best clear', value: `**${md(s.players[tot.best.pid].name)}**, ${song ? md(song) : 'a map'}` + (tot.best.diff ? ` (${tot.best.diff})` : '') + ` at ${(tot.best.acc * 100).toFixed(2)}%`, inline: false });
+    }
+    await this.discordPost(`🏁 **${md(s.title)} is over!** Congrats to everyone who played.`, true, this.card('Final results', { fields }));
   }
 
   async alarm() {
