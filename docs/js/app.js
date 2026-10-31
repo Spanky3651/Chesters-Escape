@@ -1747,11 +1747,11 @@
   // tally, notifications, people who signed in but never joined, and GoatCounter visitors ----
   var statsData = null, statsAt = 0, statsBusy = false, statsMore = {};
   function fillStats(force) {
-    var box = $('statsLive'); if (!box) return;
+    var box = $('statsNudge'); if (!box) return;
     if (statsData) drawStatsLive();
     if ((statsData && !force && Date.now() - statsAt < 60000) || statsBusy || !store.hostStats) return;
     statsBusy = true;
-    store.hostStats(force).then(function (r) { statsBusy = false; if (r && !r.error) { statsData = r; statsAt = Date.now(); } if (statsOpen()) renderStats(); }, function () { statsBusy = false; var b = $('statsLive'); if (b && !statsData) b.innerHTML = '<p class="why">Couldn\'t load the stats right now.</p>'; });
+    store.hostStats(force).then(function (r) { statsBusy = false; if (r && !r.error) { statsData = r; statsAt = Date.now(); } if (statsOpen()) renderStats(); }, function () { statsBusy = false; var b = $('statsNudge'); if (b && !statsData) b.innerHTML = '<p class="why">Couldn\'t load the stats right now.</p>'; });
   }
   function sBar(lab, n, max, cls, right) {
     return '<div class="gsb"><span class="gsl">' + lab + '</span><span class="gst"><em class="' + (cls || '') + '" style="width:' + (max ? Math.max(2, Math.round(n / max * 100)) : 0) + '%"></em></span><span class="gsn">' + (right != null ? right : n) + '</span></div>';
@@ -1775,7 +1775,7 @@
     return o;
   }
   function statsHtml(s) {
-    var signup = s.status === 'signup', over = s.status === 'finished', day = s.day, o = statsFromState(s);
+    var signup = s.status === 'signup', over = s.status === 'finished', day = s.day, o = statsFromState(s), P = {};
     var ids = s.order, racing = ids.filter(function (pid) { return s.players[pid].route && !s.players[pid].finished; });
     var rank = E.ranking(s), left = {}; rank.forEach(function (r) { left[r.pid] = r; });
     var html = '<section class="hsec"><div class="thread-head"><h3>' + esc(s.title) + (signup ? ', sign-ups' : over ? ', final' : ', day ' + day) + '</h3><button type="button" class="icon-btn refresh-btn" data-h="stats-refresh" aria-label="Refresh" title="Refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20.5V16h-4.5"/></svg></button></div><div class="sgrid">';
@@ -1795,24 +1795,22 @@
     html += sCard('Notifications on', on == null ? '…' : on + '<small> / ' + ids.length + '</small>', on == null ? '' : d.notify.devices + ' device' + (d.notify.devices === 1 ? '' : 's') + ' signed up') +
       sCard('Signed in, not in', lurk == null ? '…' : lurk, lurk == null ? '' : 'Never joined the game');
     html += '</div></section>';
-    // Days and hours from the server's tally.
-    html += '<div id="statsLive">' + (statsData ? '' : '<p class="why">Loading</p>') + '</div>';
     {
       // Slipping: still racing, no roll in two or more days.
       var slip = racing.filter(function (pid) { return !over && (s.players[pid].rolledDay || 0) <= day - 2; }).map(function (pid) { return { p: s.players[pid], idle: day - (s.players[pid].rolledDay || 0), never: !s.players[pid].rolledDay }; }).sort(function (a, b) { return b.idle - a.idle; });
       if (!over) slip = ids.filter(function (pid) { return !s.players[pid].route; }).map(function (pid) { return { p: s.players[pid], noroute: true }; }).concat(slip);
-      if (!over) html += '<section class="hsec"><h3>Might be slipping <small>no route, or no roll in 2+ days. Tap one for BeatLeader</small></h3><div class="sbox slist">' + (slip.length ? slip.slice(0, statsMore.slip ? 999 : 6).map(function (x) {
+      if (!over) P.slip = '<section class="hsec"><h3>Might be slipping <small>no route, or no roll in 2+ days. Tap one for BeatLeader</small></h3><div class="sbox slist">' + (slip.length ? slip.slice(0, statsMore.slip ? 999 : 6).map(function (x) {
         var r = left[x.p.id];
         if (x.noroute) return blWrap(x.p, avatarHtml(x.p, 'vis-ava') + '<span class="sn2"><b>' + esc(x.p.name) + '</b><em>Signed up but hasn\'t picked a route, so can\'t roll</em></span><span class="sidle">No route</span>');
         return blWrap(x.p, avatarHtml(x.p, 'vis-ava') + '<span class="sn2"><b>' + esc(x.p.name) + '</b><em>' + (r ? r.left + ' to go · ' : '') + esc(s.board.routeInfo[x.p.route].name) + '</em></span><span class="sidle">' + (x.never ? 'Never rolled' : x.idle + ' days') + '</span>');
       }).join('') + (statsMore.slip ? '' : sMore('slip', slip.length, 6)) : '<p class="why">' + (signup ? 'Everyone has picked a route. Players who stop rolling show up here once the game starts.' : 'Everyone still racing rolled today or yesterday.') + '</p>') + '</div></section>';
       // Funnel
       var steps = [['Signed up', ids.length], ['Picked a route', ids.filter(function (pid) { return s.players[pid].route; }).length], ['Rolled at least once', ids.filter(function (pid) { return s.players[pid].rolls > 0 || (s.tally && s.tally.p && s.tally.p[pid] && s.tally.p[pid].rolls); }).length], ['Cleared a map', ids.filter(function (pid) { return o.per[pid] && o.per[pid].n; }).length], ['Made it out', ids.filter(function (pid) { return s.players[pid].finished; }).length]];
-      html += '<section class="hsec"><h3>From sign-up to the ' + esc(theme().goal || 'exit') + '</h3><div class="sbox">' + steps.map(function (x, i) { return sBar(x[0], x[1], steps[0][1], i === steps.length - 1 ? 'g' : '', '<b>' + x[1] + '</b> <small>' + (steps[0][1] ? Math.round(x[1] / steps[0][1] * 100) : 0) + '%</small>'); }).join('') + '</div></section>';
+      P.funnel = '<section class="hsec"><h3>From sign-up to the ' + esc(theme().goal || 'exit') + '</h3><div class="sbox">' + steps.map(function (x, i) { return sBar(x[0], x[1], steps[0][1], i === steps.length - 1 ? 'g' : '', '<b>' + x[1] + '</b> <small>' + (steps[0][1] ? Math.round(x[1] / steps[0][1] * 100) : 0) + '%</small>'); }).join('') + '</div></section>';
     }
     // Routes
     var rk = Object.keys(s.board.routes);
-    if (rk.length) html += '<section class="hsec"><h3>Routes</h3><div class="rgrid">' + rk.map(function (k, i) {
+    if (rk.length) P.routes = '<section class="hsec"><h3>Routes</h3><div class="rgrid">' + rk.map(function (k, i) {
       var ps = ids.filter(function (pid) { return s.players[pid].route === k; }), live = ps.filter(function (pid) { return left[pid] && !left[pid].escaped; });
       var avg = live.length ? (live.reduce(function (a, pid) { return a + left[pid].left; }, 0) / live.length).toFixed(1) : null, out = ps.filter(function (pid) { return s.players[pid].finished; }).length;
       return sCard((i ? '🌊 ' : '🛤️ ') + esc(s.board.routeInfo[k].name), ps.length + '<small> player' + (ps.length === 1 ? '' : 's') + '</small>', signup ? (ps.length ? 'Picked so far' : 'Nobody yet') : out + ' out' + (avg ? ' · ' + avg + ' to go on average' : ''));
@@ -1823,24 +1821,30 @@
       var hard = mlist.filter(function (m) { return m.n >= 3; }).sort(function (a, b) { return a.avg - b.avg; }).slice(0, 5);
       var most = mlist.slice().sort(function (a, b) { return b.n - a.n || b.best - a.best; }).slice(0, 5);
       var wait = function (msg) { return '<p class="why">' + msg + '</p>'; };
-      html += '<section class="hsec"><h3>Hardest maps <small>lowest average accuracy, 3+ clears</small></h3><div class="sbox">' + (hard.length ? hard.map(function (m) { return sBar(esc(songName(m.k)), Math.max(0, m.avg - 0.8), 0.2, 'a', (m.avg * 100).toFixed(1) + '%'); }).join('') : wait(signup ? 'Shows once maps have been cleared. A map needs 3 clears to count.' : 'No map has 3 clears yet.')) + '</div></section>';
-      html += '<section class="hsec"><h3>Most played maps</h3><div class="sbox">' + (most.length ? most.map(function (m) { return sBar(esc(songName(m.k)), m.n, most[0].n, '', '<b>' + m.n + '</b> <small>best ' + (m.best * 100).toFixed(1) + '%</small>'); }).join('') : wait(signup ? 'Shows once the game starts and maps get cleared.' : 'No clears yet.')) + '</div></section>';
+      P.hard = '<section class="hsec"><h3>Hardest maps <small>lowest average accuracy, 3+ clears</small></h3><div class="sbox">' + (hard.length ? hard.map(function (m) { return sBar(esc(songName(m.k)), Math.max(0, m.avg - 0.8), 0.2, 'a', (m.avg * 100).toFixed(1) + '%'); }).join('') : wait(signup ? 'Shows once maps have been cleared. A map needs 3 clears to count.' : 'No map has 3 clears yet.')) + '</div></section>';
+      P.most = '<section class="hsec"><h3>Most played maps</h3><div class="sbox">' + (most.length ? most.map(function (m) { return sBar(esc(songName(m.k)), m.n, most[0].n, '', '<b>' + m.n + '</b> <small>best ' + (m.best * 100).toFixed(1) + '%</small>'); }).join('') : wait(signup ? 'Shows once the game starts and maps get cleared.' : 'No clears yet.')) + '</div></section>';
       // Reactions
       var rc = {}, rtot = 0; Object.keys(s.reactions || {}).forEach(function (id) { var r = s.reactions[id]; Object.keys(r).forEach(function (k) { rc[k] = (rc[k] || 0) + r[k].length; rtot += r[k].length; }); });
       var rtop = Object.keys(rc).sort(function (a, b) { return rc[b] - rc[a]; }).slice(0, 6), th = theme();
-      html += '<section class="hsec"><h3>Reactions <small>' + rtot + ' on moments still in the thread</small></h3><div class="sbox emo">' + (rtop.length ? rtop.map(function (k) { return '<span class="ech">' + X.rxIcon(k, th) + '<span>' + esc(X.rxLabel(k, th)) + '</span><b>' + rc[k] + '</b></span>'; }).join('') : wait('Nobody has reacted to a moment yet.')) + '</div></section>';
+      P.rx = '<section class="hsec"><h3>Reactions <small>' + rtot + ' on moments still in the thread</small></h3><div class="sbox emo">' + (rtop.length ? rtop.map(function (k) { return '<span class="ech">' + X.rxIcon(k, th) + '<span>' + esc(X.rxLabel(k, th)) + '</span><b>' + rc[k] + '</b></span>'; }).join('') : wait('Nobody has reacted to a moment yet.')) + '</div></section>';
       // Everyone
       // Everyone, in standings order, then anyone without a route.
       var allRows = rank.concat(over ? [] : ids.filter(function (pid) { return !s.players[pid].route; }).map(function (pid) { return { pid: pid, noroute: true }; }));
       var rows = allRows.slice(0, statsMore.all ? 999 : 10);
-      html += '<section class="hsec"><h3>Everyone <small>tap one for BeatLeader</small></h3><div class="sbox ptab"><div class="pth"><span>#</span><span>Player</span><span>Maps</span><span>Acc</span><span>Rolled</span></div>' + rows.map(function (r) {
+      P.all = '<section class="hsec"><h3>Everyone <small>tap one for BeatLeader</small></h3><div class="sbox ptab"><div class="pth"><span>#</span><span>Player</span><span>Maps</span><span>Acc</span><span>Rolled</span></div>' + rows.map(function (r) {
         var p = s.players[r.pid], q = o.per[r.pid] || { n: 0, aN: 0 }, gap = day - (p.rolledDay || 0);
         var last = r.noroute ? 'No route' : signup ? 'Not yet' : r.escaped ? 'Out d' + r.day : !p.rolledDay ? 'Never' : gap === 0 ? 'Today' : gap + (gap === 1 ? ' day' : ' days');
         var inner = '<span>' + (r.noroute || signup ? '–' : r.escaped && r.place <= 3 ? ['🥇', '🥈', '🥉'][r.place - 1] : r.place) + '</span><span class="pnm">' + avatarHtml(p, 'vis-ava') + '<b>' + esc(p.name) + '</b></span><span>' + q.n + '</span><span>' + (q.aN ? (q.aS / q.aN * 100).toFixed(1) + '%' : '-') + '</span><span class="' + (r.noroute || (!signup && !r.escaped && !over && gap >= 2) ? 'cold' : '') + '">' + last + '</span>';
         return p.blId ? '<a class="ptr" href="https://beatleader.com/u/' + encodeURIComponent(p.blId) + '" target="_blank" rel="noopener">' + inner + '</a>' : '<div class="ptr">' + inner + '</div>';
       }).join('') + (allRows.length ? '' : wait('Nobody has signed up yet.')) + (statsMore.all ? '' : sMore('all', allRows.length, 10)) + '</div></section>';
     }
-    html += '<div id="statsLive2"></div>';
+    // Grouped by what you'd do with it: who to nudge first, then the race, activity, maps and visitors.
+    var grp = function (t, sub) { return '<h2 class="sgroup">' + t + (sub ? ' <small>' + sub + '</small>' : '') + '</h2>'; }, loading = statsData ? '' : '<p class="why">Loading</p>';
+    html += grp('Who to nudge', 'players to message in Discord') + (P.slip || '') + '<div id="statsNudge">' + loading + '</div>' +
+      grp('The race') + (P.all || '') + (P.routes || '') + (P.funnel || '') +
+      grp('Activity') + '<div id="statsActivity">' + loading + '</div>' +
+      grp('Maps') + (P.hard || '') + (P.most || '') + (P.rx || '') +
+      grp('Visitors', 'from GoatCounter') + '<div id="statsGC">' + loading + '</div>';
     return html;
     function ev(s, d) { return s.events.filter(function (e) { return e.t === 'cleared' && e.day === d; }).length; }
   }
@@ -1942,7 +1946,6 @@
     html += '<p class="snote">One person counts once a day, so someone who opens the game on three days counts three times. Your own visits are left out.</p>';
     if (gd.length) html += '<div class="sbox" style="margin-top:10px"><div class="dchart short">' + gd.map(function (x) { var dt = new Date(x[0] + 'T12:00:00'); return '<div class="dc" title="' + esc(dt.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })) + ': ' + x[1] + ' visitor' + (x[1] === 1 ? '' : 's') + '"><div class="dbars"><i class="v" style="height:' + x[1] / gm * 100 + '%"></i></div><span>' + dt.getDate() + '</span></div>'; }).join('') + '</div><div class="leg"><span><i class="v"></i>Visitors each day</span><span class="lsub">Today is on the right</span></div></div>';
     html += gcBlock('How they found the game', 'the site or app they clicked from', src, 'gsrc', 6);
-    html += gcBlock('Which tagged link', 'links you gave a utm_campaign name', (gc.campaigns || []).map(function (r) { var c = GC_CAMP[String(r.name).toLowerCase()]; return { label: c ? c[0] : String(r.name).replace(/[-_]+/g, ' ').replace(/^./, function (x) { return x.toUpperCase(); }), note: 'utm_campaign=' + r.name, icon: c ? c[1] : 'g:link', n: r.count }; }), 'gcmp', 5);
     var browsers = (gc.browsers || []).map(function (r) { var nm = r.name || 'Unknown', m = null; for (var i = 0; i < GC_BROWSER.length; i++) if (GC_BROWSER[i][0].test(nm)) { m = GC_BROWSER[i]; break; } return { label: m && m[1] ? m[1] : nm, note: m && m[2] ? m[2] : '', icon: m ? m[3] : '', n: r.count }; });
     var systems = (gc.systems || []).map(function (r) { var nm = r.name || 'Unknown', ic = ''; for (var i = 0; i < GC_SYSTEM.length; i++) if (GC_SYSTEM[i][0].test(nm)) { ic = GC_SYSTEM[i][1]; break; } return { label: nm, note: '', icon: ic, n: r.count }; });
     var countries = (gc.countries || []).map(function (r) { var cc = String(r.id || '').slice(0, 2).toLowerCase(); return { label: !r.name || /^\(?unknown\)?$/i.test(r.name) ? 'Couldn\'t tell' : r.name, note: '', icon: /^[a-z]{2}$/.test(cc) && cc !== 'xx' ? 'f:' + cc : 'g:unknown', n: r.count }; });
@@ -1951,7 +1954,7 @@
   }
   // The parts that come from the server: days, hours, notifications, the not-joined list and GoatCounter.
   function drawStatsLive() {
-    var box = $('statsLive'), d = statsData, s = st(); if (!box || !d) return;
+    var box = $('statsActivity'), d = statsData, s = st(); if (!box || !d) return;
     var html = '', days = d.daily.days || {}, keys = Object.keys(days).map(Number).sort(function (a, b) { return a - b; });
     if (s.status === 'signup' || !keys.length) html += '<section class="hsec"><h3>Each day <small>rolls and clears</small></h3><div class="sbox"><p class="why">' + (s.status === 'signup' ? 'Fills in day by day once rolling starts' + (s.startsAt ? ', ' + esc(startWhen(s.startsAt)) : '') + '.' : 'Nobody has rolled yet.') + '</p></div></section>';
     else {
@@ -1967,26 +1970,28 @@
       html += '<section class="hsec"><h3>When people play <small>rolls by hour, your time</small></h3><div class="sbox"><div class="hchart">' + loc.map(function (n, k) { return '<div class="hc" title="' + hourLabel(k) + ': ' + n + '"><i style="height:' + (hm ? n / hm * 100 : 0) + '%"' + (k === pk ? ' class="pk"' : '') + '></i></div>'; }).join('') + '</div><div class="hax"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>11 PM</span></div><p class="snote">Busiest: <b>' + hourLabel(pk) + '</b>. Posts and reminders land best just before.</p></div></section>';
     }
     box.innerHTML = html; html = '';
+    var nudge = '';
     // Notifications
     var on = {}; (d.notify.on || []).forEach(function (pid) { on[pid] = 1; });
     var offList = s.order.filter(function (pid) { return !on[pid]; });
-    html += '<section class="hsec"><h3>Notifications <small>roll reminders on a phone or computer</small></h3><div class="sbox">' + sBar('Turned on', d.notify.on.length, s.order.length, 'g', '<b>' + d.notify.on.length + '</b> <small>' + (s.order.length ? Math.round(d.notify.on.length / s.order.length * 100) : 0) + '%</small>') + sBar('Not yet', offList.length, s.order.length, '', '<b>' + offList.length + '</b>') +
+    nudge += '<section class="hsec"><h3>Notifications <small>roll reminders on a phone or computer</small></h3><div class="sbox">' + sBar('Turned on', d.notify.on.length, s.order.length, 'g', '<b>' + d.notify.on.length + '</b> <small>' + (s.order.length ? Math.round(d.notify.on.length / s.order.length * 100) : 0) + '%</small>') + sBar('Not yet', offList.length, s.order.length, '', '<b>' + offList.length + '</b>') +
       (offList.length ? '<p class="snote">Not yet: ' + offList.slice(0, statsMore.off ? 999 : 12).map(function (pid) { return '<b>' + esc(s.players[pid].name) + '</b>'; }).join(', ') + (!statsMore.off && offList.length > 12 ? ' and ' + (offList.length - 12) + ' more' : '') + '</p>' + (statsMore.off ? '' : sMore('off', offList.length, 12)) : '') + '</div></section>';
     // Signed in, never joined
     var why = { waiting: 'Waiting for you to let them in', 'can-join': 'Can join, hasn\'t', looking: 'Just looking' };
     var lk = d.lurkers || [];
-    html += '<section class="hsec"><h3>Signed in, never joined <small>from the last two weeks of visits</small></h3><div class="sbox slist">' + (lk.length ? lk.slice(0, statsMore.lurk ? 999 : 8).map(function (x) {
+    nudge = '<section class="hsec"><h3>Signed in, never joined <small>from the last two weeks of visits</small></h3><div class="sbox slist">' + (lk.length ? lk.slice(0, statsMore.lurk ? 999 : 8).map(function (x) {
       var img = x.avatar ? avatarHtml({ id: 'd' + x.id, name: x.name, avatar: x.avatar }, 'vis-ava') : '<span class="vis-ava guest">' + esc(R.initials(x.name || '?')) + '</span>';
       return '<div class="srow">' + img + '<span class="sn2"><b>' + esc(x.name) + '</b><em>' + why[x.why] + (x.reacted ? ' · reacted' : '') + '</em></span><span class="sago">' + (x.last ? (x.visits ? x.visits + ' visit' + (x.visits === 1 ? '' : 's') + ', ' : '') + visitAgo(x.last) : 'No visits') + '</span></div>';
-    }).join('') + (statsMore.lurk ? '' : sMore('lurk', lk.length, 8)) : '<p class="why">Everyone who signed in has joined.</p>') + '</div></section>';
+    }).join('') + (statsMore.lurk ? '' : sMore('lurk', lk.length, 8)) : '<p class="why">Everyone who signed in has joined.</p>') + '</div></section>' + nudge;
+    var nb = $('statsNudge'); if (nb) nb.innerHTML = nudge;
     // GoatCounter
     var gc = d.gc || {};
-    html += '<section class="hsec"><h3>Visitors <small>people who opened the game page, last 14 days (GoatCounter)</small></h3>';
+    html += '<section class="hsec"><h3>Who opened the game <small>last 14 days, signed in or not</small></h3>';
     if (gc.error === 'no-key') html += '<p class="why">Add the GoatCounter API key to the game server to see this. In the worker folder: <code>npx wrangler secret put GC_TOKEN</code>, then paste the same key Playlist Studio uses.</p>';
     else if (gc.error) html += '<p class="why">' + (gc.error === 'auth' ? 'GoatCounter turned the API key down. Check that GC_TOKEN can read the chesters-escape site.' : 'GoatCounter didn\'t answer. Try Refresh in a minute.') + '</p>';
     else html += gcHtml(gc);
     html += '</section>';
-    var box2 = $('statsLive2'); if (box2) box2.innerHTML = html;
+    var box2 = $('statsGC'); if (box2) box2.innerHTML = html;
   }
   // User log: Host tools on Today, scrolled so the Visits heading sits just under the tab bar (which
   // stays stuck to the top and would otherwise cover it). Tried again while the list and pictures load

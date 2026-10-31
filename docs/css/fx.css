@@ -598,3 +598,5 @@ body.stats-on { overflow: hidden; }
   .sp-body .sgrid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sp-body .rgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+.sgroup { margin: 28px 0 0; font: 700 22px var(--display); color: var(--accent); }
+.sgroup small { font: 400 13px var(--ui); color: var(--muted); margin-left: 6px; }
