@@ -565,4 +565,22 @@ a.srow:hover, a.ptr:hover { background: var(--raise); }
 .ptr .pnm { display: flex; align-items: center; gap: 8px; min-width: 0; } .ptr .pnm b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14.5px; }
 .ptr .vis-ava { width: 26px; height: 26px; font-size: 10px; }
 .ptr .cold { color: var(--warn); font-weight: 700; }
+/* Stats tab, GoatCounter lists: icon, plain name with a line on what it means, a bar, count and share */
+.glist { padding: 4px 12px; }
+.grow { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.glist .grow:last-of-type { border-bottom: 0; }
+.gic { width: 32px; height: 32px; border-radius: 8px; background: var(--raise); border: 1px solid var(--line); display: inline-flex; align-items: center; justify-content: center; overflow: hidden; flex: none; color: var(--muted); font: 800 14px var(--ui); }
+.gic img { width: 18px; height: 18px; display: block; }
+.gic.flag img { width: 24px; height: 18px; border-radius: 2px; object-fit: cover; }
+.gic.gl svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.gic.st { background: #08090c; } .gic.st .studio-logo, .gic.st svg { width: 22px; height: 22px; display: block; }
+.gnm { min-width: 0; } .gnm b { font-size: 15px; overflow-wrap: anywhere; }
+.gnm em { display: block; font-style: normal; font-size: 13px; line-height: 1.35; color: var(--muted); margin-top: 1px; }
+.gbar { display: block; height: 5px; background: var(--raise); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.gbar i { display: block; height: 100%; border-radius: 3px; background: var(--gold); }
+.gnum { text-align: right; white-space: nowrap; } .gnum b { display: block; font-size: 17px; line-height: 1.1; } .gnum small { font-size: 12.5px; color: var(--muted); }
+.glist .btn { margin: 8px 0 6px; }
+.leg i.v { background: var(--gold); }
+.gcols { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 12px; }
+@media (min-width: 760px) { .gcols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 700px) { .sgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .sgrid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

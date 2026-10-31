@@ -185,6 +185,7 @@ export default {
       if (!url.pathname.startsWith('/api/')) return new Response("Chester's Escape game server. The game itself is on the game page.", { status: 200 });
 
       const user = await userFrom(env, req, url);
+      if (url.pathname === '/api/icon' && req.method === 'GET') return await siteIcon(url);
       if (url.pathname === '/api/config') {
         if (!user) return json(env, req, { live: true, access: 'signin', clans: [] });
         const r = await gameStub(env, user.clan).whoAmI(user);
@@ -271,7 +272,7 @@ async function gcGet(env, path, params) {
 const gcIso = (ms) => new Date(ms).toISOString().slice(0, 19) + 'Z';
 const gcList = async (env, page, start, end, limit) => {
   const j = await gcGet(env, '/stats/' + page, { start: gcIso(start), end: gcIso(end), limit });
-  return ((j && j.stats) || []).map((x) => ({ name: x.name || '', count: x.count || 0, scheme: x.ref_scheme || '' })).filter((x) => x.count > 0);
+  return ((j && j.stats) || []).map((x) => ({ id: x.id || '', name: x.name || '', count: x.count || 0, scheme: x.ref_scheme || '' })).filter((x) => x.count > 0);
 };
 // Visitors to the game page over the last two weeks: the total (events left out, like the GoatCounter
 // dashboard), visitors per day from the page paths, where they came from and what they used.
@@ -281,10 +282,48 @@ async function gcStats(env) {
   const hits = await gcGet(env, '/stats/hits', { start: gcIso(start), end: gcIso(end), limit: 100, group: 'day' });
   const days = {};
   for (const h of (hits && hits.hits) || []) if (!h.event) for (const x of h.stats || []) days[x.day] = (days[x.day] || 0) + (x.daily || 0);
-  const refs = await gcList(env, 'toprefs', start, end, 15);
+  const refs = await gcList(env, 'toprefs', start, end, 20);
   const campaigns = await gcList(env, 'campaigns', start, end, 10);
   const sizes = await gcList(env, 'sizes', start, end, 6);
-  return { visitors: Math.max(0, ((total && total.total) || 0) - ((total && total.total_events) || 0)), days: Object.keys(days).sort().map((d) => [d, days[d]]), refs, campaigns, sizes };
+  const browsers = await gcList(env, 'browsers', start, end, 8);
+  const systems = await gcList(env, 'systems', start, end, 8);
+  const countries = await gcList(env, 'locations', start, end, 12);
+  return { visitors: Math.max(0, ((total && total.total) || 0) - ((total && total.total_events) || 0)), days: Object.keys(days).sort().map((d) => [d, days[d]]), refs, campaigns, sizes, browsers, systems, countries };
+}
+// Small site icons and country flags for the Stats tab lists (Discord, Google, Chrome, flags...). They're public, so
+// this needs no sign-in. Each one is fetched once (site icons from Google's icon service, flags from the flag-icons
+// package) and kept in the Cloudflare cache for a week. Only plain host names, short https page addresses or two-letter
+// country codes are accepted, and only images are passed on.
+const ICON_FLAGS = 'https://cdn.jsdelivr.net/npm/flag-icons@7.5.0/flags/4x3/';
+async function siteIcon(url) {
+  const d = String(url.searchParams.get('d') || '').toLowerCase(), u = String(url.searchParams.get('u') || ''), f = String(url.searchParams.get('f') || '').toLowerCase();
+  const cache = typeof caches !== 'undefined' ? caches.default : null;
+  const none = (age) => new Response('', { status: 404, headers: { 'Cache-Control': 'public, max-age=' + age } });
+  if (/^[a-z]{2}$/.test(f)) {
+    const key = new Request('https://chester-icons.invalid/flag/' + f);
+    let r = cache ? await cache.match(key) : null;
+    if (r) return r;
+    let g = null; try { g = await fetch(ICON_FLAGS + f + '.svg'); } catch (e) {}
+    const body = g && g.ok ? await g.text() : '';
+    if (!/^\s*<svg[\s>]/.test(body) || /<script|on[a-z]+\s*=|javascript:|<foreignObject/i.test(body) || body.length > 200000) return none(86400);
+    // An SVG opened on its own could run script on this origin, so it's served locked down.
+    r = new Response(body, { headers: { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=604800', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox" } });
+    if (cache) await cache.put(key, r.clone());
+    return r;
+  }
+  let q = '';
+  if (d.length <= 100 && /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d)) q = 'domain=' + encodeURIComponent(d);
+  else if (u.length <= 200 && /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)+(\/[a-z0-9._~\/-]*)?$/i.test(u)) q = 'domain_url=' + encodeURIComponent(u);
+  else return new Response('', { status: 400, headers: { 'Cache-Control': 'no-store' } });
+  const key = new Request('https://chester-icons.invalid/' + q);
+  let r = cache ? await cache.match(key) : null;
+  if (r) return r;
+  let g = null; try { g = await fetch('https://www.google.com/s2/favicons?sz=64&' + q); } catch (e) {}
+  const type = (g && g.headers.get('Content-Type')) || '';
+  if (!g || !g.ok || !/^image\/(png|x-icon|vnd\.microsoft\.icon|gif|webp|jpeg)$/.test(type)) return none(86400);
+  r = new Response(await g.arrayBuffer(), { headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=604800', 'X-Content-Type-Options': 'nosniff' } });
+  if (cache) await cache.put(key, r.clone());
+  return r;
 }
 
 export class Game extends DurableObject {

@@ -124,7 +124,11 @@
     for (var i = 13; i >= 0; i--) gd.push([new Date(now - i * 86400000).toISOString().slice(0, 10), 4 + Math.round(6 * Math.abs(Math.sin(i * 1.7)))]);
     return Promise.resolve({ now: now, daily: { days: days, hours: hours }, notify: { on: s.order.filter(function (pid, i) { return i % 2 === 0; }), devices: Math.ceil(s.order.length / 2) + 1 },
       lurkers: [{ id: 'guest', name: 'LJ', avatar: '', last: now - 47 * 60000, visits: 2, reacted: true, why: 'can-join' }],
-      gc: { visitors: 61, days: gd, refs: [{ name: 'discord.com', count: 38, scheme: 'h' }, { name: 'discord', count: 9, scheme: 'c' }, { name: 'reddit', count: 3, scheme: 'c' }, { name: 'spanky3651.github.io', count: 4, scheme: 'h' }], campaigns: [{ name: 'get-the-maps', count: 5 }], sizes: [{ name: 'Phones', count: 37 }, { name: 'Computer monitors', count: 22 }] } });
+      gc: { visitors: 61, days: gd, refs: [{ name: 'discord.com', count: 30, scheme: 'h' }, { name: '', count: 17, scheme: '' }, { name: 'discord', count: 6, scheme: 'c' }, { name: 'spanky3651.github.io/Playlist-Studio', count: 4, scheme: 'h' }, { name: 'github', count: 2, scheme: 'c' }, { name: 'Google', count: 2, scheme: 'g' }],
+        campaigns: [{ name: 'readme', count: 2 }], sizes: [{ id: 'phone', name: '', count: 33 }, { id: 'desktop', name: '', count: 21 }, { id: 'tablet', name: '', count: 4 }, { id: 'desktophd', name: '', count: 3 }],
+        browsers: [{ name: 'Chrome', count: 29 }, { name: 'Safari', count: 14 }, { name: 'Edge', count: 8 }, { name: 'Firefox', count: 5 }, { name: 'Oculus Browser', count: 5 }],
+        systems: [{ name: 'Android', count: 24 }, { name: 'Windows', count: 21 }, { name: 'iOS', count: 13 }, { name: 'Linux', count: 3 }],
+        countries: [{ id: 'US', name: 'United States', count: 38 }, { id: 'GB', name: 'United Kingdom', count: 8 }, { id: 'DE', name: 'Germany', count: 6 }, { id: 'CA', name: 'Canada', count: 5 }, { id: 'AU', name: 'Australia', count: 4 }] } });
   };
 
   // Host undo and the hall of fame work in the demo too, kept in this browser.

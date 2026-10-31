@@ -673,14 +673,16 @@
     // players are listed in the order they signed up until the first token leaves the start.
     var moved = s.status === 'finished' || s.order.some(function (pid) { var q = s.players[pid]; return q.route && (q.pos >= 0 || q.finished); });
     var ids = moved ? rank.map(function (r) { return r.pid; }).filter(function (pid) { return s.players[pid]; }) : s.order.filter(function (pid) { return s.players[pid].route; });
+    // Signed up but no route yet: listed last, with no place, so everyone can see they're in.
+    if (s.status !== 'finished') ids = ids.concat(s.order.filter(function (pid) { return !s.players[pid].route; }));
     var placeOf = {}; rank.forEach(function (r) { placeOf[r.pid] = r.place; });
     var on = onlineMap(), nOn = Object.keys(on).length;
     var html = '<div class="st-head"><h2>' + (s.status === 'finished' ? 'Final standings' : 'Standings') + (nOn ? ' <span class="online-count" title="Players with the game open right now"><i aria-hidden="true"></i>' + nOn + ' online</span>' : '') + '</h2><button type="button" class="btn small ghost hall-btn" data-hall>\uD83C\uDFC6 Hall of fame</button></div><ol class="st-list' + (moved ? '' : ' no-places') + '">';
     ids.forEach(function (pid, i) {
-      var p = s.players[pid], col = R.playerColor(s, pid), pct = Math.round(E.progress(s, p) * 100);
-      html += '<li><button type="button" class="st' + (pid === store.me ? ' me' : '') + (p.finished ? ' done' : '') + '" data-pid="' + esc(pid) + '" title="' + esc(p.name) + '" style="--c:' + col + '">' +
-        (moved ? '<span class="place' + (p.finished || s.status === 'finished' ? ' ord' : '') + '">' + (p.finished ? ordinal(p.finished.place) : s.status === 'finished' ? ordinal(placeOf[pid]) : placeOf[pid] || i + 1) + '</span>' : '') + '<span class="ava-wrap' + (on[pid] ? ' online' : '') + '"' + (on[pid] ? ' title="Online now"' : '') + '>' + avatarHtml(p, 'ava') + '</span>' +
-        '<span style="min-width:0"><span class="st-line"><span class="nm">' + esc(p.name) + '</span><span class="chip ' + (p.route === 'riskier' ? 'risk' : 'long') + '">' + (p.route === 'riskier' ? 'Riskier' : 'Longer') + '</span>' + badgeIcons(pid, 4) + '</span>' +
+      var p = s.players[pid], col = R.playerColor(s, pid), pct = Math.round(E.progress(s, p) * 100), none = !p.route;
+      html += '<li><button type="button" class="st' + (pid === store.me ? ' me' : '') + (p.finished ? ' done' : '') + (none ? ' noroute' : '') + '" data-pid="' + esc(pid) + '" title="' + esc(p.name) + '" style="--c:' + col + '">' +
+        (moved ? '<span class="place' + (p.finished || s.status === 'finished' ? ' ord' : '') + '">' + (none ? '–' : p.finished ? ordinal(p.finished.place) : s.status === 'finished' ? ordinal(placeOf[pid]) : placeOf[pid] || i + 1) + '</span>' : '') + '<span class="ava-wrap' + (on[pid] ? ' online' : '') + '"' + (on[pid] ? ' title="Online now"' : '') + '>' + avatarHtml(p, 'ava') + '</span>' +
+        '<span style="min-width:0"><span class="st-line"><span class="nm">' + esc(p.name) + '</span><span class="chip ' + (none ? 'none' : p.route === 'riskier' ? 'risk' : 'long') + '">' + (none ? 'No route yet' : p.route === 'riskier' ? 'Riskier' : 'Longer') + '</span>' + badgeIcons(pid, 4) + '</span>' +
         '<span class="sub" style="display:block"' + (p.tasks.length ? ' title="!bsr ' + esc(p.tasks.map(function (t) { return t.bsr.join(' or '); }).join(', ')) + '"' : '') + '>' + songCover(p) + '<span class="st-t">' + esc(statusLine(p)) + '</span></span><span class="bar"><i style="width:' + pct + '%"></i></span></span></button></li>';
     });
     $('standings').innerHTML = html + '</ol>';
@@ -708,6 +710,7 @@
   function statusLine(p) {
     var s = st();
     if (p.finished) return 'Escaped on day ' + p.finished.day;
+    if (!p.route) return s.status === 'signup' ? 'Signed up, still picking a route' : 'Hasn\'t picked a route, so no rolls yet';
     if (s.status === 'signup') return 'Signed up, waiting for the start';
     if (s.status === 'finished') return E.remaining(s, p) + ' spaces to go at the end';
     if (p.tasks.length) return 'Playing ' + p.tasks.map(function (t) { var m = songFor(t.bsr[0]); return m ? m.name : '!bsr ' + t.bsr[0]; }).join(', ');
@@ -1790,8 +1793,10 @@
     if (!signup) {
       // Slipping: still racing, no roll in two or more days.
       var slip = racing.filter(function (pid) { return !over && (s.players[pid].rolledDay || 0) <= day - 2; }).map(function (pid) { return { p: s.players[pid], idle: day - (s.players[pid].rolledDay || 0), never: !s.players[pid].rolledDay }; }).sort(function (a, b) { return b.idle - a.idle; });
-      if (!over) html += '<section class="hsec"><h3>Might be slipping <small>no roll in 2+ days. Tap one for BeatLeader</small></h3><div class="sbox slist">' + (slip.length ? slip.slice(0, statsMore.slip ? 999 : 6).map(function (x) {
+      if (!over) slip = ids.filter(function (pid) { return !s.players[pid].route; }).map(function (pid) { return { p: s.players[pid], noroute: true }; }).concat(slip);
+      if (!over) html += '<section class="hsec"><h3>Might be slipping <small>no route, or no roll in 2+ days. Tap one for BeatLeader</small></h3><div class="sbox slist">' + (slip.length ? slip.slice(0, statsMore.slip ? 999 : 6).map(function (x) {
         var r = left[x.p.id];
+        if (x.noroute) return blWrap(x.p, avatarHtml(x.p, 'vis-ava') + '<span class="sn2"><b>' + esc(x.p.name) + '</b><em>Signed up but hasn\'t picked a route, so can\'t roll</em></span><span class="sidle">No route</span>');
         return blWrap(x.p, avatarHtml(x.p, 'vis-ava') + '<span class="sn2"><b>' + esc(x.p.name) + '</b><em>' + (r ? r.left + ' to go · ' : '') + esc(s.board.routeInfo[x.p.route].name) + '</em></span><span class="sidle">' + (x.never ? 'Never rolled' : x.idle + ' days') + '</span>');
       }).join('') + (statsMore.slip ? '' : sMore('slip', slip.length, 6)) : '<p class="why">Everyone still racing rolled today or yesterday.</p>') + '</div></section>';
       // Funnel
@@ -1829,6 +1834,111 @@
     return html;
     function ev(s, d) { return s.events.filter(function (e) { return e.t === 'cleared' && e.day === d; }).length; }
   }
+  // ---- GoatCounter in the Stats tab: plain names, a line on what each one means, and small icons ----
+  // Site icons and flags come from the game server's /api/icon (cached there for a week).
+  var GC_ICON = ((window.CGConfig && window.CGConfig.api) || '') + '/api/icon';
+  var GC_GLYPH = {
+    direct: '<path d="M4 12h11"/><path d="M11 7l5 5-5 5"/><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4"/>',
+    phone: '<rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/>',
+    tablet: '<rect x="4.5" y="3" width="15" height="18" rx="2.2"/><path d="M11 18h2"/>',
+    laptop: '<rect x="5" y="5" width="14" height="10" rx="1.4"/><path d="M2.5 19h19"/>',
+    monitor: '<rect x="2.5" y="3.5" width="19" height="13" rx="1.6"/><path d="M9 20.5h6M12 16.5v4"/>',
+    unknown: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2-2.4 3.6"/><path d="M12 17.2h.01"/>',
+    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'
+  };
+  function gcIcon(src, label) {
+    var l = esc(String(label || '?').replace(/^(your|the) /i, '').charAt(0).toUpperCase() || '?');
+    if (!src) return '<span class="gic mono">' + l + '</span>';
+    var k = src.slice(0, 2), v = src.slice(2);
+    if (k === 'g:') return '<span class="gic gl"><svg viewBox="0 0 24 24" aria-hidden="true">' + (GC_GLYPH[v] || GC_GLYPH.unknown) + '</svg></span>';
+    if (k === 's:') return '<span class="gic st">' + STUDIO_LOGO + '</span>';
+    var url = k === 'f:' ? GC_ICON + '?f=' + encodeURIComponent(v) : k === 'u:' ? GC_ICON + '?u=' + encodeURIComponent(v) : GC_ICON + '?d=' + encodeURIComponent(v);
+    return '<span class="gic' + (k === 'f:' ? ' flag' : '') + '"><img src="' + esc(url) + '" alt="" loading="lazy" decoding="async" data-l="' + l + '"></span>';
+  }
+  // An icon that can't load turns into the first letter.
+  document.addEventListener('error', function (e) { var t = e.target; if (t && t.tagName === 'IMG' && t.parentNode && t.parentNode.classList && t.parentNode.classList.contains('gic')) { var p = t.parentNode; p.className = 'gic mono'; p.textContent = t.getAttribute('data-l') || '?'; } }, true);
+  // Where a visit came from: [pattern on the site name, plain name, what it means, icon]. utm_source tags ("discord",
+  // "github") and real sites ("discord.com") land on the same row.
+  var GC_SRC = [
+    [/^$/, 'Opened the link directly', 'Typed or pasted it, a bookmark, or an app that hides where the click came from (the Discord app on PC and phone usually does)', 'g:direct'],
+    [/discord(app)?\.(com|gg)$|com\.discord|^discord$/, 'Discord', 'A link in a Discord post or message. Can include people coming back from the Discord sign-in page', 'd:discord.com'],
+    [/^bio\.beatleader\.|(^|\.)beatleader\.(com|xyz|net|pro)$|^beatleader$/, 'BeatLeader', 'A link on BeatLeader, like a profile bio', 'd:beatleader.xyz'],
+    [/(^|\.)beatsaver\.com$/, 'BeatSaver', 'A link on a BeatSaver map or profile page', 'd:beatsaver.com'],
+    [/(^|\.)accsaber\.com$/, 'AccSaber', 'A link on AccSaber', 'd:accsaber.com'],
+    [/(^|\.)github\.com$|^github$/, 'GitHub', 'The game\'s GitHub page or README', 'd:github.com'],
+    [/^(www\.)?google\.|^google$/, 'Google search', 'Found the game by searching Google', 'd:google.com'],
+    [/(^|\.)bing\.com$|^bing$/, 'Bing', 'Found it by searching Bing', 'd:bing.com'],
+    [/duckduckgo/, 'DuckDuckGo', 'Found it by searching DuckDuckGo', 'd:duckduckgo.com'],
+    [/(^|\.)reddit\.com$|redd\.it$|^reddit$/, 'Reddit', 'A link in a Reddit post or comment', 'd:reddit.com'],
+    [/(^|\.)youtube\.com$|youtu\.be$|^youtube$/, 'YouTube', 'A link in a YouTube video or comment', 'd:youtube.com'],
+    [/(^|\.)twitch\.tv$|^twitch$/, 'Twitch', 'A link in a Twitch stream or chat', 'd:twitch.tv'],
+    [/(^|\.)(x|twitter)\.com$|^t\.co$|^(x|twitter)$/, 'X (Twitter)', 'A link in a post on X', 'd:x.com'],
+    [/(^|\.)chatgpt\.com$|^chat\.openai\.com$/, 'ChatGPT', 'Someone asked ChatGPT and it linked the game', 'd:chatgpt.com'],
+    [/(^|\.)claude\.ai$/, 'Claude', 'A link from Claude', 'd:claude.ai'],
+    [/^gemini\.google\./, 'Gemini', 'Someone asked Gemini and it linked the game', 'd:gemini.google.com'],
+    [/(^|\.)perplexity\.ai$/, 'Perplexity', 'Someone asked Perplexity and it linked the game', 'd:perplexity.ai'],
+    [/(^|\.)mickool\.net$/, 'mickool.net', 'Your own site', 'd:mickool.net'],
+    [/workers\.dev$/, 'The game server', 'Coming back from sign-in through the game server', 'g:link'],
+    [/^(localhost|127\.0\.0\.1)/, 'Local testing', 'You, testing on your own computer', 'g:laptop']
+  ];
+  var GC_REPO = { 'playlist-studio': ['Playlist Studio', 's:'], 'reesaber-studio': ['ReeSaber Studio', 'u:https://spanky3651.github.io/reesaber-studio/'], 'hsv-config-generator': ['HSV Config Generator', 'u:https://spanky3651.github.io/hsv-config-generator/'], 'studio-sync': ['Studio Sync page', 's:'] };
+  function gcSource(r) {
+    var raw = String(r.name || ''), full = raw.replace(/^[a-z-]+:\/\//i, '').toLowerCase(), host = full.replace(/\/.*$/, ''), path = full.slice(host.length);
+    if (/^spanky3651\.github\.io$/.test(host)) {
+      var repo = (path.split('/')[1] || '').replace(/[?#].*$/, ''), m = GC_REPO[repo];
+      return m ? { label: m[0], note: 'Clicked through from your ' + m[0], icon: m[1] } : { label: 'Your GitHub pages', note: 'Clicked through from one of your other pages', icon: 'd:github.com' };
+    }
+    if (/^(playlist-studio|studio-sync)$/.test(host)) return { label: GC_REPO[host][0], note: 'Clicked through from your ' + GC_REPO[host][0], icon: 's:' };
+    for (var i = 0; i < GC_SRC.length; i++) if (GC_SRC[i][0].test(host)) return { label: GC_SRC[i][1], note: GC_SRC[i][2], icon: GC_SRC[i][3] };
+    if (r.scheme === 'c') return { label: raw.replace(/[-_]+/g, ' ').replace(/^./, function (x) { return x.toUpperCase(); }), note: 'A link you tagged with utm_source=' + raw, icon: 'g:link' };
+    return { label: host.replace(/^www\./, '') || 'Somewhere else', note: 'A link on that site', icon: /\./.test(host) ? 'd:' + host.replace(/^www\./, '') : '' };
+  }
+  var GC_CAMP = { readme: ['The game\'s GitHub README', 'd:github.com'], site: ['Links in your other tools\' footers', 'g:link'], 'cross-link': ['Links between your tools', 'g:link'], 'profile-bio': ['Your BeatLeader profile bio', 'd:beatleader.xyz'], launch: ['Launch post', 'g:link'] };
+  // GoatCounter's six screen-size groups (by id, with the name as a fallback for older answers).
+  var GC_SIZE = { phone: ['Phones', 'Phone-size screens', 'g:phone'], largephone: ['Big phones and small tablets', 'Large phones, phones held sideways, small tablets', 'g:phone'], tablet: ['Tablets and small laptops', 'Tablet-size screens', 'g:tablet'], desktop: ['Laptops and desktops', 'Regular computer screens', 'g:laptop'], desktophd: ['Big monitors', 'Screens bigger than full HD', 'g:monitor'], unknown: ['Screen size unknown', 'The browser didn\'t say', 'g:unknown'] };
+  function gcSizeKey(r) { if (r.id && GC_SIZE[r.id]) return r.id; var n = String(r.name || '').toLowerCase(); return /larger than hd|desktophd/.test(n) ? 'desktophd' : /large phone|small tablet/.test(n) ? 'largephone' : /phone/.test(n) ? 'phone' : /tablet|small laptop/.test(n) ? 'tablet' : /monitor|desktop|computer/.test(n) ? 'desktop' : 'unknown'; }
+  var GC_BROWSER = [[/oculus|quest|meta/i, 'Quest browser', 'In the headset', 'd:meta.com'], [/edge/i, '', '', 'u:https://www.microsoft.com/edge'], [/samsung/i, '', '', 'd:samsung.com'], [/opera/i, '', '', 'd:opera.com'], [/firefox/i, '', '', 'u:https://www.mozilla.org/firefox/'],
+    [/brave/i, '', '', 'd:brave.com'], [/vivaldi/i, '', '', 'd:vivaldi.com'], [/duckduckgo/i, '', '', 'd:duckduckgo.com'], [/discord/i, 'Discord\'s own browser', 'Opened inside the Discord app', 'd:discord.com'], [/safari/i, '', '', 'u:https://www.apple.com/safari/'], [/chrom/i, '', '', 'u:https://www.google.com/chrome/']];
+  var GC_SYSTEM = [[/windows/i, 'u:https://www.microsoft.com/windows'], [/android/i, 'd:android.com'], [/ios|iphone|ipad|mac/i, 'd:apple.com'], [/chrome ?os/i, 'u:https://www.google.com/chromebook/'], [/linux|ubuntu|fedora/i, 'd:kernel.org']];
+  // One row: icon, name, what it means, a bar, and count with its share.
+  function gcRow(icon, label, note, n, tot, max) {
+    var pc = tot ? Math.round(n / tot * 100) : 0;
+    return '<div class="grow">' + gcIcon(icon, label) + '<div class="gnm"><b>' + esc(label) + '</b>' + (note ? '<em>' + esc(note) + '</em>' : '') + '<span class="gbar"><i style="width:' + (max ? Math.max(3, Math.round(n / max * 100)) : 0) + '%"></i></span></div><div class="gnum"><b>' + n + '</b><small>' + (pc < 1 && n ? '<1' : pc) + '%</small></div></div>';
+  }
+  function gcBlock(title, sub, rows, key, show) {
+    if (!rows.length) return '';
+    rows = rows.slice().sort(function (a, b) { return b.n - a.n; });   // biggest first, so the bars measure against the top row
+    var tot = rows.reduce(function (a, r) { return a + r.n; }, 0), max = rows[0].n, all = statsMore[key];
+    return '<div class="gblk"><h4 class="hsub">' + title + (sub ? ' <span class="why">' + sub + '</span>' : '') + '</h4><div class="sbox glist">' + rows.slice(0, all ? 999 : show).map(function (r) { return gcRow(r.icon, r.label, r.note, r.n, tot, max); }).join('') + (all ? '' : sMore(key, rows.length, show)) + '</div></div>';
+  }
+  // Rows with the same plain name (a tagged "discord" link and discord.com) are added together.
+  function gcMerge(list) {
+    var by = {}, out = [];
+    list.forEach(function (r) { var o = by[r.label]; if (o) { o.n += r.n; if (r.tagged) o.tagged += r.n; } else { by[r.label] = r; r.tagged = r.tagged || 0; out.push(r); } });
+    out.forEach(function (r) { if (r.tagged && r.note && !/^A link you tagged/.test(r.note)) r.note += r.tagged === r.n ? '. All on a link you tagged' : '. ' + r.tagged + ' of these on a link you tagged'; });
+    return out.sort(function (a, b) { return b.n - a.n; });
+  }
+  function gcHtml(gc) {
+    var gd = gc.days || [], vals = gd.map(function (x) { return x[1]; }), gm = Math.max.apply(null, vals.concat([1]));
+    var src = gcMerge((gc.refs || []).map(function (r) { var f = gcSource(r); return { label: f.label, note: f.note, icon: f.icon, n: r.count, tagged: r.scheme === 'c' ? r.count : 0 }; }));
+    var srcTot = src.reduce(function (a, r) { return a + r.n; }, 0);
+    var sizes = (gc.sizes || []).map(function (r) { var k = GC_SIZE[gcSizeKey(r)]; return { label: k[0], note: k[1], icon: k[2], n: r.count }; }).sort(function (a, b) { return b.n - a.n; });
+    var sizeTot = sizes.reduce(function (a, r) { return a + r.n; }, 0), small = sizes.filter(function (r) { return r.icon === 'g:phone' || r.icon === 'g:tablet'; }).reduce(function (a, r) { return a + r.n; }, 0);
+    var html = '<div class="sgrid two">' +
+      sCard('Visitors', gc.visitors || 0, 'in the last 14 days', 'hero') +
+      sCard('Busiest day', gd.length ? Math.max.apply(null, vals) : 0, gd.length ? new Date(gd.reduce(function (a, b) { return b[1] > a[1] ? b : a; })[0] + 'T12:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : '') +
+      sCard('Main way in', src.length ? esc(src[0].label) : '-', src.length && srcTot ? Math.round(src[0].n / srcTot * 100) + '% of visitors' : '') +
+      sCard('On a phone or tablet', sizeTot ? Math.round(small / sizeTot * 100) + '%' : '-', sizeTot ? 'the rest on a computer' : '') + '</div>';
+    html += '<p class="snote">One person counts once a day, so someone who opens the game on three days counts three times. Your own visits are left out.</p>';
+    if (gd.length) html += '<div class="sbox" style="margin-top:10px"><div class="dchart short">' + gd.map(function (x) { var dt = new Date(x[0] + 'T12:00:00'); return '<div class="dc" title="' + esc(dt.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })) + ': ' + x[1] + ' visitor' + (x[1] === 1 ? '' : 's') + '"><div class="dbars"><i class="v" style="height:' + x[1] / gm * 100 + '%"></i></div><span>' + dt.getDate() + '</span></div>'; }).join('') + '</div><div class="leg"><span><i class="v"></i>Visitors each day</span><span class="lsub">Today is on the right</span></div></div>';
+    html += gcBlock('How they found the game', 'the site or app they clicked from', src, 'gsrc', 6);
+    html += gcBlock('Which tagged link', 'links you gave a utm_campaign name', (gc.campaigns || []).map(function (r) { var c = GC_CAMP[String(r.name).toLowerCase()]; return { label: c ? c[0] : String(r.name).replace(/[-_]+/g, ' ').replace(/^./, function (x) { return x.toUpperCase(); }), note: 'utm_campaign=' + r.name, icon: c ? c[1] : 'g:link', n: r.count }; }), 'gcmp', 5);
+    var browsers = (gc.browsers || []).map(function (r) { var nm = r.name || 'Unknown', m = null; for (var i = 0; i < GC_BROWSER.length; i++) if (GC_BROWSER[i][0].test(nm)) { m = GC_BROWSER[i]; break; } return { label: m && m[1] ? m[1] : nm, note: m && m[2] ? m[2] : '', icon: m ? m[3] : '', n: r.count }; });
+    var systems = (gc.systems || []).map(function (r) { var nm = r.name || 'Unknown', ic = ''; for (var i = 0; i < GC_SYSTEM.length; i++) if (GC_SYSTEM[i][0].test(nm)) { ic = GC_SYSTEM[i][1]; break; } return { label: nm, note: '', icon: ic, n: r.count }; });
+    var countries = (gc.countries || []).map(function (r) { var cc = String(r.id || '').slice(0, 2).toLowerCase(); return { label: !r.name || /^\(?unknown\)?$/i.test(r.name) ? 'Couldn\'t tell' : r.name, note: '', icon: /^[a-z]{2}$/.test(cc) && cc !== 'xx' ? 'f:' + cc : 'g:unknown', n: r.count }; });
+    html += '<div class="gcols">' + gcBlock('Phone or computer', 'by screen width', sizes, 'gsz', 5) + gcBlock('Browser', '', gcMerge(browsers), 'gbr', 5) + gcBlock('System', '', systems, 'gsy', 5) + gcBlock('Country', '', countries, 'gco', 6) + '</div>';
+    return html;
+  }
   // The parts that come from the server: days, hours, notifications, the not-joined list and GoatCounter.
   function drawStatsLive() {
     var box = $('statsLive'), d = statsData, s = st(); if (!box || !d) return;
@@ -1859,17 +1969,10 @@
     }).join('') + (statsMore.lurk ? '' : sMore('lurk', lk.length, 8)) : '<p class="why">Everyone who signed in has joined.</p>') + '</div></section>';
     // GoatCounter
     var gc = d.gc || {};
-    html += '<section class="hsec"><h3>Visitors <small>everyone who opened the game, last two weeks (GoatCounter)</small></h3>';
+    html += '<section class="hsec"><h3>Visitors <small>people who opened the game page, last 14 days (GoatCounter)</small></h3>';
     if (gc.error === 'no-key') html += '<p class="why">Add the GoatCounter API key to the game server to see this. In the worker folder: <code>npx wrangler secret put GC_TOKEN</code>, then paste the same key Playlist Studio uses.</p>';
     else if (gc.error) html += '<p class="why">' + (gc.error === 'auth' ? 'GoatCounter turned the API key down. Check that GC_TOKEN can read the chesters-escape site.' : 'GoatCounter didn\'t answer. Try Refresh in a minute.') + '</p>';
-    else {
-      var gd = gc.days || [], gm = Math.max.apply(null, gd.map(function (x) { return x[1]; }).concat([1]));
-      html += '<div class="sgrid two">' + sCard('Visitors', gc.visitors, 'last 14 days', 'hero') + sCard('Busiest day', gd.length ? Math.max.apply(null, gd.map(function (x) { return x[1]; })) : 0, gd.length ? new Date(gd.reduce(function (a, b) { return b[1] > a[1] ? b : a; })[0] + 'T12:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : '') + '</div>';
-      if (gd.length) html += '<div class="sbox" style="margin-top:10px"><div class="dchart short">' + gd.map(function (x) { return '<div class="dc" title="' + x[0] + ': ' + x[1] + '"><div class="dbars"><i class="v" style="height:' + x[1] / gm * 100 + '%"></i></div><span>' + Number(x[0].slice(8)) + '</span></div>'; }).join('') + '</div></div>';
-      var tagged = (gc.refs || []).filter(function (r) { return r.scheme === 'c'; }), sites = (gc.refs || []).filter(function (r) { return r.scheme !== 'c'; });
-      var list = function (title, sub, rows) { if (!rows.length) return ''; var m = rows[0].count; return '<h4 class="hsub">' + title + (sub ? ' <span class="why">' + sub + '</span>' : '') + '</h4><div class="sbox">' + rows.map(function (r) { return sBar(esc(r.name || '(direct)'), r.count, m); }).join('') + '</div>'; };
-      html += list('Where they came from', '', sites) + list('Your tagged links', 'utm_source', tagged) + list('Your campaigns', 'utm_campaign', gc.campaigns || []) + list('Phone or computer', '', gc.sizes || []);
-    }
+    else html += gcHtml(gc);
     html += '</section>';
     var box2 = $('statsLive2'); if (box2) box2.innerHTML = html;
   }

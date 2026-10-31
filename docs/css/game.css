@@ -292,6 +292,9 @@ input::placeholder { color: var(--faint); }
 .chip { display: inline-block; font-size: 12.5px; line-height: 1; padding: 4px 7px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--muted); vertical-align: middle; }
 .chip.risk { border-color: #6b3b3b; color: #ffb0a6; }
 .chip.long { border-color: #3d5a2a; color: #b9e3a3; }
+.chip.none { border-style: dashed; color: var(--muted); }
+.st.noroute .bar { visibility: hidden; }
+.st.noroute .ava-wrap { opacity: .75; }
 body[data-theme="christmas"] .chip.long { border-color: #23506a; color: #a9d8f5; }
 body[data-theme="thanksgiving"] .chip.long { border-color: #4a6a2a; color: #c8e3a3; }
 
