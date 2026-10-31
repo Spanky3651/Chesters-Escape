@@ -203,6 +203,10 @@ export default {
         if (r.error && r.code === 'no-access') r.status = 403;
         return json(env, req, r, r.error ? (r.status || 400) : 200);
       }
+      if (url.pathname === '/api/host/stats' && req.method === 'GET') {
+        if (!user || !user.isHost) return json(env, req, { error: 'Only the host can see this.' }, 403);
+        return json(env, req, await gameStub(env, user.clan).hostStats(user, url.searchParams.get('fresh') === '1'));
+      }
       if (url.pathname === '/api/host/visits' && req.method === 'GET') {
         if (!user || !user.isHost) return json(env, req, { error: 'Only the host can see this.' }, 403);
         return json(env, req, await gameStub(env, user.clan).visitLog(user));
@@ -242,6 +246,47 @@ export default {
 
 // ---------------------------------------------------------------------------
 // One Durable Object holds the whole game, so every action is applied in order.
+// ---- GoatCounter for the host's Stats tab ----
+// Read with the same GoatCounter API key as Playlist Studio's stats page, kept as a Worker secret:
+// npx wrangler secret put GC_TOKEN. GC_SITE (optional) is the site code, chesters-escape by default.
+// GoatCounter allows 4 API calls a second, so calls are spaced out; the results are cached for 10 minutes.
+let gcLast = 0;
+async function gcGet(env, path, params) {
+  const site = String(env.GC_SITE || 'chesters-escape').replace(/[^a-z0-9-]/gi, '');
+  const qs = new URLSearchParams();
+  for (const k of Object.keys(params || {})) if (params[k] != null && params[k] !== '') qs.set(k, String(params[k]));
+  for (let tries = 0; tries < 3; tries++) {
+    const wait = 270 - (Date.now() - gcLast);
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    gcLast = Date.now();
+    const r = await fetch('https://' + site + '.goatcounter.com/api/v0' + path + (qs.toString() ? '?' + qs : ''), {
+      headers: { Authorization: 'Bearer ' + String(env.GC_TOKEN).trim(), 'Content-Type': 'application/json', 'User-Agent': 'ChestersEscapeStats' } });
+    if (r.status === 429) { await new Promise((x) => setTimeout(x, 1000 * Math.min(5, Number(r.headers.get('X-Rate-Limit-Reset')) || 1))); continue; }
+    if (r.status === 401 || r.status === 403) throw new Error('auth');
+    if (!r.ok) throw new Error('http ' + r.status);
+    return r.json();
+  }
+  throw new Error('busy');
+}
+const gcIso = (ms) => new Date(ms).toISOString().slice(0, 19) + 'Z';
+const gcList = async (env, page, start, end, limit) => {
+  const j = await gcGet(env, '/stats/' + page, { start: gcIso(start), end: gcIso(end), limit });
+  return ((j && j.stats) || []).map((x) => ({ name: x.name || '', count: x.count || 0, scheme: x.ref_scheme || '' })).filter((x) => x.count > 0);
+};
+// Visitors to the game page over the last two weeks: the total (events left out, like the GoatCounter
+// dashboard), visitors per day from the page paths, where they came from and what they used.
+async function gcStats(env) {
+  const end = Date.now(), start = end - 14 * DAY;
+  const total = await gcGet(env, '/stats/total', { start: gcIso(start), end: gcIso(end) });
+  const hits = await gcGet(env, '/stats/hits', { start: gcIso(start), end: gcIso(end), limit: 100, group: 'day' });
+  const days = {};
+  for (const h of (hits && hits.hits) || []) if (!h.event) for (const x of h.stats || []) days[x.day] = (days[x.day] || 0) + (x.daily || 0);
+  const refs = await gcList(env, 'toprefs', start, end, 15);
+  const campaigns = await gcList(env, 'campaigns', start, end, 10);
+  const sizes = await gcList(env, 'sizes', start, end, 6);
+  return { visitors: Math.max(0, ((total && total.total) || 0) - ((total && total.total_events) || 0)), days: Object.keys(days).sort().map((d) => [d, days[d]]), refs, campaigns, sizes };
+}
+
 export class Game extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -585,6 +630,7 @@ export class Game extends DurableObject {
   }
   accessFor(user) { return !user ? 'signin' : this.canUse(user) ? 'ok' : 'pending'; }
   async save() {
+    this.countDays();
     await this.ctx.storage.put('state', this.state);
     await this.ctx.storage.put('meta', this.meta);
     const s = this.state;
@@ -904,6 +950,58 @@ export class Game extends DurableObject {
       const avatar = e.avatar || ((s.fans || {})['d' + e.id] || {}).avatar || '';
       return { id: e.id, name: e.name, avatar, start: e.start, end: e.end, last, open: e.end == null && now - last < 60000, player: !!s.players['d' + e.id] };
     }) };
+  }
+
+  // Rolls and clears per game day, and rolls by hour (UTC), counted as moments happen and kept with the
+  // game's meta. The thread only keeps the latest 800 moments, so the early days of a busy game would
+  // otherwise fall off the Stats tab.
+  countDays() {
+    const s = this.state; if (!s) return;
+    let t = this.meta.daily;
+    if (!t || t.game !== s.id) t = this.meta.daily = { game: s.id, mark: 0, days: {}, hours: Array(24).fill(0) };
+    for (const e of s.events) {
+      if (e.id <= t.mark) continue;
+      if (e.t !== 'roll' && e.t !== 'cleared') continue;
+      const d = t.days[e.day] || (t.days[e.day] = [0, 0]);
+      if (e.t === 'roll') { d[0]++; t.hours[new Date(e.at || Date.now()).getUTCHours()]++; } else d[1]++;
+    }
+    if (s.events.length) t.mark = Math.max(t.mark, s.events[s.events.length - 1].id);
+  }
+  // The host's Stats tab: the daily tally, who has notifications on, people who signed in but never
+  // joined, and GoatCounter's visitors and sources.
+  async hostStats(user, fresh) {
+    if (!user || !user.isHost) return { error: 'Only the host can see this.' };
+    this.useClan(user);
+    const s = this.game(), now = Date.now(), hostIds = hosts(this.env, this.clan()), a = this.access();
+    await this.sweepVisits(now);
+    this.countDays();
+    const subs = this.meta.push || [], uids = new Set(subs.map((x) => x.uid));
+    const uid = (pid) => (s.players[pid] && s.players[pid].discordId) || String(pid).replace(/^d/, '');
+    const notify = { on: s.order.filter((pid) => uids.has(uid(pid))), devices: subs.filter((x) => !hostIds.includes(x.uid)).length };
+    // Signed in but not on the board: the visit log, the waiting list, people let in and anyone who reacted.
+    const out = {};
+    const add = (id, name, avatar, last) => {
+      id = String(id || ''); if (!id || s.players['d' + id] || hostIds.includes(id)) return null;
+      const o = out[id] || (out[id] = { id, name: '', avatar: '', last: 0, visits: 0, reacted: false });
+      if (name && !o.name) o.name = String(name); if (avatar && !o.avatar) o.avatar = String(avatar); if (last > o.last) o.last = last;
+      return o;
+    };
+    for (const v of this.visits || []) { const o = add(v.id, v.name, v.avatar, v.end || v.last || v.start); if (o) o.visits++; }
+    for (const w of a.pending) add(w.id, w.name, w.avatar, w.at);
+    for (const id of a.allowed) add(id, (a.names || {})[id], '', 0);
+    for (const f of Object.values(s.fans || {})) { const o = add(String(f.id).replace(/^d/, ''), f.name, f.avatar, 0); if (o) o.reacted = true; }
+    const lurkers = Object.values(out).filter((o) => o.name).map((o) => ({ ...o, why: a.pending.some((w) => w.id === o.id) ? 'waiting' : a.mode === 'open' || a.allowed.includes(o.id) ? 'can-join' : 'looking' }))
+      .sort((x, y) => y.last - x.last).slice(0, 100);
+    // GoatCounter, cached for 10 minutes (Refresh skips the cache after a minute)
+    let gc;
+    if (!this.env.GC_TOKEN) gc = { error: 'no-key' };
+    else {
+      const c = this.gcCache, age = c ? now - c.at : Infinity;
+      if (c && (age < (fresh ? 60000 : 600000))) gc = c.data;
+      else { try { gc = await gcStats(this.env); this.gcCache = { at: now, data: gc }; } catch (e) { gc = c ? c.data : { error: e.message === 'auth' ? 'auth' : 'down' }; } }
+    }
+    const d = this.meta.daily || {};
+    return { now, daily: { days: d.days || {}, hours: d.hours || [] }, notify, lurkers, gc };
   }
 
   // --- push notifications for hosts ---

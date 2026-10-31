@@ -1730,6 +1730,149 @@
     if (past.length > shown.length) html += '<button type="button" class="btn small ghost" data-h="visits-more">Show all ' + past.length + '</button>';
     box.innerHTML = html;
   }
+  // ---- Stats tab (host only): how the game is going, from the game itself, plus the server's daily
+  // tally, notifications, people who signed in but never joined, and GoatCounter visitors ----
+  var statsData = null, statsAt = 0, statsBusy = false, statsMore = {};
+  function fillStats(force) {
+    var box = $('statsLive'); if (!box) return;
+    if (statsData) drawStatsLive();
+    if ((statsData && !force && Date.now() - statsAt < 60000) || statsBusy || !store.hostStats) return;
+    statsBusy = true;
+    store.hostStats(force).then(function (r) { statsBusy = false; if (r && !r.error) { statsData = r; statsAt = Date.now(); } if (hostTab === 'stats') renderHost(); }, function () { statsBusy = false; var b = $('statsLive'); if (b && !statsData) b.innerHTML = '<p class="why">Couldn\'t load the stats right now.</p>'; });
+  }
+  function sBar(lab, n, max, cls, right) {
+    return '<div class="gsb"><span class="gsl">' + lab + '</span><span class="gst"><em class="' + (cls || '') + '" style="width:' + (max ? Math.max(2, Math.round(n / max * 100)) : 0) + '%"></em></span><span class="gsn">' + (right != null ? right : n) + '</span></div>';
+  }
+  function sCard(k, v, sub, cls) { return '<div class="sc' + (cls ? ' ' + cls : '') + '"><span class="sk">' + k + '</span><b>' + v + '</b>' + (sub ? '<em>' + sub + '</em>' : '') + '</div>'; }
+  function sMore(key, n, shown) { return n > shown ? '<button type="button" class="btn small ghost" data-h="stats-more" data-k="' + key + '">Show all ' + n + '</button>' : ''; }
+  function blWrap(p, inner) { return p && p.blId ? '<a class="srow" href="https://beatleader.com/u/' + encodeURIComponent(p.blId) + '" target="_blank" rel="noopener" title="' + esc(p.name) + ' on BeatLeader">' + inner + '</a>' : '<div class="srow">' + inner + '</div>'; }
+  // Everything the game state alone can tell.
+  function statsFromState(s) {
+    var T = (s.tally && s.tally.p) || {}, ev = s.events, o = { clears: 0, rolls: 0, accSum: 0, accN: 0, per: {}, maps: {} };
+    Object.keys(T).forEach(function (pid) { var t = T[pid], q = o.per[pid] = o.per[pid] || { n: 0, aS: 0, aN: 0 }; o.clears += t.clears; o.rolls += t.rolls; o.accSum += t.accSum; o.accN += t.accN; q.n += t.clears; q.aS += t.accSum; q.aN += t.accN; });
+    ev.forEach(function (e) {
+      if (e.t === 'roll') o.rolls++;
+      if (e.t !== 'cleared') return;
+      var q = o.per[e.pid] = o.per[e.pid] || { n: 0, aS: 0, aN: 0 }; o.clears++; q.n++;
+      if (e.proof && e.proof.acc) {
+        o.accSum += e.proof.acc; o.accN++; q.aS += e.proof.acc; q.aN++;
+        var k = (e.bsr || [])[0]; if (k) { var m = o.maps[k] = o.maps[k] || { n: 0, sum: 0, best: 0 }; m.n++; m.sum += e.proof.acc; m.best = Math.max(m.best, e.proof.acc); }
+      }
+    });
+    return o;
+  }
+  function statsHtml(s) {
+    var signup = s.status === 'signup', over = s.status === 'finished', day = s.day, o = statsFromState(s);
+    var ids = s.order, racing = ids.filter(function (pid) { return s.players[pid].route && !s.players[pid].finished; });
+    var rank = E.ranking(s), left = {}; rank.forEach(function (r) { left[r.pid] = r; });
+    var html = '<section class="hsec"><div class="thread-head"><h3>' + esc(s.title) + (signup ? ', sign-ups' : over ? ', final' : ', day ' + day) + '</h3><button type="button" class="icon-btn refresh-btn" data-h="stats-refresh" aria-label="Refresh" title="Refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20.5V16h-4.5"/></svg></button></div><div class="sgrid">';
+    var d = statsData, on = d && d.notify ? d.notify.on.length : null, lurk = d ? d.lurkers.length : null;
+    var claims = ids.reduce(function (a, pid) { return a + s.players[pid].claims.length; }, 0), onMap = ids.reduce(function (a, pid) { return a + s.players[pid].tasks.length; }, 0);
+    if (signup) {
+      var routed = ids.filter(function (pid) { return s.players[pid].route; }).length;
+      html += sCard('Signed up', ids.length, routed + ' picked a route', 'hero') +
+        sCard('Starts', s.startsAt ? '<span data-countdown="' + s.startsAt + '">' + fmtLeft(s.startsAt - Date.now()) + '</span>' : '-', s.startsAt ? esc(startWhen(s.startsAt)) : 'No start time yet');
+    } else {
+      var rolledToday = racing.filter(function (pid) { return s.players[pid].rolledDay === day; }).length, clearsToday = ev(s, day);
+      var escaped = ids.filter(function (pid) { return s.players[pid].finished; }).length, spots = Math.max(0, 3 - escaped);
+      html += sCard('Players', ids.length, over ? 'Game over' : racing.length + ' still racing', 'hero') +
+        (over ? '' : sCard('Rolled today', rolledToday + '<small> / ' + racing.length + '</small>', racing.length ? Math.round(rolledToday / racing.length * 100) + '% of racers' : '')) +
+        sCard('Maps cleared', o.clears, over ? o.rolls + ' rolls' : clearsToday + ' today') +
+        sCard('Average accuracy', o.accN ? (o.accSum / o.accN * 100).toFixed(2) + '%' : '-', o.accN ? 'across ' + o.accN + ' clears' : 'No clears yet') +
+        sCard('Made it out', escaped, spots ? spots + ' podium spot' + (spots === 1 ? '' : 's') + ' left' : 'Podium is full', 'gold') +
+        (over ? '' : sCard('On a map', onMap, claims ? claims + ' run' + (claims === 1 ? '' : 's') + ' for you to approve' : 'Nothing to approve'));
+    }
+    html += sCard('Notifications on', on == null ? '…' : on + '<small> / ' + ids.length + '</small>', on == null ? '' : d.notify.devices + ' device' + (d.notify.devices === 1 ? '' : 's') + ' signed up') +
+      sCard('Signed in, not in', lurk == null ? '…' : lurk, lurk == null ? '' : 'Never joined the game');
+    html += '</div></section>';
+    // Days and hours from the server's tally.
+    html += '<div id="statsLive">' + (statsData ? '' : '<p class="why">Loading</p>') + '</div>';
+    if (!signup) {
+      // Slipping: still racing, no roll in two or more days.
+      var slip = racing.filter(function (pid) { return !over && (s.players[pid].rolledDay || 0) <= day - 2; }).map(function (pid) { return { p: s.players[pid], idle: day - (s.players[pid].rolledDay || 0), never: !s.players[pid].rolledDay }; }).sort(function (a, b) { return b.idle - a.idle; });
+      if (!over) html += '<section class="hsec"><h3>Might be slipping <small>no roll in 2+ days. Tap one for BeatLeader</small></h3><div class="sbox slist">' + (slip.length ? slip.slice(0, statsMore.slip ? 999 : 6).map(function (x) {
+        var r = left[x.p.id];
+        return blWrap(x.p, avatarHtml(x.p, 'vis-ava') + '<span class="sn2"><b>' + esc(x.p.name) + '</b><em>' + (r ? r.left + ' to go · ' : '') + esc(s.board.routeInfo[x.p.route].name) + '</em></span><span class="sidle">' + (x.never ? 'Never rolled' : x.idle + ' days') + '</span>');
+      }).join('') + (statsMore.slip ? '' : sMore('slip', slip.length, 6)) : '<p class="why">Everyone still racing rolled today or yesterday.</p>') + '</div></section>';
+      // Funnel
+      var steps = [['Signed up', ids.length], ['Picked a route', ids.filter(function (pid) { return s.players[pid].route; }).length], ['Rolled at least once', ids.filter(function (pid) { return s.players[pid].rolls > 0 || (s.tally && s.tally.p && s.tally.p[pid] && s.tally.p[pid].rolls); }).length], ['Cleared a map', ids.filter(function (pid) { return o.per[pid] && o.per[pid].n; }).length], ['Made it out', ids.filter(function (pid) { return s.players[pid].finished; }).length]];
+      html += '<section class="hsec"><h3>From sign-up to the ' + esc(theme().goal || 'exit') + '</h3><div class="sbox">' + steps.map(function (x, i) { return sBar(x[0], x[1], steps[0][1], i === steps.length - 1 ? 'g' : '', '<b>' + x[1] + '</b> <small>' + (steps[0][1] ? Math.round(x[1] / steps[0][1] * 100) : 0) + '%</small>'); }).join('') + '</div></section>';
+    }
+    // Routes
+    var rk = Object.keys(s.board.routes);
+    if (rk.length) html += '<section class="hsec"><h3>Routes</h3><div class="rgrid">' + rk.map(function (k, i) {
+      var ps = ids.filter(function (pid) { return s.players[pid].route === k; }), live = ps.filter(function (pid) { return left[pid] && !left[pid].escaped; });
+      var avg = live.length ? (live.reduce(function (a, pid) { return a + left[pid].left; }, 0) / live.length).toFixed(1) : null, out = ps.filter(function (pid) { return s.players[pid].finished; }).length;
+      return sCard((i ? '🌊 ' : '🛤️ ') + esc(s.board.routeInfo[k].name), ps.length + '<small> player' + (ps.length === 1 ? '' : 's') + '</small>', signup ? (ps.length ? 'Picked so far' : 'Nobody yet') : out + ' out' + (avg ? ' · ' + avg + ' to go on average' : ''));
+    }).join('') + '</div></section>';
+    if (!signup) {
+      var songName = function (k) { var f = songFor(k); return f && f.name ? f.name : '!bsr ' + k; };
+      var mlist = Object.keys(o.maps).map(function (k) { var m = o.maps[k]; return { k: k, n: m.n, avg: m.sum / m.n, best: m.best }; });
+      var hard = mlist.filter(function (m) { return m.n >= 3; }).sort(function (a, b) { return a.avg - b.avg; }).slice(0, 5);
+      var most = mlist.slice().sort(function (a, b) { return b.n - a.n || b.best - a.best; }).slice(0, 5);
+      if (hard.length) html += '<section class="hsec"><h3>Hardest maps <small>lowest average accuracy, 3+ clears</small></h3><div class="sbox">' + hard.map(function (m) { return sBar(esc(songName(m.k)), Math.max(0, m.avg - 0.8), 0.2, 'a', (m.avg * 100).toFixed(1) + '%'); }).join('') + '</div></section>';
+      if (most.length) html += '<section class="hsec"><h3>Most played maps</h3><div class="sbox">' + most.map(function (m) { return sBar(esc(songName(m.k)), m.n, most[0].n, '', '<b>' + m.n + '</b> <small>best ' + (m.best * 100).toFixed(1) + '%</small>'); }).join('') + '</div></section>';
+      // Reactions
+      var rc = {}, rtot = 0; Object.keys(s.reactions || {}).forEach(function (id) { var r = s.reactions[id]; Object.keys(r).forEach(function (k) { rc[k] = (rc[k] || 0) + r[k].length; rtot += r[k].length; }); });
+      var rtop = Object.keys(rc).sort(function (a, b) { return rc[b] - rc[a]; }).slice(0, 6), th = theme();
+      if (rtop.length) html += '<section class="hsec"><h3>Reactions <small>' + rtot + ' on moments still in the thread</small></h3><div class="sbox emo">' + rtop.map(function (k) { return '<span class="ech">' + X.rxIcon(k, th) + '<span>' + esc(X.rxLabel(k, th)) + '</span><b>' + rc[k] + '</b></span>'; }).join('') + '</div></section>';
+      // Everyone
+      var rows = rank.slice(0, statsMore.all ? 999 : 10);
+      if (rows.length) html += '<section class="hsec"><h3>Everyone <small>tap one for BeatLeader</small></h3><div class="sbox ptab"><div class="pth"><span>#</span><span>Player</span><span>Maps</span><span>Acc</span><span>Rolled</span></div>' + rows.map(function (r) {
+        var p = s.players[r.pid], q = o.per[r.pid] || { n: 0, aN: 0 }, gap = day - (p.rolledDay || 0);
+        var last = r.escaped ? 'Out d' + r.day : !p.rolledDay ? 'Never' : gap === 0 ? 'Today' : gap + (gap === 1 ? ' day' : ' days');
+        var inner = '<span>' + (r.escaped && r.place <= 3 ? ['🥇', '🥈', '🥉'][r.place - 1] : r.place) + '</span><span class="pnm">' + avatarHtml(p, 'vis-ava') + '<b>' + esc(p.name) + '</b></span><span>' + q.n + '</span><span>' + (q.aN ? (q.aS / q.aN * 100).toFixed(1) + '%' : '-') + '</span><span class="' + (!r.escaped && !over && gap >= 2 ? 'cold' : '') + '">' + last + '</span>';
+        return p.blId ? '<a class="ptr" href="https://beatleader.com/u/' + encodeURIComponent(p.blId) + '" target="_blank" rel="noopener">' + inner + '</a>' : '<div class="ptr">' + inner + '</div>';
+      }).join('') + (statsMore.all ? '' : sMore('all', rank.length, 10)) + '</div></section>';
+    }
+    html += '<div id="statsLive2"></div>';
+    return html;
+    function ev(s, d) { return s.events.filter(function (e) { return e.t === 'cleared' && e.day === d; }).length; }
+  }
+  // The parts that come from the server: days, hours, notifications, the not-joined list and GoatCounter.
+  function drawStatsLive() {
+    var box = $('statsLive'), d = statsData, s = st(); if (!box || !d) return;
+    var html = '', days = d.daily.days || {}, keys = Object.keys(days).map(Number).sort(function (a, b) { return a - b; });
+    if (s.status !== 'signup' && keys.length) {
+      var all = []; for (var i = 1; i <= Math.max(s.day, keys[keys.length - 1]); i++) all.push([i, (days[i] || [0, 0])[0], (days[i] || [0, 0])[1]]);
+      var mx = Math.max.apply(null, all.map(function (x) { return Math.max(x[1], x[2]); })) || 1;
+      html += '<section class="hsec"><h3>Each day <small>rolls and clears</small></h3><div class="sbox"><div class="dchart">' + all.map(function (x) { return '<div class="dc" title="Day ' + x[0] + ': ' + x[1] + ' rolls, ' + x[2] + ' clears"><div class="dbars"><i class="r" style="height:' + x[1] / mx * 100 + '%"></i><i class="c" style="height:' + x[2] / mx * 100 + '%"></i></div><span>' + x[0] + '</span></div>'; }).join('') + '</div><div class="leg"><span><i class="r"></i>Rolls</span><span><i class="c"></i>Clears</span>' + (s.status === 'running' ? '<span class="lsub">Day ' + s.day + ' is today</span>' : '') + '</div></div></section>';
+    }
+    var hrs = d.daily.hours || [], tot = hrs.reduce(function (a, b) { return a + b; }, 0);
+    if (tot) {
+      var off = -new Date().getTimezoneOffset() / 60, loc = []; for (var h = 0; h < 24; h++) loc[h] = hrs[((h - Math.round(off)) % 24 + 24) % 24] || 0;
+      var hm = Math.max.apply(null, loc), pk = loc.indexOf(hm);
+      html += '<section class="hsec"><h3>When people play <small>rolls by hour, your time</small></h3><div class="sbox"><div class="hchart">' + loc.map(function (n, k) { return '<div class="hc" title="' + hourLabel(k) + ': ' + n + '"><i style="height:' + (hm ? n / hm * 100 : 0) + '%"' + (k === pk ? ' class="pk"' : '') + '></i></div>'; }).join('') + '</div><div class="hax"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>11 PM</span></div><p class="snote">Busiest: <b>' + hourLabel(pk) + '</b>. Posts and reminders land best just before.</p></div></section>';
+    }
+    box.innerHTML = html; html = '';
+    // Notifications
+    var on = {}; (d.notify.on || []).forEach(function (pid) { on[pid] = 1; });
+    var offList = s.order.filter(function (pid) { return !on[pid]; });
+    html += '<section class="hsec"><h3>Notifications <small>roll reminders on a phone or computer</small></h3><div class="sbox">' + sBar('Turned on', d.notify.on.length, s.order.length, 'g', '<b>' + d.notify.on.length + '</b> <small>' + (s.order.length ? Math.round(d.notify.on.length / s.order.length * 100) : 0) + '%</small>') + sBar('Not yet', offList.length, s.order.length, '', '<b>' + offList.length + '</b>') +
+      (offList.length ? '<p class="snote">Not yet: ' + offList.slice(0, statsMore.off ? 999 : 12).map(function (pid) { return '<b>' + esc(s.players[pid].name) + '</b>'; }).join(', ') + (!statsMore.off && offList.length > 12 ? ' and ' + (offList.length - 12) + ' more' : '') + '</p>' + (statsMore.off ? '' : sMore('off', offList.length, 12)) : '') + '</div></section>';
+    // Signed in, never joined
+    var why = { waiting: 'Waiting for you to let them in', 'can-join': 'Can join, hasn\'t', looking: 'Just looking' };
+    var lk = d.lurkers || [];
+    html += '<section class="hsec"><h3>Signed in, never joined <small>from the last two weeks of visits</small></h3><div class="sbox slist">' + (lk.length ? lk.slice(0, statsMore.lurk ? 999 : 8).map(function (x) {
+      var img = x.avatar ? avatarHtml({ id: 'd' + x.id, name: x.name, avatar: x.avatar }, 'vis-ava') : '<span class="vis-ava guest">' + esc(R.initials(x.name || '?')) + '</span>';
+      return '<div class="srow">' + img + '<span class="sn2"><b>' + esc(x.name) + '</b><em>' + why[x.why] + (x.reacted ? ' · reacted' : '') + '</em></span><span class="sago">' + (x.last ? (x.visits ? x.visits + ' visit' + (x.visits === 1 ? '' : 's') + ', ' : '') + visitAgo(x.last) : 'No visits') + '</span></div>';
+    }).join('') + (statsMore.lurk ? '' : sMore('lurk', lk.length, 8)) : '<p class="why">Everyone who signed in has joined.</p>') + '</div></section>';
+    // GoatCounter
+    var gc = d.gc || {};
+    html += '<section class="hsec"><h3>Visitors <small>everyone who opened the game, last two weeks (GoatCounter)</small></h3>';
+    if (gc.error === 'no-key') html += '<p class="why">Add the GoatCounter API key to the game server to see this. In the worker folder: <code>npx wrangler secret put GC_TOKEN</code>, then paste the same key Playlist Studio uses.</p>';
+    else if (gc.error) html += '<p class="why">' + (gc.error === 'auth' ? 'GoatCounter turned the API key down. Check that GC_TOKEN can read the chesters-escape site.' : 'GoatCounter didn\'t answer. Try Refresh in a minute.') + '</p>';
+    else {
+      var gd = gc.days || [], gm = Math.max.apply(null, gd.map(function (x) { return x[1]; }).concat([1]));
+      html += '<div class="sgrid two">' + sCard('Visitors', gc.visitors, 'last 14 days', 'hero') + sCard('Busiest day', gd.length ? Math.max.apply(null, gd.map(function (x) { return x[1]; })) : 0, gd.length ? new Date(gd.reduce(function (a, b) { return b[1] > a[1] ? b : a; })[0] + 'T12:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : '') + '</div>';
+      if (gd.length) html += '<div class="sbox" style="margin-top:10px"><div class="dchart short">' + gd.map(function (x) { return '<div class="dc" title="' + x[0] + ': ' + x[1] + '"><div class="dbars"><i class="v" style="height:' + x[1] / gm * 100 + '%"></i></div><span>' + Number(x[0].slice(8)) + '</span></div>'; }).join('') + '</div></div>';
+      var tagged = (gc.refs || []).filter(function (r) { return r.scheme === 'c'; }), sites = (gc.refs || []).filter(function (r) { return r.scheme !== 'c'; });
+      var list = function (title, sub, rows) { if (!rows.length) return ''; var m = rows[0].count; return '<h4 class="hsub">' + title + (sub ? ' <span class="why">' + sub + '</span>' : '') + '</h4><div class="sbox">' + rows.map(function (r) { return sBar(esc(r.name || '(direct)'), r.count, m); }).join('') + '</div>'; };
+      html += list('Where they came from', '', sites) + list('Your tagged links', 'utm_source', tagged) + list('Your campaigns', 'utm_campaign', gc.campaigns || []) + list('Phone or computer', '', gc.sizes || []);
+    }
+    html += '</section>';
+    var box2 = $('statsLive2'); if (box2) box2.innerHTML = html;
+  }
   // User log: Host tools on Today, scrolled so the Visits heading sits just under the tab bar (which
   // stays stuck to the top and would otherwise cover it). Tried again while the list and pictures load
   // and push things around, and never again once you scroll or tap.
@@ -1776,7 +1919,7 @@
   // Host tools in four tabs: what needs you today, the players, the game setup, and alerts.
   // Each tab only shows what makes sense for where the game is: sign-ups, running, or over.
   var hostTab = 'today';
-  var HOST_TABS = [['today', 'Today'], ['players', 'Players'], ['game', 'Game'], ['alerts', 'Alerts']];
+  var HOST_TABS = [['today', 'Today'], ['players', 'Players'], ['game', 'Game'], ['alerts', 'Alerts'], ['stats', 'Stats']];
   var POST_LIST = [
     ['Countdowns', [['signups', 'When sign-ups open'], ['day', '24 hours before the start, with everyone signed up'], ['hour', 'One hour before the start'], ['start', 'When the game starts'], ['lastcall', '24 hours before the end'], ['end', 'When the game ends, with the top 3']]],
     ['Moments', [['escape', 'Someone escapes'], ['leader', 'Someone takes the lead (once a day at most)'], ['setback', 'Big setbacks: back to the start, or 5 or more spaces back'], ['big', 'Clears at 95% or better'], ['gate', 'Someone reaches the exit but has to wait at the gate']]]
@@ -1796,7 +1939,7 @@
       '<div class="row"><button type="button" class="btn small danger" data-h="cleargame" data-f="new">Clear the old game</button></div></section>';
   }
   function renderHost() {
-    var s = st(), demo = store.mode === 'demo', T = { today: '', players: '', game: '', alerts: '' };
+    var s = st(), demo = store.mode === 'demo', T = { today: '', players: '', game: '', alerts: '', stats: '' };
     var signup = s.status === 'signup', running = s.status === 'running', over = s.status === 'finished';
     var claims = [];
     s.order.forEach(function (pid) { s.players[pid].claims.forEach(function (c) { claims.push({ p: s.players[pid], c: c }); }); });
@@ -1903,6 +2046,7 @@
       [17, 18, 19, 20, 21, 22].map(function (h) { return '<option value="' + h + '"' + (E.remindHour(s) === h ? ' selected' : '') + '>' + hourLabel(h) + ' in each player\'s own time</option>'; }).join('') + '</select></label></section>';
     T.alerts += '<section class="hsec"><h3>Notifications on this device</h3><div id="pushBox" class="push-box" data-kind="host"><p>Checking this device.</p></div></section>';
 
+    T.stats = statsHtml(s);
     var html = '<div class="htabs" role="tablist">' + HOST_TABS.map(function (t) {
       var n = t[0] === 'today' ? todo : 0;
       return '<button type="button" role="tab" class="htab" data-h="tab" data-tab="' + t[0] + '" aria-selected="' + (hostTab === t[0]) + '">' + t[1] + (n ? ' <span class="nav-badge">' + n + '</span>' : '') + '</button>';
@@ -1913,6 +2057,7 @@
     filterPlayers();
     if (typing && $('pSearch')) { $('pSearch').focus(); try { $('pSearch').setSelectionRange(typing[0], typing[1]); } catch (e) {} }
     fillVisits();
+    if (hostTab === 'stats') fillStats();
     Object.keys(keep).forEach(function (id) { var el = $(id); if (el) { el.value = keep[id]; el.dataset.touched = '1'; } });
     ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme'].forEach(function (id) { var el = $(id); if (el) el.addEventListener(id === 'newTheme' ? 'change' : 'input', function () { el.dataset.touched = '1'; }); });
     fillPush();
@@ -1929,6 +2074,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('#hostBody .htab'), function (b) { b.setAttribute('aria-selected', String(b.dataset.tab === id)); });
     Array.prototype.forEach.call(document.querySelectorAll('#hostBody .hpane'), function (p) { p.hidden = p.dataset.pane !== id; });
     $('hostBody').scrollTop = 0;
+    if (id === 'stats') fillStats();
   }
 
   // ---- push notifications (hosts) ------------------------------------------------
@@ -2075,6 +2221,8 @@
       case 'clearend': run('setEnd', { endsAt: null }, 'End time cleared.'); break;
       case 'visits-refresh': btn.classList.remove('spin'); void btn.offsetWidth; btn.classList.add('spin'); setTimeout(function () { btn.classList.remove('spin'); }, 700); fillVisits(true); break;
       case 'visits-more': visitsAll = true; fillVisits(); break;
+      case 'stats-refresh': btn.classList.remove('spin'); void btn.offsetWidth; btn.classList.add('spin'); setTimeout(function () { btn.classList.remove('spin'); }, 700); fillStats(true); break;
+      case 'stats-more': statsMore[btn.dataset.k] = true; renderHost(); break;
       case 'clearplayers': if (confirm('Take all ' + st().order.length + ' sign-ups off the board? They can join again whenever sign-ups are open.')) run('clearPlayers', {}, 'Sign-ups cleared.'); break;
       case 'clearstart': if (confirm('Cancel the countdown? Sign-ups stay open and nobody can roll until you set a new start time.')) run('schedule', { startsAt: null }, 'Countdown canceled. Sign-ups are still open.'); break;
       case 'endnow': if (confirm('End the game now? The standings freeze and nobody can roll again.')) run('endNow', {}, 'The game is over.'); break;

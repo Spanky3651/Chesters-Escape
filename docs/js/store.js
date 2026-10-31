@@ -111,6 +111,22 @@
     return Promise.resolve({ now: now, visits: out });
   };
 
+  // Host tools' Stats tab, made up for the demo from the bots: the daily tally from the thread,
+  // a few people with notifications on, one person who only looked, and sample GoatCounter numbers.
+  DemoStore.prototype.hostStats = function () {
+    var s = this.state, days = {}, hours = []; for (var h = 0; h < 24; h++) hours.push(0);
+    s.events.forEach(function (e) {
+      if (e.t !== 'roll' && e.t !== 'cleared') return;
+      var d = days[e.day] || (days[e.day] = [0, 0]);
+      if (e.t === 'roll') { d[0]++; hours[new Date(e.at || Date.now()).getUTCHours()]++; } else d[1]++;
+    });
+    var now = Date.now(), gd = [];
+    for (var i = 13; i >= 0; i--) gd.push([new Date(now - i * 86400000).toISOString().slice(0, 10), 4 + Math.round(6 * Math.abs(Math.sin(i * 1.7)))]);
+    return Promise.resolve({ now: now, daily: { days: days, hours: hours }, notify: { on: s.order.filter(function (pid, i) { return i % 2 === 0; }), devices: Math.ceil(s.order.length / 2) + 1 },
+      lurkers: [{ id: 'guest', name: 'LJ', avatar: '', last: now - 47 * 60000, visits: 2, reacted: true, why: 'can-join' }],
+      gc: { visitors: 61, days: gd, refs: [{ name: 'discord.com', count: 38, scheme: 'h' }, { name: 'discord', count: 9, scheme: 'c' }, { name: 'reddit', count: 3, scheme: 'c' }, { name: 'spanky3651.github.io', count: 4, scheme: 'h' }], campaigns: [{ name: 'get-the-maps', count: 5 }], sizes: [{ name: 'Phones', count: 37 }, { name: 'Computer monitors', count: 22 }] } });
+  };
+
   // Host undo and the hall of fame work in the demo too, kept in this browser.
   DemoStore.prototype.act = function (name, a) {
     var self = this, s0 = this.state, snap = E.UNDOABLE.indexOf(name) >= 0 ? { state: JSON.stringify(s0), label: E.hostLabel(s0, name, a || {}), pre: s0.seq } : null;
@@ -268,6 +284,7 @@
   }
   LiveStore.prototype.undoInfo = function () { return this.undo || { ok: false, list: [] }; };
   LiveStore.prototype.visits = function () { return this._fetch('/api/host/visits'); };
+  LiveStore.prototype.hostStats = function (fresh) { return this._fetch('/api/host/stats' + (fresh ? '?fresh=1' : '')); };
   LiveStore.prototype._fetch = function (path, opts) {
     opts = opts || {};
     var h = opts.headers || {};
