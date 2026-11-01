@@ -578,6 +578,7 @@
       var e = evs[i];
       if (e.t === 'day') { if (feedMode === 'all') html += '<li class="dayline">Day ' + e.day + ' begins</li>'; continue; }
       if (e.t === 'begin') { html += '<li class="dayline">🏁 The game starts. Day 1 begins</li>'; continue; }
+      if (e.t === 'maps-swapped') { html += '<li class="dayline">🗺️ The board has a new map list. Every space has a new map, and clears already logged still count</li>'; continue; }
       if (e.t === 'made-up') { if (e.n) html += '<li class="dayline">🎁 Day ' + e.day + ' was cut short by the clock change, so ' + e.n + (e.n === 1 ? ' player who' : ' players who') + ' didn\'t roll in it ' + (e.n === 1 ? 'gets' : 'get') + ' a bonus roll today' + (store.me && (e.pids || []).indexOf(store.me) >= 0 ? ', including you' : '') + '</li>'; continue; }
       if (feedMode === 'me' && e.pid !== store.me) continue;
       var p = s.players[e.pid]; if (e.pid && !p) continue;   // someone who left the game
@@ -1413,7 +1414,12 @@
     if (onOpen) onOpen($('modalBody'));
     var f = opts.focusClose ? null : $('modalBody').querySelector('input,button,select,a'); (f || $('modalX')).focus();
   }
-  function closeModal() { $('modal').hidden = true; if (lastFocus && lastFocus.focus) lastFocus.focus(); if (store && store.state) setTimeout(checkNewClears, 300); }
+  function closeModal() {
+    $('modal').hidden = true; if (lastFocus && lastFocus.focus) lastFocus.focus();
+    var then = afterClose; afterClose = null;
+    if (then) setTimeout(then, 250); else if (store && store.state) setTimeout(checkNewClears, 300);
+  }
+  var afterClose = null;   // what to do once a one-time notice is closed (the rest of the page load)
 
   // ---- the end of the game ------------------------------------------------------------------
   function openFinale() {
@@ -1495,6 +1501,7 @@
       else if (e.t === 'move' && e.n >= 4) others.push('➡️ <b>' + who(e) + '</b> jumped ahead ' + e.n);
       else if (e.t === 'join') others.push('👋 <b>' + who(e) + '</b> joined');
       else if (e.t === 'begin') others.push('🏁 The game started');
+      else if (e.t === 'maps-swapped') others.push('🗺️ The board got a new map list');
       else if (e.t === 'made-up' && e.n) others.push('🎁 ' + e.n + ' bonus roll' + (e.n === 1 ? ' was' : 's were') + ' given for the short day ' + e.day);
       else if (e.t === 'end') others.push('🏆 The game ended');
     });
@@ -1629,27 +1636,79 @@
     modal('Get the maps', '<p class="lede">Every map on this board' + (s.board.bonusMaps && s.board.bonusMaps.length ? ' plus the bonus maps from cards' : '') + ', ' + keys.length + ' in all, as a playlist for the game.</p>' +
       '<p class="why">Save it to your Beat Saber Playlists folder, or open it with a playlist mod. In game you can also type the key into Better Song Search.</p>' +
       '<div class="row"><button type="button" class="btn" id="plGo">Download playlist</button>' +
-      '<a class="btn ghost studio-btn kick" id="plStudio" target="_blank" rel="noopener" href="' + STUDIO_HOME + '" aria-disabled="true" title="Open these maps in Playlist Studio">' + STUDIO_LOGO + '<span>Playlist <b>Studio</b></span></a></div>' +
+      STUDIO_BTN() + '</div>' +
       '<p class="why">In Studio you can drop songs you\'ve already played, pick a difficulty for each song or rename it. On Quest? <a href="' + STUDIO_SYNC + '" target="_blank" rel="noopener">Studio Sync</a> sends it straight to your headset.</p>' +
       '<p class="err" id="plErr" hidden></p>', function (body) {
-      var st0 = body.querySelector('#plStudio');
-      st0.addEventListener('click', function (e) { if (st0.getAttribute('aria-disabled') === 'true') { e.preventDefault(); toast('Getting the maps ready. Try again in a second.', ''); return; } track('get-maps-studio'); });
-      S.maps(keys).then(function (found) {
-        var rows = keys.map(function (k) { var m = found[k]; return m && m.hash ? [m.hash, '', 'Standard'] : null; }).filter(Boolean);
-        if (!rows.length) return;
-        st0.href = studioPlaylistLink(theme().title, rows); st0.removeAttribute('aria-disabled');
-      });
-      body.querySelector('#plGo').addEventListener('click', function () {
-        var b = this; b.disabled = true; b.textContent = 'Building playlist';
-        crowCover().then(function (img) { return S.playlist(theme().title, keys, img); }).then(function (pl) {
-          track('get-maps');
-          var blob = new Blob([JSON.stringify(pl, null, 2)], { type: 'application/json' });
-          var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = theme().title.replace(/[^A-Za-z0-9]+/g, '-').replace(/-+$/, '') + '.bplist'; a.click();
-          b.disabled = false; b.textContent = 'Download playlist';
-          if (pl.songs.length < keys.length) { var er = body.querySelector('#plErr'); er.hidden = false; er.textContent = (keys.length - pl.songs.length) + " maps couldn't be loaded from BeatSaver and were left out."; }
-        }, function (e) { b.disabled = false; b.textContent = 'Download playlist'; fail(e); });
-      });
+      studioButton(body, 'get-maps-studio');
+      body.querySelector('#plGo').addEventListener('click', function () { downloadPlaylist(this, body.querySelector('#plErr'), 'get-maps'); });
     });
+  }
+  // The board's playlist as a .bplist download. A map set can ship its own finished playlist file
+  // (the exact list its picker made); otherwise it's built from the board's keys.
+  function downloadPlaylist(b, errEl, tag) {
+    var s = st(), keys = E.allMapKeys(s.board, s.cards), set = C.mapSets[s.board.mapSet], label = b.textContent;
+    b.disabled = true; b.textContent = 'Building playlist';
+    var file = set && set.playlist ? fetch(set.playlist).then(function (r) { if (!r.ok) throw new Error('Playlist file missing'); return r.json(); }) : Promise.reject();
+    file.catch(function () { return crowCover().then(function (img) { return S.playlist(theme().title, keys, img); }); }).then(function (pl) {
+      track(tag);
+      var blob = new Blob([JSON.stringify(pl, null, 2)], { type: 'application/json' });
+      var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = theme().title.replace(/[^A-Za-z0-9]+/g, '-').replace(/-+$/, '') + '.bplist'; a.click();
+      b.disabled = false; b.textContent = label;
+      if (errEl && pl.songs.length < keys.length) { errEl.hidden = false; errEl.textContent = (keys.length - pl.songs.length) + " maps couldn't be loaded from BeatSaver and were left out."; }
+    }, function (e) { b.disabled = false; b.textContent = label; fail(e); });
+  }
+  // The Playlist Studio button for the board's maps: disabled until BeatSaver answers.
+  function studioButton(body, tag) {
+    var s = st(), keys = E.allMapKeys(s.board, s.cards), st0 = body.querySelector('#plStudio');
+    st0.addEventListener('click', function (e) { if (st0.getAttribute('aria-disabled') === 'true') { e.preventDefault(); toast('Getting the maps ready. Try again in a second.', ''); return; } track(tag); });
+    S.maps(keys).then(function (found) {
+      var rows = keys.map(function (k) { var m = found[k]; return m && m.hash ? [m.hash, '', 'Standard'] : null; }).filter(Boolean);
+      if (!rows.length) return;
+      st0.href = studioPlaylistLink(theme().title, rows); st0.removeAttribute('aria-disabled');
+    });
+  }
+  var STUDIO_BTN = function () { return '<a class="btn ghost studio-btn kick" id="plStudio" target="_blank" rel="noopener" href="' + STUDIO_HOME + '" aria-disabled="true" title="Open these maps in Playlist Studio">' + STUDIO_LOGO + '<span>Playlist <b>Studio</b></span></a>'; };
+
+  // ---- new map list notice ---------------------------------------------------------------------
+  // Once per swap per device, for players who were in the game when the maps changed (and the
+  // host): what changed, their own open map if it moved, and the new playlist.
+  function swapSeenKey(s) { return 'cg.swap.' + s.id + '.' + s.mapSwap.id; }
+  function maybeSwap(then) {
+    var s = st(), w = s && s.mapSwap;
+    if (!w || !store || store.mode !== 'live' || overlayOpen()) return false;
+    var me = store.me && s.players[store.me];
+    if (!(me && (me.joinedAt || 0) < w.at) && !store.isHost) return false;
+    try { if (localStorage.getItem(swapSeenKey(s))) return false; localStorage.setItem(swapSeenKey(s), '1'); } catch (e) { return false; }
+    var mine = (me && w.changes && w.changes[me.id]) || [];
+    var open = {}; if (me) me.tasks.forEach(function (t) { open[t.id] = 1; });
+    var bsr = function (keys) { return keys.map(function (k) { return '<span class="sw-name" data-k="' + esc(k) + '">!bsr ' + esc(k) + '</span>'; }).join(' or '); };
+    var rows = mine.map(function (c) {
+      return '<div class="swap-row you"><span class="swap-ic">🎵</span><span><b>Your ' + (c.bonus ? 'bonus map' : 'map') + ' changed.</b> <s>' + bsr(c.from) + '</s> is now <b>' + bsr(c.to) + '</b> <code>!bsr ' + esc(c.to.join(' or ')) + '</code>.' +
+        (open[c.task] ? ' Play the new one to move on.' : '') + '</span></div>';
+    }).join('');
+    track('map-swap-notice');
+    afterClose = then || null;
+    modal('New maps on the board',
+      '<div class="swap-flag">⚠️ Important update</div>' +
+      '<p class="lede">Based on player feedback, the board has a <b>new map list</b>. Every map now comes from the mappers picked for this game, and maps with resets are gone.</p>' +
+      '<div class="swap-box">' +
+        '<div class="swap-row"><span class="swap-ic">🗺️</span><span><b>Every space has a new map.</b> The board, the routes and where everyone stands stay the same.</span></div>' + rows +
+        '<div class="swap-row"><span class="swap-ic">✅</span><span><b>Your clears still count.</b> Maps you already passed stay passed. Nothing to redo, and nobody moves.</span></div>' +
+        '<div class="swap-row"><span class="swap-ic">📥</span><span><b>Get the new playlist.</b> The old one won\'t match the board anymore, so grab this one before you play.</span></div>' +
+      '</div>' +
+      '<div class="row swap-btns"><button type="button" class="btn" id="plGo">Download playlist</button>' + STUDIO_BTN() + '</div>' +
+      '<p class="err" id="plErr" hidden></p>' +
+      '<p class="why">This only shows once. You can always get the maps again from Get the maps at the top.</p>' +
+      '<div class="row"><button type="button" class="btn ghost" id="swapOk">Got it</button></div>', function (body) {
+      studioButton(body, 'map-swap-studio');
+      body.querySelector('#plGo').addEventListener('click', function () { downloadPlaylist(this, body.querySelector('#plErr'), 'map-swap-download'); });
+      body.querySelector('#swapOk').addEventListener('click', closeModal);
+      var keys = []; mine.forEach(function (c) { keys = keys.concat(c.from, c.to); });
+      if (keys.length) S.maps(keys).then(function (found) {
+        body.querySelectorAll('.sw-name').forEach(function (el) { var m = found[String(el.getAttribute('data-k')).toLowerCase()]; if (m && m.name) el.textContent = m.name; });
+      });
+    }, { cls: 'swap', focusClose: true });
+    return true;
   }
   // Square playlist cover: Chester on the theme ground.
   function crowCover() {
@@ -2645,7 +2704,7 @@
     store.on(function (x) {
       if (animating) return;
       if (x && x.action === 'online') { renderStandings(); placeTokens(); return; }
-      renderAll(); checkNewClears();
+      renderAll(); if (!maybeSwap()) checkNewClears();
     });
     renderAll();
     if (/^#host$/.test(location.hash)) { history.replaceState(null, '', location.pathname + location.search); if (store.isHost) openHost(); }
@@ -2678,11 +2737,13 @@
     setInterval(tickCountdowns, 1000);
     var seen = false; try { seen = localStorage.getItem('cg.seenHow') === '1'; localStorage.setItem('cg.seenHow', '1'); } catch (e) {}
     var prevSeen = readSeen(), pend = pendingReveals();
-    if (!seen) openHow();
-    else if (!maybeFinale()) {
+    var rest = function () {
+      if (maybeFinale()) return;
       if (pend.length) { animating = true; revealScores(pend).then(function () { animating = false; renderAll(); maybeAway(prevSeen); }); }
       else maybeAway(prevSeen);
-    }
+    };
+    if (!seen) openHow();
+    else if (!maybeSwap(rest)) rest();
     setInterval(applyDusk, 30000);
     scuffleSoon();
     writeSeen();

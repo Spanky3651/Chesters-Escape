@@ -445,6 +445,8 @@
   function rejectClaim(s, pid, taskId) {
     var p = need(s, pid);
     p.claims = p.claims.filter(function (c) { return c.task !== taskId; });
+    // Sent in before the maps were swapped and turned down: now it moves to the new song.
+    p.tasks.forEach(function (t) { if (t.id === taskId && t.swapLater) { t.was = (t.was || []).concat(t.bsr || []); t.bsr = t.swapLater; t.swappedAt = now(); delete t.swapLater; } });
     emit(s, p, { t: 'claim-rejected', task: taskId });
   }
 
@@ -454,10 +456,16 @@
     var p = need(s, pid), cleared = [];
     p.tasks.slice().forEach(function (t) {
       var hashes = (t.bsr || []).map(function (k) { return (hashesByKey[String(k).toLowerCase()] || '').toUpperCase(); }).filter(Boolean);
+      var was = (t.was || []).map(function (k) { return (hashesByKey[String(k).toLowerCase()] || '').toUpperCase(); }).filter(Boolean);
       var hit = null;
       (scores || []).forEach(function (sc) {
         if (hit) return;
-        if (hashes.indexOf(String(sc.hash || '').toUpperCase()) >= 0 && sc.time * 1000 >= t.since - 60000) hit = sc;
+        var h = String(sc.hash || '').toUpperCase(), ms = sc.time * 1000;
+        if (ms < t.since - 60000) return;
+        if (hashes.indexOf(h) >= 0) hit = sc;
+        // The board's maps were swapped while this one was open: a run of the old song from before
+        // the swap still clears it, so a score BeatLeader hadn't reported yet isn't lost.
+        else if (was.indexOf(h) >= 0 && t.swappedAt && ms <= t.swappedAt + 60000) { hit = sc; t.bsr = t.was.slice(); }
       });
       if (hit) cleared.push(completeTask(s, pid, t.id, { by: 'beatleader', score: hit.id || null, diff: hit.diff || '', acc: hit.acc || null, mods: hit.mods || '' }));
     });
@@ -812,8 +820,41 @@
     return got.length;
   }
 
+  // The board moves to a new map list while the game runs. Every map and blocker space gets its
+  // new song, the bonus pool is replaced, and every open map follows: a space's map becomes that
+  // space's new song, a bonus map becomes a new bonus map. Clears already logged stay as they are.
+  // An open map the player already sent to the host keeps its song until the host rules on it.
+  // Runs once per swap id; s.mapSwap says what changed for whom, for the one-time notice.
+  function swapMaps(s, board, id, rng) {
+    if (!board || !board.spaces || (s.mapSwap && s.mapSwap.id === id)) return null;
+    var oldBonus = {};
+    (s.board.bonusMaps || []).forEach(function (k) { oldBonus[String(k).toLowerCase()] = 1; });
+    Object.keys(s.board.spaces).forEach(function (sid) {
+      var sp = s.board.spaces[sid], nw = board.spaces[sid];
+      if ((sp.type === 'map' || sp.type === 'task') && nw && nw.bsr && nw.bsr.length) sp.bsr = nw.bsr.slice();
+    });
+    s.board.bonusMaps = (board.bonusMaps || []).slice();
+    var at = now(), changes = {};
+    s.order.forEach(function (pid) {
+      var p = s.players[pid];
+      if (!p || p.finished) return;
+      p.tasks.forEach(function (t) {
+        var old = (t.bsr || []).slice(), nw = null, sp = t.space && s.board.spaces[t.space];
+        if ((t.source === 'space' || (!t.source && !t.bonus && !t.card)) && sp && sp.bsr && sp.bsr.length) nw = sp.bsr.slice();
+        else if (old.length && old.every(function (k) { return oldBonus[String(k).toLowerCase()]; })) nw = pickBonus(s, rng, p);
+        if (!nw || !nw.length || nw.join() === old.join()) return;
+        if (p.claims.some(function (c) { return c.task === t.id; })) { t.swapLater = nw; return; }
+        t.was = (t.was || []).concat(old); t.swappedAt = at; t.bsr = nw;
+        (changes[pid] = changes[pid] || []).push({ task: t.id, from: old, to: nw, bonus: t.source !== 'space' && !!(t.source || t.bonus || t.card) || undefined });
+      });
+    });
+    s.mapSwap = { id: id, at: at, changes: changes };
+    emit(s, null, { t: 'maps-swapped', swap: id, n: Object.keys(changes).length });
+    return changes;
+  }
+
   var E = {
-    VERSION: VERSION, makeUpShortDay: makeUpShortDay, DEFAULTS: DEFAULTS,
+    VERSION: VERSION, makeUpShortDay: makeUpShortDay, swapMaps: swapMaps, DEFAULTS: DEFAULTS,
     createGame: createGame, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, react: react, reactor: reactor, REACTIONS: REACTIONS, LEGACY_REACTIONS: LEGACY_REACTIONS, signupsOpen: signupsOpen, chooseRoute: chooseRoute,
     canRoll: canRoll, roll: roll, advanceDay: advanceDay,
     completeTask: completeTask, claimTask: claimTask, rejectClaim: rejectClaim, matchScores: matchScores, improveClears: improveClears,

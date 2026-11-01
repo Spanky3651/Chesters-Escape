@@ -352,12 +352,21 @@ export class Game extends DurableObject {
   // Before the first roll, keep the board's songs in step with the theme and clan (a game made
   // before its map set existed, or before the set's songs changed, picks them up here). Once the
   // game runs, the songs stay put.
+  // A running game only changes songs when its map set carries a new swap id: then the whole
+  // board and every open map move to the new list once (see E.swapMaps), and clears stay.
   syncMaps() {
     const s = this.state;
-    if (!s || s.status !== 'signup' || s.board.custom || s.board.id !== 'chester-escape') return false;
+    if (!s || s.board.custom || s.board.id !== 'chester-escape') return false;
     const want = mapSetFor(this.clan(), s.themeId);
     // Same set but its songs changed since this game was made: pick up the new songs too.
     const songs = (b) => JSON.stringify([Object.keys(b.spaces).sort().map((id) => b.spaces[id].bsr || null), b.bonusMaps || []]);
+    if (s.status === 'running') {
+      const set = C.mapSets[want], fresh = set && set.swap && s.board.mapSet === want && C.boardFor(want);
+      if (!fresh || (s.mapSwap && s.mapSwap.id === set.swap) || songs(s.board) === songs(fresh)) return false;
+      E.swapMaps(s, fresh, set.swap, rng); this.dirty = true;
+      return true;
+    }
+    if (s.status !== 'signup') return false;
     if ((s.board.mapSet || '') === want && songs(s.board) === songs(C.boardFor(want))) return false;
     C.applyMapSet(s.board, want); s.seq++; this.dirty = true;
     return true;
@@ -1127,7 +1136,7 @@ export class Game extends DurableObject {
     // Open maps to clear, plus maps already cleared on BeatLeader in case they beat that score since.
     const done = s.events.filter((e) => e.t === 'cleared' && e.pid === pid && e.proof && e.proof.by === 'beatleader' && e.proof.diff);
     if (!p.tasks.length && !done.length) return [];
-    const keys = [...new Set(p.tasks.flatMap((t) => t.bsr || []).concat(done.flatMap((e) => e.bsr || [])))];
+    const keys = [...new Set(p.tasks.flatMap((t) => (t.bsr || []).concat(t.was || [])).concat(done.flatMap((e) => e.bsr || [])))];
     const hashes = {};
     for (const k of keys) hashes[String(k).toLowerCase()] = await this.bs(String(k).toLowerCase());
     if (Object.values(hashes).some((h) => !h) && this.budget != null && this.later) { this.cutShort = true; return []; }
@@ -1213,6 +1222,8 @@ export class Game extends DurableObject {
     }
     // A day cut short (the November 2026 clock change): bonus rolls for whoever missed it, once.
     if (s.status === 'running' && E.makeUpShortDay(s, 1) != null) this.dirty = true;
+    // A new map list for a running game: swap it in even if nobody has opened the page yet.
+    this.syncMaps();
     await this.remind(now);
     await this.discordFeed();
     if (s.status === 'running') {
