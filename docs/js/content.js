@@ -266,8 +266,8 @@
       hat: "pilgrim",
       look: "thanksgiving",
       art: "img/themes/taco-thanksgiving.jpg?v=20261020",   // Hummingbird's board art, title included
-      mapSet: 'taco-thanksgiving',   // Taco's Thanksgiving playlist, 51 maps
-      shot: "img/boards/taco-thanksgiving.jpg?v=20261101",   // the board with its maps, for the day-before Discord post
+      mapSet: 'taco-thanksgiving',   // Taco's Thanksgiving playlist, 50 maps
+      shot: "img/boards/taco-thanksgiving.jpg?v=20261101b",   // the board with its maps, for the day-before Discord post
       artHero: {"src": "img/themes/taco-thanksgiving-taco.png?v=20261020", "x": 126.0, "y": 122.01, "w": 121.21, "h": 79.74, "move": "hop"},
       banner: ["#d9661f", "#fff4dc"],
       palette: {"ground": "#f3d27a", "ground2": "#d9a24a", "stone": "#fff7e6", "stoneDark": "#9a6a2e", "ink": "#4a2a10", "accent": "#d9661f", "good": "#4f8a2b", "bad": "#b23a1c", "water": "#5f9bbd"},
@@ -767,7 +767,8 @@
     // Taco's Thanksgiving maps for the Beaters board. Swapped to hummingbird's new list on Nov 1, 2026, so
     // every map is by the mappers picked for this game and no map has resets. Spread for fairness: both
     // routes get the same average song length and density, every d4 roll reaches a similar mix, and no
-    // mapper repeats back to back. The 8 lightest songs are the bonus maps.
+    // mapper repeats back to back. The lightest songs are the bonus maps. Cha Cha Slide was dropped because it
+    // wouldn't download in game.
     'taco-thanksgiving': {
       title: "Taco's Thanksgiving",
       author: 'hummingbird',
@@ -775,7 +776,7 @@
       authorBl: '76561198786758592',
       authorAvatar: 'https://cdn.assets.beatleader.com/76561198786758592R27.png',
       credit: 'Every map on this board was picked to the song rules hummingbird set for this game. The spaces were then balanced so both routes play fair.',
-      playlist: 'playlists/taco-thanksgiving.bplist?v=20261101',   // the finished playlist players download
+      playlist: 'playlists/taco-thanksgiving.bplist?v=20261101b',   // the finished playlist players download
       swap: '2026-11-01',   // a running game moves to these songs once (and players see the notice)
       spaces: {
         L1: ['47ce2'],   // Do the Dance (Jonas_0_0, 3:09)
@@ -805,7 +806,7 @@
         L32: ['36cae'],   // Rogue (pleo & winteredge, 1:52)
         L33: ['53b35'],   // Rumble In The Jungle (Radio Edit) (spartplat, TaylorGaming, 2:58)
         L35: ['422bc'],   // RUNWAY (Lalahti, Jonas_0_0, 2:44)
-        L36: ['52d7c'],   // Cha Cha Slide (ImChloe, Tonkie, 3:44)
+        L36: ['48ed2'],   // Gameboy (Tonkie & 3ggcake, 3:08)
         L38: ['54b78'],   // Sky Land, Star Land (Danny, 3:41)
         R1: ['5268d'],   // Call Me Maybe (Tonkie, ChrisGamesVR, ImChloe, 3:15)
         R3: ['4812a'],   // STYLE (Danny, Jonas, 3:31)
@@ -822,7 +823,7 @@
         R22: ['4670e'],   // SWICY (Jonas_0_0, Danny, 3:05)
         s2: ['4e0fd']   // ASTRO+NYAUT (yabje, oegoe & wangyufy, 2:26)
       },
-      bonusMaps: ['44505', '4af06', '54872', '54b7b', '4d21f', '54dd6', '48ed2', '547a7']
+      bonusMaps: ['44505', '4af06', '54872', '54b7b', '4d21f', '54dd6', '547a7']
     }
   }; /*MAPSETS*/
 
