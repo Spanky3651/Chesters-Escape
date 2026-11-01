@@ -578,6 +578,7 @@
       var e = evs[i];
       if (e.t === 'day') { if (feedMode === 'all') html += '<li class="dayline">Day ' + e.day + ' begins</li>'; continue; }
       if (e.t === 'begin') { html += '<li class="dayline">🏁 The game starts. Day 1 begins</li>'; continue; }
+      if (e.t === 'made-up') { if (e.n) html += '<li class="dayline">🎁 Day ' + e.day + ' was cut short by the clock change, so ' + e.n + (e.n === 1 ? ' player who' : ' players who') + ' didn\'t roll in it ' + (e.n === 1 ? 'gets' : 'get') + ' a bonus roll today' + (store.me && (e.pids || []).indexOf(store.me) >= 0 ? ', including you' : '') + '</li>'; continue; }
       if (feedMode === 'me' && e.pid !== store.me) continue;
       var p = s.players[e.pid]; if (e.pid && !p) continue;   // someone who left the game
       var x = evText(e); if (!x) continue;
@@ -1494,6 +1495,7 @@
       else if (e.t === 'move' && e.n >= 4) others.push('➡️ <b>' + who(e) + '</b> jumped ahead ' + e.n);
       else if (e.t === 'join') others.push('👋 <b>' + who(e) + '</b> joined');
       else if (e.t === 'begin') others.push('🏁 The game started');
+      else if (e.t === 'made-up' && e.n) others.push('🎁 ' + e.n + ' bonus roll' + (e.n === 1 ? ' was' : 's were') + ' given for the short day ' + e.day);
       else if (e.t === 'end') others.push('🏆 The game ended');
     });
     if (cleared.length) mine.unshift(cleared.length === 1 ? '✅ Your map <b>!bsr ' + esc(cleared[0]) + '</b> was cleared' : '✅ ' + cleared.length + ' of your maps were cleared: <b>!bsr ' + cleared.map(esc).join(', ') + '</b>');

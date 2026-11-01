@@ -1211,6 +1211,8 @@ export class Game extends DurableObject {
       E.advanceDay(s);
       this.meta.nextCutoff = E.nextCutoff(s.settings, now + 1000);
     }
+    // A day cut short (the November 2026 clock change): bonus rolls for whoever missed it, once.
+    if (s.status === 'running' && E.makeUpShortDay(s, 1) != null) this.dirty = true;
     await this.remind(now);
     await this.discordFeed();
     if (s.status === 'running') {

@@ -665,11 +665,14 @@
     from = from || now();
     var tz = settings.timeZone || 'America/New_York';
     var h = settings.cutoffHour || 0, m = settings.cutoffMinute || 0;
-    // Find today's local date in the zone, then search the UTC instant that matches h:m local.
+    // Walk forward by calendar day in the zone (today, tomorrow, ...) and turn h:m local on that day into
+    // a UTC instant, using the zone's offset at that moment. The offset is checked twice so the day the
+    // clocks change gets it right (the first game of November 2026 rolled over an hour early without this).
+    var p0 = zoneParts(new Date(from), tz);
     for (var dayOffset = 0; dayOffset < 3; dayOffset++) {
-      var probe = new Date(from + dayOffset * 86400000);
-      var parts = zoneParts(probe, tz);
-      var guess = Date.UTC(parts.y, parts.mo - 1, parts.d, h, m) - zoneOffset(probe, tz);
+      var wall = Date.UTC(p0.y, p0.mo - 1, p0.d + dayOffset, h, m);
+      var guess = wall - zoneOffset(new Date(wall), tz);
+      guess = wall - zoneOffset(new Date(guess), tz);
       if (guess > from) return guess;
     }
     return from + 86400000;
@@ -787,8 +790,30 @@
     }
   }
 
+  // A day that ended far too early (the first day of the November 2026 Beaters game lasted one hour,
+  // because it started an hour before the clocks fell back): everyone still racing who didn't roll in
+  // it gets one bonus roll, once. Returns how many got one, or null when there's nothing to make up.
+  function makeUpShortDay(s, day) {
+    if (s.status !== 'running' || s.day <= day) return null;
+    s.madeUp = s.madeUp || [];
+    if (s.madeUp.indexOf(day) >= 0) return null;
+    var started = null, ended = null;
+    s.events.forEach(function (e) {
+      if (day === 1 && e.t === 'begin' && started == null) started = e.at;
+      if (e.t === 'day' && e.day === day && started == null) started = e.at;
+      if (e.t === 'day' && e.day === day + 1 && ended == null) ended = e.at;
+    });
+    if (started == null || ended == null || ended - started >= 20 * 3600000) return null;
+    var rolled = {}; s.events.forEach(function (e) { if (e.t === 'roll' && e.day === day) rolled[e.pid] = 1; });
+    var got = s.order.filter(function (pid) { var p = s.players[pid]; return !p.finished && !rolled[pid]; });
+    got.forEach(function (pid) { s.players[pid].extraRoll = true; });
+    s.madeUp.push(day);
+    emit(s, null, { t: 'made-up', day: day, minutes: Math.round((ended - started) / 60000), n: got.length, pids: got });
+    return got.length;
+  }
+
   var E = {
-    VERSION: VERSION, DEFAULTS: DEFAULTS,
+    VERSION: VERSION, makeUpShortDay: makeUpShortDay, DEFAULTS: DEFAULTS,
     createGame: createGame, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, react: react, reactor: reactor, REACTIONS: REACTIONS, LEGACY_REACTIONS: LEGACY_REACTIONS, signupsOpen: signupsOpen, chooseRoute: chooseRoute,
     canRoll: canRoll, roll: roll, advanceDay: advanceDay,
     completeTask: completeTask, claimTask: claimTask, rejectClaim: rejectClaim, matchScores: matchScores, improveClears: improveClears,
