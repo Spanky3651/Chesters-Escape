@@ -489,7 +489,7 @@
   }
 
   // ---- feed --------------------------------------------------------------------
-  var ICON = { roll: '🎲', land: '📍', task: '🎵', card: '🃏', move: '➡️', skip: '⏸️', start: '↩️', warp: '🌀', cleared: '✅', claim: '📨', 'claim-rejected': '❌', 'lost-turn': '💤', escaped: '🎉', route: '🧭', join: '👋', shield: '🛡️', 'shield-used': '🛡️', again: '🎲', overshoot: '🎯', 'gate-closed': '🔒', 'host-move': '🧹', 'host-reset': '🧹', reshuffle: '🔀', begin: '🏁', pass: '⚡' };
+  var ICON = { rest: '🛡️', roll: '🎲', land: '📍', task: '🎵', card: '🃏', move: '➡️', skip: '⏸️', start: '↩️', warp: '🌀', cleared: '✅', claim: '📨', 'claim-rejected': '❌', 'lost-turn': '💤', escaped: '🎉', route: '🧭', join: '👋', shield: '🛡️', 'shield-used': '🛡️', again: '🎲', overshoot: '🎯', 'gate-closed': '🔒', 'host-move': '🧹', 'host-reset': '🧹', reshuffle: '🔀', begin: '🏁', pass: '⚡' };
   function evText(e) {
     var s = st(), t = theme(), sp = e.space ? s.board.spaces[e.space] : null, card = e.card ? E.cardById(s, e.card) : null;
     switch (e.t) {
@@ -521,7 +521,23 @@
       case 'gate-closed': return { html: 'Reached the ' + esc(t.goal) + ', but someone already escaped today. Waits at the gate and walks out on the next roll.', cls: 'bad' };
       case 'host-move': return { html: 'The host moved this token' };
       case 'host-reset': return { html: 'The host reset this token' };
-      case 'rest': return null;
+      case 'rest': {
+        // Moved onto a space without a map by a card or event: the space is skipped. Say so, and why.
+        var rs = sp, mv = null;
+        for (var ri = s.events.length - 1; ri >= 0; ri--) {
+          var x = s.events[ri];
+          if (x.id >= e.id || x.pid !== e.pid) continue;
+          if (!rs && x.t === 'land') rs = s.board.spaces[x.space];
+          if (x.t === 'move') { mv = x; break; }
+          if (x.t === 'roll') break;
+        }
+        if (!rs) return null;
+        var what = { start: 'back-to-start space', skip: 'lose-a-turn space', move: 'move space', card: 'card drop' }[rs.type] || 'space';
+        var kd = rs.kind && t.kinds[rs.kind], by = mv && mv.card ? E.cardById(s, mv.card) : null;
+        var from = by ? '<b>' + esc(by.title) + '</b>' : mv && mv.space ? '<b>' + esc(spaceName(s.board.spaces[mv.space])) + '</b>' : 'a card or event';
+        var spared = rs.type === 'start' || rs.type === 'skip' || (rs.type === 'move' && rs.n < 0);
+        return { html: 'Moved onto ' + (kd && kd.icon ? kd.icon + ' ' : '') + 'a ' + what + ' by ' + from + '. Card and event moves only count on maps, so it didn\'t apply', cls: spared ? 'good' : '' };
+      }
       case 'reshuffle': return { html: 'The card deck was reshuffled' };
       case 'pass': { var nm = (e.over || []).map(function (q) { return s.players[q] ? '<b>' + esc(s.players[q].name) + '</b>' : ''; }).filter(Boolean); return nm.length ? { html: 'Passed ' + (nm.length > 2 ? nm.slice(0, -1).join(', ') + ' and ' + nm[nm.length - 1] : nm.join(' and ')), cls: 'good' } : null; }
       default: return null;
@@ -1565,7 +1581,7 @@
     var tip = function (icon, html) { return '<li><span class="hw-ti" aria-hidden="true">' + icon + '</span><span>' + html + '</span></li>'; };
     var tips = '<ul class="hw-tips">' +
       tip('🎵', 'Every roll ends with a map. Stop on a space without one and you get a bonus map. Safe is the only break.') +
-      tip('🔗', 'Moved onto a map by a card or event? Play it. Cards never chain into more cards.') +
+      tip('🔗', 'Moved by a card or event? Play the space if it\'s a map. Anything else you land on that way (back to start, lose a turn, move spaces, cards) is skipped.') +
       tip('🏁', 'First to the ' + esc(t.goal) + ' wins. Everyone else plays on for their place.') +
       (s.settings.oneFinishPerDay !== false ? tip('🚪', 'The podium escapes one a day: if someone got out today, you wait at the gate until your next roll. Once the top 3 are out, anyone can escape any day.') : '') +
       (s.endsAt && s.status !== 'finished' ? tip('⏳', 'The game ends <b>' + esc(startWhen(s.endsAt)) + '</b>. Not out by then? You\'re placed by how close you got, fewest spaces left first. Players tied on spaces share a place.') : '') + '</ul>';

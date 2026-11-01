@@ -288,19 +288,19 @@
         addTask(s, p, { bsr: sp.bsr || [], space: sp.id, kind: sp.kind || null, source: 'space' });
         break;
       case 'card':
-        if (chained) { emit(s, p, { t: 'rest', reason: 'no-chain-card' }); break; }
+        if (chained) { emit(s, p, { t: 'rest', reason: 'no-chain-card', space: sp.id }); break; }
         drawCard(s, p, ctx);
         break;
       case 'move':
-        if (chained) { emit(s, p, { t: 'rest', reason: 'no-chain' }); break; }
+        if (chained) { emit(s, p, { t: 'rest', reason: 'no-chain', space: sp.id }); break; }
         applyMove(s, p, sp.n, ctx, { space: sp.id });
         break;
       case 'skip':
-        if (chained) { emit(s, p, { t: 'rest', reason: 'no-chain' }); break; }
+        if (chained) { emit(s, p, { t: 'rest', reason: 'no-chain', space: sp.id }); break; }
         applySkip(s, p, sp.turns || 1, { space: sp.id });
         break;
       case 'start':
-        if (chained) { emit(s, p, { t: 'rest', reason: 'no-chain' }); break; }
+        if (chained) { emit(s, p, { t: 'rest', reason: 'no-chain', space: sp.id }); break; }
         if (useShield(s, p, { space: sp.id })) break;
         jump(s, p, -1, ctx);
         emit(s, p, { t: 'start', space: sp.id });
