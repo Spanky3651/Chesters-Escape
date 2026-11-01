@@ -1674,13 +1674,18 @@
     }, function (e) { b.disabled = false; b.textContent = label; fail(e); });
   }
   // The Playlist Studio button for the board's maps: disabled until BeatSaver answers.
+  // A map set with its own playlist file sends Studio that file (cover, name and author come along);
+  // the song list rides in the same link for an older Studio or a file that won't load.
   function studioButton(body, tag) {
-    var s = st(), keys = E.allMapKeys(s.board, s.cards), st0 = body.querySelector('#plStudio');
+    var s = st(), keys = E.allMapKeys(s.board, s.cards), st0 = body.querySelector('#plStudio'), set = C.mapSets[s.board.mapSet];
+    var file = set && set.playlist ? new URL(set.playlist, location.href).href : '';
+    if (file) { st0.href = STUDIO_HOME + '#pl=' + encodeURIComponent(file); st0.removeAttribute('aria-disabled'); }
     st0.addEventListener('click', function (e) { if (st0.getAttribute('aria-disabled') === 'true') { e.preventDefault(); toast('Getting the maps ready. Try again in a second.', ''); return; } track(tag); });
     S.maps(keys).then(function (found) {
       var rows = keys.map(function (k) { var m = found[k]; return m && m.hash ? [m.hash, '', 'Standard'] : null; }).filter(Boolean);
       if (!rows.length) return;
-      st0.href = studioPlaylistLink(theme().title, rows); st0.removeAttribute('aria-disabled');
+      var link = studioPlaylistLink(theme().title, rows);
+      st0.href = file ? link.replace('#p=', '#pl=' + encodeURIComponent(file) + '&p=') : link; st0.removeAttribute('aria-disabled');
     });
   }
   var STUDIO_BTN = function () { return '<a class="btn ghost studio-btn kick" id="plStudio" target="_blank" rel="noopener" href="' + STUDIO_HOME + '" aria-disabled="true" title="Open these maps in Playlist Studio">' + STUDIO_LOGO + '<span>Playlist <b>Studio</b></span></a>'; };
