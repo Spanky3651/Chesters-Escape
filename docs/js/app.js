@@ -2574,9 +2574,10 @@
     box.style.left = left + 'px'; box.style.top = top + 'px';
     if (navigator.vibrate) try { navigator.vibrate(12); } catch (x) {}
   }
-  // Secret reactions: press and hold Strong (the hummingbird) or Fire (MSploit) in the picker, or right-click them on a computer.
+  // Secret reactions: press and hold Strong (the hummingbird), Fire (MSploit) or Popcorn (Nic) in the picker, or right-click them on a computer.
   // The click that ends the hold is swallowed so it doesn't also send Strong or land on what's under the closed picker.
-  var SECRET_RX = { strong: 'hbird', fire: 'msploit' }, SECRET_MSG = { hbird: 'You found the secret hummingbird!', msploit: 'You found the secret MSploit!' };
+  var SECRET_RX = { strong: 'hbird', fire: 'msploit', popcorn: 'nic' }, SECRET_MSG = { hbird: 'You found the secret hummingbird!', msploit: 'You found the secret MSploit!', nic: 'You found the secret Nic!' };
+  var SECRET_SEL = Object.keys(SECRET_RX).map(function (k) { return '#rxPop button[data-rx="' + k + '"]'; }).join(', ');
   var secretAt = 0, secretSwallow = false;
   function secretRx(btn) {
     if (Date.now() - secretAt < 1200) return;
@@ -2590,7 +2591,7 @@
     var start = null;
     document.addEventListener('pointerdown', function (e) {
       secretSwallow = false;
-      var sb = e.target.closest && e.target.closest('#rxPop button[data-rx="strong"], #rxPop button[data-rx="fire"]');
+      var sb = e.target.closest && e.target.closest(SECRET_SEL);
       if (sb) { start = { x: e.clientX, y: e.clientY }; clearTimeout(rxHoldTimer); rxHoldTimer = setTimeout(function () { secretRx(sb); }, 550); return; }
       var chip = e.target.closest && e.target.closest('.rx-chip'); if (!chip) return;
       start = { x: e.clientX, y: e.clientY };
@@ -2602,7 +2603,7 @@
     document.addEventListener('pointerup', cancel);
     document.addEventListener('pointercancel', cancel);
     document.addEventListener('pointermove', function (e) { if (start && Math.abs(e.clientX - start.x) + Math.abs(e.clientY - start.y) > 12) cancel(); });
-    document.addEventListener('contextmenu', function (e) { var sb = e.target.closest && e.target.closest('#rxPop button[data-rx="strong"], #rxPop button[data-rx="fire"]'); if (sb) { e.preventDefault(); secretRx(sb); return; } var chip = e.target.closest && e.target.closest('.rx-chip'); if (!chip) return; e.preventDefault(); rxHeldAt = Date.now(); openRxWho(chip); });
+    document.addEventListener('contextmenu', function (e) { var sb = e.target.closest && e.target.closest(SECRET_SEL); if (sb) { e.preventDefault(); secretRx(sb); return; } var chip = e.target.closest && e.target.closest('.rx-chip'); if (!chip) return; e.preventDefault(); rxHeldAt = Date.now(); openRxWho(chip); });
     window.addEventListener('scroll', closeRxWho, true);
     window.addEventListener('resize', closeRxWho);
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeRxWho(); });

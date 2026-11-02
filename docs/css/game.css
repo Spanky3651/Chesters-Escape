@@ -1081,3 +1081,11 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .hp-mt .why { display: block; }
 .hp-danger { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
 .hp-danger p { margin: 0; font-size: 14px; color: var(--muted); flex: 1; }
+
+/* Host tools scroll bar on computers: slim, rounded and in the theme's color (phones keep their own) */
+.drawer-body { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)) transparent; }
+.drawer-body::-webkit-scrollbar { width: 12px; }
+.drawer-body::-webkit-scrollbar-track { background: transparent; margin: 6px 0; }
+.drawer-body::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--accent) 45%, var(--line-2)); border-radius: 999px; border: 3px solid var(--raise); min-height: 48px; }
+.drawer-body::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+.drawer-body::-webkit-scrollbar-button { display: none; height: 0; }
