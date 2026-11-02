@@ -768,7 +768,6 @@
     lastStatus = st().status;
     renderHeader(); renderBoard(); renderMe(); renderTurn(); renderFeed(); renderStandings(); renderBar(); renderReplayBtn();
     if (!$('hostDrawer').hidden) renderHost();
-    if (statsOpen()) renderStats();
     applyDusk(); rxNotice();
   }
 
@@ -1759,15 +1758,16 @@
     }).catch(function () { return ''; });
   }
   // ---- host tools ------------------------------------------------------------------------------
-  // Stats: its own full page (hosts only), from the Admin card's Stats button, Host tools, or a #stats link.
-  function statsOpen() { var p = $('statsPage'); return !!p && !p.hidden; }
+  // Stats: a Host tools tab (hosts only), opened from the Admin card's Stats button, the tab itself,
+  // the Today tab's Open stats button, or a #stats link.
+  function statsOpen() { return !$('hostDrawer').hidden && hostTab === 'stats'; }
   function renderStats() { var b = $('statsBody'); if (!b) return; b.innerHTML = statsHtml(st()); fillStats(); }
   function openStats() {
     if (!store.isHost) return;
-    if (!$('hostDrawer').hidden) closeHost();
-    $('statsPage').hidden = false; document.body.classList.add('stats-on'); statsAt = 0; renderStats(); $('statsPage').scrollTop = 0; $('statsBack').focus(); track('stats-open');
+    statsAt = 0;
+    if ($('hostDrawer').hidden) openHost('stats'); else showHostTab('stats');
+    track('stats-open');
   }
-  function closeStats() { $('statsPage').hidden = true; document.body.classList.remove('stats-on'); var b = $('meStats') || $('hostBtn'); if (b && !b.hidden) b.focus(); }
   function openHost(tab) { if (typeof tab === 'string') hostTab = tab; else if (hostTodo().total) hostTab = 'today'; $('hostDrawer').hidden = false; $('scrim').hidden = false; visitsAt = 0; renderHost(); $('hostX').focus(); }
   // ---- visit log (host only) ----
   var visitsData = null, visitsAt = 0, visitsAll = false, visitsBusy = false;
@@ -2121,7 +2121,7 @@
   // Host tools in four tabs: what needs you today, the players, the game setup, and alerts.
   // Each tab only shows what makes sense for where the game is: sign-ups, running, or over.
   var hostTab = 'today';
-  var HOST_TABS = [['today', 'Today'], ['players', 'Players'], ['game', 'Game'], ['alerts', 'Alerts']];
+  var HOST_TABS = [['today', 'Today'], ['players', 'Players'], ['game', 'Game'], ['stats', 'Stats'], ['alerts', 'Alerts']];
   var POST_LIST = [
     ['Countdowns', [['signups', 'When sign-ups open'], ['day', '24 hours before the start, with everyone signed up'], ['hour', 'One hour before the start'], ['start', 'When the game starts'], ['lastcall', '24 hours before the end'], ['end', 'When the game ends, with the top 3']]],
     ['Moments', [['escape', 'Someone escapes'], ['leader', 'Someone takes the lead (once a day at most)'], ['setback', 'Big setbacks: back to the start, or 5 or more spaces back'], ['big', 'Clears at 95% or better'], ['gate', 'Someone reaches the exit but has to wait at the gate']]]
@@ -2141,7 +2141,7 @@
       '<div class="row"><button type="button" class="btn small danger" data-h="cleargame" data-f="new">Clear the old game</button></div></section>';
   }
   function renderHost() {
-    var s = st(), demo = store.mode === 'demo', T = { today: '', players: '', game: '', alerts: '' };
+    var s = st(), demo = store.mode === 'demo', T = { today: '', players: '', game: '', stats: '', alerts: '' };
     var signup = s.status === 'signup', running = s.status === 'running', over = s.status === 'finished';
     var claims = [];
     s.order.forEach(function (pid) { s.players[pid].claims.forEach(function (c) { claims.push({ p: s.players[pid], c: c }); }); });
@@ -2171,7 +2171,8 @@
     else if (running) T.today += '<section class="hsec"><h3>Day ' + s.day + '</h3><p>' + (demo ? 'Starting the next day lets every bot clear maps and roll.' : 'The day turns over by itself at ' + esc(cutoffLabel(s)) + '. Start the next day is only for fixing a missed rollover.') + '</p><div class="row">' +
       '<button type="button" class="btn small ghost" data-h="advance">Start the next day</button>' + (demo ? '<button type="button" class="btn small ghost" data-h="simulate">Skip ahead 3 days</button>' : '') + '</div></section>';
     else T.today += '<section class="hsec"><h3>Game over</h3><p>The standings are frozen.</p><div class="row"><button type="button" class="btn small ghost" data-h="finale">Show the final standings</button></div></section>' + newGameSection(s);
-    T.today += '<section class="hsec"><h3>Stats</h3><p>How the game is going: who\'s rolling, who\'s slipping, the hardest maps, notifications and where visitors come from.</p><div class="row"><button type="button" class="btn small ghost" id="hostStats">Open stats</button></div></section>';
+    T.today += '<section class="hsec"><h3>Stats</h3><p>How the game is going: who\'s rolling, who\'s slipping, the hardest maps, notifications and where visitors come from.</p><div class="row"><button type="button" class="btn small ghost" data-h="tab" data-tab="stats" id="hostStats">Open stats</button></div></section>';
+    T.stats = '<div class="hp-stats" id="statsBody">' + statsHtml(s) + '</div>';
     T.today += '<section class="hsec"><div class="thread-head"><h3>Visits</h3><button type="button" class="icon-btn refresh-btn" data-h="visits-refresh" aria-label="Refresh" title="Refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20.5V16h-4.5"/></svg></button></div><p>When signed-in people opened the game and when they left. Coming back within 10 minutes counts as the same visit, so a visit ends 10 minutes after they close it, switch away or lock their phone. The last two weeks are kept.</p><div id="visitBox"><p class="why">Loading</p></div></section>';
 
     // ---- Players ----
@@ -2266,6 +2267,7 @@
     Object.keys(keep).forEach(function (id) { var el = $(id); if (el) { el.value = keep[id]; el.dataset.touched = '1'; } });
     ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme'].forEach(function (id) { var el = $(id); if (el) el.addEventListener(id === 'newTheme' ? 'change' : 'input', function () { el.dataset.touched = '1'; }); });
     fillPush();
+    if (hostTab === 'stats') fillStats(); else if (statsData && $('statsNudge')) drawStatsLive();
   }
   // Players tab search and filter chips: hide players whose name doesn't match or who aren't in the
   // picked group, and say how many are left.
@@ -2366,6 +2368,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('#hostBody .htab'), function (b) { b.setAttribute('aria-selected', String(b.dataset.tab === id)); });
     Array.prototype.forEach.call(document.querySelectorAll('#hostBody .hpane'), function (p) { p.hidden = p.dataset.pane !== id; });
     $('hostBody').scrollTop = 0;
+    if (id === 'stats') fillStats();
   }
 
   // ---- push notifications (hosts) ------------------------------------------------
@@ -2662,11 +2665,9 @@
       if (e.target.closest('#spacePop [data-close]') || (!e.target.closest('#spacePop') && !$('spacePop').hidden)) closeSpace();
       var fb = e.target.closest('[data-feed]'); if (fb) { feedMode = fb.dataset.feed; renderFeed(); return; }
       var hb = e.target.closest('#hostBody [data-h], #statsBody [data-h]'); if (hb) { hostAction(hb); return; }
-      if (e.target.closest('#statsBack')) { closeStats(); return; }
-      if (e.target.closest('#hostStats')) { openStats(); return; }
     });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { if ($('replayDock') && !$('replayDock').hidden) { closeReplay(); return; } if (!$('rxPop').hidden) { closeRx(); return; } if (!$('remPop').hidden) closeRem(); else if (!$('modal').hidden) closeModal(); else if (!$('spacePop').hidden) closeSpace(); else if (!$('hostDrawer').hidden) closeHost(); else if (statsOpen()) closeStats(); }
+      if (e.key === 'Escape') { if ($('replayDock') && !$('replayDock').hidden) { closeReplay(); return; } if (!$('rxPop').hidden) { closeRx(); return; } if (!$('remPop').hidden) closeRem(); else if (!$('modal').hidden) closeModal(); else if (!$('spacePop').hidden) closeSpace(); else if (!$('hostDrawer').hidden) closeHost(); }
       if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('.board-svg .sp')) { e.preventDefault(); openSpace(e.target.closest('.sp').dataset.id, e.target.closest('.sp')); }
     });
     document.addEventListener('input', function (e) {
