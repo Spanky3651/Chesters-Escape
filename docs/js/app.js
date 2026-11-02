@@ -2176,7 +2176,11 @@
 
     // ---- Players ----
     if (s.order.length > 6 || (ac && ac.allowed.length > 6)) T.players += '<div class="psearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input type="search" id="pSearch" placeholder="Find a player" aria-label="Find a player" autocomplete="off" value="' + esc(playerQuery) + '"><span class="psearch-n" id="pSearchN" aria-live="polite"></span></div>';
-    if (!demo) T.players += '<section class="hsec"><h3>You</h3><label class="check"><input type="checkbox" id="hostOutBox"' + (store.hostOut ? ' checked' : '') + '> <span>I\'m hosting this game, not playing. You get an Admin badge instead of the Join button.</span></label><p class="why">Only for this clan\'s game. Your other games stay the same.</p>' + (store.user ? '<p class="why" style="margin-top:10px">Signed in as ' + esc(store.user.name) + ' on this device. <button type="button" class="btn link" id="logoutBtn">Sign out</button></p>' : '') + '</section>';
+    if (!demo) T.players += '<section class="hsec"><h3>You</h3><label class="hp-you">' + (store.user ? avatarHtml({ id: store.user.id, name: store.user.name, avatar: store.user.avatar }, 'hp-ava') : '') +
+      '<span class="hp-you-main"><b>' + esc(store.user ? store.user.name : 'You') + '</b><span class="why">Hosting, not playing</span></span>' +
+      '<span class="hp-switch"><input type="checkbox" role="switch" id="hostOutBox"' + (store.hostOut ? ' checked' : '') + ' aria-label="Hosting, not playing"><i aria-hidden="true"></i></span></label>' +
+      '<p class="why hp-you-note">' + (store.hostOut ? 'You get an Admin badge instead of the Join button.' : 'Turn this on if you\'re running the game and not playing. You get an Admin badge instead of the Join button.') + ' Only in this clan\'s game.</p>' +
+      (store.user ? '<div class="hp-you-foot"><span class="why">Signed in as ' + esc(store.user.name) + ' on this device</span><button type="button" class="btn small link" id="logoutBtn">Sign out</button></div>' : '') + '</section>';
     if (signup) {
       T.players += '<section class="hsec"><h3>Signed up</h3><p>' + (s.order.length ? 'Tokens go on the board when the game starts.' : 'Nobody has signed up yet.') + '</p>';
       if (s.order.length) T.players += '<table class="ptable"><tbody>' + s.order.map(function (pid) {
@@ -2187,19 +2191,8 @@
       }).join('') + '</tbody></table>';
       T.players += '</section>';
     } else if (running) {
-      T.players += '<section class="hsec"><h3>Players</h3><p>' + (s.order.length ? 'Space 0 is the start. Moving a token does not apply the space unless you tick the box.' : 'Nobody has joined yet.') + '</p>';
-      if (s.order.length) {
-        T.players += '<table class="ptable"><tbody>';
-        s.order.forEach(function (pid) {
-          var p = s.players[pid];
-          T.players += '<tr data-pname="' + esc(p.name.toLowerCase()) + '"><td><b>' + esc(p.name) + '</b><br><span class="why">' + (p.finished ? 'Escaped, ' + ordinal(p.finished.place) : p.route ? s.board.routeInfo[p.route].name : 'no route') + (p.tasks.length ? ', on a map' : '') + '</span></td>' +
-            '<td>' + (p.route ? '<span class="row nowrap"><input type="number" min="0" max="' + E.routeOf(s, p).length + '" value="' + (p.pos + 1) + '" aria-label="Space for ' + esc(p.name) + '" data-posfor="' + esc(pid) + '"><button type="button" class="btn small ghost" data-h="move" data-pid="' + esc(pid) + '">Move</button></span>' : '') + '</td>' +
-            '<td>' + (p.route && !p.finished ? '<select data-cardfor="' + esc(pid) + '" aria-label="Give ' + esc(p.name) + ' a card"><option value="">Give a card</option>' + s.cards.map(function (c) { return '<option value="' + c.id + '">' + esc(c.title) + '</option>'; }).join('') + '</select>' : '') + '</td>' +
-            '<td><div class="row">' + (p.tasks.length ? '<button type="button" class="btn small ghost" data-h="clearmap" data-pid="' + esc(pid) + '">Clear map</button>' : '') +
-            (p.route ? '<button type="button" class="btn small danger" data-h="reset" data-pid="' + esc(pid) + '">Reset</button>' : '') + '</div></td></tr>';
-        });
-        T.players += '</tbody></table><label class="check"><input type="checkbox" id="applyMove"> <span>Apply the space after moving a token</span></label>';
-      }
+      T.players += '<section class="hsec"><h3>Players' + (s.order.length ? ' <span class="why">' + s.order.length + '</span>' : '') + '</h3>' + (s.order.length ? '' : '<p>Nobody has joined yet.</p>');
+      if (s.order.length) T.players += hostPlayerChips(s) + '<div class="hp-list">' + s.order.map(function (pid) { return hostPlayerCard(s, pid); }).join('') + '</div>';
       T.players += '</section>';
     } else {
       var fin = s.final || E.ranking(s);
@@ -2255,7 +2248,18 @@
     }).join('') + '</div>' + HOST_TABS.map(function (t) { return '<div class="hpane" data-pane="' + t[0] + '" role="tabpanel"' + (hostTab === t[0] ? '' : ' hidden') + '>' + T[t[0]] + '</div>'; }).join('');
     var keep = {}; ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme'].forEach(function (id) { var el = $(id); if (el && el.value && el.dataset.touched) keep[id] = el.value; });
     var ae = document.activeElement, typing = ae && ae.id === 'pSearch' ? [ae.selectionStart, ae.selectionEnd] : null;
+    var held = {}; Array.prototype.forEach.call(document.querySelectorAll('#hostBody [data-posfor], #hostBody [data-applyfor], #hostBody [data-cardpick]'), function (el) {
+      var k = el.dataset.posfor ? 'pos:' + el.dataset.posfor : el.dataset.applyfor ? 'apply:' + el.dataset.applyfor : 'card:' + el.dataset.cardpick;
+      if (el.dataset.touched) held[k] = el.type === 'checkbox' ? el.checked : el.value;
+    });
     $('hostBody').innerHTML = html;
+    Object.keys(held).forEach(function (k) {
+      var i = k.indexOf(':'), kind = k.slice(0, i), pid = k.slice(i + 1), sel = { pos: 'data-posfor', apply: 'data-applyfor', card: 'data-cardpick' }[kind];
+      var el = document.querySelector('[' + sel + '="' + cssq(pid) + '"]'); if (!el) return;
+      if (el.type === 'checkbox') el.checked = held[k]; else el.value = held[k]; el.dataset.touched = '1';
+    });
+    if (openPlayer) hostDest(openPlayer);
+    fillHostSongs();
     filterPlayers();
     if (typing && $('pSearch')) { $('pSearch').focus(); try { $('pSearch').setSelectionRange(typing[0], typing[1]); } catch (e) {} }
     fillVisits();
@@ -2263,12 +2267,99 @@
     ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme'].forEach(function (id) { var el = $(id); if (el) el.addEventListener(id === 'newTheme' ? 'change' : 'input', function () { el.dataset.touched = '1'; }); });
     fillPush();
   }
-  // Players tab search: hides rows whose name doesn't match, and says how many do.
-  var playerQuery = '';
+  // Players tab search and filter chips: hide players whose name doesn't match or who aren't in the
+  // picked group, and say how many are left.
+  var playerQuery = '', playerFilter = 'all', openPlayer = null;
   function filterPlayers() {
     var q = playerQuery.trim().toLowerCase(), rows = document.querySelectorAll('#hostBody [data-pname]'), shown = 0;
-    Array.prototype.forEach.call(rows, function (r) { var hit = !q || r.dataset.pname.indexOf(q) >= 0; r.hidden = !hit; if (hit) shown++; });
+    Array.prototype.forEach.call(rows, function (r) {
+      var inGroup = playerFilter === 'all' || !r.dataset.pf || (' ' + r.dataset.pf + ' ').indexOf(' ' + playerFilter + ' ') >= 0;
+      var hit = (!q || r.dataset.pname.indexOf(q) >= 0) && inGroup; r.hidden = !hit; if (hit) shown++;
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#hostBody .hp-chip'), function (c) { c.setAttribute('aria-pressed', String(c.dataset.f === playerFilter)); });
     var n = $('pSearchN'); if (n) n.textContent = q ? (shown ? shown + ' found' : 'Nobody matches') : '';
+  }
+
+  // ---- Players tab: one card per player. The card says where they are and what's going on;
+  // tapping it opens the controls (move, clear their map, give a card, reset). ----
+  var ROUTE_COLOR = { longer: '#7cc4ff', riskier: '#ff9b6b' };
+  function hpSpaceLabel(s, sp, r) {
+    if (!sp) return { icon: '🏁', text: 'At the start' };
+    var k = sp.kind && theme().kinds[sp.kind];
+    if (sp.type === 'exit') return { icon: k ? k.icon : '🚪', text: cap(theme().goal || 'the exit') };
+    if (k) return { icon: k.icon, text: k.title.replace(/!+$/, '') };
+    return { icon: { map: '🎵', task: '🎵', card: '🃏', safe: '🛟' }[sp.type] || '•', text: { map: 'Map space', task: 'Map space', card: 'Card drop', safe: 'Safe' }[sp.type] || cap(sp.type) };
+  }
+  function hpSong(key) { var m = songFor(key); return '<span data-song="' + esc(key) + '">' + (m ? esc(m.name) : '!bsr ' + esc(key)) + '</span>'; }
+  function hostPlayerGroups(s, p) {
+    var g = [];
+    if (p.tasks.length) g.push('map');
+    if (p.route) g.push(p.route); else g.push('noroute');
+    if (p.finished) g.push('escaped');
+    return g;
+  }
+  function hostPlayerChips(s) {
+    var count = { all: s.order.length };
+    s.order.forEach(function (pid) { hostPlayerGroups(s, s.players[pid]).forEach(function (k) { count[k] = (count[k] || 0) + 1; }); });
+    var chips = [['all', 'All'], ['map', 'On a map'], ['riskier', 'Riskier'], ['longer', 'Longer'], ['escaped', 'Escaped'], ['noroute', 'No route']]
+      .filter(function (c) { return c[0] === 'all' || c[0] === 'map' || count[c[0]]; });
+    if (!chips.some(function (c) { return c[0] === playerFilter; })) playerFilter = 'all';
+    return '<div class="hp-chips" role="group" aria-label="Show players">' + chips.map(function (c) {
+      return '<button type="button" class="hp-chip" data-h="pfilter" data-f="' + c[0] + '" aria-pressed="' + (playerFilter === c[0]) + '">' + c[1] + '<b>' + (count[c[0]] || 0) + '</b></button>';
+    }).join('') + '</div>';
+  }
+  function hostPlayerCard(s, pid) {
+    var p = s.players[pid], r = p.route ? E.routeOf(s, p) : [], sp = p.route && p.pos >= 0 ? s.board.spaces[r[p.pos]] : null, open = openPlayer === pid;
+    var here = hpSpaceLabel(s, sp, r), tags = [];
+    var where = p.finished ? '🎉 Escaped, ' + ordinal(p.finished.place) : !p.route ? '🧭 Hasn\'t picked a route' : here.icon + ' ' + (sp ? 'Space ' + (p.pos + 1) + ' of ' + r.length + ' · ' : '') + here.text;
+    p.tasks.forEach(function (t) { tags.push('<span class="hp-tag map">🎵 ' + hpSong(t.bsr[0]) + (t.bonus ? ' · bonus' : t.card ? ' · card' : '') + '</span>'); });
+    if (p.claims.length) tags.push('<span class="hp-tag map">📨 Run sent to you</span>');
+    if (p.route && !p.finished && !p.tasks.length) {
+      if (E.canRoll(s, pid).ok) tags.push('<span class="hp-tag">🎲 Can roll</span>');
+      else if (p.rolledDay === s.day) tags.push('<span class="hp-tag ok">✓ Rolled today</span>');
+    }
+    if (p.skip && !p.finished) tags.push('<span class="hp-tag warn">💤 Loses ' + p.skip + ' turn' + (p.skip > 1 ? 's' : '') + '</span>');
+    if (p.shield && !p.finished) tags.push('<span class="hp-tag ok">🛡️ Protected</span>');
+    if (p.extraRoll && !p.finished) tags.push('<span class="hp-tag ok">🎁 Extra roll</span>');
+    return '<article class="hp-card' + (open ? ' open' : '') + '" data-pname="' + esc(p.name.toLowerCase()) + '" data-pf="' + hostPlayerGroups(s, p).join(' ') + '">' +
+      '<button type="button" class="hp-head" data-h="ptoggle" data-pid="' + esc(pid) + '" aria-expanded="' + open + '">' + avatarHtml(p, 'hp-ava') +
+      '<span class="hp-main"><span class="hp-name"><b>' + esc(p.name) + '</b>' + (p.route ? '<span class="hp-route" style="--rc:' + ROUTE_COLOR[p.route] + '">' + esc(s.board.routeInfo[p.route].name.replace(/ route$/i, '')) + '</span>' : '') + '</span>' +
+      '<span class="hp-where">' + esc(where) + '</span>' + (tags.length ? '<span class="hp-tags">' + tags.join('') + '</span>' : '') + '</span>' +
+      '<span class="hp-caret" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></button>' +
+      (open ? hostPlayerBody(s, p, r) : '') + '</article>';
+  }
+  function hostPlayerBody(s, p, r) {
+    var pid = p.id, html = '<div class="hp-body">';
+    if (!p.route) return html + '<p class="why hp-none">Nothing to change until they pick a route.</p></div>';
+    html += '<div class="hp-act"><h5>Move token</h5><div class="hp-move"><span class="hp-step"><button type="button" data-h="pstep" data-d="-1" data-pid="' + esc(pid) + '" aria-label="Back one space">−</button>' +
+      '<input type="number" inputmode="numeric" min="0" max="' + r.length + '" value="' + (p.pos + 1) + '" aria-label="Space for ' + esc(p.name) + '" data-posfor="' + esc(pid) + '">' +
+      '<button type="button" data-h="pstep" data-d="1" data-pid="' + esc(pid) + '" aria-label="Ahead one space">+</button></span>' +
+      '<span class="hp-dest" data-destfor="' + esc(pid) + '"></span></div>' +
+      '<div class="hp-row"><label class="check"><input type="checkbox" data-applyfor="' + esc(pid) + '"> <span>Also apply that space</span></label>' +
+      '<button type="button" class="btn small" data-h="move" data-pid="' + esc(pid) + '" data-movebtn="' + esc(pid) + '">Move</button></div></div>';
+    p.tasks.forEach(function (t) {
+      html += '<div class="hp-act"><h5>Open map</h5><div class="hp-mapline"><span class="hp-mt"><b>' + hpSong(t.bsr[0]) + '</b><span class="why">!bsr ' + esc(t.bsr.join(' or ')) + (t.bonus ? ' · bonus map' : t.card ? ' · from a card' : '') + '</span></span>' +
+        '<button type="button" class="btn small ghost" data-h="clearmap" data-pid="' + esc(pid) + '" data-task="' + esc(t.id) + '">Mark cleared</button></div></div>';
+    });
+    if (!p.finished) html += '<div class="hp-act"><h5>Give a card</h5><div class="hp-give"><select data-cardpick="' + esc(pid) + '" aria-label="Card for ' + esc(p.name) + '"><option value="">Pick a card…</option>' +
+      s.cards.map(function (c) { return '<option value="' + c.id + '">' + esc((c.art ? c.art + ' ' : '') + c.title) + '</option>'; }).join('') + '</select>' +
+      '<button type="button" class="btn small ghost" data-h="givecard" data-pid="' + esc(pid) + '">Give</button></div></div>';
+    html += '<div class="hp-act"><h5>Start over</h5><div class="hp-danger"><p>Back to the start with no open maps. Their clears stay.</p><button type="button" class="btn small danger" data-h="reset" data-pid="' + esc(pid) + '">Reset</button></div></div>';
+    return html + '</div>';
+  }
+  // What's on the space the Move box points at, and the Move button says where it goes.
+  function hostDest(pid) {
+    var s = st(), p = s.players[pid], box = document.querySelector('[data-posfor="' + cssq(pid) + '"]'), out = document.querySelector('[data-destfor="' + cssq(pid) + '"]');
+    if (!p || !box || !out) return;
+    var r = E.routeOf(s, p), n = Math.max(0, Math.min(r.length, parseInt(box.value, 10) || 0)), sp = n > 0 ? s.board.spaces[r[n - 1]] : null, lab = hpSpaceLabel(s, sp, r);
+    out.innerHTML = '<b>' + esc(lab.icon + ' ' + lab.text) + '</b><span class="why">Now on space ' + (p.pos + 1) + '. 0 is the start, ' + r.length + ' is the ' + esc(theme().goal || 'exit') + '.</span>';
+    var btn = document.querySelector('[data-movebtn="' + cssq(pid) + '"]');
+    if (btn) { btn.textContent = n === p.pos + 1 ? 'Already here' : 'Move to space ' + n; btn.disabled = n === p.pos + 1; }
+  }
+  function fillHostSongs() {
+    var els = document.querySelectorAll('#hostBody [data-song]'), keys = [];
+    Array.prototype.forEach.call(els, function (el) { if (keys.indexOf(el.dataset.song) < 0) keys.push(el.dataset.song); });
+    if (keys.length) S.maps(keys).then(function (f) { Array.prototype.forEach.call(document.querySelectorAll('#hostBody [data-song]'), function (el) { var m = f[String(el.dataset.song).toLowerCase()]; if (m && m.name) el.textContent = m.name; }); });
   }
   function showHostTab(id) {
     hostTab = id;
@@ -2386,18 +2477,30 @@
       case 'simulate': run('simulate', { days: 3 }, 'Skipped ahead 3 days.'); break;
       case 'tab': showHostTab(btn.dataset.tab); break;
       case 'undo': { var u0 = store.undoInfo().list[0]; if (u0 && confirm('Undo "' + u0.label + '"?')) run('undo', {}, 'Undone: ' + u0.label + '.'); break; }
+      case 'ptoggle': openPlayer = openPlayer === pid ? null : pid; renderHost(); if (openPlayer) { var oc = document.querySelector('#hostBody .hp-card.open'); if (oc && oc.scrollIntoView) oc.scrollIntoView({ block: 'nearest' }); } break;
+      case 'pfilter': playerFilter = btn.dataset.f || 'all'; track('host-filter-' + playerFilter); filterPlayers(); break;
+      case 'pstep': {
+        var sb = document.querySelector('[data-posfor="' + cssq(pid) + '"]'); if (!sb) break;
+        sb.value = Math.max(0, Math.min(Number(sb.max) || 0, (parseInt(sb.value, 10) || 0) + Number(btn.dataset.d))); sb.dataset.touched = '1'; hostDest(pid); break;
+      }
+      case 'givecard': {
+        var pick = document.querySelector('[data-cardpick="' + cssq(pid) + '"]'), cid = pick && pick.value, gp = st().players[pid], gc = st().cards.filter(function (c) { return c.id === cid; })[0];
+        if (!cid) { toast('Pick a card first.', 'bad'); break; }
+        if (!confirm('Give ' + gp.name + ' the card "' + (gc ? gc.title : cid) + '"? It takes effect right away.')) break;
+        store.act('card', { pid: pid, card: cid }).then(function () { track('host-card'); toast('Gave ' + gp.name + ' a card.', 'good'); }, fail); break;
+      }
       case 'move': {
-        var mp = st().players[pid], box = document.querySelector('[data-posfor="' + cssq(pid) + '"]'), to = box ? parseInt(box.value, 10) : NaN, apply = $('applyMove') && $('applyMove').checked;
+        var mp = st().players[pid], box = document.querySelector('[data-posfor="' + cssq(pid) + '"]'), to = box ? parseInt(box.value, 10) : NaN, ab = document.querySelector('[data-applyfor="' + cssq(pid) + '"]'), apply = !!(ab && ab.checked);
         if (isNaN(to)) { toast('Type a space number first.', 'bad'); break; }
         if (to === mp.pos + 1) { toast(mp.name + ' is already on space ' + to + '.', ''); break; }
         if (confirm('Move ' + mp.name + ' from space ' + (mp.pos + 1) + ' to space ' + to + '?' + (apply ? ' The space\'s effect applies too.' : ''))) run('setpos', { pid: pid, pos: to - 1, apply: apply }, mp.name + ' moved to space ' + to + '.');
-        else box.value = mp.pos + 1;
+        else { box.value = mp.pos + 1; delete box.dataset.touched; hostDest(pid); }
         break;
       }
       case 'discordtest': if (confirm('Send a test post to the game\'s Discord channel? Everyone in the channel will see it.')) run('discordTest', {}, 'Test post sent. Check the channel.'); break;
       case 'approve': run('approve', { pid: pid, task: btn.dataset.task }, 'Approved.'); break;
       case 'reject': if (confirm('Reject ' + st().players[pid].name + '\'s run? They keep the map and can play it again or send a new run.')) run('reject', { pid: pid, task: btn.dataset.task }, 'Run rejected.'); break;
-      case 'clearmap': { var p = st().players[pid]; if (!confirm('Mark ' + p.name + '\'s map as cleared? They can roll again.')) break; run('approve', { pid: pid, task: p.tasks[0].id }, 'Map cleared for ' + p.name + '.'); break; }
+      case 'clearmap': { var p = st().players[pid], tid = btn.dataset.task || (p.tasks[0] && p.tasks[0].id); if (!tid) break; if (!confirm('Mark ' + p.name + '\'s map as cleared? They can roll again.')) break; run('approve', { pid: pid, task: tid }, 'Map cleared for ' + p.name + '.'); break; }
       case 'reset': if (confirm('Send ' + st().players[pid].name + ' back to the start and clear their maps?')) run('resetPlayer', { pid: pid }); break;
       case 'newgame': {
         var ns = readStart('newStart'); if (ns === false) break;
@@ -2566,14 +2669,14 @@
       if (e.key === 'Escape') { if ($('replayDock') && !$('replayDock').hidden) { closeReplay(); return; } if (!$('rxPop').hidden) { closeRx(); return; } if (!$('remPop').hidden) closeRem(); else if (!$('modal').hidden) closeModal(); else if (!$('spacePop').hidden) closeSpace(); else if (!$('hostDrawer').hidden) closeHost(); else if (statsOpen()) closeStats(); }
       if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('.board-svg .sp')) { e.preventDefault(); openSpace(e.target.closest('.sp').dataset.id, e.target.closest('.sp')); }
     });
-    document.addEventListener('input', function (e) { if (e.target.id === 'pSearch') { playerQuery = e.target.value; filterPlayers(); } });
+    document.addEventListener('input', function (e) {
+      if (e.target.id === 'pSearch') { playerQuery = e.target.value; filterPlayers(); }
+      else if (e.target.dataset && e.target.dataset.posfor) { e.target.dataset.touched = '1'; hostDest(e.target.dataset.posfor); }
+    });
     document.addEventListener('change', function (e) {
       var t = e.target;
       if (t.id === 'playAs') { store.act('playAs', { pid: t.value }); return; }
-      if (t.dataset.cardfor && t.value) {
-        var pid = t.dataset.cardfor, cid = t.value, card = st().cards.filter(function (c) { return c.id === cid; })[0];
-        if (!confirm('Give ' + st().players[pid].name + ' the card "' + (card ? card.title : cid) + '"? It takes effect right away.')) { t.value = ''; return; }
-        store.act('card', { pid: pid, card: cid }).then(function () { toast('Gave ' + st().players[pid].name + ' a card.', 'good'); }, fail); return; }
+      if (t.dataset.cardpick || t.dataset.applyfor) { t.dataset.touched = '1'; return; }
       if (t.dataset.set) {
         if (st().status === 'running' && !confirm('Change this rule for everyone in the game that is running now?')) { t.checked = !t.checked; return; }
         var patch = {}; patch[t.dataset.set] = t.checked; store.act('settings', { patch: patch }).catch(fail); return; }
