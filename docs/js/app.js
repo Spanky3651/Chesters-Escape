@@ -2140,6 +2140,105 @@
       '<h4 class="hsub">Start fresh instead</h4><p>Clears everyone off the board and empties the thread, so the next game opens with nobody signed up. It uses the theme and times above.</p>' +
       '<div class="row"><button type="button" class="btn small danger" data-h="cleargame" data-f="new">Clear the old game</button></div></section>';
   }
+  // ---- Your recent changes: an icon for each kind of change, grouped by day ----
+  function rcIcon(label) {
+    var L = String(label || '');
+    var pairs = [[/^Approved/, '✅'], [/^Rejected/, '❌'], [/^Moved .* to space/, '📍'], [/^Gave/, '🃏'], [/^Reset/, '↩️'], [/^Removed|^Cleared all/, '🗑️'], [/^Opened sign-ups/, '🔓'], [/^Closed sign-ups/, '🔒'],
+      [/route/, '🧭'], [/reminders/, '🔔'], [/rules/, '⚙️'], [/theme/, '🎨'], [/board|new game|old game/, '🗺️'], [/start time|countdown/, '⏰'], [/end time|Ended/, '🏁'], [/^Started the game/, '🎲'], [/^Started day/, '🌅']];
+    for (var i = 0; i < pairs.length; i++) if (pairs[i][0].test(L)) return pairs[i][1];
+    return '✏️';
+  }
+  function rcDay(t) {
+    var d = new Date(t), today = new Date(), y = new Date(Date.now() - 86400000);
+    if (d.toDateString() === today.toDateString()) return 'Today';
+    if (d.toDateString() === y.toDateString()) return 'Yesterday';
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+
+  // ---- Runs to approve: the song, the run, why it didn't show up on its own, and how the game's
+  // players did on that map on BeatLeader. The lookups run once per run and are kept for 10 minutes. ----
+  var apInfo = {}, apTab = {}, DIFF_LABEL = { Easy: 'Easy', Normal: 'Normal', Hard: 'Hard', Expert: 'Expert', ExpertPlus: 'Expert+' };
+  function replayFacts(url) {
+    var m = String(url || '').match(/(\d+)-(\d{9,11})-([A-Za-z]+)-([A-Za-z]+)-([0-9A-Fa-f]{40})\.bsor/);
+    return m ? { player: m[1], at: Number(m[2]) * 1000, diff: m[3], mode: m[4], hash: m[5].toUpperCase() } : null;
+  }
+  function apKey(p, c) { return c.task + '|' + p.id; }
+  function apClock(t) { var d = new Date(t), today = new Date(); return (d.toDateString() === today.toDateString() ? 'today' : d.toLocaleDateString([], { month: 'short', day: 'numeric' })) + ' at ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
+  function apAcc(r) { return (r.acc * 100).toFixed(2) + '%' + (r.fc ? ' FC' : r.miss ? ', ' + r.miss + ' miss' + (r.miss === 1 ? '' : 'es') : ''); }
+  function claimCard(s, p, c) {
+    var t = p.tasks.filter(function (k) { return k.id === c.task; })[0] || { bsr: ['?'] }, key = String(t.bsr[0]).toLowerCase(), k = apKey(p, c), info = apInfo[k], song = info && info.song, b = info && info.board;
+    var rf = replayFacts(c.url), args = ' data-pid="' + esc(p.id) + '" data-task="' + esc(c.task) + '"';
+    var dur = song && song.duration ? Math.floor(song.duration / 60) + ':' + ('0' + Math.round(song.duration % 60)).slice(-2) : '';
+    var diffs = song ? song.diffs.filter(function (d) { return d.characteristic === 'Standard'; }).map(function (d) { return DIFF_LABEL[d.name] || d.name; }) : [];
+    var html = '<div class="ap-card" data-apcard="' + esc(k) + '" data-apkey="' + esc(key) + '">' +
+      '<div class="ap-song">' + (song && song.cover ? '<img class="ap-cov" src="' + esc(song.cover) + '" alt="" onerror="this.outerHTML=\'<span class=&quot;ap-cov&quot;>🎵</span>\'">' : '<span class="ap-cov">🎵</span>') +
+      '<span class="ap-main"><span class="ap-title">' + esc(song ? song.name + (song.sub ? ' ' + song.sub : '') : '!bsr ' + t.bsr.join(' or ')) + '</span>' +
+      '<span class="ap-sub">' + (song ? esc([song.author, song.mapper ? 'mapped by ' + song.mapper : '', dur].filter(Boolean).join(' · ')) : 'Loading the song…') + '</span>' +
+      '<span class="ap-tags"><span class="ap-tag gold">!bsr ' + esc(t.bsr.join(' or ')) + '</span>' + (t.bonus ? '<span class="ap-tag">🎁 Bonus map</span>' : t.card ? '<span class="ap-tag">🃏 From a card</span>' : '') +
+      (diffs.length ? '<span class="ap-tag">' + esc(diffs.join(' · ')) + '</span>' : '') + '</span></span></div>';
+    // the run itself
+    var facts = [], mine = b ? b.mine : null;
+    if (rf) {
+      var warn = rf.at < (t.since || 0) - 60000 ? ' <b class="ap-bad">Played before they got this map.</b>' : '', other = song && song.hash && rf.hash !== song.hash ? ' <b class="ap-bad">This replay is for a different map.</b>' : '';
+      facts.push(['▶️', '<b>' + esc(DIFF_LABEL[rf.diff] || rf.diff) + ' replay</b>, played ' + esc(apClock(rf.at)) + (t.since ? ' <span class="why">(got this map ' + esc(apClock(t.since)) + ')</span>' : '') + warn + other]);
+    } else if (c.url) facts.push(['🔗', 'They sent a link: <a href="' + esc(c.url) + '" target="_blank" rel="noopener">open it</a>.']);
+    else facts.push(['⚠️', 'No replay sent. Check their BeatLeader profile, or ask them for one.']);
+    if (b && rf) {
+      var best = mine[rf.diff];
+      facts.push(['ℹ️', best ? 'Why it didn\'t show up: ' + esc(p.name) + '\'s ' + esc(DIFF_LABEL[rf.diff] || rf.diff) + ' best is <b>' + esc(apAcc(best)) + '</b> from ' + esc(new Date(best.at).toLocaleDateString([], { month: 'short', day: 'numeric' })) + '. BeatLeader only posts a run that beats it.'
+        : esc(p.name) + ' has no ' + esc(DIFF_LABEL[rf.diff] || rf.diff) + ' score on BeatLeader, so a finished run would have shown up. Watch the replay to check it\'s a full pass.']);
+    }
+    if (b) facts.push(['📊', esc(p.name) + '\'s bests: ' + b.diffs.map(function (d) { var m = mine[d.diff]; return esc(DIFF_LABEL[d.diff] || d.diff) + ' ' + (m ? esc(apAcc(m)) : 'not played'); }).join(' · ')]);
+    else if (info && info.failed) facts.push(['📊', 'Couldn\'t reach BeatLeader for scores right now.']);
+    else facts.push(['📊', 'Loading their scores from BeatLeader…']);
+    html += '<div class="ap-sec"><div class="ap-who">' + avatarHtml(p, 'hp-ava') + '<span><b>' + esc(p.name) + '</b> says they played it <span class="why">· sent ' + esc(agoShort(Date.now() - c.at)) + '</span></span></div>' +
+      '<ul class="ap-facts">' + facts.map(function (f) { return '<li><span aria-hidden="true">' + f[0] + '</span><span>' + f[1] + '</span></li>'; }).join('') + '</ul>' + (c.note ? '<p class="ap-note">“' + esc(c.note) + '”</p>' : '') + '</div>';
+    // the game's players on this map
+    var lb = null;
+    if (b && b.diffs.length) {
+      var want = apTab[k] || (rf && b.diffs.some(function (d) { return d.diff === rf.diff; }) ? rf.diff : b.diffs[b.diffs.length - 1].diff);
+      lb = b.diffs.filter(function (d) { return d.diff === want; })[0] || b.diffs[b.diffs.length - 1];
+      var byBl = {}; s.order.forEach(function (q) { var pl = s.players[q]; if (pl.blId) byBl[String(pl.blId)] = pl; });
+      html += '<div class="ap-sec"><div class="ap-h"><span>Players in this game on ' + esc(song ? song.name : 'this map') + '</span><span class="ap-tabs" role="group" aria-label="Difficulty">' + b.diffs.map(function (d) {
+        return '<button type="button" data-h="aptab" data-ap="' + esc(k) + '" data-d="' + esc(d.diff) + '" aria-pressed="' + (d === lb) + '">' + esc(DIFF_LABEL[d.diff] || d.diff) + '</button>';
+      }).join('') + '</span></div>';
+      var rows = lb.rows.filter(function (r) { return byBl[r.id]; });
+      html += rows.length ? '<div class="ap-lb">' + rows.map(function (r) {
+        var pl = byBl[r.id];
+        return '<a class="ap-lbr' + (pl.id === p.id ? ' me' : '') + '" href="https://beatleader.com/u/' + encodeURIComponent(r.id) + '" target="_blank" rel="noopener"><span class="rk">#' + r.rank + '</span>' + avatarHtml(pl, 'hp-ava') + '<span class="nm">' + esc(pl.name) + '</span><span class="ac">' + (r.acc * 100).toFixed(2) + '%</span><span class="' + (r.fc ? 'fc">FC' : 'ms">' + r.miss + ' miss') + '</span></a>';
+      }).join('') + '</div>' : '<p class="why ap-none">Nobody in this game has a ' + esc(DIFF_LABEL[lb.diff] || lb.diff) + ' score on it' + (lb.partial ? ' in the top 300' : '') + '.</p>';
+      if (lb.plays) html += '<p class="why ap-foot">' + lb.plays + ' play' + (lb.plays === 1 ? '' : 's') + ' on BeatLeader' + (lb.top ? '. #1 is ' + esc(lb.top.name) + ' at ' + (lb.top.acc * 100).toFixed(2) + '%' : '') + (lb.partial ? '. Ranks past 300 aren\'t checked' : '') + '.</p>';
+      html += '</div>';
+    }
+    html += '<div class="ap-sec ap-links">' + (c.url ? '<a class="btn small ghost" href="' + esc(c.url) + '" target="_blank" rel="noopener">▶ Watch replay</a>' : '') +
+      (lb ? '<a class="btn small ghost" href="https://beatleader.com/leaderboard/global/' + encodeURIComponent(lb.id) + '" target="_blank" rel="noopener">Leaderboard on BeatLeader ↗</a>' : '') +
+      (p.blId ? '<a class="btn small ghost" href="https://beatleader.com/u/' + encodeURIComponent(p.blId) + '" target="_blank" rel="noopener">' + esc(p.name) + ' on BeatLeader ↗</a>' : '') + '</div>' +
+      '<div class="ap-sec ap-acts"><button type="button" class="btn small good" data-h="approve"' + args + '>Approve</button><button type="button" class="btn small ghost" data-h="reject"' + args + '>Reject</button></div></div>';
+    return html;
+  }
+  function fillClaims() {
+    var s = st(); if (!s) return;
+    var blIds = {}; s.order.forEach(function (q) { if (s.players[q].blId) blIds[String(s.players[q].blId)] = true; });
+    s.order.forEach(function (pid) {
+      var p = s.players[pid];
+      p.claims.forEach(function (c) {
+        var k = apKey(p, c), have = apInfo[k];
+        if (have && (have.busy || Date.now() - have.at < 600000)) return;
+        var t = p.tasks.filter(function (x) { return x.id === c.task; })[0]; if (!t) return;
+        apInfo[k] = Object.assign({}, have || {}, { busy: true, at: Date.now() });
+        S.map(t.bsr[0]).then(function (song) {
+          apInfo[k].song = song; redrawClaim(k);
+          return S.mapBoard(song.hash, blIds, p.blId).then(function (board) { apInfo[k].board = board; apInfo[k].failed = false; });
+        }).catch(function () { apInfo[k].failed = true; }).then(function () { apInfo[k].busy = false; apInfo[k].at = Date.now(); redrawClaim(k); });
+      });
+    });
+  }
+  function redrawClaim(k) {
+    var el = document.querySelector('[data-apcard="' + cssq(k) + '"]'), s = st(); if (!el || !s) return;
+    var pid = k.slice(k.indexOf('|') + 1), p = s.players[pid], c = p && p.claims.filter(function (x) { return apKey(p, x) === k; })[0];
+    if (c) el.outerHTML = claimCard(s, p, c);
+  }
+
   function renderHost() {
     var s = st(), demo = store.mode === 'demo', T = { today: '', players: '', game: '', stats: '', alerts: '' };
     var signup = s.status === 'signup', running = s.status === 'running', over = s.status === 'finished';
@@ -2150,11 +2249,7 @@
     // ---- Today: what needs the host, where the game is, and who's been on ----
     T.today += '<section class="hsec' + (todo ? ' attn' : '') + '"><h3>Needs you' + (todo ? ' <span class="nav-badge">' + todo + '</span>' : '') + '</h3>';
     if (!todo) T.today += '<p>Nothing needs you right now. ' + (over ? 'People waiting to get in show up here.' : 'Runs to approve and people waiting to get in show up here.') + '</p>';
-    if (claims.length) T.today += '<h4 class="hsub">Runs to approve</h4>' + claims.map(function (x) {
-      var t = x.p.tasks.filter(function (k) { return k.id === x.c.task; })[0];
-      return '<div class="claim"><b>' + esc(x.p.name) + '</b> says they played <b>!bsr ' + esc(t ? t.bsr.join(' or ') : '?') + '</b>' + (x.c.url ? ' (<a href="' + esc(x.c.url) + '" target="_blank" rel="noopener">replay</a>)' : '') +
-        '<div class="row" style="margin-top:8px"><button type="button" class="btn small good" data-h="approve" data-pid="' + esc(x.p.id) + '" data-task="' + esc(x.c.task) + '">Approve</button><button type="button" class="btn small ghost" data-h="reject" data-pid="' + esc(x.p.id) + '" data-task="' + esc(x.c.task) + '">Reject</button></div></div>';
-    }).join('');
+    if (claims.length) T.today += '<h4 class="hsub">Runs to approve</h4>' + claims.map(function (x) { return claimCard(s, x.p, x.c); }).join('');
     if (waiting.length) T.today += '<h4 class="hsub">Waiting to get in</h4>' + waiting.map(function (w) {
       return '<div class="claim row" style="justify-content:space-between"><span><b>' + esc(w.name) + '</b> <span class="why">' + esc(w.id) + '</span></span><span class="row">' +
         '<button type="button" class="btn small good" data-h="letin" data-id="' + esc(w.id) + '">Let in</button><button type="button" class="btn small ghost" data-h="dismiss" data-id="' + esc(w.id) + '">Dismiss</button></span></div>';
@@ -2162,16 +2257,20 @@
     T.today += '</section>';
     var ud = store.undoInfo ? store.undoInfo() : null;
     if (ud && ud.list.length) {
+      var lastDay = '';
       T.today += '<section class="hsec"><h3>Your recent changes</h3>' + ud.list.map(function (u, i) {
-        return '<div class="undo-row' + (i ? ' old' : '') + '"><span><b>' + esc(u.label) + '</b><span class="why"> ' + esc(agoShort(Date.now() - u.at)) + (u.by ? ' \u00b7 ' + esc(u.by) : '') + '</span></span>' +
-          (i === 0 && ud.ok ? '<button type="button" class="btn small ghost" data-h="undo">Undo</button>' : '') + '</div>';
-      }).join('') + (!ud.ok ? '<p class="why" style="margin-top:8px">Players have done things since your last change, so it can\'t be undone without wiping their moves.</p>' : '<p class="why" style="margin-top:8px">Undo takes back the newest change. Discord posts that already went out stay posted.</p>') + '</section>';
+        var day = rcDay(u.at), head = day !== lastDay ? (lastDay ? '</div>' : '') + '<div class="rc-day">' + esc(day) + '</div><div class="rc-list">' : ''; lastDay = day;
+        var right = i === 0 ? (ud.ok ? '<button type="button" class="btn small ghost" data-h="undo">Undo</button>' : '<span class="rc-lock">🔒 Locked</span>') : '';
+        return head + '<div class="rc-row' + (i === 0 ? ' new' : '') + '"><span class="rc-ic" aria-hidden="true">' + rcIcon(u.label) + '</span><span class="rc-main"><b>' + esc(u.label) + '</b><span class="why">' +
+          esc(new Date(u.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) + (day === 'Today' ? ' \u00b7 ' + esc(agoShort(Date.now() - u.at)) : '') + (u.by ? ' \u00b7 ' + esc(u.by) : '') + '</span></span>' + right + '</div>';
+      }).join('') + '</div>' +
+        (!ud.ok ? '<div class="rc-note"><span aria-hidden="true">🔒</span><span>Undo is off because players have moved since your last change. Undoing now would wipe their moves.</span></div>'
+          : '<div class="rc-note"><span aria-hidden="true">↩️</span><span>Undo takes back the newest change. Discord posts that already went out stay posted.</span></div>') + '</section>';
     }
     if (signup) T.today += startSection(s);
     else if (running) T.today += '<section class="hsec"><h3>Day ' + s.day + '</h3><p>' + (demo ? 'Starting the next day lets every bot clear maps and roll.' : 'The day turns over by itself at ' + esc(cutoffLabel(s)) + '. Start the next day is only for fixing a missed rollover.') + '</p><div class="row">' +
       '<button type="button" class="btn small ghost" data-h="advance">Start the next day</button>' + (demo ? '<button type="button" class="btn small ghost" data-h="simulate">Skip ahead 3 days</button>' : '') + '</div></section>';
     else T.today += '<section class="hsec"><h3>Game over</h3><p>The standings are frozen.</p><div class="row"><button type="button" class="btn small ghost" data-h="finale">Show the final standings</button></div></section>' + newGameSection(s);
-    T.today += '<section class="hsec"><h3>Stats</h3><p>How the game is going: who\'s rolling, who\'s slipping, the hardest maps, notifications and where visitors come from.</p><div class="row"><button type="button" class="btn small ghost" data-h="tab" data-tab="stats" id="hostStats">Open stats</button></div></section>';
     T.stats = '<div class="hp-stats" id="statsBody">' + statsHtml(s) + '</div>';
     T.today += '<section class="hsec"><div class="thread-head"><h3>Visits</h3><button type="button" class="icon-btn refresh-btn" data-h="visits-refresh" aria-label="Refresh" title="Refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20.5V16h-4.5"/></svg></button></div><p>When signed-in people opened the game and when they left. Coming back within 10 minutes counts as the same visit, so a visit ends 10 minutes after they close it, switch away or lock their phone. The last two weeks are kept.</p><div id="visitBox"><p class="why">Loading</p></div></section>';
 
@@ -2261,6 +2360,7 @@
     });
     if (openPlayer) hostDest(openPlayer);
     fillHostSongs();
+    fillClaims();
     filterPlayers();
     if (typing && $('pSearch')) { $('pSearch').focus(); try { $('pSearch').setSelectionRange(typing[0], typing[1]); } catch (e) {} }
     fillVisits();
@@ -2481,6 +2581,7 @@
       case 'tab': showHostTab(btn.dataset.tab); break;
       case 'undo': { var u0 = store.undoInfo().list[0]; if (u0 && confirm('Undo "' + u0.label + '"?')) run('undo', {}, 'Undone: ' + u0.label + '.'); break; }
       case 'ptoggle': openPlayer = openPlayer === pid ? null : pid; renderHost(); if (openPlayer) { var oc = document.querySelector('#hostBody .hp-card.open'); if (oc && oc.scrollIntoView) oc.scrollIntoView({ block: 'nearest' }); } break;
+      case 'aptab': apTab[btn.dataset.ap] = btn.dataset.d; redrawClaim(btn.dataset.ap); break;
       case 'pfilter': playerFilter = btn.dataset.f || 'all'; track('host-filter-' + playerFilter); filterPlayers(); break;
       case 'pstep': {
         var sb = document.querySelector('[data-posfor="' + cssq(pid) + '"]'); if (!sb) break;

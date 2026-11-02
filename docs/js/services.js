@@ -108,6 +108,41 @@
     });
   }
 
+  // One map on BeatLeader for the host's run check: each Standard difficulty's leaderboard (id, plays,
+  // who's #1) with the ranks of the given players (blIds: { blId: true }) from its top 300, plus one
+  // player's own best on each difficulty. Resolves { diffs: [...], mine: { diff: score } }.
+  var DIFF_ORDER = ['Easy', 'Normal', 'Hard', 'Expert', 'ExpertPlus'];
+  function mapBoard(hash, blIds, me) {
+    hash = String(hash || '').toUpperCase();
+    return blGet('/leaderboards/hash/' + hash).then(function (j) {
+      var lbs = (j.leaderboards || []).filter(function (l) { return l.difficulty && l.difficulty.modeName === 'Standard' && DIFF_ORDER.indexOf(l.difficulty.difficultyName) >= 0; })
+        .sort(function (a, b) { return DIFF_ORDER.indexOf(a.difficulty.difficultyName) - DIFF_ORDER.indexOf(b.difficulty.difficultyName); });
+      var pick = function (sc) { return { rank: sc.rank, id: String(sc.playerId), name: (sc.player && sc.player.name) || '', acc: sc.accuracy || 0, fc: !!sc.fullCombo, miss: (sc.missedNotes || 0) + (sc.badCuts || 0), at: (parseInt(sc.timeset, 10) || 0) * 1000 }; };
+      return Promise.all(lbs.map(function (l) {
+        var d = { diff: l.difficulty.difficultyName, id: l.id, stars: l.difficulty.stars || null, plays: 0, top: null, rows: [], partial: false };
+        var page = function (n) {
+          return blGet('/leaderboard/' + encodeURIComponent(l.id) + '?page=' + n + '&count=100').then(function (x) {
+            var sc = x.scores || [];
+            d.plays = x.plays || d.plays;
+            if (n === 1 && sc[0]) d.top = pick(sc[0]);
+            sc.forEach(function (q) { if (blIds[String(q.playerId)]) d.rows.push(pick(q)); });
+            if (sc.length === 100 && n < 3) return page(n + 1);
+            if (sc.length === 100) d.partial = true;
+          });
+        };
+        return page(1).then(function () { return d; }, function () { d.failed = true; return d; });
+      })).then(function (diffs) {
+        var mine = {};
+        if (!me) return { diffs: diffs, mine: mine };
+        return Promise.all(diffs.map(function (d) {
+          var row = d.rows.filter(function (r) { return r.id === String(me); })[0];
+          if (row) { mine[d.diff] = row; return null; }
+          return blGet('/score/' + encodeURIComponent(me) + '/' + hash + '/' + d.diff + '/Standard').then(function (sc) { if (sc && sc.accuracy) mine[d.diff] = pick(sc); }, function () {});
+        })).then(function () { return { diffs: diffs, mine: mine }; });
+      });
+    });
+  }
+
   function replayUrl(scoreId) { return 'https://replay.beatleader.com/?scoreId=' + encodeURIComponent(scoreId); }
 
   // .bplist with every board map. difficulties lists each Standard difficulty so any choice is highlighted.
@@ -126,5 +161,5 @@
     });
   }
 
-  root.CGServices = { map: map, maps: maps, player: player, parsePlayer: parsePlayer, recentScores: recentScores, checkTasks: checkTasks, replayUrl: replayUrl, playlist: playlist, RELAY: RELAY };
+  root.CGServices = { map: map, maps: maps, player: player, parsePlayer: parsePlayer, recentScores: recentScores, checkTasks: checkTasks, mapBoard: mapBoard, replayUrl: replayUrl, playlist: playlist, RELAY: RELAY };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
