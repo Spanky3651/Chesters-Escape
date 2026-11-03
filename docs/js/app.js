@@ -2835,6 +2835,7 @@
     var box = document.getElementById('footCount'); if (!box) return;
     var BASE = 'https://chesters-escape.goatcounter.com/counter/TOTAL';
     function showText(n) {
+      var t = String(n).replace(/\D/g, ''); if (t) n = Number(t).toLocaleString('en-US');   // GoatCounter sends "1 137" with a thin space; show 1,137
       box.title = n + " total visits to Chester's Escape";
       box.innerHTML = '<span class="fc-dot">&#9670;</span><span class="fc-n">' + esc(String(n)) + '</span> visits';
       box.hidden = false;
