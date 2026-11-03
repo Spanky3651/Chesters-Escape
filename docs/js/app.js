@@ -327,7 +327,7 @@
     if (!p) {
       if (adminCard()) {
         var todo = hostTodo().total;
-        el.innerHTML = '<h2>' + esc(store.user ? store.user.name : 'Host') + ' <span class="admin-badge">Admin</span></h2><p class="lede">You\'re running this game, not playing in it. Runs to approve and the game setup are in Host tools.</p>' +
+        el.innerHTML = '<h2 class="admin-head">' + (store.user ? avatarHtml({ id: 'd' + store.user.id, name: store.user.name, avatar: store.user.avatar }, 'admin-ava') : '') + '<span>' + esc(store.user ? store.user.name : 'Host') + '</span> <span class="admin-badge">Admin</span></h2><p class="lede">You\'re running this game, not playing in it. Runs to approve and the game setup are in Host tools.</p>' +
           '<div class="row"><button type="button" class="btn host-btn' + (todo ? ' todo' : '') + '" id="meTools"' + (todo ? ' aria-label="Host tools, ' + todo + ' waiting on you"' : '') + '>' + SKULL + '<span>Host tools</span>' + (todo ? '<span class="nav-badge" aria-hidden="true">' + todo + '</span>' : '') + '</button><button type="button" class="btn ghost" id="meHost">User log</button><button type="button" class="btn ghost" id="meStats">Stats</button></div>';
         return;
       }

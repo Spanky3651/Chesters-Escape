@@ -1141,3 +1141,8 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .rc-main .why { font-size: 13px; }
 .rc-lock { font-size: 12.5px; font-weight: 700; color: var(--muted); white-space: nowrap; }
 .rc-note { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; padding: 9px 11px; border-radius: 10px; background: var(--raise-2); border: 1px dashed var(--line-2); font-size: 13.5px; color: var(--muted); }
+
+/* Admin card: the host's picture to the left of their name */
+.admin-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.admin-ava { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: none; border: 2px solid var(--accent); background: var(--raise-2); display: grid; place-items: center; font: 800 15px var(--ui); color: var(--ink); }
+.admin-head .admin-badge { margin-left: 0; }
