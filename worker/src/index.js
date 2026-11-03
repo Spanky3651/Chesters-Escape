@@ -24,7 +24,7 @@ const CHECK_EVERY = 15 * 60 * 1000;
 const HOUR = 3600000, DAY = 86400000;
 // Discord posts the host can switch on: countdowns and the start/end, then game moments.
 const POST_KINDS = ['signups', 'day', 'hour', 'start', 'lastcall', 'end', 'escape', 'leader', 'setback', 'big', 'gate'];
-const MOMENT_CAP = 5, SETBACK = 5, BIG_ACC = 0.95, UNDO_KEEP = 5;
+const MOMENT_CAP = 8, MOMENT_GAP = 2 * HOUR, SETBACK = 5, BIG_ACC = 0.95, UNDO_KEEP = 5;
 function md(t) { return String(t || '').replace(/([*_~`|>\\])/g, '\\$1'); }
 function sec(ms) { return Math.round(ms / 1000); }
 function plural(k, w) { return k + ' ' + w + (k === 1 ? '' : 's'); }
@@ -546,21 +546,18 @@ export class Game extends DurableObject {
     const bigNow = () => s.events.filter((e) => e.t === 'cleared' && e.proof && e.proof.acc >= BIG_ACC).map((e) => e.id + ':' + Math.round(e.proof.acc * 10000));
     if (!m.feed || m.feed.game !== s.id) {
       const fresh = !!m.feed;
-      m.feed = { game: s.id, ev: last, big: bigNow(), leader: this.leaderNow(), open: E.signupsOpen(s) && s.status === 'signup', day: false, hour: false, lastcall: false, capDay: null, n: 0, leadDay: null };
+      m.feed = { game: s.id, ev: last, big: bigNow(), leader: this.leaderNow(), open: E.signupsOpen(s) && s.status === 'signup', day: false, hour: false, lastcall: false, capDay: null, n: 0, leadDay: null, q: [], nextAt: 0, recapDay: s.day };
       if (fresh && m.feed.open && this.announcing('signups')) { const p = this.signupsPost(); await this.discordPost(p.text, true, p.card); }
       return;
     }
     const f = m.feed, t = C.themes[s.themeId] || {}, goal = t.goal || 'exit';
     const name = (pid) => md((s.players[pid] || {}).name || 'Someone');
-    // false = out of requests for this run: stop here and pick up from this moment next time
-    const say = async (kind, text) => {
-      if (!this.announcing(kind)) return true;
-      if (f.capDay !== s.day) { f.capDay = s.day; f.n = 0; }
-      if (kind !== 'escape' && f.n >= MOMENT_CAP) return true;   // escapes always post
-      if ((await this.discordPost(text, false)) === 'nobudget') return false;
-      if (kind !== 'escape') f.n++;
-      return true;
-    };
+    // Moments wait in a queue and go out together, at most one post every 2 hours and 8 a game day
+    // (escapes post right away and don't count). Whatever misses the day's posts is in the nightly
+    // recap. A false from postNow means out of requests for this run: pick up from here next time.
+    f.q = f.q || [];
+    const queue = (kind, day, line, group) => { if (this.announcing(kind)) f.q.push({ kind, day, line, group: group || null }); return true; };
+    const postNow = async (kind, text) => !this.announcing(kind) || (await this.discordPost(text, false)) !== 'nobudget';
     // countdowns
     const open = s.status === 'signup' && E.signupsOpen(s);
     if (open && !f.open && this.announcing('signups')) { const p = this.signupsPost(); if ((await this.discordPost(p.text, true, p.card)) === 'nobudget') return; }
@@ -592,17 +589,17 @@ export class Game extends DurableObject {
       if (e.t === 'escaped') {
         const p = s.players[e.pid], medal = ['🥇 ', '🥈 ', '🥉 '][e.place - 1] || '', left = 3 - e.place;
         const tail = e.place > 3 ? '' : left > 0 ? ` ${left === 1 ? '1 podium spot' : left + ' podium spots'} left.` : ' The podium is full.';
-        ok = await say('escape', `🏁 ${why}**${name(e.pid)}** made it to the ${goal}! ${medal}**${ordinal(e.place)} place** on day ${e.day}` + (p && p.route ? `, by the ${this.routeName(p.route)}.` : '.') + tail);
+        ok = await postNow('escape', `🏁 ${why}**${name(e.pid)}** made it to the ${goal}! ${medal}**${ordinal(e.place)} place** on day ${e.day}` + (p && p.route ? `, by the ${this.routeName(p.route)}.` : '.') + tail);
       } else if (e.t === 'gate-closed') {
         const first = s.finishOrder.find((pid) => s.players[pid] && s.players[pid].finished && s.players[pid].finished.day === e.day);
         const when = this.meta.nextCutoff ? `<t:${sec(this.meta.nextCutoff)}:R>` : 'tomorrow';
-        ok = await say('gate', `🚪 **${name(e.pid)}** reached the ${goal}, but ${first ? `**${name(first)}**` : 'someone'} already got out today. ${name(e.pid)} waits one space short and can roll for it again ${when}.`);
+        ok = queue('gate', e.day, `🚪 **${name(e.pid)}** reached the ${goal}, but ${first ? `**${name(first)}**` : 'someone'} already got out today. ${name(e.pid)} waits one space short and can roll for it again ${when}.`);
       }
-      else if (e.t === 'start') ok = await say('setback', hit(e.pid, 'is sent back to the start').replace(/ and is now [^.]*/, ''));
-      else if (e.t === 'move' && e.n <= -SETBACK) ok = await say('setback', hit(e.pid, `goes back ${-e.n} spaces`));
+      else if (e.t === 'start') ok = queue('setback', e.day, hit(e.pid, 'is sent back to the start').replace(/ and is now [^.]*/, ''), { key: 'start:' + art + what, art, what, pid: e.pid });
+      else if (e.t === 'move' && e.n <= -SETBACK) ok = queue('setback', e.day, hit(e.pid, `goes back ${-e.n} spaces`));
       else if (e.t === 'warp') {
         const p = s.players[e.pid], r = p && p.route ? s.board.routes[p.route] : [], back = r.indexOf(e.space) - r.indexOf(e.to);
-        if (back >= SETBACK && r.indexOf(e.to) >= 0) ok = await say('setback', hit(e.pid, `gets swept back ${back} spaces`));
+        if (back >= SETBACK && r.indexOf(e.to) >= 0) ok = queue('setback', e.day, hit(e.pid, `gets swept back ${back} spaces`));
       }
       if (!ok) return;   // out of requests: this moment and the rest go next run
       f.ev = e.id;
@@ -618,7 +615,7 @@ export class Game extends DurableObject {
         const key = (e.bsr || [])[0], song = key ? await this.songName(key) : '';
         // The best on this map this game, counting every clear still in the log.
         const top = s.events.filter((x) => x.t === 'cleared' && x.proof && x.proof.acc && (x.bsr || [])[0] === key).every((x) => x.proof.acc <= e.proof.acc);
-        if (!(await say('big', `✨ **${name(e.pid)}** cleared ${song ? `**${md(song)}**` : 'a map'}` + (e.proof.diff ? ` (${e.proof.diff})` : '') + ` at **${(e.proof.acc * 100).toFixed(2)}%**` + (top ? ', the best on that map this game.' : '.') + (key ? ` \`!bsr ${key}\`` : '')))) return;
+        if (!queue('big', e.day, `✨ **${name(e.pid)}** cleared ${song ? `**${md(song)}**` : 'a map'}` + (e.proof.diff ? ` (${e.proof.diff})` : '') + ` at **${(e.proof.acc * 100).toFixed(2)}%**` + (top ? ', the best on that map this game.' : '.') + (key ? ` \`!bsr ${key}\`` : ''))) return;
       }
       f.big.push(k);
     }
@@ -629,9 +626,92 @@ export class Game extends DurableObject {
       const r = E.ranking(s)[0];
       f.leadDay = s.day;
       const was = E.ranking(s).find((x) => x.pid === f.leader), gap = r && was && !was.escaped ? was.left - r.left : 0;
-      if (!(await say('leader', `👑 **${name(lead)}** passes **${name(f.leader)}** for the lead on day ${s.day}!` + (r ? ` ${plural(r.left, 'space')} from the ${goal}` + (gap > 0 ? `, ${name(f.leader)} is ${gap} behind.` : '.') : '')))) { f.leadDay = null; return; }
+      if (!queue('leader', s.day, `👑 **${name(lead)}** passes **${name(f.leader)}** for the lead on day ${s.day}!` + (r ? ` ${plural(r.left, 'space')} from the ${goal}` + (gap > 0 ? `, ${name(f.leader)} is ${gap} behind.` : '.') : ''))) { f.leadDay = null; return; }
     }
     if (lead) f.leader = lead;
+    // a new game day: one recap of the day that just ended, then that day's waiting moments are done
+    if (f.recapDay == null) f.recapDay = s.day;
+    if (s.day > f.recapDay) {
+      if (['setback', 'big', 'leader', 'escape', 'gate'].some((k) => this.announcing(k))) {
+        const card = await this.recapCard(f.recapDay);
+        if (card && (await this.discordPost('', true, card)) === 'nobudget') return;
+      }
+      f.recapDay = s.day;
+    }
+    if (f.capDay !== s.day) { f.capDay = s.day; f.n = 0; }
+    f.q = f.q.filter((x) => x.day >= s.day);
+    if (f.q.length && f.n < MOMENT_CAP && now >= (f.nextAt || 0)) {
+      const r = await this.discordPost(this.groupMoments(f.q), false);
+      if (r === 'nobudget') return;
+      f.q = []; f.n++; f.nextAt = now + MOMENT_GAP;
+    }
+    if (f.n >= MOMENT_CAP) f.q = [];   // the rest of today goes in tonight's recap
+  }
+  // Waiting moments as one post: everyone sent back to the start by the same space or card shares a line.
+  groupMoments(q) {
+    const s = this.state, out = [], seen = {};
+    const name = (pid) => '**' + md((s.players[pid] || {}).name || 'Someone') + '**';
+    const list = (a) => (a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]);
+    q.forEach((x) => {
+      if (!x.group) { out.push(x.line); return; }
+      if (seen[x.group.key]) { if (seen[x.group.key].pids.indexOf(x.group.pid) < 0) seen[x.group.key].pids.push(x.group.pid); return; }
+      seen[x.group.key] = { g: x.group, pids: [x.group.pid], at: out.length }; out.push(null);
+    });
+    Object.keys(seen).forEach((k) => {
+      const v = seen[k], g = v.g, what = g.what ? `*${/[!?.]$/.test(g.what) ? g.what : g.what + '!'}* ` : '';
+      out[v.at] = `${g.art} ${what}${list(v.pids.map(name))} ${v.pids.length === 1 ? 'is sent back to the start' : 'are back at the start'}.`;
+    });
+    let text = '';
+    for (const line of out) { if ((text + '\n' + line).length > 1900) { text += '\n…and more in tonight\'s recap.'; break; } text += (text ? '\n' : '') + line; }
+    return text;
+  }
+  // The nightly recap of one game day: rolls and clears, every setback, the big scores, who got
+  // out and who's in front. Null when nobody did anything that day.
+  async recapCard(day) {
+    const s = this.state, t = this.theme(), goal = t.goal || 'exit', evs = s.events.filter((e) => e.day === day);
+    const rolls = evs.filter((e) => e.t === 'roll').length, clears = evs.filter((e) => e.t === 'cleared').length;
+    if (!rolls && !clears) return null;
+    const name = (pid) => md((s.players[pid] || {}).name || 'Someone');
+    const list = (a) => (a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]);
+    const clip = (v) => (v.length > 1000 ? v.slice(0, 997) + '…' : v);
+    const fields = [], hits = {};
+    evs.forEach((e) => {
+      const sp = e.space && s.board.spaces[e.space], kd = sp && t.kinds ? t.kinds[sp.kind] : null, card = e.card ? (s.cards || []).find((c) => c.id === e.card) : null;
+      let label = null;
+      if (e.t === 'start') label = kd ? kd.title : 'Back to the start';
+      else if (e.t === 'move' && e.n <= -SETBACK) label = kd ? kd.title : card ? card.title : 'Pushed back';
+      else if (e.t === 'warp') {
+        const p = s.players[e.pid], r = p && p.route ? s.board.routes[p.route] : [];
+        if (r.indexOf(e.space) - r.indexOf(e.to) >= SETBACK && r.indexOf(e.to) >= 0) label = kd ? kd.title : 'Swept back';
+      }
+      if (!label) return;
+      const k = ((kd && kd.icon) || (card && card.art) || '💥') + ' ' + String(label).replace(/!+$/, '');
+      const h = (hits[k] = hits[k] || { n: 0, who: {} }); h.n++; h.who[e.pid] = (h.who[e.pid] || 0) + 1;
+    });
+    Object.keys(hits).forEach((k) => {
+      const h = hits[k], who = Object.keys(h.who).map((pid) => name(pid) + (h.who[pid] > 1 ? ' (' + h.who[pid] + ')' : ''));
+      fields.push({ name: k, value: clip(plural(h.n, 'time') + ': ' + list(who)), inline: false });
+    });
+    const big = evs.filter((e) => e.t === 'cleared' && e.proof && e.proof.acc >= BIG_ACC).sort((a, b) => b.proof.acc - a.proof.acc);
+    if (big.length) {
+      const lines = [];
+      for (const e of big.slice(0, 6)) {
+        const key = (e.bsr || [])[0], song = key ? await this.songName(key) : '';
+        lines.push(`**${name(e.pid)}** ${song ? md(song) : '!bsr ' + key}${e.proof.diff ? ' (' + String(e.proof.diff).replace('ExpertPlus', 'Expert+') + ')' : ''} ${(e.proof.acc * 100).toFixed(2)}%`);
+      }
+      if (big.length > 6) lines.push(`and ${big.length - 6} more`);
+      fields.push({ name: '✨ Big scores', value: clip(lines.join('\n')), inline: false });
+    }
+    const out = evs.filter((e) => e.t === 'escaped');
+    if (out.length) fields.push({ name: '🏁 Made it out', value: clip(list(out.map((e) => `**${name(e.pid)}** (${ordinal(e.place)})`))), inline: false });
+    const racing = E.ranking(s).filter((r) => !r.escaped);
+    if (racing.length && s.status === 'running') {
+      const a = racing[0], tied = racing.filter((r) => r.left === a.left), next = racing.find((r) => r.left > a.left);
+      const head = tied.length > 1 ? `${list(tied.map((r) => '**' + name(r.pid) + '**'))} are tied for the lead` : `**${name(a.pid)}** leads`;
+      fields.push({ name: '👑 Out front', value: clip(`${head}, ${plural(a.left, 'space')} from the ${goal}.` + (next ? ` ${list(racing.filter((r) => r.left === next.left).map((r) => name(r.pid)))} ${racing.filter((r) => r.left === next.left).length > 1 ? 'are' : 'is'} ${next.left - a.left} back.` : '')), inline: false });
+    }
+    const desc = `${plural(rolls, 'roll')} and ${plural(clears, 'map')} cleared on day ${day}.` + (s.status === 'running' ? ` Day ${s.day} is open, roll your d4!` : '');
+    return this.card('📰 Day ' + day + ' recap', { description: desc, fields: fields.slice(0, 10) });
   }
   // The one player out in front (nobody when it's a tie).
   leaderNow() {
