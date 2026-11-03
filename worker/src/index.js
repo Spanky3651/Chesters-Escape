@@ -26,6 +26,9 @@ const HOUR = 3600000, DAY = 86400000;
 const POST_KINDS = ['signups', 'day', 'hour', 'start', 'lastcall', 'end', 'escape', 'leader', 'setback', 'big', 'gate'];
 const MOMENT_CAP = 8, MOMENT_GAP = 2 * HOUR, SETBACK = 5, BIG_ACC = 0.95, UNDO_KEEP = 5;
 function md(t) { return String(t || '').replace(/([*_~`|>\\])/g, '\\$1'); }
+// The board's player colors (same list as docs/js/render.js), so a clear's card matches the player's token.
+const COLORS = ['#f2a33a', '#3fd04a', '#4cc9f0', '#f72585', '#b388ff', '#ffd166', '#ff6b6b', '#06d6a0', '#8ecae6', '#e9c46a', '#ff9f1c', '#c77dff'];
+function diffName(d) { return String(d || '').replace('ExpertPlus', 'Expert+'); }
 function sec(ms) { return Math.round(ms / 1000); }
 function plural(k, w) { return k + ' ' + w + (k === 1 ? '' : 's'); }
 function ordinal(n) { const v = n % 100; return n + (v >= 11 && v <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'); }
@@ -420,7 +423,8 @@ export class Game extends DurableObject {
   async discordPost(content, link, card) {
     if (!this.take(1)) return 'nobudget';
     const body = { content, allowed_mentions: { parse: [] } };
-    if (card && this.page()) body.embeds = [card];
+    if (Array.isArray(card)) { if (card.length) body.embeds = card.slice(0, 10); }
+    else if (card && this.page()) body.embeds = [card];
     else if (link && this.page()) body.embeds = [this.gameCard()];
     return fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
   }
@@ -556,7 +560,7 @@ export class Game extends DurableObject {
     // (escapes post right away and don't count). Whatever misses the day's posts is in the nightly
     // recap. A false from postNow means out of requests for this run: pick up from here next time.
     f.q = f.q || [];
-    const queue = (kind, day, line, group) => { if (this.announcing(kind)) f.q.push({ kind, day, line, group: group || null }); return true; };
+    const queue = (kind, day, line, group, card) => { if (this.announcing(kind)) f.q.push({ kind, day, line, group: group || null, card: card || null }); return true; };
     const postNow = async (kind, text) => !this.announcing(kind) || (await this.discordPost(text, false)) !== 'nobudget';
     // countdowns
     const open = s.status === 'signup' && E.signupsOpen(s);
@@ -612,10 +616,11 @@ export class Game extends DurableObject {
       const id = Number(k.split(':')[0]), e = s.events.find((x) => x.id === id);
       const before = f.big.some((x) => x.split(':')[0] === String(id));
       if (e && !before) {
-        const key = (e.bsr || [])[0], song = key ? await this.songName(key) : '';
+        const key = (e.bsr || [])[0], info = key ? await this.songInfo(key) : null;
         // The best on this map this game, counting every clear still in the log.
         const top = s.events.filter((x) => x.t === 'cleared' && x.proof && x.proof.acc && (x.bsr || [])[0] === key).every((x) => x.proof.acc <= e.proof.acc);
-        if (!queue('big', e.day, `✨ **${name(e.pid)}** cleared ${song ? `**${md(song)}**` : 'a map'}` + (e.proof.diff ? ` (${e.proof.diff})` : '') + ` at **${(e.proof.acc * 100).toFixed(2)}%**` + (top ? ', the best on that map this game.' : '.') + (key ? ` \`!bsr ${key}\`` : ''))) return;
+        const c = this.clearCard(e, info, top);
+        if (!queue('big', e.day, c.line, null, c.card)) return;
       }
       f.big.push(k);
     }
@@ -641,7 +646,7 @@ export class Game extends DurableObject {
     if (f.capDay !== s.day) { f.capDay = s.day; f.n = 0; }
     f.q = f.q.filter((x) => x.day >= s.day);
     if (f.q.length && f.n < MOMENT_CAP && now >= (f.nextAt || 0)) {
-      const r = await this.discordPost(this.groupMoments(f.q), false);
+      const g = this.groupMoments(f.q), r = await this.discordPost(g.text, false, g.cards);
       if (r === 'nobudget') return;
       f.q = []; f.n++; f.nextAt = now + MOMENT_GAP;
     }
@@ -652,7 +657,9 @@ export class Game extends DurableObject {
     const s = this.state, out = [], seen = {};
     const name = (pid) => '**' + md((s.players[pid] || {}).name || 'Someone') + '**';
     const list = (a) => (a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]);
+    const cards = [];
     q.forEach((x) => {
+      if (x.card && cards.length < 10) { cards.push(x.card); return; }   // a clear gets its own card (Discord allows 10 a post)
       if (!x.group) { out.push(x.line); return; }
       if (seen[x.group.key]) { if (seen[x.group.key].pids.indexOf(x.group.pid) < 0) seen[x.group.key].pids.push(x.group.pid); return; }
       seen[x.group.key] = { g: x.group, pids: [x.group.pid], at: out.length }; out.push(null);
@@ -663,7 +670,26 @@ export class Game extends DurableObject {
     });
     let text = '';
     for (const line of out) { if ((text + '\n' + line).length > 1900) { text += '\n…and more in tonight\'s recap.'; break; } text += (text ? '\n' : '') + line; }
-    return text;
+    return { text, cards };
+  }
+  // A big clear as a Discord card: the song links to its BeatSaver page, the cover sits on the
+  // right and the stripe is the player's board color. The line is the text version, used when a
+  // post already holds 10 cards.
+  clearCard(e, info, top) {
+    const s = this.state, p = s.players[e.pid] || {}, key = (e.bsr || [])[0] || '', url = key ? 'https://beatsaver.com/maps/' + key : '';
+    const who = md(p.name || 'Someone'), pct = (e.proof.acc * 100).toFixed(2) + '%', diff = diffName(e.proof.diff), song = info && info.n;
+    const col = p.color || COLORS[Math.max(0, s.order.indexOf(e.pid)) % COLORS.length];
+    const card = {
+      title: song || (key ? 'Map ' + key : 'A map'), color: parseInt(String(col).replace('#', ''), 16) || 0xf2a33a,
+      description: `✨ **${who}** cleared it at **${pct}**.` + (top ? '\n🏆 Best on that map this game.' : ''),
+    };
+    if (url) card.url = url;
+    if (info && info.h) card.thumbnail = { url: 'https://cdn.beatsaver.com/' + info.h + '.jpg' };
+    const foot = [diff, info && info.a, info && info.m ? 'mapped by ' + info.m : ''].filter(Boolean).join(' · ');
+    if (foot) card.footer = { text: foot.slice(0, 200) };
+    const name = song ? (url ? `[**${md(song)}**](<${url}>)` : `**${md(song)}**`) : (key ? `\`!bsr ${key}\`` : 'a map');
+    const line = `✨ **${who}** cleared ${name}` + (diff ? ` (${diff})` : '') + ` at **${pct}**` + (top ? ', the best on that map this game.' : '.');
+    return { card, line };
   }
   // The nightly recap of one game day: rolls and clears, every setback, the big scores, who got
   // out and who's in front. Null when nobody did anything that day.
@@ -697,7 +723,7 @@ export class Game extends DurableObject {
       const lines = [];
       for (const e of big.slice(0, 6)) {
         const key = (e.bsr || [])[0], song = key ? await this.songName(key) : '';
-        lines.push(`**${name(e.pid)}** ${song ? md(song) : '!bsr ' + key}${e.proof.diff ? ' (' + String(e.proof.diff).replace('ExpertPlus', 'Expert+') + ')' : ''} ${(e.proof.acc * 100).toFixed(2)}%`);
+        lines.push(`**${name(e.pid)}** ${song ? md(song) : '!bsr ' + key}${e.proof.diff ? ' (' + diffName(e.proof.diff) + ')' : ''} ${(e.proof.acc * 100).toFixed(2)}%`);
       }
       if (big.length > 6) lines.push(`and ${big.length - 6} more`);
       fields.push({ name: '✨ Big scores', value: clip(lines.join('\n')), inline: false });
@@ -720,17 +746,24 @@ export class Game extends DurableObject {
     if (r[1] && r[1].place === r[0].place) return null;
     return r[0].pid;
   }
-  async songName(key) {
+  // Song name, artist, mapper and cover hash from BeatSaver, cached by key. Older cache entries
+  // were just the name; those are looked up again once to pick up the rest.
+  async songInfo(key) {
     const m = (this.meta.songs = this.meta.songs || {}); key = String(key).toLowerCase();
-    if (m[key]) return m[key];
-    if (!this.take(1)) return '';
+    if (m[key] && typeof m[key] === 'object') return m[key];
+    const old = typeof m[key] === 'string' ? { n: m[key] } : null;
+    if (!this.take(1)) return old;
     const r = await fetch((this.env.BS_API || 'https://api.beatsaver.com') + '/maps/id/' + key, { headers: { 'user-agent': 'ChestersEscape' } }).catch(() => null);
-    if (!r || !r.ok) return '';
-    const j = await r.json().catch(() => ({}));
-    const n = String((j.metadata && j.metadata.songName) || j.name || '').slice(0, 80);
-    if (n) { m[key] = n; const ks = Object.keys(m); if (ks.length > 300) delete m[ks[0]]; }
-    return n;
+    if (!r || !r.ok) return old;
+    const j = await r.json().catch(() => ({})), md0 = j.metadata || {}, v = (j.versions || [])[0] || {};
+    const info = { n: String(md0.songName || j.name || '').slice(0, 80), a: String(md0.songAuthorName || '').slice(0, 60), m: String(md0.levelAuthorName || '').slice(0, 60), h: /^[0-9a-f]{40}$/i.test(v.hash || '') ? v.hash.toLowerCase() : '' };
+    if (!info.n) return old;
+    delete m[key]; m[key] = info;
+    const ks = Object.keys(m); if (ks.length > 200) delete m[ks[0]];
+    return info;
   }
+  async songName(key) { const i = await this.songInfo(key); return (i && i.n) || ''; }
+
 
   game() {
     if (!this.state) {
