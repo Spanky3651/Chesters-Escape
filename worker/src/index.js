@@ -634,8 +634,9 @@ export class Game extends DurableObject {
       const before = f.big.some((x) => x.split(':')[0] === String(id));
       if (e && !before) {
         const key = (e.bsr || [])[0], info = key ? await this.songInfo(key) : null;
-        // The best on this map this game, counting every clear still in the log.
-        const top = s.events.filter((x) => x.t === 'cleared' && x.proof && x.proof.acc && (x.bsr || [])[0] === key).every((x) => x.proof.acc <= e.proof.acc);
+        // The best on this map and difficulty this game, counting every clear still in the log.
+        const dk = e.proof.diff || '';
+        const top = s.events.filter((x) => x.t === 'cleared' && x.proof && x.proof.acc && (x.bsr || [])[0] === key && (x.proof.diff || '') === dk).every((x) => x.proof.acc <= e.proof.acc);
         const c = this.clearCard(e, info, top);
         if (!queue('big', e.day, c.line, null, c.card)) return;
       }
@@ -698,7 +699,7 @@ export class Game extends DurableObject {
     const col = p.color || COLORS[Math.max(0, s.order.indexOf(e.pid)) % COLORS.length];
     const card = {
       title: song || (key ? 'Map ' + key : 'A map'), color: parseInt(String(col).replace('#', ''), 16) || 0xf2a33a,
-      description: `✨ **${who}** cleared it at **${pct}**.` + (top ? '\n🏆 Best on that map this game.' : ''),
+      description: `✨ **${who}** cleared it at **${pct}**.` + (top ? '\n🏆 Best on this difficulty this game.' : ''),
     };
     if (url) card.url = url;
     if (info && info.h) card.thumbnail = { url: 'https://cdn.beatsaver.com/' + info.h + '.jpg' };
