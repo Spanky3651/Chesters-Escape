@@ -1145,10 +1145,8 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .admin-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .admin-ava { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: none; border: 2px solid var(--accent); background: var(--raise-2); display: grid; place-items: center; font: 800 15px var(--ui); color: var(--ink); }
 .admin-head .admin-badge { margin-left: 0; }
-/* Discord: the chat button in the top bar, and a quiet line on the turn card after your day's big moment */
-.dc-btn { color: #8f99ff; }
-.dc-btn:hover, .dc-btn:focus-visible { color: #fff; border-color: #5865f2; background: color-mix(in srgb, #5865f2 18%, transparent); }
-.dc-btn[hidden] { display: none; }
+/* Discord: the chat button in the top bar (styled like the bell), and a quiet line on the turn card after your day's big moment */
+#chatBtn[hidden] { display: none; }   /* plain icon like the bell; hidden until the server knows the channel */
 .turn-dc { display: flex; align-items: center; gap: 7px; margin-top: 12px; color: var(--muted); text-decoration: none; font-size: 14px; }   /* one quiet line, part of the card's message */
 .turn-dc .tdc-ic { display: grid; place-items: center; color: #8f99ff; flex: none; }
 .turn-dc .tdc-ic svg { width: 16px; height: 16px; }
