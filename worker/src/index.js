@@ -412,6 +412,23 @@ export class Game extends DurableObject {
   // Player ids of hosts running this game without playing, so the page can mark their name "admin".
   admins() { return (this.meta.hostOut || []).map((id) => 'd' + id); }
   hostOut(user) { return !!user && (this.meta.hostOut || []).includes(String(user.id)); }
+  // The game's Discord channel, worked out from the webhook it posts with (Discord tells the webhook
+  // owner its server and channel), so the chat button lands where the game's posts are. Cached per
+  // webhook; a failed lookup tries again after an hour.
+  async chatLink() {
+    const hook = this.webhook(), m = /\/webhooks\/(\d+)\//.exec(hook);
+    if (!m) return null;
+    const c = this.meta.chat, name = this.clan().name || '';
+    if (c && c.hook === m[1] && (c.url || Date.now() - (c.at || 0) < HOUR)) return c.url ? { url: c.url, name } : null;
+    if (!this.take(1)) return null;
+    const r = await fetch(hook.split('?')[0], { headers: { 'user-agent': 'ChestersEscape' } }).catch(() => null);
+    const j = r && r.ok ? await r.json().catch(() => ({})) : {};
+    // A webhook that posts into a thread (?thread_id=) links to that thread instead of its channel.
+    const thread = (/[?&]thread_id=(\d+)/.exec(hook) || [])[1], ch = thread || j.channel_id || '';
+    const url = /^\d+$/.test(j.guild_id || '') && /^\d+$/.test(ch) ? `https://discord.com/channels/${j.guild_id}/${ch}` : '';
+    this.meta.chat = { hook: m[1], url, at: Date.now() }; this.dirty = true;
+    return url ? { url, name } : null;
+  }
   discordInfo() { const p = this.posts(), out = { hooked: !!this.webhook() }; for (const k of POST_KINDS) out[k] = !!p[k]; return out; }
   announcing(kind) { return !!this.webhook() && !!this.posts()[kind]; }
   // A post, optionally with a card linking to the game. The card is built here (not left to
@@ -835,9 +852,10 @@ export class Game extends DurableObject {
     const me = canPlay && pid && s.players[pid] ? pid : null;
     if (me) this.seen(me);
     await this.visit(user);
+    const chat = await this.chatLink();
     if (this.dirty) { this.dirty = false; await this.save(); }
-    if (since === s.seq) return { state: null, me, canPlay, online: this.onlineNow() };
-    const out = { state: E.publicState(s), me, canPlay, isHost: !!user.isHost, user: { id: user.id, name: user.name, avatar: user.avatar }, online: this.onlineNow(), hall: this.meta.hall || [], admins: this.admins() };
+    if (since === s.seq) return { state: null, me, canPlay, online: this.onlineNow(), chat };
+    const out = { state: E.publicState(s), me, canPlay, isHost: !!user.isHost, user: { id: user.id, name: user.name, avatar: user.avatar }, online: this.onlineNow(), hall: this.meta.hall || [], admins: this.admins(), chat };
     if (user && user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); out.hostOut = this.hostOut(user); }
     return out;
   }

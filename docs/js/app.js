@@ -218,6 +218,7 @@
     if (!e.target.closest('#clanPop')) closeClan();
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeClan(); });
+  document.addEventListener('click', function (e) { var d = e.target.closest && e.target.closest('#chatBtn, .turn-dc'); if (d) track(d.id === 'chatBtn' ? 'discord-chat' : 'discord-turn'); });
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-clan]'); if (!b) return;
     var cur = store && store.clan;
@@ -235,6 +236,9 @@
     $('brandCrow').innerHTML = R.hero(0, 0, 1, t);
     $('dayNum').textContent = s.status === 'finished' ? 'Game over' : s.status === 'signup' ? (E.signupsOpen(s) ? 'Sign-ups open' : 'Sign-ups closed') : 'Day ' + s.day;
     $('hostBtn').hidden = !store.isHost || adminCard();
+    // The Discord button, when the server knows the game's channel (from its webhook).
+    var chat = store.mode === 'live' && store.chat && store.chat.url, cb = $('chatBtn');
+    if (cb) { cb.hidden = !chat; if (chat) { cb.href = chat; cb.title = 'Open the ' + (store.chat.name || 'game') + ' chat in Discord'; cb.setAttribute('aria-label', cb.title); } }
     var todo = store.isHost ? hostTodo() : { total: 0 };
     document.title = (todo.total ? '(' + todo.total + ') ' : '') + t.title;
     var hb = $('hostBtn');
@@ -407,11 +411,29 @@
     } else {
       html += '<p>You reached the ' + esc(t.goal) + ' on day ' + p.finished.day + ' and finished ' + ordinal(p.finished.place) + '.</p>';
     }
+    if (!can.ok && !p.tasks.length) html += chatNudge(p);
     el.innerHTML = html;
     var slot = $('dieSlot');
     if (slot) { if (!die || !document.body.contains(die.el)) die = new window.CGDice.Die(slot); else slot.replaceWith(die.el); die.el.classList.toggle('disabled', !can.ok); }
     p.tasks.forEach(function (task) { fillTask(task); });
   }
+  // After your day's big moment (a clear, a setback, getting out), a link to talk about it in the
+  // game's Discord channel. Only once nothing is left to do today, so the roll button stays alone.
+  var CHAT_LINES = {
+    escaped: ['You made it!', 'Celebrate in the {c} chat'],
+    cleared: ['Nice run!', 'Brag about it in the {c} chat'],
+    start: ['Back to the start?', 'Get some sympathy in the {c} chat'],
+    bad: ['Rough day?', 'Tell the {c} about it in Discord']
+  };
+  function chatNudge(p) {
+    var chat = store.mode === 'live' && store.chat && store.chat.url, s = st(); if (!chat) return '';
+    var ev = s.events.filter(function (e) { return e.pid === p.id && e.day === s.day && (e.t === 'escaped' || e.t === 'cleared' || e.t === 'start' || e.t === 'lost-turn' || e.t === 'skip' || (e.t === 'move' && e.n < 0)); }).pop();
+    if (!ev) return '';
+    var line = CHAT_LINES[ev.t] || CHAT_LINES.bad, c = store.chat.name || 'game';
+    return '<a class="turn-dc" href="' + esc(chat) + '" target="_blank" rel="noopener"><i class="tdc-ic">' + DISCORD_LOGO + '</i><div><b>' + esc(line[0]) + '</b><span>' + esc(line[1].replace('{c}', c)) + '</span></div>' +
+      '<svg class="tdc-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>';
+  }
+  var DISCORD_LOGO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.3 5.3A17 17 0 0 0 15 4l-.5 1a15 15 0 0 0-5 0L9 4a17 17 0 0 0-4.3 1.3C2 9.3 1.3 13.2 1.6 17a17 17 0 0 0 5.2 2.6l1.1-1.8-1.8-.9.4-.3a12 12 0 0 0 11 0l.4.3-1.8.9 1.1 1.8a17 17 0 0 0 5.2-2.6c.4-4.4-.7-8.3-3.1-11.7zM8.5 14.7c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1zm7 0c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1z"/></svg>';
   // The built-in board's route blurbs follow the theme. A designer board keeps its own words.
   function routeBlurb(r) {
     var s = st(), t = theme(), info = s.board.routeInfo[r] || {}, builtIn = C.boards['chester-escape']().routeInfo[r] || {};
