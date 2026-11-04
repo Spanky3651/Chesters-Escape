@@ -1156,3 +1156,5 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .turn-dc b { display: block; font-size: 15px; }
 .turn-dc span { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
 .turn-dc .tdc-go { margin-left: auto; width: 16px; height: 16px; color: #8f99ff; flex: none; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.toast.act { pointer-events: auto; }   /* a toast with a link in it (Discord's "use the browser instead") */
+.toast a { color: #8f99ff; margin-left: 6px; }

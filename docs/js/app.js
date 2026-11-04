@@ -218,7 +218,30 @@
     if (!e.target.closest('#clanPop')) closeClan();
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeClan(); });
-  document.addEventListener('click', function (e) { var d = e.target.closest && e.target.closest('#chatBtn, .turn-dc'); if (d) track(d.id === 'chatBtn' ? 'discord-chat' : 'discord-turn'); });
+  document.addEventListener('click', function (e) {
+    var d = e.target.closest && e.target.closest('#chatBtn, .turn-dc'); if (!d) return;
+    track(d.id === 'chatBtn' ? 'discord-chat' : 'discord-turn');
+    if (openDiscordApp(d.getAttribute('href'))) e.preventDefault();
+  });
+  // On a computer a discord.com link opens Discord in the browser, because the desktop app only
+  // answers discord:// links. So computers try the app first and offer the browser in a toast;
+  // phones keep the normal link, which already opens the app. Once someone picks the browser
+  // (no app installed), that device goes straight there next time.
+  function onComputer() { var ua = navigator.userAgent; return !/Android|iPhone|iPad|iPod|Mobile/.test(ua) && !(/Macintosh/.test(ua) && navigator.maxTouchPoints > 1); }
+  function openDiscordApp(web) {
+    var m = /^https:\/\/discord\.com\/channels\/(\d+)\/(\d+)$/.exec(web || ''), pref = null;
+    if (!m || !onComputer()) return false;
+    try { pref = localStorage.getItem('cg.dcOpen'); } catch (e) {}
+    if (pref === 'web') return false;
+    var t = $('toast'), done = function () { try { localStorage.setItem('cg.dcOpen', 'app'); } catch (e) {} t.className = 'toast'; window.removeEventListener('blur', done); };
+    window.addEventListener('blur', done);   // the app took focus: it opened
+    t.innerHTML = 'Opening the Discord app&hellip; <a href="' + esc(web) + '" target="_blank" rel="noopener" id="dcWeb">Use the browser instead</a>';
+    t.className = 'toast show act';
+    clearTimeout(toastT); toastT = setTimeout(function () { t.className = 'toast'; window.removeEventListener('blur', done); }, 7000);
+    $('dcWeb').onclick = function () { try { localStorage.setItem('cg.dcOpen', 'web'); } catch (e) {} track('discord-web'); t.className = 'toast'; window.removeEventListener('blur', done); };
+    location.href = 'discord://-/channels/' + m[1] + '/' + m[2];
+    return true;
+  }
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-clan]'); if (!b) return;
     var cur = store && store.clan;
