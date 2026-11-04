@@ -1145,16 +1145,17 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .admin-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .admin-ava { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: none; border: 2px solid var(--accent); background: var(--raise-2); display: grid; place-items: center; font: 800 15px var(--ui); color: var(--ink); }
 .admin-head .admin-badge { margin-left: 0; }
-/* Discord: the chat button in the top bar, and the nudge on the turn card after your day's big moment */
+/* Discord: the chat button in the top bar, and a quiet line on the turn card after your day's big moment */
 .dc-btn { color: #8f99ff; }
 .dc-btn:hover, .dc-btn:focus-visible { color: #fff; border-color: #5865f2; background: color-mix(in srgb, #5865f2 18%, transparent); }
 .dc-btn[hidden] { display: none; }
-.turn-dc { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 11px 12px; border-radius: 12px; background: color-mix(in srgb, #5865f2 14%, var(--raise-2)); border: 1px solid color-mix(in srgb, #5865f2 45%, transparent); color: var(--text); text-decoration: none; }
-.turn-dc:hover, .turn-dc:focus-visible { border-color: #5865f2; background: color-mix(in srgb, #5865f2 24%, var(--raise-2)); }
-.turn-dc .tdc-ic { width: 34px; height: 34px; border-radius: 10px; background: #5865f2; color: #fff; display: grid; place-items: center; flex: none; }
-.turn-dc .tdc-ic svg { width: 21px; height: 21px; }
-.turn-dc b { display: block; font-size: 15px; }
-.turn-dc span { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
-.turn-dc .tdc-go { margin-left: auto; width: 16px; height: 16px; color: #8f99ff; flex: none; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.turn-dc { display: flex; align-items: center; gap: 7px; margin-top: 12px; color: var(--muted); text-decoration: none; font-size: 14px; }   /* one quiet line, part of the card's message */
+.turn-dc .tdc-ic { display: grid; place-items: center; color: #8f99ff; flex: none; }
+.turn-dc .tdc-ic svg { width: 16px; height: 16px; }
+.turn-dc div { display: flex; flex-wrap: wrap; gap: 0 5px; }
+.turn-dc b { color: var(--text); font-weight: 700; }
+.turn-dc span { color: var(--muted); }
+.turn-dc:hover span, .turn-dc:focus-visible span { color: var(--text); text-decoration: underline; }
+.turn-dc .tdc-go { width: 13px; height: 13px; margin-left: 2px; color: var(--muted); flex: none; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .toast.act { pointer-events: auto; }   /* a toast with a link in it (Discord's "use the browser instead") */
 .toast a { color: #8f99ff; margin-left: 6px; }
