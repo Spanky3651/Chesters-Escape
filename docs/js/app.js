@@ -457,6 +457,23 @@
       '<svg class="tdc-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>';
   }
   var DISCORD_LOGO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.3 5.3A17 17 0 0 0 15 4l-.5 1a15 15 0 0 0-5 0L9 4a17 17 0 0 0-4.3 1.3C2 9.3 1.3 13.2 1.6 17a17 17 0 0 0 5.2 2.6l1.1-1.8-1.8-.9.4-.3a12 12 0 0 0 11 0l.4.3-1.8.9 1.1 1.8a17 17 0 0 0 5.2-2.6c.4-4.4-.7-8.3-3.1-11.7zM8.5 14.7c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1zm7 0c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1z"/></svg>';
+  // How the Discord feed is doing: the last post, any problem since, and what's waiting, so a
+  // quiet channel can be told apart from a broken one.
+  var FEED_KINDS = { moments: 'game moments', recap: 'the nightly recap', escape: 'an escape', start: 'the game start', end: 'the final results', day: 'the day-before countdown', hour: 'the one-hour countdown', lastcall: 'the last call', signups: 'sign-ups opening', test: 'a test post' };
+  function feedStatus(h) {
+    if (!h) return '';
+    var when = function (t) { return new Date(t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }); }, now = Date.now(), out = [];
+    var bad = h.err && (!h.ok || h.err.at > h.ok.at);
+    if (bad) out.push('<p class="feed-warn">\u26A0\uFE0F Discord didn\'t take ' + esc(FEED_KINDS[h.err.kind] || 'a post') + ' on ' + esc(when(h.err.at)) + (h.err.status ? ' (error ' + h.err.status + ')' : ' (no answer)') + '.' +
+      (h.waitUntil > now ? ' Posts pause until ' + esc(when(h.waitUntil)) + ', then pick up where they left off.' : h.err.status >= 400 && h.err.status < 500 && h.err.status !== 429 ? ' That post was skipped; the next one will try again.' : '') + '</p>');
+    var line = h.ok ? 'Last post: ' + esc(FEED_KINDS[h.ok.kind] || 'a post') + ', ' + esc(when(h.ok.at)) + '.' : 'Nothing has posted yet.';
+    if (h.queued) line += ' ' + h.queued + ' moment' + (h.queued === 1 ? '' : 's') + ' waiting' + (h.nextAt > now ? ', next post after ' + esc(when(h.nextAt)) : ', posting on the next check') + '.';
+    else if (h.ok && !bad && now - h.ok.at > 2 * 3600000) line += ' Quiet since then: no clear at ' + Math.round((h.bigAcc || .95) * 100) + '% or better, no big setback, lead change or escape.';
+    if (h.outbox) line += ' ' + h.outbox + ' post' + (h.outbox === 1 ? '' : 's') + ' waiting to resend.';
+    line += ' Today: ' + (h.today || 0) + ' of ' + (h.cap || 8) + ' moment posts.';
+    out.push('<p class="feed-stat">' + line + '</p>');
+    return out.join('');
+  }
   // The built-in board's route blurbs follow the theme. A designer board keeps its own words.
   function routeBlurb(r) {
     var s = st(), t = theme(), info = s.board.routeInfo[r] || {}, builtIn = C.boards['chester-escape']().routeInfo[r] || {};
@@ -2375,9 +2392,9 @@
     if (!demo && store.discord) {
       var dc = store.discord, off = dc.hooked ? '' : ' disabled';
       T.alerts += '<section class="hsec"><h3>Discord posts</h3>' +
-        (dc.hooked ? '<p>Automatic posts to the game channel. All of them start off.</p>' : '<p class="why">No channel webhook is set up for this game yet, so nothing can post. Add the webhook to the Worker first.</p>') +
+        (dc.hooked ? '<p>Automatic posts to the game channel. All of them start off.</p>' + feedStatus(dc.health) : '<p class="why">No channel webhook is set up for this game yet, so nothing can post. Add the webhook to the Worker first.</p>') +
         POST_LIST.map(function (g) {
-          return '<h4 class="hsub">' + g[0] + (g[0] === 'Moments' ? ' <span class="why">up to 5 a day, escapes always post</span>' : '') + '</h4>' + g[1].map(function (k) {
+          return '<h4 class="hsub">' + g[0] + (g[0] === 'Moments' ? ' <span class="why">up to ' + ((dc.health && dc.health.cap) || 8) + ' a day, ' + ((dc.health && dc.health.gapH) || 2) + ' hours apart; escapes always post</span>' : '') + '</h4>' + g[1].map(function (k) {
             return '<label class="check"><input type="checkbox" data-post="' + k[0] + '"' + (dc[k[0]] ? ' checked' : '') + off + '> <span>' + esc(k[1]) + '</span></label>';
           }).join('');
         }).join('') +

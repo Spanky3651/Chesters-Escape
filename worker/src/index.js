@@ -25,6 +25,7 @@ const HOUR = 3600000, DAY = 86400000;
 // Discord posts the host can switch on: countdowns and the start/end, then game moments.
 const POST_KINDS = ['signups', 'day', 'hour', 'start', 'lastcall', 'end', 'escape', 'leader', 'setback', 'big', 'gate'];
 const MOMENT_CAP = 8, MOMENT_GAP = 2 * HOUR, SETBACK = 5, BIG_ACC = 0.95, UNDO_KEEP = 5;
+function later(r) { return r === 'nobudget' || r === 'later'; }   // a Discord post to try again next run
 function md(t) { return String(t || '').replace(/([*_~`|>\\])/g, '\\$1'); }
 // The board's player colors (same list as docs/js/render.js), so a clear's card matches the player's token.
 const COLORS = ['#f2a33a', '#3fd04a', '#4cc9f0', '#f72585', '#b388ff', '#ffd166', '#ff6b6b', '#06d6a0', '#8ecae6', '#e9c46a', '#ff9f1c', '#c77dff'];
@@ -429,7 +430,13 @@ export class Game extends DurableObject {
     this.meta.chat = { hook: m[1], url, at: Date.now() }; this.dirty = true;
     return url ? { url, name } : null;
   }
-  discordInfo() { const p = this.posts(), out = { hooked: !!this.webhook() }; for (const k of POST_KINDS) out[k] = !!p[k]; return out; }
+  discordInfo() {
+    const p = this.posts(), out = { hooked: !!this.webhook() }; for (const k of POST_KINDS) out[k] = !!p[k];
+    // How the feed is doing, for Host tools: the last post, the last problem, what's waiting.
+    const log = this.meta.dcLog || {}, f = this.meta.feed || {};
+    out.health = { ok: log.ok || null, err: log.err || null, fails: log.fails || 0, waitUntil: this.meta.dcWait || 0, queued: (f.q || []).length, outbox: (this.meta.outbox || []).length, nextAt: f.nextAt || 0, today: f.n || 0, cap: MOMENT_CAP, gapH: MOMENT_GAP / HOUR, bigAcc: BIG_ACC, setback: SETBACK };
+    return out;
+  }
   announcing(kind) { return !!this.webhook() && !!this.posts()[kind]; }
   // A post, optionally with a card linking to the game. The card is built here (not left to
   // Discord's link preview) so each game shows its own art: the taco boards get the taco.
@@ -437,13 +444,33 @@ export class Game extends DurableObject {
   // plan), so the 15-minute check keeps a budget: Discord posts and reminders first, BeatLeader
   // checks with what's left, and anything that didn't fit runs a minute later.
   take(n) { if (this.budget == null) return true; if (this.budget < n) { this.later = true; return false; } this.budget -= n; return true; }
-  async discordPost(content, link, card) {
+  // Sends one post. Returns the Response when Discord answered, or a reason to try again later:
+  // 'nobudget' (out of requests this run) or 'later' (Discord was down, didn't answer, or asked us
+  // to slow down; posts pause until it says we can go again). Every answer is logged so Host tools
+  // can show when the last post went out and the last problem, if any.
+  async discordPost(content, link, card, kind) {
+    const m = this.meta, now = Date.now(), log = (m.dcLog = m.dcLog || {});
+    if (m.dcWait && now < m.dcWait) return 'later';
     if (!this.take(1)) return 'nobudget';
     const body = { content, allowed_mentions: { parse: [] } };
     if (Array.isArray(card)) { if (card.length) body.embeds = card.slice(0, 10); }
     else if (card && this.page()) body.embeds = [card];
     else if (link && this.page()) body.embeds = [this.gameCard()];
-    return fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
+    const r = await fetch(this.webhook(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
+    this.dirty = true;
+    if (r && r.ok) { log.ok = { at: now, kind: kind || 'post' }; log.fails = 0; m.dcWait = 0; return r; }
+    const status = r ? r.status : 0, msg = r ? (await r.text().catch(() => '')).slice(0, 200) : 'no answer from Discord';
+    log.err = { at: now, kind: kind || 'post', status, msg }; log.fails = (log.fails || 0) + 1;
+    if (status === 429) { let wait = 5; try { wait = Number(JSON.parse(msg).retry_after) || 5; } catch (e) {} m.dcWait = now + Math.ceil(wait * 1000) + 500; return 'later'; }
+    if (!r || status >= 500) { m.dcWait = now + Math.min(15 * 60000, 60000 * Math.pow(2, Math.min(4, log.fails - 1))); return 'later'; }
+    return r;   // Discord refused this post (4xx): sending the same thing again won't help
+  }
+  // A one-off post (the start, the end, sign-ups opening) that goes into an outbox when Discord
+  // can't take it right now, so the next check sends it instead of it being lost.
+  async sendOrKeep(content, link, card, kind) {
+    const r = await this.discordPost(content, link, card, kind);
+    if (later(r)) { const ob = (this.meta.outbox = this.meta.outbox || []); if (ob.length < 10) ob.push({ content, link, card: card || null, kind }); this.dirty = true; }
+    return r;
   }
   gameCard() {
     const s = this.state, t = C.themes[s.themeId] || {}, base = this.env.GAME_PAGE || '';
@@ -568,9 +595,11 @@ export class Game extends DurableObject {
     if (!m.feed || m.feed.game !== s.id) {
       const fresh = !!m.feed;
       m.feed = { game: s.id, ev: last, big: bigNow(), leader: this.leaderNow(), open: E.signupsOpen(s) && s.status === 'signup', day: false, hour: false, lastcall: false, capDay: null, n: 0, leadDay: null, q: [], nextAt: 0, recapDay: s.day };
-      if (fresh && m.feed.open && this.announcing('signups')) { const p = this.signupsPost(); await this.discordPost(p.text, true, p.card); }
+      if (fresh && m.feed.open && this.announcing('signups')) { const p = this.signupsPost(); await this.sendOrKeep(p.text, true, p.card, 'signups'); }
       return;
     }
+    // posts that couldn't go out earlier go first
+    while (m.outbox && m.outbox.length) { const o = m.outbox[0], r = await this.discordPost(o.content, o.link, o.card, o.kind); if (later(r)) return; m.outbox.shift(); this.dirty = true; }
     const f = m.feed, t = C.themes[s.themeId] || {}, goal = t.goal || 'exit';
     const name = (pid) => md((s.players[pid] || {}).name || 'Someone');
     // Moments wait in a queue and go out together, at most one post every 2 hours and 8 a game day
@@ -578,22 +607,22 @@ export class Game extends DurableObject {
     // recap. A false from postNow means out of requests for this run: pick up from here next time.
     f.q = f.q || [];
     const queue = (kind, day, line, group, card) => { if (this.announcing(kind)) f.q.push({ kind, day, line, group: group || null, card: card || null }); return true; };
-    const postNow = async (kind, text) => !this.announcing(kind) || (await this.discordPost(text, false)) !== 'nobudget';
+    const postNow = async (kind, text) => !this.announcing(kind) || !later(await this.discordPost(text, false, null, kind));
     // countdowns
     const open = s.status === 'signup' && E.signupsOpen(s);
-    if (open && !f.open && this.announcing('signups')) { const p = this.signupsPost(); if ((await this.discordPost(p.text, true, p.card)) === 'nobudget') return; }
+    if (open && !f.open && this.announcing('signups')) { const p = this.signupsPost(); if (later(await this.discordPost(p.text, true, p.card, 'signups'))) return; }
     f.open = open;
     if (s.status === 'signup' && s.startsAt && !f.day && now >= s.startsAt - DAY && now < s.startsAt - HOUR) {
       const d = this.dayPost();
-      if (this.announcing('day') && (await this.discordPost(d.text, true, d.card)) === 'nobudget') return;
+      if (this.announcing('day') && later(await this.discordPost(d.text, true, d.card, 'day'))) return;
       f.day = true;
     }
     if (s.status === 'signup' && s.startsAt && !f.hour && now >= s.startsAt - HOUR && now < s.startsAt) {
-      if (this.announcing('hour')) { const p = this.hourPost(); if ((await this.discordPost(p.text, true, p.card)) === 'nobudget') return; }
+      if (this.announcing('hour')) { const p = this.hourPost(); if (later(await this.discordPost(p.text, true, p.card, 'hour'))) return; }
       f.hour = true;
     }
     if (s.status === 'running' && s.endsAt && !f.lastcall && now >= s.endsAt - DAY && now < s.endsAt) {
-      if (this.announcing('lastcall')) { const p = this.lastCallPost(); if ((await this.discordPost(p.text, true, p.card)) === 'nobudget') return; }
+      if (this.announcing('lastcall')) { const p = this.lastCallPost(); if (later(await this.discordPost(p.text, true, p.card, 'lastcall'))) return; }
       f.lastcall = true;
     }
     // moments since last time
@@ -657,15 +686,18 @@ export class Game extends DurableObject {
     if (s.day > f.recapDay) {
       if (['setback', 'big', 'leader', 'escape', 'gate'].some((k) => this.announcing(k))) {
         const card = await this.recapCard(f.recapDay);
-        if (card && (await this.discordPost('', true, card)) === 'nobudget') return;
+        if (card && later(await this.discordPost('', true, card, 'recap'))) return;
       }
       f.recapDay = s.day;
     }
     if (f.capDay !== s.day) { f.capDay = s.day; f.n = 0; }
     f.q = f.q.filter((x) => x.day >= s.day);
     if (f.q.length && f.n < MOMENT_CAP && now >= (f.nextAt || 0)) {
-      const g = this.groupMoments(f.q), r = await this.discordPost(g.text, false, g.cards);
-      if (r === 'nobudget') return;
+      const g = this.groupMoments(f.q);
+      let r = await this.discordPost(g.text, false, g.cards, 'moments');
+      // Discord refused the cards: send the same moments as plain lines so they aren't lost
+      if (r && r.status === 400 && g.cards.length) r = await this.discordPost(g.plain, false, null, 'moments');
+      if (later(r)) return;
       f.q = []; f.n++; f.nextAt = now + MOMENT_GAP;
     }
     if (f.n >= MOMENT_CAP) f.q = [];   // the rest of today goes in tonight's recap
@@ -675,9 +707,9 @@ export class Game extends DurableObject {
     const s = this.state, out = [], seen = {};
     const name = (pid) => '**' + md((s.players[pid] || {}).name || 'Someone') + '**';
     const list = (a) => (a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]);
-    const cards = [];
+    const cards = [], cardLines = [];
     q.forEach((x) => {
-      if (x.card && cards.length < 10) { cards.push(x.card); return; }   // a clear gets its own card (Discord allows 10 a post)
+      if (x.card && cards.length < 10) { cards.push(x.card); cardLines.push(x.line); return; }   // a clear gets its own card (Discord allows 10 a post)
       if (!x.group) { out.push(x.line); return; }
       if (seen[x.group.key]) { if (seen[x.group.key].pids.indexOf(x.group.pid) < 0) seen[x.group.key].pids.push(x.group.pid); return; }
       seen[x.group.key] = { g: x.group, pids: [x.group.pid], at: out.length }; out.push(null);
@@ -688,7 +720,8 @@ export class Game extends DurableObject {
     });
     let text = '';
     for (const line of out) { if ((text + '\n' + line).length > 1900) { text += '\n…and more in tonight\'s recap.'; break; } text += (text ? '\n' : '') + line; }
-    return { text, cards };
+    const plain = (text ? text + '\n' : '') + cardLines.join('\n');
+    return { text, cards, plain: plain.slice(0, 1990) };
   }
   // A big clear as a Discord card: the song links to its BeatSaver page, the cover sits on the
   // right and the stripe is the player's board color. The line is the text version, used when a
@@ -1027,8 +1060,8 @@ export class Game extends DurableObject {
         }
         case 'discordTest': {
           if (!this.webhook()) return { error: 'No Discord webhook is set up for this game yet.' };
-          const r = await this.discordPost(`Test post from **${md(s.title)}**. Game posts will show up in this channel.`, true);
-          if (!r || !r.ok) return { error: 'Discord did not accept the post' + (r ? ' (' + r.status + ').' : '.') };
+          const r = await this.discordPost(`Test post from **${md(s.title)}**. Game posts will show up in this channel.`, true, null, 'test');
+          if (!r || !r.ok) return { error: 'Discord did not accept the post' + (r && r.status ? ' (' + r.status + ').' : later(r) ? '. Discord asked to wait a moment; try again shortly.' : '.') };
           break;
         }
         case 'dismiss': { const ac = this.access(); ac.pending = ac.pending.filter((x) => x.id !== String(a.id)); s.seq++; break; }
@@ -1292,8 +1325,8 @@ export class Game extends DurableObject {
     if (sp.routes.length) fields.push({ name: '🛤️ Routes', value: sp.routes.map((r) => r.n + ' ' + r.name.replace(/ route$/i, '')).join(', '), inline: true });
     if (s.endsAt) fields.push({ name: '🏁 Ends', value: `<t:${sec(s.endsAt)}:D>`, inline: true });
     const reset = this.meta.nextCutoff ? ` One roll a day, and the roll resets at <t:${sec(this.meta.nextCutoff)}:t> every night.` : ' One roll a day.';
-    await this.discordPost(`🎲 **${md(s.title)} has started!** Day 1 is open: roll your d4 and play the map you land on.`, true,
-      this.card('Play ' + s.title, { description: (n ? `${plural(n, 'player')} ${n === 1 ? 'is' : 'are'} off.` : 'Sign up and roll your first d4.') + reset, fields }));
+    await this.sendOrKeep(`🎲 **${md(s.title)} has started!** Day 1 is open: roll your d4 and play the map you land on.`, true,
+      this.card('Play ' + s.title, { description: (n ? `${plural(n, 'player')} ${n === 1 ? 'is' : 'are'} off.` : 'Sign up and roll your first d4.') + reset, fields }), 'start');
   }
 
   // Once a game day per device, at the reminder hour in that device's own time zone: nudge
@@ -1332,7 +1365,7 @@ export class Game extends DurableObject {
       const song = tot.best.key ? await this.songName(tot.best.key) : '';
       fields.push({ name: '✨ Best clear', value: `**${md(s.players[tot.best.pid].name)}**, ${song ? md(song) : 'a map'}` + (tot.best.diff ? ` (${tot.best.diff})` : '') + ` at ${(tot.best.acc * 100).toFixed(2)}%`, inline: false });
     }
-    await this.discordPost(`🏁 **${md(s.title)} is over!** Congrats to everyone who played.`, true, this.card('Final results', { fields }));
+    await this.sendOrKeep(`🏁 **${md(s.title)} is over!** Congrats to everyone who played.`, true, this.card('Final results', { fields }), 'end');
   }
 
   async alarm() {
