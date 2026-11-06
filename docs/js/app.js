@@ -1330,12 +1330,25 @@
       return S.map((ev.bsr || [])[0]).then(function (m) { o.sub = m.name + (pr.diff ? ' \u00b7 ' + pr.diff.replace('ExpertPlus', 'Expert+') : ''); o.cover = m.cover; return o; }, function () { o.sub = '!bsr ' + (ev.bsr || [])[0]; return o; });
     }
     if (ev.t === 'escaped') { o.kicker = 'The ' + t.goal; o.headline = t.words.escaped; o.sub = ordinal(ev.place) + ' place on day ' + ev.day; }
-    else if (ev.t === 'pass') { o.kicker = 'Overtake'; o.headline = 'Passed ' + (ev.over || []).map(function (q) { return s.players[q] ? s.players[q].name : ''; }).filter(Boolean).join(' & '); o.sub = E.remaining(s, p) + ' spaces to go'; }
+    else if (ev.t === 'pass') { o.kicker = 'Overtake'; o.headline = 'Passed ' + (ev.over || []).map(function (q) { return s.players[q] ? s.players[q].name : ''; }).filter(Boolean).join(' & '); var at = posAt(s, ev); o.sub = (at != null ? E.routeOf(s, p).length - 1 - at : E.remaining(s, p)) + ' spaces to go'; }
     else if (ev.t === 'start') { o.kicker = 'Ouch'; o.headline = 'Back to the start'; o.sub = kind ? kind.title : ''; }
     else if (ev.t === 'warp') { var fwd = sp && sp.kind === 'swim'; o.kicker = fwd ? 'Lucky break' : 'Swept away'; o.headline = fwd ? 'Carried ahead' : 'Carried away'; o.sub = 'Now at ' + spaceName(s.board.spaces[ev.to]); }
     else if (ev.t === 'move') { o.kicker = ev.n > 0 ? 'Boost' : 'Setback'; o.headline = ev.n > 0 ? 'Jumped ahead ' + ev.n : 'Pushed back ' + (-ev.n); o.sub = kind ? kind.title : ''; }
     else if (ev.t === 'card') { var cd = E.cardById(s, ev.card); o.kicker = (t.card[cd && cd.cls] || 'Card') + ' card'; o.headline = cd ? cd.title : 'A card'; o.sub = cd ? C.cardEffectText(cd) : ''; if (cd && R.isImg(cd.art) && /^https:|^img\//.test(cd.art)) o.cover = cd.art; }
     return Promise.resolve(o);
+  }
+  // Where a player stood right after an old moment (from the moves logged up to it), so a share
+  // card from day 2 shows day 2's count, not today's. Null when the log no longer goes back that far.
+  function posAt(s, ev) {
+    var r = E.routeOf(s, s.players[ev.pid]);
+    for (var i = s.events.length - 1; i >= 0; i--) {
+      var e = s.events[i]; if (e.id > ev.id || e.pid !== ev.pid) continue;
+      if (e.t === 'land' && e.space) return r.indexOf(e.space);
+      if (e.t === 'move' && e.to != null) return e.to;
+      if (e.t === 'warp' && e.to) return r.indexOf(e.to);
+      if (e.t === 'start') return -1;
+    }
+    return null;
   }
   function openShare(ev) {
     track('share-' + ev.t);

@@ -633,8 +633,10 @@ export class Game extends DurableObject {
       const why = kd ? `*${kd.title}* ` : card ? `*${card.title || card.name || 'A card'}* ` : '';
       // Setbacks lead with the space's or card's own icon, so a taco game doesn't get the cemetery skull.
       const what = kd ? kd.title : card ? card.title || card.name : '', art = (kd && kd.icon) || (card && card.art) || (t.family === 'taco' ? '😬' : '💀');
-      const ow = (pid) => { const r = E.ranking(s).find((x) => x.pid === pid); return r && !r.escaped ? ` and is now ${plural(r.left, 'space')} from the ${goal}` : ''; };
-      const hit = (pid, did) => `${art} ${what ? `*${/[!?.]$/.test(what) ? what : what + '!'}* ` : ''}**${name(pid)}** ${did}${ow(pid)}.`;
+      // "is now N spaces from the goal" counts from where this moment left them, not where they are
+      // by the time the feed runs (a card back then a current on the same roll are two lines, two counts).
+      const ow = (pid, at) => { const pl = s.players[pid], r = pl && pl.route ? s.board.routes[pl.route] : null; return r && at != null && at >= 0 && at < r.length - 1 ? ` and is now ${plural(r.length - 1 - at, 'space')} from the ${goal}` : ''; };
+      const hit = (pid, did, at) => `${art} ${what ? `*${/[!?.]$/.test(what) ? what : what + '!'}* ` : ''}**${name(pid)}** ${did}${ow(pid, at)}.`;
       let ok = true;
       if (e.t === 'escaped') {
         const p = s.players[e.pid], medal = ['🥇 ', '🥈 ', '🥉 '][e.place - 1] || '', left = 3 - e.place;
@@ -646,10 +648,10 @@ export class Game extends DurableObject {
         ok = queue('gate', e.day, `🚪 **${name(e.pid)}** reached the ${goal}, but ${first ? `**${name(first)}**` : 'someone'} already got out today. ${name(e.pid)} waits one space short and can roll for it again ${when}.`);
       }
       else if (e.t === 'start') ok = queue('setback', e.day, hit(e.pid, 'is sent back to the start').replace(/ and is now [^.]*/, ''), { key: 'start:' + art + what, art, what, pid: e.pid });
-      else if (e.t === 'move' && e.n <= -SETBACK) ok = queue('setback', e.day, hit(e.pid, `goes back ${-e.n} spaces`));
+      else if (e.t === 'move' && e.n <= -SETBACK) ok = queue('setback', e.day, hit(e.pid, `goes back ${-e.n} spaces`, e.to));
       else if (e.t === 'warp') {
         const p = s.players[e.pid], r = p && p.route ? s.board.routes[p.route] : [], back = r.indexOf(e.space) - r.indexOf(e.to);
-        if (back >= SETBACK && r.indexOf(e.to) >= 0) ok = queue('setback', e.day, hit(e.pid, `gets swept back ${back} spaces`));
+        if (back >= SETBACK && r.indexOf(e.to) >= 0) ok = queue('setback', e.day, hit(e.pid, `gets swept back ${back} spaces`, r.indexOf(e.to)));
       }
       if (!ok) return;   // out of requests: this moment and the rest go next run
       f.ev = e.id;
@@ -781,7 +783,7 @@ export class Game extends DurableObject {
     }
     const out = evs.filter((e) => e.t === 'escaped');
     if (out.length) fields.push({ name: '🏁 Made it out', value: clip(list(out.map((e) => `**${name(e.pid)}** (${ordinal(e.place)})`))), inline: false });
-    const racing = E.ranking(s).filter((r) => !r.escaped);
+    const racing = this.standingsAt(day);   // as the day ended, not after any early rolls the next day
     if (racing.length && s.status === 'running') {
       const a = racing[0], tied = racing.filter((r) => r.left === a.left), next = racing.find((r) => r.left > a.left);
       const head = tied.length > 1 ? `${list(tied.map((r) => '**' + name(r.pid) + '**'))} are tied for the lead` : `**${name(a.pid)}** leads`;
@@ -789,6 +791,27 @@ export class Game extends DurableObject {
     }
     const desc = `${plural(rolls, 'roll')} and ${plural(clears, 'map')} cleared on day ${day}.` + (s.status === 'running' ? ` Day ${s.day} is open, roll your d4!` : '');
     return this.card('📰 Day ' + day + ' recap', { description: desc, fields: fields.slice(0, 10) });
+  }
+  // Who was still racing at the end of a game day and how far each had to go, read back from the
+  // event log (the recap can post a few minutes into the next day, after someone has already rolled).
+  standingsAt(day) {
+    const s = this.state, out = [];
+    for (const pid of s.order) {
+      const p = s.players[pid], r = p && p.route ? s.board.routes[p.route] : null; if (!r) continue;
+      let at = -1, gone = false;
+      for (const e of s.events) {
+        if (e.pid !== pid || e.day > day) continue;
+        if (e.t === 'escaped') gone = true;
+        else if (e.t === 'land' && e.space) at = r.indexOf(e.space);
+        else if (e.t === 'move' && e.to != null) at = e.to;
+        else if (e.t === 'warp' && e.to) at = r.indexOf(e.to);
+        else if (e.t === 'start') at = -1;
+      }
+      // a player whose early moves have left the log: fall back to where they are now
+      if (!gone && at === -1 && !s.events.some((e) => e.pid === pid && e.day <= day && /^(land|move|warp|start)$/.test(e.t))) { if (p.finished) gone = p.finished.day <= day; else at = p.pos; }
+      if (!gone) out.push({ pid, left: r.length - 1 - at });
+    }
+    return out.sort((a, b) => a.left - b.left || s.order.indexOf(a.pid) - s.order.indexOf(b.pid));
   }
   // The one player out in front (nobody when it's a tie).
   leaderNow() {
