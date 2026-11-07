@@ -260,6 +260,7 @@ button.badge:hover, button.badge:focus-visible { border-color: var(--gold); }
 
 /* ---- animated reactions (always moving in the picker, gentler in the thread) ---- */
 .rx-ico * { transform-box: view-box; }
+img.rx-ico { display: block; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
 .rx-ss .a-ss { transform-origin: 16px 16px; animation: rxWobble 2.4s ease-in-out infinite; }
 .rx-ss .a-ring { animation: rxRing 1.6s ease-in-out infinite; }
 .rx-ss .a-twinkle { transform-origin: 27px 5.6px; animation: rxTwinkle 1.6s ease-in-out infinite; }

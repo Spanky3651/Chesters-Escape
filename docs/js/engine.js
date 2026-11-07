@@ -163,7 +163,7 @@
   // The game's own reactions (drawn and animated by the page): SS, fire, let's go, love it (the cat), no way, fist bump, medal, the saber cube, popcorn, LOL, press F,
   // salty, RIP, the theme's hero, crying, sweating, rage, hurry up, strong and heartbroken, plus the secret hummingbird, MSploit and Nic (hold Strong, Fire or Popcorn in the picker). Reactions saved under an older set (plain emoji, then
   // GG, full combo, miss, bomb, o7, pat pat) map onto the closest current one so they still count and can be taken back.
-  var REACTIONS = ['ss', 'fire', 'letsgo', 'love', 'jaw', 'bump', 'medal', 'sabers', 'popcorn', 'lol', 'pressf', 'salt', 'rip', 'hero', 'cry', 'sweat', 'rage', 'hurry', 'strong', 'broken', 'hbird', 'msploit', 'nic', 'mud', 'hype'];
+  var REACTIONS = ['ss', 'fire', 'letsgo', 'love', 'jaw', 'bump', 'medal', 'sabers', 'popcorn', 'lol', 'pressf', 'salt', 'rip', 'hero', 'cry', 'sweat', 'rage', 'hurry', 'strong', 'broken', 'hbird', 'msploit', 'nic', 'mud', 'hype', 'road'];
   var LEGACY_REACTIONS = { '\uD83D\uDC4F': 'letsgo', '\uD83C\uDF89': 'letsgo', '\uD83D\uDD25': 'fire', '\uD83D\uDE02': 'salt', '\uD83D\uDC80': 'rip', '\uD83D\uDE31': 'jaw', gg: 'letsgo', fc: 'ss', miss: 'pressf', bomb: 'pressf', salute: 'bump', pat: 'pressf' };
   // Someone signed in who isn't on the board can react too: pass who ({ name, avatar }) and
   // their name is kept with the game so the thread can show it.

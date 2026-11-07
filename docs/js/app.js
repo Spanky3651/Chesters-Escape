@@ -2750,9 +2750,9 @@
     box.style.left = left + 'px'; box.style.top = top + 'px';
     if (navigator.vibrate) try { navigator.vibrate(12); } catch (x) {}
   }
-  // Secret reactions: press and hold Strong (the hummingbird), Fire (MSploit) or Popcorn (Nic) in the picker, or right-click them on a computer.
+  // Secret reactions: press and hold Strong (the hummingbird), Fire (MSploit), Popcorn (Nic) or Stuck! (Road) in the picker, or right-click them on a computer.
   // The click that ends the hold is swallowed so it doesn't also send Strong or land on what's under the closed picker.
-  var SECRET_RX = { strong: 'hbird', fire: 'msploit', popcorn: 'nic' }, SECRET_MSG = { hbird: 'You found the secret hummingbird!', msploit: 'You found the secret MSploit!', nic: 'You found the secret Nic!' };
+  var SECRET_RX = { strong: 'hbird', fire: 'msploit', popcorn: 'nic', mud: 'road' }, SECRET_MSG = { hbird: 'You found the secret hummingbird!', msploit: 'You found the secret MSploit!', nic: 'You found the secret Nic!', road: 'You found the secret Road!' };
   var SECRET_SEL = Object.keys(SECRET_RX).map(function (k) { return '#rxPop button[data-rx="' + k + '"]'; }).join(', ');
   var secretAt = 0, secretSwallow = false;
   function secretRx(btn) {
