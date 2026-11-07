@@ -10,7 +10,7 @@ self.addEventListener('push', function (e) {
     tag: d.tag || 'chester',
     renotify: true,
     icon: d.icon || 'img/icon-192.png',
-    badge: 'img/badge.png',
+    badge: 'img/badge.png?v=20261107',   // the d4 (Android shows this as a white shape in the status bar)
     data: { url: d.url || self.registration.scope }
   }));
 });
