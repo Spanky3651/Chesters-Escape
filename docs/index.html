@@ -102,7 +102,7 @@
   <div class="foot-more" id="footTools"><span class="fm-label">More Beat Saber tools:</span> <a href="https://spanky3651.github.io/Playlist-Studio/?utm_source=chesters-escape&amp;utm_medium=footer&amp;utm_campaign=site" data-tool="playlist-studio">Playlist Studio</a> <span class="sep">&middot;</span> <a href="https://spanky3651.github.io/HSV-Config-Generator/?utm_source=chesters-escape&amp;utm_medium=footer&amp;utm_campaign=site" data-tool="hsv-config-generator">HSV <span class="fm-long">Config </span>Generator</a> <span class="sep">&middot;</span> <a href="https://spanky3651.github.io/ReeSaber-Studio/?utm_source=chesters-escape&amp;utm_medium=footer&amp;utm_campaign=site" data-tool="reesaber-studio">ReeSaber Studio</a></div>
   <div class="foot-meta">
     <div class="foot-count" id="footCount" hidden></div>
-    <span class="foot-updated" id="footUpdated" data-updated="2026-11-07T14:49:23Z">Site updated recently</span>
+    <span class="foot-updated" id="footUpdated" data-updated="2026-11-07T15:18:01Z">Site updated recently</span>
   </div>
 </footer>
 
@@ -170,28 +170,34 @@
 <script src="js/store.js?v=20261106a"></script>
 <script src="js/app.js?v=20261106a"></script>
 <script>
-/* Supporters: a "Supported by" row in the Developed by badge, and a thank-you card on Support me (hover) or the row (tap).
-   Public Ko-fi names only, from Playlist Studio's Worker. Nothing shows until someone has supported publicly. */
+/* Supporters: Support me becomes a card the same size as the Developed by badge, side by side, with small supporter faces
+   along its bottom. Click the faces (or hover the card on desktop) for a thank-you card. Public Ko-fi names only, from Playlist Studio's Worker. */
 (function () {
   var API = 'https://playlist-replay.msploit.workers.dev/supporters';
-  var KOFI = 'https://ko-fi.com/msploit21';
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function face(s, cls) {
+  function face(s) {
     var img = /^data:image\/(png|jpeg|webp);base64,/.test(s.img || '') ? s.img : '';
-    return img ? '<img class="msp-av' + (cls || '') + '" src="' + img + '" alt="" title="' + esc(s.name) + '">' : '<span class="msp-av msp-l' + (cls || '') + '" title="' + esc(s.name) + '">' + esc((s.name || '?').charAt(0).toUpperCase()) + '</span>';
+    return img ? '<img class="msp-av" src="' + img + '" alt="" title="' + esc(s.name) + '">' : '<span class="msp-av msp-l" title="' + esc(s.name) + '">' + esc((s.name || '?').charAt(0).toUpperCase()) + '</span>';
   }
   function count(what) { try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: what, title: 'Supporters card', event: true }); } catch (e) {} }
-  var css = '.msp-card{display:inline-flex;flex-direction:column;align-items:stretch;border:1px solid var(--border-2,#232c3b);border-radius:12px;background:#060607;transition:border-color .16s,box-shadow .16s;vertical-align:middle;max-width:100%;}' +
-    '.msp-card:hover{border-color:var(--blue,#2f8cff);box-shadow:0 0 20px rgba(47,140,255,.18);}' +
-    '.msp-card>a.credit{border:0!important;background:transparent!important;box-shadow:none!important;transform:none!important;margin:0!important;}' +
-    '.msp-card .msp-row{display:flex;align-items:center;gap:8px;margin:0 10px;padding:6px 2px 7px;border:0;border-top:1px solid #1c2738;background:none;color:#8d97a8;font:600 10.5px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:1.4px;text-transform:uppercase;cursor:pointer;text-align:left;box-shadow:none;transform:none;border-radius:0;min-height:0;outline:none;}' +
-    '.msp-card .msp-row{border:0!important;border-top:1px solid #1c2738!important;background:none!important;}' +
-    '.msp-card .msp-row:focus-visible{outline:2px solid #4c8dff;outline-offset:2px;}' +
-    '.msp-card .msp-row:hover,.msp-card .msp-row[aria-expanded="true"]{color:#cfd6e2;}' +
-    '@media (hover: none){.msp-card:hover{border-color:var(--border-2,#232c3b);box-shadow:none;}}' +
-    '.msp-stack{display:inline-flex;align-items:center;}.msp-stack .msp-av+.msp-av{margin-left:-6px;}' +
-    '.msp-av{width:20px;height:20px;border-radius:50%;object-fit:cover;border:1.5px solid #060607;display:inline-grid;place-items:center;flex:none;background:#1b2436;color:#cfe0ff;font:800 10px system-ui,sans-serif;letter-spacing:0;}' +
-    '.msp-more{margin-left:4px;color:#8d97a8;letter-spacing:0;}' +
+  var css = '.msp-pair{display:grid!important;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:10px;align-items:stretch;justify-content:center;flex-wrap:nowrap;max-width:100%;}' +
+    '.msp-pair>*{grid-area:auto!important;margin:0!important;min-width:0;justify-self:stretch!important;align-self:stretch!important;}' +
+    '@media (max-width:640px){.msp-pair{gap:8px;width:100%;max-width:400px;min-width:0;justify-self:center!important;box-sizing:border-box;}.msp-pair>a.credit{gap:8px!important;padding:6px 10px 6px 6px!important;height:auto!important;}.msp-pair>a.credit img{width:34px!important;height:34px!important;border-radius:9px!important;}' +
+    '.msp-pair>a.credit .c1{font-size:9.5px!important;letter-spacing:1px!important;}.msp-pair>a.credit .c2{font-size:15px!important;}.msp-pair>a.credit .c3{font-size:10px!important;}.msp-pair>a.credit .ctxt{line-height:1.25!important;min-width:0;}.msp-pair>a.credit .ctxt>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}' +
+    '@media (max-width:380px){.msp-k .msp-k2{font-size:14px!important;letter-spacing:0!important;}}' +
+    'a.kofi-support.msp-k{display:flex;align-items:center;gap:var(--msp-gap,12px);min-height:0;padding:var(--msp-pad,8px 18px 8px 8px);border-radius:12px;border:1px solid var(--msp-bd,#2a2a2a);background:#060607;color:#fff;text-decoration:none;white-space:nowrap;box-sizing:border-box;}' +
+    'a.kofi-support.msp-k:hover{border-color:#ff2740;box-shadow:0 8px 24px -8px rgba(255,39,64,.55);}' +
+    '.msp-k .msp-ki{flex:none;width:var(--msp-img,42px);height:var(--msp-img,42px);display:flex;align-items:center;justify-content:center;border-radius:10px;background:#14080c;border:1px solid #ffffff1f;box-shadow:0 0 12px rgba(255,39,64,.22);box-sizing:border-box;}' +
+    '.msp-k .msp-ki .kofi-heart{font-size:calc(var(--msp-img,42px) * .5);}' +
+    '.msp-k .msp-kt{display:flex;flex-direction:column;justify-content:center;line-height:var(--msp-lh,1.3);text-align:left;min-width:0;overflow:hidden;}' +
+    '.msp-k .msp-k2{font-size:var(--msp-f2,16px);font-weight:800;color:#fff;letter-spacing:.2px;overflow:hidden;text-overflow:ellipsis;}' +
+    '.msp-k .msp-k3{font:var(--msp-f3,11px) ui-monospace,SFMono-Regular,Consolas,monospace;color:#ff6b81;}' +
+    '.msp-k .msp-kf{display:inline-flex;align-items:center;align-self:flex-start;margin-top:3px;padding:2px 6px 2px 2px;margin-left:-2px;border-radius:999px;cursor:pointer;transition:background .15s;}' +
+    '.msp-k .msp-kf:hover,.msp-k .msp-kf[aria-expanded="true"]{background:#ffffff14;}' +
+    '.msp-k .msp-kf .msp-av{width:var(--msp-fs,19px);height:var(--msp-fs,19px);font-size:calc(var(--msp-fs,19px) * .5);}' +
+    '.msp-k .msp-kf .msp-av+.msp-av{margin-left:calc(var(--msp-fs,19px) * -.3);}' +
+    '.msp-k .msp-kf .msp-more{margin-left:5px;font:700 10.5px ui-monospace,SFMono-Regular,Consolas,monospace;color:#aab3c2;}' +
+    '.msp-av{border-radius:50%;object-fit:cover;border:1.5px solid #060607;display:inline-grid;place-items:center;flex:none;background:#1b2436;color:#cfe0ff;font-weight:800;font-family:system-ui,sans-serif;box-sizing:border-box;}' +
     '.msp-pop{position:fixed;z-index:9000;width:300px;max-width:calc(100vw - 24px);background:#0b111c;border:1px solid #2a3850;border-radius:14px;padding:12px 14px;box-shadow:0 18px 40px rgba(0,0,0,.75);color:#e8edf5;font:14px/1.4 system-ui,"Segoe UI",sans-serif;text-align:left;}' +
     '.msp-pop[hidden]{display:none;}' +
     '.msp-pop h4{margin:0 0 4px;font:800 13.5px system-ui,sans-serif;color:#fff;}' +
@@ -205,10 +211,36 @@
     '.msp-pop::after{content:"";position:absolute;left:var(--msp-ax,50%);width:12px;height:12px;margin-left:-6px;background:#0b111c;transform:rotate(45deg);}' +
     '.msp-pop.up::after{bottom:-7px;border-right:1px solid #2a3850;border-bottom:1px solid #2a3850;}' +
     '.msp-pop.down::after{top:-7px;border-left:1px solid #2a3850;border-top:1px solid #2a3850;}';
+  var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
+  var cards = [];
+  function fit() {
+    cards.forEach(function (c) {
+      var k = c.k, cr = c.cr, im = cr.querySelector('img');
+      k.style.height = ''; var cs = getComputedStyle(cr); k.style.height = cr.offsetHeight + 'px';
+      k.style.setProperty('--msp-bd', cs.borderTopColor); k.style.setProperty('--msp-pad', cs.padding); k.style.setProperty('--msp-gap', cs.columnGap || cs.gap || '12px');
+      if (im && im.offsetWidth) k.style.setProperty('--msp-img', im.offsetWidth + 'px');
+      if (im && im.offsetWidth) k.style.setProperty('--msp-fs', Math.round(im.offsetWidth * .5) + 'px');
+      [['c1', '--msp-f1'], ['c2', '--msp-f2'], ['c3', '--msp-f3']].forEach(function (p) { var e = cr.querySelector('.' + p[0]); if (e) k.style.setProperty(p[1], getComputedStyle(e).fontSize); });
+      var c1 = cr.querySelector('.c1'), tx = cr.querySelector('.ctxt');
+      if (c1) k.style.setProperty('--msp-ls', getComputedStyle(c1).letterSpacing);
+      if (tx) k.style.setProperty('--msp-lh', getComputedStyle(tx).lineHeight);
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('a.kofi-support'), function (k) {
+    var cr = k.parentNode && k.parentNode.querySelector(':scope > a.credit');
+    if (!cr || k.classList.contains('msp-k')) return;
+    var h = k.querySelector('.kofi-heart') || document.createElement('span'); h.className = 'kofi-heart'; if (!h.textContent) h.textContent = '❤️';
+    k.textContent = '';
+    var ki = document.createElement('span'); ki.className = 'msp-ki'; ki.setAttribute('aria-hidden', 'true'); ki.appendChild(h);
+    var kt = document.createElement('span'); kt.className = 'msp-kt'; kt.innerHTML = '<span class="msp-k2">Support me</span><span class="msp-k3">ko-fi.com ↗</span>';
+    k.appendChild(ki); k.appendChild(kt); k.classList.add('msp-k'); k.parentNode.classList.add('msp-pair');
+    cards.push({ k: k, cr: cr, ki: ki, kt: kt });
+  });
+  if (!cards.length) return;
+  fit(); var fitT = 0; window.addEventListener('resize', function () { clearTimeout(fitT); fitT = setTimeout(fit, 120); });
   function run(list) {
     if (!list.length || document.getElementById('mspPop')) return;
-    var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
-    var kofi = document.querySelector('a.kofi-support'), href = (kofi && kofi.href) || KOFI;
+    var href = cards[0].k.href;
     var pop = document.createElement('div'); pop.id = 'mspPop'; pop.className = 'msp-pop'; pop.hidden = true; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'Supporters');
     pop.innerHTML = '<h4>❤️ Thank you, supporters</h4>' + list.slice(0, 5).map(function (s) {
       return '<div class="msp-r">' + face(s) + '<div><b>' + esc(s.name) + '</b>' + (s.msg ? '<i>“' + esc(s.msg) + '”</i>' : '') + '</div></div>';
@@ -223,28 +255,22 @@
       pop.style.left = left + 'px'; pop.style.top = (up ? r.top - h - 10 : r.bottom + 10) + 'px';
       pop.className = 'msp-pop ' + (up ? 'up' : 'down'); pop.style.setProperty('--msp-ax', Math.max(18, Math.min(w - 18, cx - left)) + 'px');
     }
-    function show(a) {
-      clearTimeout(hideT); anchor = a; pop.hidden = false; place();
-      document.querySelectorAll('.msp-row').forEach(function (b) { b.setAttribute('aria-expanded', b === a ? 'true' : 'false'); });
-      if (!opened) { opened = true; count('supporters-open'); }
-    }
-    function hide() { pop.hidden = true; anchor = null; opened = false; document.querySelectorAll('.msp-row').forEach(function (b) { b.setAttribute('aria-expanded', 'false'); }); }
+    function mark() { cards.forEach(function (c) { if (c.kf) c.kf.setAttribute('aria-expanded', !pop.hidden && anchor === c.k ? 'true' : 'false'); }); }
+    function show(a) { clearTimeout(hideT); anchor = a; pop.hidden = false; place(); mark(); if (!opened) { opened = true; count('supporters-open'); } }
+    function hide() { pop.hidden = true; anchor = null; opened = false; mark(); }
     function hideSoon() { clearTimeout(hideT); hideT = setTimeout(hide, 220); }
     var hover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
-    var faces = '<span class="msp-stack">' + list.slice(0, 6).map(function (s) { return face(s); }).join('') + '</span>' + (list.length > 6 ? '<span class="msp-more">+' + (list.length - 6) + '</span>' : '');
-    Array.prototype.forEach.call(document.querySelectorAll('a.credit'), function (a) {
-      if (a.parentNode && a.parentNode.classList && a.parentNode.classList.contains('msp-card')) return;
-      var cs = getComputedStyle(a), w = document.createElement('div'); w.className = 'msp-card';
-      ['gridArea', 'order', 'alignSelf', 'justifySelf', 'margin', 'flex'].forEach(function (k) { if (cs[k]) w.style[k] = cs[k]; });
-      a.parentNode.insertBefore(w, a); w.appendChild(a);
-      var row = document.createElement('button'); row.type = 'button'; row.className = 'msp-row'; row.setAttribute('aria-haspopup', 'dialog'); row.setAttribute('aria-expanded', 'false');
-      row.innerHTML = 'Supported by ' + faces; w.appendChild(row);
-      row.addEventListener('click', function (e) { e.stopPropagation(); if (!hover && !pop.hidden && anchor === row) hide(); else show(row); });
-      if (hover) { row.addEventListener('mouseenter', function () { show(row); }); row.addEventListener('mouseleave', hideSoon); }
-    });
-    if (hover) Array.prototype.forEach.call(document.querySelectorAll('a.kofi-support'), function (k) {
-      k.addEventListener('mouseenter', function () { show(k); }); k.addEventListener('mouseleave', hideSoon);
-      k.addEventListener('focus', function () { show(k); }); k.addEventListener('blur', hideSoon);
+    var names = list.slice(0, 6).map(function (s) { return s.name; }).join(', ') + (list.length > 6 ? ' and ' + (list.length - 6) + ' more' : '');
+    var faces = list.slice(0, 5).map(face).join('') + (list.length > 5 ? '<span class="msp-more">+' + (list.length - 5) + '</span>' : '');
+    cards.forEach(function (c) {
+      var kf = document.createElement('span'); kf.className = 'msp-kf'; kf.innerHTML = faces; kf.title = 'Supported by ' + names; kf.setAttribute('aria-expanded', 'false');
+      c.kt.replaceChild(kf, c.kt.lastChild); c.kf = kf;
+      c.k.setAttribute('aria-label', 'Support me on Ko-fi. Supported by ' + names);
+      kf.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); if (!hover && !pop.hidden && anchor === c.k) hide(); else show(c.k); });
+      if (hover) {
+        c.k.addEventListener('mouseenter', function () { show(c.k); }); c.k.addEventListener('mouseleave', hideSoon);
+        c.k.addEventListener('focus', function () { show(c.k); }); c.k.addEventListener('blur', hideSoon);
+      }
     });
     pop.addEventListener('mouseenter', function () { clearTimeout(hideT); });
     pop.addEventListener('mouseleave', function () { if (hover) hideSoon(); });
@@ -252,13 +278,10 @@
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !pop.hidden) hide(); });
     window.addEventListener('resize', place); window.addEventListener('scroll', function () { if (!pop.hidden) place(); }, true);
   }
-  function go() {
-    var tries = 0;
-    (function get() {
-      fetch(API, { cache: 'default' }).then(function (r) { return r.json(); }).then(function (d) { run((d && Array.isArray(d.list)) ? d.list : []); }, function () { if (++tries < 2) setTimeout(get, 4000); });
-    })();
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+  var tries = 0;
+  (function get() {
+    fetch(API, { cache: 'default' }).then(function (r) { return r.json(); }).then(function (d) { run((d && Array.isArray(d.list)) ? d.list : []); }, function () { if (++tries < 2) setTimeout(get, 4000); });
+  })();
 })();
 </script>
 </body>
