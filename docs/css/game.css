@@ -1160,3 +1160,6 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 /* Host tools, Alerts: how the Discord feed is doing */
 .feed-stat { font-size: 14px; color: var(--muted); margin: 6px 0 10px; }
 .feed-warn { font-size: 14px; color: var(--text); background: color-mix(in srgb, var(--warn) 16%, transparent); border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent); border-radius: 10px; padding: 8px 10px; margin: 6px 0; }
+/* Support me card: the same outline as the Developed by card in every theme (the footer script copies
+   the outline color once at load, before the game's theme is applied) */
+.foot-badges a.kofi-support.msp-k { border-color: var(--line-2); }
