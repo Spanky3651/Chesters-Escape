@@ -556,7 +556,12 @@
     var s = st(), t = theme(), sp = e.space ? s.board.spaces[e.space] : null, card = e.card ? E.cardById(s, e.card) : null;
     switch (e.t) {
       case 'roll': return { html: (e.bonus ? 'Bonus roll: ' : 'Rolled a ') + '<b>' + e.n + '</b>' };
-      case 'land': return null;
+      case 'land': {
+        // Only Safe gets a line: every other space logs what it does, and Safe does nothing, so without this the roll looks like it went nowhere.
+        if (!sp || sp.type !== 'safe') return null;
+        var kSafe = sp.kind && t.kinds[sp.kind];
+        return { html: '<b>' + esc(kSafe ? kSafe.title : 'Safe!') + '</b> Catch your breath, no map this turn', cls: 'good', icon: kSafe && kSafe.icon };
+      }
       case 'task': return { html: 'Play <b>!bsr ' + esc(e.bsr.join(' or ')) + '</b>' + (e.bonus ? ' (bonus map)' : sp && sp.kind ? ' (' + esc(t.kinds[sp.kind].title) + ')' : card ? ' (' + esc(card.title) + ')' : '') };
       case 'card': return { html: 'Drew <b>' + esc(card ? card.title : 'a card') + '</b>: ' + esc(card ? C.cardEffectText(card) : ''), cls: card && card.cls === 'trick' ? 'bad' : card && card.cls === 'treasure' ? 'good' : '' };
       case 'move': return { html: (e.n > 0 ? 'Moved ahead ' + e.n : 'Pushed back ' + (-e.n)) + (sp && sp.kind ? ': ' + esc(t.kinds[sp.kind].title) : ''), cls: e.n > 0 ? 'good' : 'bad' };
@@ -662,7 +667,7 @@
       var p = s.players[e.pid]; if (e.pid && !p) continue;   // someone who left the game
       var x = evText(e); if (!x) continue;
       var rxh = rxRow(e), nActs = (rxh.match(/class="(rx-add|fd-share)"/g) || []).length;
-      html += '<li data-ev="' + e.id + '"' + (nActs ? ' class="has-acts' + (nActs > 1 ? ' two' : '') + '"' : '') + '><span class="ic" aria-hidden="true">' + (ICON[e.t] || '•') + '</span><span>' +
+      html += '<li data-ev="' + e.id + '"' + (nActs ? ' class="has-acts' + (nActs > 1 ? ' two' : '') + '"' : '') + '><span class="ic" aria-hidden="true">' + (x.icon || ICON[e.t] || '•') + '</span><span>' +
         (feedMode === 'all' && p ? '<span class="who">' + esc(p.name) + '</span> ' : '') +
         '<span class="' + (x.cls || '') + '">' + x.html + '</span> <span class="when">' + (e.pre ? 'sign-up' : 'day ' + e.day) + '</span>' + rxh + '</span></li>';
       shown++;
@@ -913,7 +918,7 @@
         if (e.t === 'host-reset') { cap(name + 'was reset by the host'); return hop(e.pid, -1, true); }
         if (e.t === 'pass') { if (x) { cap(name + x.html); FX.pop(svgEl, posXY(p, at[e.pid]), 'Passed!', 'gold'); return wait(900); } }
         if (e.t === 'escaped') { cap(name + x.html); FX.burst(svgEl, posXY(p, last), '#ffd34d'); return wait(1400); }
-        if (e.t === 'card' || e.t === 'skip' || (e.t === 'task' && e.bonus)) { if (x) { cap(name + x.html); return wait(900); } }
+        if (e.t === 'card' || e.t === 'skip' || (e.t === 'task' && e.bonus) || e.t === 'land') { if (x) { cap(name + x.html); return wait(900); } }
       });
     });
     chain.then(function () { if (!replayStop) { cap(endCap); return wait(1100); } }).then(function () {
