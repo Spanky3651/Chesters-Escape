@@ -1163,3 +1163,14 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 /* Support me card: the same outline as the Developed by card in every theme (the footer script copies
    the outline color once at load, before the game's theme is applied) */
 .foot-badges a.kofi-support.msp-k { border-color: var(--line-2); }
+/* Supporters: the thank-you card and the faces on Support me use the game's theme colors instead of the
+   navy they have on MSploit's other tools (the footer script's own styles come first, so these win) */
+body .msp-pop { background: var(--raise); border-color: var(--line-2); color: var(--text); box-shadow: 0 18px 40px rgba(0,0,0,.6); }
+body .msp-pop::after { background: var(--raise); }
+body .msp-pop.up::after, body .msp-pop.down::after { border-color: var(--line-2); }
+body .msp-pop h4, body .msp-pop .msp-r b { color: var(--text); }
+body .msp-pop .msp-r i { color: var(--muted); }
+body .msp-pop .msp-f { color: var(--muted); border-top-color: var(--line); }
+body .msp-pop .msp-f a { color: var(--accent); }
+body .msp-k .msp-kf .msp-sb, body .msp-k .msp-kf .msp-more { color: var(--muted); }
+body .msp-av { background: var(--raise-2); color: var(--text); }
