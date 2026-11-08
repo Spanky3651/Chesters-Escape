@@ -434,6 +434,7 @@
     } else {
       html += '<p>You reached the ' + esc(t.goal) + ' on day ' + p.finished.day + ' and finished ' + ordinal(p.finished.place) + '.</p>';
     }
+    if (!p.finished) html += nearExit(s, p);
     if (!can.ok && !p.tasks.length) html += chatNudge(p);
     el.innerHTML = html;
     var slot = $('dieSlot');
@@ -459,7 +460,7 @@
   var DISCORD_LOGO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.3 5.3A17 17 0 0 0 15 4l-.5 1a15 15 0 0 0-5 0L9 4a17 17 0 0 0-4.3 1.3C2 9.3 1.3 13.2 1.6 17a17 17 0 0 0 5.2 2.6l1.1-1.8-1.8-.9.4-.3a12 12 0 0 0 11 0l.4.3-1.8.9 1.1 1.8a17 17 0 0 0 5.2-2.6c.4-4.4-.7-8.3-3.1-11.7zM8.5 14.7c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1zm7 0c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1z"/></svg>';
   // How the Discord feed is doing: the last post, any problem since, and what's waiting, so a
   // quiet channel can be told apart from a broken one.
-  var FEED_KINDS = { moments: 'game moments', recap: 'the nightly recap', escape: 'an escape', start: 'the game start', end: 'the final results', day: 'the day-before countdown', hour: 'the one-hour countdown', lastcall: 'the last call', signups: 'sign-ups opening', test: 'a test post' };
+  var FEED_KINDS = { moments: 'game moments', recap: 'the nightly recap', escape: 'an escape', start: 'the game start', end: 'the final results', day: 'the day-before countdown', hour: 'the one-hour countdown', lastcall: 'the last call', signups: 'sign-ups opening', race: 'a race for the exit', test: 'a test post' };
   function feedStatus(h) {
     if (!h) return '';
     var when = function (t) { return new Date(t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }); }, now = Date.now(), out = [];
@@ -479,6 +480,21 @@
     var s = st(), t = theme(), info = s.board.routeInfo[r] || {}, builtIn = C.boards['chester-escape']().routeInfo[r] || {};
     if (t.routes && t.routes[r] && (!info.blurb || info.blurb === builtIn.blurb)) return t.routes[r].replace('{n}', (s.board.routes[r] || []).length);
     return info.blurb || '';
+  }
+  // Within one roll of the exit: say what it takes to get out, and whether the gate is open today.
+  function nearExit(s, p) {
+    var t = theme(), last = E.exitIndex(s, p), left = last - p.pos, sides = s.settings.dieSides || 4;
+    if (p.pos < 0 || left < 1 || left > sides) return '';
+    var lines = [];
+    if (s.settings.exactFinish) lines.push(['🎯', 'The ' + esc(t.goal) + ' is <b>' + left + '</b> away. You need exactly a <b>' + left + '</b> to get out. Roll higher and you stay where you are.']);
+    else lines.push(['🏁', 'The ' + esc(t.goal) + ' is <b>' + left + '</b> away. Any roll of ' + left + (left < sides ? ' or more' : '') + ' gets you out.']);
+    if (s.settings.oneFinishPerDay !== false && s.finishOrder.length < 3) {
+      var today = s.finishOrder.filter(function (pid) { var q = s.players[pid]; return q && q.finished && q.finished.day === s.day; })[0];
+      var close = Object.keys(s.players).filter(function (pid) { var q = s.players[pid]; if (pid === p.id || !q.route || q.finished || q.pos < 0) return false; var l = E.exitIndex(s, q) - q.pos; return l >= 1 && l <= sides; }).map(function (pid) { return s.players[pid].name; });
+      if (today) lines.push(['🚪', '<b>' + esc(s.players[today].name) + '</b> got out today, so the gate is closed until tomorrow. Reach it today and you wait one space short.']);
+      else lines.push(['🚪', 'Only one player can escape a day until the podium is full.' + (close.length ? ' <b>' + esc(close.slice(0, 2).join('</b> and <b>')) + '</b>' + (close.length > 2 ? ' and others' : '') + (close.length === 1 ? ' is' : ' are') + ' also within a roll, so rolling early matters.' : '')]);
+    }
+    return '<div class="near-exit">' + lines.map(function (l) { return '<p><span aria-hidden="true">' + l[0] + '</span><span>' + l[1] + '</span></p>'; }).join('') + '</div>';
   }
   function rollTitle(c) { return { task: 'Play your map', rolled: 'Rolled for today', skip: 'Turn lost', 'not-running': 'Waiting', finished: 'Escaped' }[c.code] || 'Not yet'; }
   // A lost turn waiting after today's roll pushes the next roll past tomorrow.
@@ -1662,6 +1678,7 @@
       tip('🎵', 'Every roll ends with a map. Stop on a space without one and you get a bonus map. Safe is the only break.') +
       tip('🔗', 'Moved by a card or event? Play the space if it\'s a map. Anything else you land on that way (back to start, lose a turn, move spaces, cards) is skipped.') +
       tip('🏁', 'First to the ' + esc(t.goal) + ' wins. Everyone else plays on for their place.') +
+      (s.settings.exactFinish ? tip('🎯', 'You need the exact roll to reach the ' + esc(t.goal) + '. Roll higher and you stay where you are.') : '') +
       (s.settings.oneFinishPerDay !== false ? tip('🚪', 'The podium escapes one a day: if someone got out today, you wait at the gate until your next roll. Once the top 3 are out, anyone can escape any day.') : '') +
       (s.endsAt && s.status !== 'finished' ? tip('⏳', 'The game ends <b>' + esc(startWhen(s.endsAt)) + '</b>. Not out by then? You\'re placed by how close you got, fewest spaces left first. Players tied on spaces share a place.') : '') + '</ul>';
     var extras = '<ul class="hw-tips">' +
@@ -2204,7 +2221,7 @@
   var HOST_TABS = [['today', 'Today'], ['players', 'Players'], ['game', 'Game'], ['stats', 'Stats'], ['alerts', 'Alerts']];
   var POST_LIST = [
     ['Countdowns', [['signups', 'When sign-ups open'], ['day', '24 hours before the start, with everyone signed up'], ['hour', 'One hour before the start'], ['start', 'When the game starts'], ['lastcall', '24 hours before the end'], ['end', 'When the game ends, with the top 3']]],
-    ['Moments', [['escape', 'Someone escapes'], ['leader', 'Someone takes the lead (once a day at most)'], ['setback', 'Big setbacks: back to the start, or 5 or more spaces back'], ['big', 'Clears at 95% or better'], ['gate', 'Someone reaches the exit but has to wait at the gate']]]
+    ['Moments', [['escape', 'Someone escapes'], ['leader', 'Someone takes the lead (once a day at most)'], ['setback', 'Big setbacks: back to the start, or 5 or more spaces back'], ['big', 'Clears at 95% or better'], ['gate', 'Someone reaches the exit but has to wait at the gate'], ['race', 'Two or more players can reach the exit with one roll (while only one can escape a day)']]]
   ];
   function themeOptions(s, id) {
     return '<select id="' + id + '">' + Object.keys(C.themes).filter(function (k) { return (C.themes[k].family || 'chester') === (theme().family || 'chester'); }).map(function (k) { return '<option value="' + k + '"' + (k === s.themeId ? ' selected' : '') + '>' + esc(C.themes[k].name) + '</option>'; }).join('') + '</select>';

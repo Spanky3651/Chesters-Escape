@@ -23,7 +23,7 @@ const C = globalThis.CGContent;
 const CHECK_EVERY = 15 * 60 * 1000;
 const HOUR = 3600000, DAY = 86400000;
 // Discord posts the host can switch on: countdowns and the start/end, then game moments.
-const POST_KINDS = ['signups', 'day', 'hour', 'start', 'lastcall', 'end', 'escape', 'leader', 'setback', 'big', 'gate'];
+const POST_KINDS = ['signups', 'day', 'hour', 'start', 'lastcall', 'end', 'escape', 'leader', 'setback', 'big', 'gate', 'race'];
 const MOMENT_CAP = 8, MOMENT_GAP = 2 * HOUR, SETBACK = 5, BIG_ACC = 0.95, UNDO_KEEP = 5;
 function later(r) { return r === 'nobudget' || r === 'later'; }   // a Discord post to try again next run
 function md(t) { return String(t || '').replace(/([*_~`|>\\])/g, '\\$1'); }
@@ -391,6 +391,8 @@ export class Game extends DurableObject {
     }
     // The day-before post came later: games set up before it follow their one-hour post setting.
     if (this.meta.posts.day === undefined) this.meta.posts.day = !!this.meta.posts.hour;
+    // The race post came later too: games set up before it follow their wait-at-the-gate setting.
+    if (this.meta.posts.race === undefined) this.meta.posts.race = !!this.meta.posts.gate;
     return this.meta.posts;
   }
   recordHall() { if ((this.meta.hallHidden || []).includes(this.state.id)) return; E.addToHall(this.meta.hall = this.meta.hall || [], this.state); }
@@ -683,6 +685,25 @@ export class Game extends DurableObject {
       if (!queue('leader', s.day, `👑 **${name(lead)}** passes **${name(f.leader)}** for the lead on day ${s.day}!` + (r ? ` ${plural(r.left, 'space')} from the ${goal}` + (gap > 0 ? `, ${name(f.leader)} is ${gap} behind.` : '.') : ''))) { f.leadDay = null; return; }
     }
     if (lead) f.leader = lead;
+    // A race for the exit: two or more players within one roll while the podium still lets one out a day.
+    // Posts right away (the timing is the point) and again only when someone new joins the race.
+    if (s.status === 'running' && s.settings.oneFinishPerDay !== false && s.finishOrder.length < 3) {
+      const sides = s.settings.dieSides || 4;
+      const near = Object.keys(s.players).map((pid) => {
+        const pl = s.players[pid]; if (!pl.route || pl.finished || pl.pos < 0) return null;
+        const l = E.exitIndex(s, pl) - pl.pos; return l >= 1 && l <= sides ? { pid, left: l } : null;
+      }).filter(Boolean).sort((a, b) => a.left - b.left);
+      f.raced = f.raced || [];
+      if (near.length >= 2 && near.some((x) => !f.raced.includes(x.pid))) {
+        const list = (a) => (a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]);
+        const shown = near.slice(0, 5), who = list(shown.map((x) => `**${name(x.pid)}** (${x.left} away)`)) + (near.length > 5 ? ` and ${near.length - 5} more` : '');
+        const next = this.meta.nextCutoff ? ` The next day starts <t:${sec(this.meta.nextCutoff)}:t>.` : '';
+        let text = `🏁 **Race to the ${goal}!** ${who} can ${near.length === 2 ? 'both' : 'all'} get out with one roll, but only one player can escape a day. The first one out takes the spot, so roll early.${next}`;
+        if (s.settings.exactFinish) text += '\n🎯 Exact rolls only: ' + shown.map((x) => `${name(x.pid)} needs a **${x.left}**`).join(', ') + '.';
+        if (!(await postNow('race', text))) return;
+        near.forEach((x) => { if (!f.raced.includes(x.pid)) f.raced.push(x.pid); });
+      }
+    }
     // a new game day: one recap of the day that just ended, then that day's waiting moments are done
     if (f.recapDay == null) f.recapDay = s.day;
     if (s.day > f.recapDay) {

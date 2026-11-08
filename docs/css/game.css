@@ -1174,3 +1174,9 @@ body .msp-pop .msp-f { color: var(--muted); border-top-color: var(--line); }
 body .msp-pop .msp-f a { color: var(--accent); }
 body .msp-k .msp-kf .msp-sb, body .msp-k .msp-kf .msp-more { color: var(--muted); }
 body .msp-av { background: var(--raise-2); color: var(--text); }
+/* Turn card: within one roll of the exit, what it takes to get out and whether the gate is open today */
+.near-exit { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 10%, var(--raise-2)); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line-2)); }
+.near-exit p { display: flex; gap: 9px; align-items: flex-start; margin: 0; font-size: 14.5px; line-height: 1.4; color: var(--text); }
+.near-exit p + p { margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--line); color: var(--muted); }
+.near-exit p + p b { color: var(--text); }
+.near-exit b { color: var(--accent); }
