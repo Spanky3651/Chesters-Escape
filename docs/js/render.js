@@ -56,6 +56,25 @@
     o += '<circle cx="-8" cy="-20" r="2.6" fill="#d7263d"/><circle cx="10" cy="-26" r="2.6" fill="#f4c542"/><circle cx="2" cy="-46" r="2.4" fill="#d7263d"/></g>';
     return o;
   }
+  // A snowy pine with no ornaments, for the plain winter look.
+  function plainPine(x, y, s) {
+    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')">';
+    o += '<ellipse cx="0" cy="6" rx="26" ry="7" fill="#24384a" opacity=".18"/>';
+    o += '<rect x="-4" y="-6" width="8" height="12" fill="#6b4a2b"/>';
+    o += '<path d="M0,-70 L22,-34 H12 L28,-8 H-28 L-12,-34 H-22 Z" fill="#1f5a3a"/>';
+    o += '<path d="M0,-70 L10,-54 L4,-56 L0,-50 L-5,-56 L-10,-54 Z M-14,-34 L-6,-30 L0,-36 L7,-30 L14,-34 L10,-40 L-10,-40 Z M-24,-10 L-12,-6 L-4,-11 L5,-6 L14,-10 L24,-10 L18,-14 L-18,-14 Z" fill="#fff" opacity=".9"/></g>';
+    return o;
+  }
+  // A lamp post with a warm glow, like the lanterns on LumberJack's cards.
+  function lantern(x, y, s) {
+    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')">';
+    o += '<ellipse cx="0" cy="4" rx="12" ry="4" fill="#24384a" opacity=".18"/>';
+    o += '<circle cx="0" cy="-44" r="16" fill="#ffcf6b" opacity=".28"/>';
+    o += '<rect x="-2.2" y="-34" width="4.4" height="38" fill="#2b3440"/><rect x="-6" y="0" width="12" height="4" rx="1.5" fill="#2b3440"/>';
+    o += '<path d="M-8,-36 H8 L6,-52 H-6 Z" fill="#ffd27a" stroke="#2b3440" stroke-width="2.2" stroke-linejoin="round"/>';
+    o += '<path d="M-9,-52 H9 L0,-60 Z" fill="#2b3440"/><path d="M-10,-53 H10" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></g>';
+    return o;
+  }
   function present(x, y, s, col) {
     return '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')"><ellipse cx="0" cy="13" rx="17" ry="4" fill="#24384a" opacity=".18"/>' +
       '<rect x="-13" y="-10" width="26" height="22" rx="2" fill="' + col + '"/><rect x="-15" y="-14" width="30" height="7" rx="2" fill="' + col + '" stroke="#000" stroke-opacity=".12"/>' +
@@ -68,7 +87,7 @@
       '<circle cx="-4" cy="-22" r="1.6" fill="#24384a"/><circle cx="4" cy="-22" r="1.6" fill="#24384a"/><path d="M0,-19 l9,2 -9,2 z" fill="#f08a24"/>' +
       '<path d="M-10,-11 h20" stroke="#d7263d" stroke-width="4" stroke-linecap="round"/></g>';
   }
-  // Chester: a small round crow. hat = 'none' | 'santa' | 'pilgrim'
+  // Chester: a small round crow. hat = 'none' | 'santa' | 'beanie' | 'pilgrim'
   function chester(x, y, s, hat) {
     var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')">';
     o += '<ellipse cx="0" cy="30" rx="26" ry="5" fill="#000" opacity=".3"/>';
@@ -87,6 +106,10 @@
   function hatSvg(hat) {
     var o = '';
     if (hat === 'santa') o += '<path d="M-15,-14 C-10,-34 10,-40 22,-30 C14,-30 12,-24 15,-14 Z" fill="#d7263d"/><rect x="-17" y="-17" width="34" height="7" rx="3.5" fill="#fff"/><circle cx="23" cy="-30" r="5" fill="#fff"/>';
+    if (hat === 'beanie') o += '<path d="M-19,15 C-8,21 8,21 19,15 L19,21 C8,27 -8,27 -19,21 Z" fill="#d7263d"/><path d="M-18,18 C-8,23.5 8,23.5 18,18" fill="none" stroke="#fff" stroke-width="1.8" stroke-dasharray="3 2"/>' +
+      '<g transform="rotate(-8 12 20)"><rect x="8" y="19" width="9" height="16" rx="2" fill="#d7263d"/><path d="M8,25 H17 M8,30 H17" stroke="#fff" stroke-width="1.8"/><path d="M9,35 v3 M12.5,35 v3 M16,35 v3" stroke="#d7263d" stroke-width="1.6" stroke-linecap="round"/></g>' +
+      '<path d="M-16,-12 C-17,-31 17,-31 16,-12 Z" fill="#d7263d"/><path d="M-12,-24 C-5,-27.5 5,-27.5 12,-24" fill="none" stroke="#fff" stroke-width="3"/>' +
+      '<rect x="-17.5" y="-17" width="35" height="7" rx="3.5" fill="#fff"/><path d="M-14,-13.5 H14" stroke="#d7263d" stroke-width="2" stroke-dasharray="2.5 2.5"/><circle cx="0" cy="-31" r="5.5" fill="#fff"/>';
     if (hat === 'pilgrim') o += '<ellipse cx="0" cy="-15" rx="23" ry="4.5" fill="#5a4030" stroke="#1a120c" stroke-width="1.2"/><path d="M-12,-16 L-10,-40 L10,-40 L12,-16 Z" fill="#5a4030" stroke="#1a120c" stroke-width="1.2"/><rect x="-11.4" y="-24" width="22.8" height="6" fill="#1a120c"/><rect x="-4.5" y="-25" width="9" height="8" fill="none" stroke="#f2c046" stroke-width="2"/>';
     if (hat === 'party') o += '<path d="M-10,-14 L0,-35 L10,-14 Z" fill="#f2c046" stroke="#c9921c" stroke-width="1.2" stroke-linejoin="round"/><path d="M-7,-20 L5,-23 M-4,-27 L3,-29" stroke="#ff5a8a" stroke-width="2.4" stroke-linecap="round"/><circle cx="0" cy="-36" r="4" fill="#ff5a8a"/><path d="M-11,-14 h22" stroke="#c9921c" stroke-width="2" stroke-linecap="round"/>';
     if (hat === 'witch') o += '<ellipse cx="0" cy="-15" rx="24" ry="4.5" fill="#2d2a5a" stroke="#15132e" stroke-width="1.2"/><path d="M-12,-16 C-8,-28 -2,-38 6,-44 C10,-46 14,-43 12,-40 C8,-40 6,-34 8,-28 L12,-16 Z" fill="#2d2a5a" stroke="#15132e" stroke-width="1.2" stroke-linejoin="round"/><rect x="-11" y="-22" width="22" height="5" fill="#ff8a2b"/><rect x="-3.5" y="-23" width="7" height="7" fill="none" stroke="#f2c046" stroke-width="1.6"/>';
@@ -262,6 +285,14 @@
       good: '#2fb35a', bad: '#3a6ea5', warpBad: '#d7263d',
       card: 'url(#gGift)', cardText: '#fff', task: ['#24384a', '#d7263d'], plain: ['#ffffff', '#24384a'], exit: ['#d7263d', '#f4c542']
     },
+    // Plain winter (Chester's Snowy Escape): snowy pines, snowmen and lanterns, frosted fence, no gifts or graves.
+    snowy: {
+      sky: 'snow', grain: '.07', pseed: 5, fog: false, parts: 'snow', river: 'ice', fence: 'frost', decor: 'snowy', seed: 23,
+      vignette: ['#24384a', '.25'], stone: ['#ffffff', '#dbe8f2'],
+      title: { shadow: '#d7263d', ink: '#24384a', stroke: '#fff', ink2: '#d7263d', stroke2: '#fff', tagline: '#24384a' },
+      good: '#2fb35a', bad: '#3a6ea5', warpBad: '#d7263d',
+      card: 'url(#gTheme)', cardGrad: ['#5aa9e6', '#2c6aa8'], cardText: '#fff', task: ['#24384a', '#d7263d'], plain: ['#ffffff', '#24384a'], exit: ['#24384a', '#9fd3ff']
+    },
     thanksgiving: {
       sky: 'sun', grain: '.12', pseed: 7, fog: false, parts: 'leaves', river: 'creek', fence: 'rail', decor: 'farm', seed: 31,
       vignette: ['#5a3616', '.3'], stone: ['#fff7e6', '#ecd3a2'],
@@ -312,8 +343,8 @@
   function fence(L) {
     var o = '<g>';
     if (L.fence === 'rail') return railFence();
-    var christmas = L.fence === 'candy';
-    var col = christmas ? '#d7263d' : '#5e646b', col2 = christmas ? '#fff' : '#8a9097';
+    var christmas = L.fence === 'candy', frost = L.fence === 'frost';
+    var col = christmas ? '#d7263d' : frost ? '#7fb3d9' : '#5e646b', col2 = christmas || frost ? '#fff' : '#8a9097';
     // rails
     o += '<rect x="10" y="10" width="980" height="980" fill="none" stroke="' + col2 + '" stroke-width="4" opacity=".75"/>';
     o += '<rect x="4" y="4" width="992" height="992" fill="none" stroke="' + col + '" stroke-width="6" opacity=".85"/>';
@@ -321,6 +352,7 @@
       var p = 20 + i * 64 - (i === 15 ? 4 : 0);
       [[p, 6], [p, 994], [6, p], [994, p]].forEach(function (q) {
         if (christmas) o += '<rect x="' + (q[0] - 5) + '" y="' + (q[1] - 5) + '" width="10" height="10" rx="2" fill="#fff" stroke="#d7263d" stroke-width="3"/>';
+        else if (frost) o += '<rect x="' + (q[0] - 5) + '" y="' + (q[1] - 5) + '" width="10" height="10" rx="2" fill="#fff" stroke="#7fb3d9" stroke-width="3"/>';
         else o += '<rect x="' + (q[0] - 5) + '" y="' + (q[1] - 5) + '" width="10" height="10" fill="' + col + '" stroke="#2d3135" stroke-width="1.5"/>';
       });
     }
@@ -420,6 +452,10 @@
         else if (k === 1) o += hayBale(x, y + 4, sc * .9);
         else if (k === 2) o += cornShock(x, y + 20, sc);
         else o += pumpkin(x - 8, y + 8, sc * .75) + pumpkin(x + 10, y + 2, sc * .6);
+      } else if (L.decor === 'snowy') {
+        if (i % 3 === 0) o += plainPine(x, y + 18, .8 + g() * .3);
+        else if (i % 3 === 1) o += i % 2 ? lantern(x, y + 22, .9 + g() * .2) : '<g class="egg" data-egg="snowman">' + snowman(x, y, .75 + g() * .2) + '</g>';
+        else o += plainPine(x - 10, y + 16, .6 + g() * .2) + plainPine(x + 12, y + 20, .5 + g() * .2);
       } else if (L.decor === 'winter') {
         if (i % 3 === 0) o += pine(x, y + 18, .8 + g() * .3);
         else if (i % 3 === 1) o += present(x, y, .9 + g() * .3, ['#d7263d', '#2fb35a', '#3a6ea5', '#f4c542'][i % 4]);
@@ -430,6 +466,9 @@
     });
     if (L.decor === 'farm') {
       o += autumnTree(560, 420, 1.15) + '<g class="egg" data-egg="scarecrow">' + scarecrow(330, 780, 1.1) + '</g>' + autumnTree(890, 320, .85) + hayBale(440, 600, 1.2) + '<g class="egg" data-egg="turkey">' + turkey(655, 605, 1.05) + '</g>' + '<g class="egg" data-egg="pumpkin">' + pumpkin(820, 405, 1.15) + '</g>';
+    } else if (L.decor === 'snowy') {
+      o += plainPine(560, 400, 1.3) + plainPine(318, 760, 1.2) + '<g class="egg" data-egg="snowman">' + snowman(660, 600, 1.1) + '</g>' + lantern(440, 630, 1.15) + plainPine(890, 330, 1.05) +
+        lantern(600, 490, .95) + plainPine(820, 420, .85);
     } else if (L.decor === 'winter') {
       o += pine(560, 400, 1.3) + pine(318, 760, 1.2) + '<g class="egg" data-egg="snowman">' + snowman(660, 600, 1.1) + '</g>' + '<g class="egg" data-egg="present">' + present(440, 610, 1.1, '#d7263d') + '</g>' + pine(890, 330, 1.05) +
         snowyGrave(600, 470, .95, 0, { stoneDark: '#4f6476' }) + snowyGrave(820, 410, .85, 1, { stoneDark: '#4f6476' });

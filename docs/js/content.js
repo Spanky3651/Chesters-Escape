@@ -494,9 +494,33 @@
     return { id: c[0], cls: c[1] > 0 ? 'treasure' : 'trick', title: c[3], art: c[4], text: c[5], full: 'img/cards/snowy/' + c[2] + '.webp?v=20261112', effects: [{ type: 'move', n: c[1] }] };
   });
   THEMES.snowy = (function () {
+    // Plain winter, not Christmas: Chester in a knit beanie and scarf like on her cards, snowy pines and lanterns,
+    // and winter names for everything. Fonts and colors come from Chester's Christmas.
     var t = JSON.parse(JSON.stringify(THEMES.christmas));
-    t.id = 'snowy'; t.look = 'christmas'; t.name = "Chester's Snowy Escape"; t.title = "Chester's Snowy Escape";
-    t.card.back = "Chester's Snowy Escape";
+    t.id = 'snowy'; t.look = 'snowy'; t.hat = 'beanie';
+    t.name = "Chester's Snowy Escape"; t.title = "Chester's Snowy Escape";
+    t.tagline = 'Help Chester find his way home to his cabin before the snow gets any deeper.';
+    t.goal = 'cabin';
+    t.card = { back: "Chester's Snowy Escape", treasure: 'Snowflake card', trick: 'Icicle card', task: 'Snowball card', fate: 'Snow globe' };
+    t.kinds = {
+      cat:        { title: 'Chased by a snowman!', icon: '⛄' },
+      roadblock:  { title: 'Snowed in!', icon: '🌨️' },
+      terror:     { title: 'Yeti spotted!', icon: '👣' },
+      attack:     { title: 'Lost a mitten!', icon: '🧤' },
+      ghostScare: { title: 'Brain freeze!', icon: '🥶' },
+      ghostRun:   { title: 'Sled downhill!', icon: '🛷' },
+      flowers:    { title: 'Found hot cocoa!', icon: '☕' },
+      evilGhost:  { title: 'Avalanche!', icon: '🏔️' },
+      grave:      { title: 'Buried in a snowdrift!', icon: '🧊' },
+      pulledUnder:{ title: 'Stuck in the slush!', icon: '🫠' },
+      swim:       { title: 'Skate to safety!', icon: '⛸️' },
+      current:    { title: 'Thin ice!', icon: '❄️' },
+      bridge:     { title: 'Broken bridge!', icon: '🌉' },
+      safe:       { title: 'Safe!', icon: '🔥' },
+      exit:       { title: "Chester's cabin", icon: '🏡' }
+    };
+    t.words = { card: ['SNOW', 'DROP'], start: 'Start', longer: 'Longer route', riskier: 'Riskier route', escaped: 'Made it home!', results: 'Day {n} results', swim: 'Skate!' };
+    t.routes = { longer: 'Packed snow trails, the long way around. {n} spaces to the cabin.', riskier: 'Shorter, but the frozen river and the deep drifts are waiting. {n} spaces.' };
     t.deck = SNOWY_DECK;
     return t;
   })();

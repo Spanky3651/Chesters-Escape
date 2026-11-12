@@ -22,7 +22,7 @@
   --treasure: #3fd04a; --trick: #a78bfa; --task: #f2c46b; --fate: #9aa3ad;
   color-scheme: dark;
 }
-body[data-theme="christmas"] {
+body[data-theme="christmas"], body[data-theme="snowy"] {
   --bg: #050b14;
   --raise: #0c1726;
   --raise-2: #13223a;
@@ -198,7 +198,7 @@ img { max-width: 100%; }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .brand-crow { width: 42px; height: 46px; flex: none; }
 .brand h1 { margin: 0; font: 700 34px/1 var(--display); letter-spacing: .5px; white-space: nowrap; }
-body[data-theme="christmas"] .brand h1 { color: #ff5a6e; }
+body[data-theme="christmas"] .brand h1, body[data-theme="snowy"] .brand h1 { color: #ff5a6e; }
 body[data-theme="thanksgiving"] .brand h1 { color: #f39a4a; }
 .daybox { display: flex; align-items: baseline; gap: 12px; padding: 6px 14px; border: 1px solid var(--line-2); border-radius: 999px; }
 .day { font: 700 22px/1 var(--display); color: var(--gold); }
@@ -219,7 +219,7 @@ body[data-theme="thanksgiving"] .brand h1 { color: #f39a4a; }
 #muteBtn[aria-pressed="true"] .wave { display: none; }
 
 .demo-bar { display: flex; align-items: center; gap: 16px; justify-content: space-between; flex-wrap: wrap; padding: 10px 22px; background: #0d0a03; border-bottom: 1px solid #3a2a0e; color: #e9d3ab; font-size: 14.5px; }
-body[data-theme="christmas"] .demo-bar { background: #0b1220; border-color: #23395a; color: #c9dcf2; }
+body[data-theme="christmas"] .demo-bar, body[data-theme="snowy"] .demo-bar { background: #0b1220; border-color: #23395a; color: #c9dcf2; }
 body[data-theme="thanksgiving"] .demo-bar { background: #160c04; border-color: #4a2c12; color: #f0d6b0; }
 .demo-bar p { margin: 0; max-width: 80ch; }
 .demo-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -295,7 +295,7 @@ input::placeholder { color: var(--faint); }
 .chip.none { border-style: dashed; color: var(--muted); }
 .st.noroute .bar { visibility: hidden; }
 .st.noroute .ava-wrap { opacity: .75; }
-body[data-theme="christmas"] .chip.long { border-color: #23506a; color: #a9d8f5; }
+body[data-theme="christmas"] .chip.long, body[data-theme="snowy"] .chip.long { border-color: #23506a; color: #a9d8f5; }
 body[data-theme="thanksgiving"] .chip.long { border-color: #4a6a2a; color: #c8e3a3; }
 
 /* ---- me panel ---- */
@@ -369,7 +369,7 @@ body[data-theme="thanksgiving"] .chip.long { border-color: #4a6a2a; color: #c8e3
 .route-card b { font: 700 22px/1.1 var(--display); display: block; }
 .route-card span { color: var(--muted); font-size: 14.5px; }
 .route-card.risk b { color: #ff9a8a; }
-body[data-theme="christmas"] .route-card.risk b { color: #ff8090; }
+body[data-theme="christmas"] .route-card.risk b, body[data-theme="snowy"] .route-card.risk b { color: #ff8090; }
 body[data-theme="thanksgiving"] .route-card.risk b { color: #ff9a6a; }
 
 /* ---- feed ---- */
@@ -405,6 +405,7 @@ body[data-theme="thanksgiving"] .route-card.risk b { color: #ff9a6a; }
 .cface { position: absolute; inset: 0; border-radius: 18px; backface-visibility: hidden; overflow: hidden; box-shadow: 0 30px 70px rgba(0,0,0,.7); }
 .cback { transform: rotateY(180deg); background: radial-gradient(circle at 50% 40%, #2c3a22, #0f150b 70%); border: 6px solid #3a4434; display: grid; place-items: center; text-align: center; }
 body[data-theme="christmas"] .cback { background: repeating-linear-gradient(45deg, #b0182d 0 18px, #d7263d 18px 36px); border-color: #fff; }
+body[data-theme="snowy"] .cback { background: repeating-linear-gradient(45deg, #24507c 0 18px, #2f6fae 18px 36px); border-color: #fff; }
 body[data-theme="thanksgiving"] .cback { background: repeating-linear-gradient(90deg, #8a3a12 0 14px, #b4501a 14px 28px, #8a3a12 28px 30px), #8a3a12; border-color: #f2c046; }
 .cback .crow { width: 52%; }
 .cback p { margin: 0; font: 700 26px/1 var(--display); color: #e9e4d6; padding: 0 16px; }
@@ -698,7 +699,7 @@ body.gated .foot { border-top: 0; margin-top: 0; }
   body.has-mbar { padding-bottom: 84px; }
   .mbar { position: fixed; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); z-index: 25; display: grid; grid-template-columns: 40px minmax(0,1fr) auto; gap: 10px; align-items: center;
     padding: 10px 10px 10px 12px; border-radius: 16px; background: rgba(18,20,16,.94); border: 1px solid var(--line-2); box-shadow: 0 14px 40px rgba(0,0,0,.7); backdrop-filter: blur(8px); }
-  body[data-theme="christmas"] .mbar { background: rgba(12,23,38,.94); }
+  body[data-theme="christmas"] .mbar, body[data-theme="snowy"] .mbar { background: rgba(12,23,38,.94); }
   body[data-theme="thanksgiving"] .mbar { background: rgba(26,17,10,.94); }
   .mbar[hidden] { display: none !important; }
   .mb-ava { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 3px solid var(--c, var(--accent)); background: var(--raise-2); display: grid; place-items: center; font-weight: 700; font-size: 13px; }
