@@ -477,7 +477,7 @@ export class Game extends DurableObject {
   }
   gameCard() {
     const s = this.state, t = C.themes[s.themeId] || {}, base = this.env.GAME_PAGE || '';
-    const pic = (t.artHero && t.artHero.src) || 'img/icon.png', hex = String((t.palette || {}).accent || '#f2a33a').replace('#', '');
+    const pic = t.thumb || (t.artHero && t.artHero.src) || 'img/icon.png', hex = String((t.palette || {}).accent || '#f2a33a').replace('#', '');
     return { title: s.title, url: this.page(), description: t.tagline || 'Roll the d4 once a day and play the map on the space you land on.', color: parseInt(hex, 16) || 0xf2a33a, thumbnail: { url: base.replace(/\/?$/, '/') + pic } };
   }
   // ---- Discord post pieces ----
