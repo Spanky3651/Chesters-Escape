@@ -531,6 +531,7 @@
     if (sp.type === 'card') { fill = L.card; }
     if (sp.type === 'task') { fill = L.task[0]; stroke = L.task[1]; txt = '#fff'; }
     if (sp.type === 'move' || sp.type === 'skip' || sp.type === 'start' || sp.type === 'warp' || sp.type === 'safe') { fill = L.plain[0]; stroke = sp.type === 'move' && sp.n > 0 || sp.type === 'safe' || (sp.type === 'warp' && sp.kind === 'swim') ? L.good : L.bad; txt = L.plain[1]; }
+    if (sp.type === 'blank') { fill = L.plain[0]; stroke = pal.stoneDark; txt = L.plain[1]; }
     if (sp.type === 'exit') { fill = L.exit[0]; stroke = L.exit[1]; txt = '#fff'; }
     o += '<rect class="face" x="' + (-h) + '" y="' + (-h) + '" width="' + s + '" height="' + s + '" rx="5" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + (sp.type === 'map' || sp.type === 'card' ? 1.5 : 2.5) + '"/>';
     if (sp.type === 'map' || sp.type === 'card') o += '<rect x="' + (-h + 3) + '" y="' + (-h + 3) + '" width="' + (s - 6) + '" height="' + (s - 6) + '" rx="3" fill="none" stroke="#fff" stroke-opacity=".22"/>';
@@ -548,7 +549,7 @@
     } else if (sp.type === 'exit') {
       o += t(0, 2, k ? k.icon : '\uD83D\uDEAA', 26, '#fff', 'serif', 400) + t(0, 24, 'EXIT', 10.5, txt, f, 700);
     } else {
-      o += t(0, sp.type === 'task' ? -10 : -6, k ? k.icon : '?', sp.type === 'task' ? 19 : 21, txt, 'serif', 400);
+      o += t(0, sp.type === 'task' ? -10 : -6, k ? k.icon : sp.type === 'blank' ? '\u2714' : '?', sp.type === 'task' ? 19 : 21, txt, 'serif', 400);
       var short = shortLabel(sp, theme);
       if (sp.type === 'task') o += t(0, 9, short, 8.6, '#f2c46b', f, 700) + t(0, 21, '!bsr ' + sp.bsr[0], 9.6, '#fff', f, 700);
       else o += t(0, 15, short, 9.4, txt, f, 700);
@@ -567,12 +568,13 @@
       case 'start': return 'To start';
       case 'warp': return sp.kind === 'swim' ? ((theme.words && theme.words.swim) || 'Swim!') : (sp.kind === 'current' ? 'Current' : 'Warp');
       case 'safe': return 'Safe!';
+      case 'blank': return 'Turn over';
       default: return '';
     }
   }
   function label(sp, theme) {
     var k = sp.kind && theme.kinds[sp.kind];
-    var base = k ? k.title : sp.type === 'card' ? 'Card drop' : sp.type === 'map' ? 'Map space' : sp.type;
+    var base = k ? k.title : sp.type === 'card' ? 'Card drop' : sp.type === 'map' ? 'Map space' : sp.type === 'blank' ? 'Blank space' : sp.type;
     var maps = sp.bsr && sp.bsr.length ? ' !bsr ' + sp.bsr.join(' or ') : '';
     return base + maps + '. ' + C.spaceEffectText(sp);
   }

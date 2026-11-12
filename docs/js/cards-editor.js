@@ -1,6 +1,6 @@
 /*
  * Chester's Escape - card editor (the Cards tab of the designer).
- * Rewrite a theme's 20 cards and 14 event space names, preview them as real cards,
+ * Rewrite a theme's 20 cards and its event space names, preview them as real cards,
  * and download a card pack file to send to the host. What each card does stays fixed.
  */
 (function () {
@@ -83,7 +83,7 @@
       html += '</section>';
     });
     var k = theme().kinds, now = kinds();
-    html += '<section class="ce-group"><h2>Event spaces <span class="muted">(14)</span></h2><p class="why">The names on the board spaces in this theme. Where each one sits and what it does comes from the board.</p><div class="ce-kinds">';
+    html += '<section class="ce-group"><h2>Event spaces <span class="muted">(' + Object.keys(k).length + ')</span></h2><p class="why">The names on the board spaces in this theme. Where each one sits and what it does comes from the board.</p><div class="ce-kinds">';
     Object.keys(k).forEach(function (id) {
       var changed = now[id].title !== k[id].title || now[id].icon !== k[id].icon;
       html += '<div class="ce-kind' + (changed ? ' changed' : '') + '" data-kind="' + id + '"><input type="text" class="ce-icon" data-f="icon" maxlength="16" value="' + esc(now[id].icon) + '" aria-label="Icon">' +

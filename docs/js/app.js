@@ -513,6 +513,8 @@
     }
     if (c.code === 'rolled') {
       if (p.skip) return lostAhead(s, p) + (store.mode === 'demo' ? ' In the demo, use Start the next day.' : '');
+      var here = E.spaceAt(s, p);
+      if (here && here.type === 'blank' && p.rolledDay === s.day) return C.spaceEffectText(here) + (store.mode === 'demo' ? ' In the demo, use Start the next day.' : '');
       return store.mode === 'demo' ? 'Come back tomorrow. In the demo, use Start the next day.' : 'Your next roll opens when the day turns over.';
     }
     if (c.code === 'skip') return p.skip ? 'You sit this one out. ' + p.skip + ' more after today.' : 'You sit this one out. You can roll again tomorrow.';
@@ -574,6 +576,7 @@
       case 'roll': return { html: (e.bonus ? 'Bonus roll: ' : 'Rolled a ') + '<b>' + e.n + '</b>' };
       case 'land': {
         // Only Safe gets a line: every other space logs what it does, and Safe does nothing, so without this the roll looks like it went nowhere.
+        if (sp && sp.type === 'blank') { var kB = sp.kind && t.kinds[sp.kind]; return { html: (kB ? '<b>' + esc(kB.title) + '</b> ' : '') + esc(C.spaceEffectText(sp)), icon: kB ? kB.icon : '\u2714\uFE0F' }; }
         if (!sp || sp.type !== 'safe') return null;
         var kSafe = sp.kind && t.kinds[sp.kind];
         return { html: '<b>' + esc(kSafe ? kSafe.title : 'Safe!') + '</b> Catch your breath, no map this turn', cls: 'good', icon: kSafe && kSafe.icon };
@@ -1661,6 +1664,7 @@
       ['up', function (sp) { return sp.type === 'move' && sp.n > 0; }, 'Boost', 'Jump ahead.'],
       ['shortcut', function (sp) { return sp.type === 'warp' && sp.kind === 'swim'; }, 'Shortcut', 'Carried ahead.'],
       ['safe', function (sp) { return sp.type === 'safe'; }, 'Safe', 'A rest. No map.'],
+      ['blank', function (sp) { return sp.type === 'blank'; }, 'Turn over', 'Your turn ends here. No map.'],
       ['down', function (sp) { return sp.type === 'move' && sp.n < 0; }, 'Setback', 'Sent back.'],
       ['warp', function (sp) { return sp.type === 'warp' && sp.kind !== 'swim'; }, 'Swept away', 'Carried off course.'],
       ['skip', function (sp) { return sp.type === 'skip'; }, 'Lose a turn', 'Sit out a roll.'],
@@ -2487,7 +2491,7 @@
     var k = sp.kind && theme().kinds[sp.kind];
     if (sp.type === 'exit') return { icon: k ? k.icon : '🚪', text: cap(theme().goal || 'the exit') };
     if (k) return { icon: k.icon, text: k.title.replace(/!+$/, '') };
-    return { icon: { map: '🎵', task: '🎵', card: '🃏', safe: '🛟' }[sp.type] || '•', text: { map: 'Map space', task: 'Map space', card: 'Card drop', safe: 'Safe' }[sp.type] || cap(sp.type) };
+    return { icon: { map: '🎵', task: '🎵', card: '🃏', safe: '🛟', blank: '✔️' }[sp.type] || '•', text: { map: 'Map space', task: 'Map space', card: 'Card drop', safe: 'Safe', blank: 'Blank space' }[sp.type] || cap(sp.type) };
   }
   function hpSong(key) { var m = songFor(key); return '<span data-song="' + esc(key) + '">' + (m ? esc(m.name) : '!bsr ' + esc(key)) + '</span>'; }
   function hostPlayerGroups(s, p) {

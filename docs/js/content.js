@@ -146,6 +146,7 @@
         pulledUnder:{ title: 'Pulled under by a ghost!', icon: '🫧' },
         swim:       { title: 'Swim to safety!', icon: '🛟' },
         current:    { title: 'Taken by the current!', icon: '🌊' },
+        bridge:     { title: 'Broken bridge!', icon: '🌉' },
         safe:       { title: 'Safe!', icon: '🪨' },
         exit:       { title: 'Cemetery gates', icon: '🚪' }
       },
@@ -178,6 +179,7 @@
         pulledUnder:{ title: 'Stuck in the slush!', icon: '🫠' },
         swim:       { title: 'Skate to safety!', icon: '⛸️' },
         current:    { title: 'Thin ice!', icon: '❄️' },
+        bridge:     { title: 'Broken bridge!', icon: '🌉' },
         safe:       { title: 'Safe!', icon: '🕯️' },
         exit:       { title: "Chester's tombstone home", icon: '🪦' }
       },
@@ -211,6 +213,7 @@
         pulledUnder:{ title: 'Stuck in the cranberry bog!', icon: '🥾' },
         swim:       { title: 'Paddle to safety!', icon: '🛶' },
         current:    { title: 'Swept down the creek!', icon: '🌊' },
+        bridge:     { title: 'Broken bridge!', icon: '🌉' },
         safe:       { title: 'Safe!', icon: '🍂' },
         exit:       { title: 'The feast table', icon: '🍽️' }
       },
@@ -745,6 +748,8 @@
     if (!card.effects || !card.effects.length) return 'Nothing happens';
     return card.effects.map(function (fx, i) { var t = effectText(fx); return i ? t.charAt(0).toLowerCase() + t.slice(1) : t; }).join(', then ');
   }
+  // What a Blank space tells the player when the host hasn't written its own message.
+  var BLANK_MSG = 'Turn complete. Roll again tomorrow.';
   function spaceEffectText(sp) {
     switch (sp.type) {
       case 'map': return sp.bsr.length > 1 ? 'Play one of these maps' : 'Play this map';
@@ -755,6 +760,7 @@
       case 'start': return 'Return to start';
       case 'warp': return 'Carried to another space';
       case 'safe': return 'Catch your breath';
+      case 'blank': return sp.msg || BLANK_MSG;
       case 'exit': return 'Escape!';
       default: return '';
     }
@@ -847,7 +853,7 @@
     mapSets: MAP_SETS, boardFor: boardFor, applyMapSet: applyMapSet,
     themes: THEMES,
     cardsFor: cardsFor,
-    effectText: effectText, cardEffectText: cardEffectText, spaceEffectText: spaceEffectText
+    effectText: effectText, cardEffectText: cardEffectText, spaceEffectText: spaceEffectText, BLANK_MSG: BLANK_MSG
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.CGContent;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

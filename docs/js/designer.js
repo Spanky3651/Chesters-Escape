@@ -116,13 +116,14 @@
     if (!sp) { el.innerHTML = '<p class="empty">Select a space on the board to edit it.</p>'; return; }
     var t = theme(), kinds = Object.keys(t.kinds);
     var inRoutes = Object.keys(board.routes).filter(function (r) { return board.routes[r].indexOf(sp.id) >= 0; }).map(function (r) { return board.routeInfo[r].name + ' step ' + (board.routes[r].indexOf(sp.id) + 1); });
-    var types = [['map', 'Map: play a map'], ['task', 'Blocker: play its map to continue'], ['card', 'Card drop'], ['move', 'Move ahead or back'], ['skip', 'Lose turns'], ['start', 'Back to the start'], ['warp', 'Carry to another space'], ['safe', 'Safe space'], ['exit', 'Exit (the goal)']];
+    var types = [['map', 'Map: play a map'], ['task', 'Blocker: play its map to continue'], ['card', 'Card drop'], ['move', 'Move ahead or back'], ['skip', 'Lose turns'], ['start', 'Back to the start'], ['warp', 'Carry to another space'], ['safe', 'Safe space'], ['blank', 'Blank space: turn ends, no map'], ['exit', 'Exit (the goal)']];
     var html = '<div class="field"><label for="sType">What happens here</label><select id="sType">' + types.map(function (x) { return '<option value="' + x[0] + '"' + (sp.type === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select></div>';
     if (sp.type !== 'map' && sp.type !== 'card') {
       html += '<div class="field"><label for="sKind">Event art and name</label><select id="sKind"><option value="">None</option>' + kinds.map(function (k) { return '<option value="' + k + '"' + (sp.kind === k ? ' selected' : '') + '>' + t.kinds[k].icon + ' ' + esc(t.kinds[k].title) + '</option>'; }).join('') + '</select><span class="hint">Each theme shows its own version of this event.</span></div>';
     }
     if (sp.type === 'map' || sp.type === 'task') html += '<div class="field"><label for="sBsr">Map key</label><input type="text" id="sBsr" value="' + esc((sp.bsr || []).join(', ')) + '" placeholder="4fde6"><span class="hint">Two keys separated by a comma means the player picks either one.</span><ul class="map-peek" id="sMaps"></ul></div>';
     if (sp.type === 'move') html += '<div class="field"><label for="sN">Spaces to move</label><input type="number" id="sN" value="' + (sp.n || 0) + '"><span class="hint">Positive moves ahead, negative moves back.</span></div>';
+    if (sp.type === 'blank') html += '<div class="field"><label for="sMsg">Message</label><input type="text" id="sMsg" maxlength="120" value="' + esc(sp.msg || '') + '" placeholder="' + esc(C.BLANK_MSG) + '"><span class="hint">What the player sees when they land here. Leave it empty for the default.</span></div>';
     if (sp.type === 'skip') html += '<div class="field"><label for="sTurns">Turns lost</label><input type="number" id="sTurns" min="1" max="5" value="' + (sp.turns || 1) + '"></div>';
     if (sp.type === 'warp') html += '<div class="field"><label for="sTo">Carries the player to</label><select id="sTo"><option value="">Pick a space</option>' + Object.keys(board.spaces).filter(function (id) { return id !== sp.id; }).map(function (id) { return '<option value="' + esc(id) + '"' + (sp.to === id ? ' selected' : '') + '>' + esc(stepName(id)) + '</option>'; }).join('') + '</select><span class="hint">The space it lands on applies, so a current can drop someone onto a lose-a-turn space.</span></div>';
     html += '<p class="why">' + (inRoutes.length ? 'On the ' + esc(inRoutes.join(' and ')) : 'Not on any route yet') + '.</p>';
@@ -269,7 +270,7 @@
       checkpoint();
       if (t.id === 'sType') {
         sp.type = t.value;
-        ['bsr', 'n', 'turns', 'to'].forEach(function (k) { delete sp[k]; });
+        ['bsr', 'n', 'turns', 'to', 'msg'].forEach(function (k) { delete sp[k]; });
         if (sp.type === 'map' || sp.type === 'task') sp.bsr = [''];
         if (sp.type === 'move') sp.n = 2;
         if (sp.type === 'skip') sp.turns = 1;
@@ -281,6 +282,7 @@
       if (t.id === 'sN') sp.n = parseInt(t.value, 10) || 0;
       if (t.id === 'sTurns') sp.turns = Math.max(1, parseInt(t.value, 10) || 1);
       if (t.id === 'sTo') sp.to = t.value;
+      if (t.id === 'sMsg') { var m = t.value.replace(/\s+/g, ' ').trim().slice(0, 120); if (m) sp.msg = m; else delete sp.msg; }
       changed();
     });
     $('spaceEdit').addEventListener('click', function (e) {

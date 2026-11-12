@@ -249,11 +249,11 @@
 
   // Every roll ends with a map to play. If the turn stops on a space without one
   // (a card, an event, lose a turn, back to start), the player gets a bonus map.
-  // Exceptions: a Safe space, escaping, or a bonus roll still to take today.
+  // Exceptions: a Safe or Blank space, escaping, or a bonus roll still to take today.
   function mustPlay(s, p, ctx) {
     if (p.finished || p.tasks.length || p.extraRoll) return;
     var sp = spaceAt(s, p);
-    if (sp && (sp.type === 'safe' || sp.type === 'exit')) return;
+    if (sp && (sp.type === 'safe' || sp.type === 'blank' || sp.type === 'exit')) return;
     var keys = pickBonus(s, ctx && ctx.rng, p);
     if (keys.length) addTask(s, p, { bsr: keys, space: sp ? sp.id : null, bonus: true, source: 'bonus' });
   }

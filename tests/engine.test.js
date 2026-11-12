@@ -266,4 +266,20 @@ assert.strictEqual(cardsSeen.size, 20);
   console.log('sign-up phase ok');
 }
 
+// Blank space: the turn ends there with no map, and the GenX (Chester) themes have the Broken bridge event
+{
+  const s = newGame('cemetery', seeded(41));
+  E.addPlayer(s, { id: 'x', name: 'X' }); E.chooseRoute(s, 'x', 'longer');
+  const r = s.board.routes.longer, id = r[2];
+  s.board.spaces[id] = { id, type: 'blank', x: s.board.spaces[id].x, y: s.board.spaces[id].y, kind: 'bridge', msg: 'Turn complete. Roll again tomorrow after completing a daily mission.' };
+  E.roll(s, 'x', { forced: 3 });
+  assert.strictEqual(r[s.players.x.pos], id, 'landed on the blank space');
+  assert.strictEqual(s.players.x.tasks.length, 0, 'blank space gives no map');
+  assert.strictEqual(E.canRoll(s, 'x').code, 'rolled', 'turn is over for today');
+  assert.strictEqual(C.spaceEffectText(s.board.spaces[id]), 'Turn complete. Roll again tomorrow after completing a daily mission.');
+  assert.strictEqual(C.spaceEffectText({ type: 'blank' }), C.BLANK_MSG);
+  assert.deepStrictEqual(E.checkBoard(s.board), []);
+  Object.keys(C.themes).forEach((t) => { const ch = (C.themes[t].family || 'chester') === 'chester'; assert.strictEqual(!!C.themes[t].kinds.bridge, ch, t + (ch ? ' has no bridge event' : ' should not have the bridge event')); });
+  console.log('blank space ok');
+}
 console.log('all engine tests passed');
