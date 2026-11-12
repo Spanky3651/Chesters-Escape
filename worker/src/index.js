@@ -1012,6 +1012,8 @@ export class Game extends DurableObject {
         case 'signups': if (s.status !== 'signup') return { error: 'The game has already started.' }; if (a.closed) s.signupsClosed = true; else delete s.signupsClosed; s.seq++; break;
         case 'clearRoute': { const p = s.players[a.pid]; p.route = null; p.pos = -1; p.tasks = []; break; }
         case 'settings': {
+          // AccSaber mode is locked in once the game starts: the rules can't switch mid-game.
+          if (a.patch && 'accsaber' in a.patch && s.status === 'running' && !!a.patch.accsaber !== !!s.settings.accsaber) return { error: "AccSaber mode can't change while the game is running. Set it before the start or for the next game." };
           const allowed = ['exactFinish', 'oneFinishPerDay', 'oneRollPerDay', 'cutoffHour', 'cutoffMinute', 'timeZone', 'remindHour', 'accsaber'];
           for (const k of Object.keys(a.patch || {})) if (allowed.includes(k)) s.settings[k] = a.patch[k];
           // AccSaber mode follows AccSaber's day: it turns over at their daily reset, 4:00 AM UTC.
