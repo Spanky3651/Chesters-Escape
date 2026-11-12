@@ -59,6 +59,7 @@
     if (k) return k.title.replace(/!+$/, '');
     if (sp.type === 'map') return '!bsr ' + sp.bsr.join(' or ');
     if (sp.type === 'card') return 'a card drop';
+    if (sp.type === 'blank') return 'a turn-over space';
     return sp.type;
   }
   function avatarHtml(p, cls) {
@@ -1514,7 +1515,7 @@
     track('space-details');
     var s = st(), sp = s.board.spaces[id], t = theme(), pop = $('spacePop');
     var k = sp.kind && t.kinds[sp.kind];
-    var title = k ? k.title : sp.type === 'card' ? 'Card drop' : sp.type === 'map' ? 'Map space' : 'Space';
+    var title = k ? k.title : sp.type === 'card' ? 'Card drop' : sp.type === 'map' ? 'Map space' : sp.type === 'blank' ? 'Turn over' : 'Space';
     var here = s.order.filter(function (pid) { var p = s.players[pid]; return p.route && p.pos >= 0 && s.board.routes[p.route][p.pos] === id; }).map(function (pid) { return s.players[pid].name; });
     var steps = []; Object.keys(s.board.routes).forEach(function (r) { var i = s.board.routes[r].indexOf(id); if (i >= 0) steps.push(s.board.routeInfo[r].name + ' space ' + (i + 1)); });
     var html = '<button type="button" class="x" data-close aria-label="Close">&times;</button><h3>' + (k ? k.icon + ' ' : '') + esc(title) + '</h3><div class="fx">' + esc(C.spaceEffectText(sp)) + '</div>';
