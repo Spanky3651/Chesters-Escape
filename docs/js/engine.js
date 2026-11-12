@@ -51,11 +51,17 @@
   // New mission counts from AccSaber. counts: { blId: { d, w } }. known: { d, w } says whether the
   // whole list was read for that pool, so a player missing from it has done none. rebase: this read
   // was taken right at the reset, so today's count starts from it.
-  function accUpdate(s, counts, at, known, rebase) {
+  // clanWant: the AccSaber clan players must be in (a slug); someone seen outside it is paused until they're back.
+  function accUpdate(s, counts, at, known, rebase, clanWant) {
     var wk = accWeek(at), changed = false;
     s.order.forEach(function (pid) {
       var p = s.players[pid]; if (!p || !p.blId || p.finished) return;
       var c = counts[p.blId] || {}, a = p.acc || (p.acc = {});
+      if (clanWant && c.c !== undefined) {
+        var inClan = c.c === clanWant;
+        if (!inClan && !p.paused) { p.paused = 'clan'; changed = true; if (s.status === 'running') emit(s, p, { t: 'paused' }); }
+        else if (inClan && p.paused === 'clan') { delete p.paused; changed = true; if (s.status === 'running') emit(s, p, { t: 'unpaused' }); }
+      }
       var d = c.d != null ? c.d : known.d ? 0 : null, w = c.w != null ? c.w : known.w ? 0 : null;
       // Counts only ever go up. A lower one means the player slipped between pages of the list.
       if (d != null && a.cur > d) d = a.cur;
@@ -264,6 +270,7 @@
     if (!p.route) return { ok: false, code: 'no-route', reason: 'Pick your route first.' };
     if (p.tasks.length) return { ok: false, code: 'task', reason: p.tasks.length > 1 ? 'Play your ' + p.tasks.length + ' maps first.' : 'Play your map first.' };
     if (p.skippedDay === s.day) return { ok: false, code: 'skip', reason: 'You lose this turn.' };
+    if (p.paused) return { ok: false, code: 'paused', reason: 'You left the clan on AccSaber, so your rolls are paused. Rejoin it, then check again.' };
     if (isAcc(s)) {
       if ((p.rolledDay === s.day && p.extraRoll) || (p.rolledDay !== s.day && accDaily(s, p)) || p.accBonus > 0) return { ok: true };
       if (p.rolledDay === s.day) return { ok: false, code: 'rolled', reason: 'You already rolled today.' };

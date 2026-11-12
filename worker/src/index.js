@@ -91,7 +91,8 @@ function clans(env) {
     theme: C.themes[x.theme] ? x.theme : (C.themes[env.THEME] ? env.THEME : 'cemetery'),
     hosts: list(x.hosts), webhook: String(x.webhook || 'DISCORD_WEBHOOK_URL'),
     announce: String(x.announce != null ? x.announce : env.ANNOUNCE_DAYS || '0'), icon: String(x.icon || ''),
-    maps: C.mapSets[x.maps] ? String(x.maps) : ''
+    maps: C.mapSets[x.maps] ? String(x.maps) : '',
+    accClan: String(x.accClan || ''), accClanName: String(x.accClanName || x.accClan || '')
   }));
 }
 // The game page link for a clan, so notifications and Discord posts open the right game.
@@ -934,6 +935,7 @@ export class Game extends DurableObject {
     if (this.dirty) { this.dirty = false; await this.save(); }
     if (since === s.seq) return { state: null, me, canPlay, online: this.onlineNow(), chat };
     const out = { state: E.publicState(s), me, canPlay, isHost: !!user.isHost, user: { id: user.id, name: user.name, avatar: user.avatar }, online: this.onlineNow(), hall: this.meta.hall || [], admins: this.admins(), chat };
+    out.accClan = this.accClanWant() ? this.clan().accClanName : '';
     if (user && user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); out.hostOut = this.hostOut(user); }
     return out;
   }
@@ -955,6 +957,16 @@ export class Game extends DurableObject {
           if (user.isHost && this.hostOut(user)) return { error: "You're hosting this game, not playing. Switch that off in Host tools to join." };
           if (!E.signupsOpen(s)) return { error: 'Sign-ups are closed until the game starts.' };
           const bl = await this.blPlayer(a.blId);
+          // AccSaber game with a clan: the BeatLeader profile must carry this Discord account, and its AccSaber
+          // profile must be in the clan.
+          const want = this.accClanWant();
+          if (want) {
+            if (bl.discord !== String(user.id)) return { error: 'Link this Discord account on your BeatLeader profile first (beatleader.com, Settings, Socials), then sign up.' };
+            const au = await this.accUser(bl.id);
+            if (au === undefined) return { error: "AccSaber didn't answer. Try again in a minute." };
+            if (!au) return { error: 'There is no AccSaber profile for that BeatLeader account yet. Set one up on accsaber.com, then sign up.' };
+            if (au.clan !== want) return { error: 'This game is for the ' + this.clan().accClanName + ' on AccSaber. Join the clan on accsaber.com, then sign up.' };
+          }
           const taken = s.order.find((id) => id !== pid && s.players[id].blId === bl.id);
           if (taken) return { error: 'That BeatLeader profile is already in the game.' };
           const isNew = !s.players[pid];
@@ -972,12 +984,12 @@ export class Game extends DurableObject {
         case 'roll': {
           this.mine(s, pid);
           // AccSaber mode: a roll still locked looks for a newly finished mission first.
-          if (E.isAcc(s) && E.canRoll(s, pid).code === 'mission') await this.accRefresh();
+          if (E.isAcc(s) && ['mission', 'paused'].includes(E.canRoll(s, pid).code)) await this.accRefresh();
           result = E.roll(s, pid, { rng }); delete result.player; break;
         }
         case 'verify':
           this.mine(s, pid);
-          if (E.isAcc(s)) { await this.accRefresh(); const p = s.players[pid]; result = { acc: { daily: E.accDaily(s, p), bonus: p.accBonus || 0, canRoll: E.canRoll(s, pid).ok } }; break; }
+          if (E.isAcc(s)) { await this.accRefresh(); const p = s.players[pid]; result = { acc: { daily: E.accDaily(s, p), bonus: p.accBonus || 0, canRoll: E.canRoll(s, pid).ok, paused: !!p.paused } }; break; }
           result = { cleared: await this.check(pid) }; break;
         case 'claim': {
           this.mine(s, pid); result = E.claimTask(s, pid, a.task, { url: String(a.url || '').slice(0, 300) });
@@ -1353,12 +1365,23 @@ export class Game extends DurableObject {
     const r = await fetch((this.env.BL_API || 'https://api.beatleader.xyz') + '/player/' + id[0], { headers: { 'user-agent': 'ChestersEscape' } });
     if (!r.ok) throw new Error('No BeatLeader player found for that ID.');
     const p = await r.json();
-    return { id: String(p.id), name: p.name, avatar: p.avatar || '' };
+    const dc = (p.socials || []).find((x) => x.service === 'Discord');
+    return { id: String(p.id), name: p.name, avatar: p.avatar || '', discord: dc ? String(dc.userId || '') : '' };
   }
   // AccSaber mode: mission counts from AccSaber's public "Most missions done" leaderboards (daily and
   // weekly). There's no per-player lookup, so the pages are read until every player is found. Each
   // row is matched as text (no full parse) to keep the work small. Read at most every 3 minutes;
   // AccSaber itself refreshes the list about every 10.
+  // AccSaber mode with a clan set for this server (wrangler.toml accClan): the clan players must be in.
+  accClanWant() { const c = this.clan(); return E.isAcc(this.state) && c.accClan ? c.accClan : ''; }
+  // One player's AccSaber profile: { clan: slug or null }, null with no profile, undefined if AccSaber didn't answer.
+  async accUser(id) {
+    const r = await fetch((this.env.ACC_API || 'https://api.accsaber.com') + '/v1/users/' + encodeURIComponent(id), { headers: { 'user-agent': 'ChestersEscape' } }).catch(() => null);
+    if (r && r.status === 404) return null;
+    if (!r || !r.ok) return undefined;
+    const u = await r.json().catch(() => null);
+    return u ? { clan: u.clan && u.clan.slug ? String(u.clan.slug) : null } : undefined;
+  }
   async accScan(ids) {
     const api = this.env.ACC_API || 'https://api.accsaber.com', counts = {}, known = { d: true, w: true };
     for (const pool of ['daily', 'weekly']) {
@@ -1372,7 +1395,12 @@ export class Game extends DurableObject {
           const i = t.indexOf('"player":{"id":"' + id + '"'); if (i < 0) continue;
           const j = t.lastIndexOf('"missionsCompleted":', i); if (j < 0) continue;
           const n = parseInt(t.slice(j + 20, j + 32), 10);
-          if (!isNaN(n)) { (counts[id] = counts[id] || {})[k] = n; left.delete(id); }
+          if (isNaN(n)) continue;
+          const c = (counts[id] = counts[id] || {}); c[k] = n; left.delete(id);
+          // The row's clan, for the clan check: no "clan" key means no clan.
+          let end = t.indexOf('"missionXp":', i); if (end < 0) end = t.length;
+          const row = t.slice(i, end), ck = row.indexOf('"clan":');
+          if (c.c === undefined) { if (ck < 0 || row.startsWith('null', ck + 7)) c.c = null; else { const m = row.slice(ck).match(/"slug":"([^"]*)"/); if (m) c.c = m[1]; } }
         }
         if (t.indexOf('"last":true') >= 0) break;
         if (t.indexOf('"last":false') < 0) { known[k] = false; break; }   // not the list we expect
@@ -1389,7 +1417,14 @@ export class Game extends DurableObject {
     this.accAt = now;
     const { counts, known } = await this.accScan(ids);
     if (!known.d && !Object.keys(counts).length) return false;   // AccSaber didn't answer
-    if (E.accUpdate(s, counts, now, known, !!opts.rebase && known.d)) this.dirty = true;
+    const want = this.accClanWant();
+    // Not on the missions list yet (no missions ever): look up their clan one by one, a few at a time.
+    if (want) for (const id of ids.filter((x) => !counts[x] || counts[x].c === undefined).slice(0, 5)) {
+      if (!this.take(1)) break;
+      const u = await this.accUser(id);
+      if (u) (counts[id] = counts[id] || {}).c = u.clan;
+    }
+    if (E.accUpdate(s, counts, now, known, !!opts.rebase && known.d, want)) this.dirty = true;
     return known.d;
   }
   async check(pid) {

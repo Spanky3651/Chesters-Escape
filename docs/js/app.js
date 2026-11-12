@@ -440,7 +440,7 @@
       html += '<div class="roll-box"><div id="dieSlot"></div><div class="roll-copy">';
       var wkRoll = E.isAcc(s) && can.ok && !(p.extraRoll && p.rolledDay === s.day) && !(p.rolledDay !== s.day && E.accDaily(s, p));
       if (can.ok) html += '<b>' + (wkRoll ? 'Weekly bonus roll' : p.extraRoll && p.rolledDay === s.day ? 'Bonus roll' : 'Ready to roll') + '</b><p>Roll the d4 and move that many spaces.' + (E.isAcc(s) && p.accBonus > (wkRoll ? 1 : 0) ? ' You also have ' + (p.accBonus - (wkRoll ? 1 : 0) > 1 ? (p.accBonus - (wkRoll ? 1 : 0)) + ' weekly bonus rolls' : 'a weekly bonus roll') + ' saved.' : '') + '</p><button type="button" class="btn" id="rollBtn">Roll the d4</button>';
-      else if (can.code === 'mission') html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><button type="button" class="btn" id="accCheck">Check my missions</button>';
+      else if (can.code === 'mission' || can.code === 'paused') html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><button type="button" class="btn" id="accCheck">' + (can.code === 'paused' ? 'Check again' : 'Check my missions') + '</button>';
       else html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><button type="button" class="btn" id="rollBtn" disabled>Roll the d4</button>';
       html += '</div></div>';
     } else {
@@ -508,7 +508,7 @@
     }
     return '<div class="near-exit">' + lines.map(function (l) { return '<p><span aria-hidden="true">' + l[0] + '</span><span>' + l[1] + '</span></p>'; }).join('') + '</div>';
   }
-  function rollTitle(c) { return { task: 'Play your map', rolled: 'Rolled for today', skip: 'Turn lost', 'not-running': 'Waiting', finished: 'Escaped', mission: 'Do a daily mission' }[c.code] || 'Not yet'; }
+  function rollTitle(c) { return { task: 'Play your map', rolled: 'Rolled for today', skip: 'Turn lost', 'not-running': 'Waiting', finished: 'Escaped', mission: 'Do a daily mission', paused: 'Paused' }[c.code] || 'Not yet'; }
   // A lost turn waiting after today's roll pushes the next roll past tomorrow.
   function nextRollDay(s, p) { return s.day + (p.skip || 0) + 1; }
   function lostAhead(s, p) {
@@ -583,12 +583,14 @@
   }
 
   // ---- feed --------------------------------------------------------------------
-  var ICON = { rest: '🛡️', roll: '🎲', land: '📍', task: '🎵', card: '🃏', move: '➡️', skip: '⏸️', start: '↩️', warp: '🌀', cleared: '✅', claim: '📨', 'claim-rejected': '❌', 'lost-turn': '💤', escaped: '🎉', route: '🧭', join: '👋', shield: '🛡️', 'shield-used': '🛡️', again: '🎲', overshoot: '🎯', 'gate-closed': '🔒', 'host-move': '🧹', 'host-reset': '🧹', reshuffle: '🔀', begin: '🏁', pass: '⚡', mission: '✅', weekly: '⭐' };
+  var ICON = { rest: '🛡️', roll: '🎲', land: '📍', task: '🎵', card: '🃏', move: '➡️', skip: '⏸️', start: '↩️', warp: '🌀', cleared: '✅', claim: '📨', 'claim-rejected': '❌', 'lost-turn': '💤', escaped: '🎉', route: '🧭', join: '👋', shield: '🛡️', 'shield-used': '🛡️', again: '🎲', overshoot: '🎯', 'gate-closed': '🔒', 'host-move': '🧹', 'host-reset': '🧹', reshuffle: '🔀', begin: '🏁', pass: '⚡', mission: '✅', weekly: '⭐', paused: '⏸️', unpaused: '▶️' };
   function evText(e) {
     var s = st(), t = theme(), sp = e.space ? s.board.spaces[e.space] : null, card = e.card ? E.cardById(s, e.card) : null;
     switch (e.t) {
       case 'roll': return { html: (e.weekly ? 'Weekly bonus roll: ' : e.bonus ? 'Bonus roll: ' : 'Rolled a ') + '<b>' + e.n + '</b>' };
       case 'mission': return { html: 'Finished an AccSaber daily mission. Today\'s roll is unlocked', cls: 'good' };
+      case 'paused': return { html: 'Left the clan on AccSaber. Rolls are paused until they rejoin', cls: 'bad' };
+      case 'unpaused': return { html: 'Back in the clan on AccSaber. Rolls are on again', cls: 'good' };
       case 'weekly': return { html: 'Finished an AccSaber weekly mission. <b>Bonus roll</b> earned', cls: 'good' };
       case 'land': {
         // Only Safe gets a line: every other space logs what it does, and Safe does nothing, so without this the roll looks like it went nowhere.
@@ -859,6 +861,7 @@
       var c = E.canRoll(s, p.id);
       if (c.ok) html = ava + '<span class="mb-txt"><b>Ready to roll</b><span>' + E.remaining(s, p) + ' spaces to go</span></span><button type="button" class="btn small" id="mRoll">Roll the d4</button>';
       else if (c.code === 'mission') html = ava + '<span class="mb-txt"><b>Do a daily mission</b><span>Then check here</span></span><button type="button" class="btn small" id="mAcc">Check missions</button>';
+      else if (c.code === 'paused') html = ava + '<span class="mb-txt"><b>Paused</b><span>Rejoin the clan on AccSaber</span></span><button type="button" class="btn small" id="mAcc">Check again</button>';
       else html = ava + '<span class="mb-txt"><b>' + esc(rollTitle(c)) + '</b><span>' + esc(c.code === 'rolled' ? (p.skip ? 'Next turn lost. Roll again on day ' + nextRollDay(s, p) : store.mode === 'demo' ? 'Next roll tomorrow' : 'Next roll after the cutoff') : c.reason) + '</span></span><button type="button" class="btn small ghost" id="mGo">Details</button>';
     }
     bar.innerHTML = html; bar.hidden = false; document.body.classList.add('has-mbar');
@@ -1122,7 +1125,8 @@
     store.act('verify').then(function (r) {
       var a = r && r.acc;
       renderAll();
-      if (a && a.canRoll) { sfx.good(); toast(a.daily ? 'Daily mission found. Roll the d4!' : 'You have a weekly bonus roll. Roll the d4!', 'good'); }
+      if (a && a.paused) toast('You\'re still not in the clan on AccSaber. AccSaber can take up to 10 minutes to update.', '');
+      else if (a && a.canRoll) { sfx.good(); toast(a.daily ? 'Daily mission found. Roll the d4!' : 'You have a weekly bonus roll. Roll the d4!', 'good'); }
       else toast('No daily mission yet. AccSaber can take up to 10 minutes to show one.', '');
     }).catch(function (e) { renderAll(); fail(e); });
   }
@@ -1758,7 +1762,9 @@
   function openJoin(linkOnly) {
     var demo = store.mode === 'demo';
     modal(linkOnly ? 'Link BeatLeader' : 'Join the game',
-      '<p class="lede">Paste your BeatLeader profile link or ID. Your name and avatar come from it, and the game watches it for your map clears.</p>' +
+      (E.isAcc(st()) ? '<p class="lede">Paste your BeatLeader profile link or ID. Your name and avatar come from it, and your AccSaber missions are checked with it.</p>' +
+        (store.accClan ? '<p class="why">To sign up, your AccSaber profile needs to be in the <b>' + esc(store.accClan) + '</b>, and this Discord account needs to be linked on your BeatLeader profile (Settings, Socials).</p>' : '')
+      : '<p class="lede">Paste your BeatLeader profile link or ID. Your name and avatar come from it, and the game watches it for your map clears.</p>') +
       '<div class="field"><label for="blInput">BeatLeader profile</label><input type="text" id="blInput" placeholder="https://beatleader.com/u/..." autocomplete="off"><span class="hint">ScoreSaber and Steam IDs work too if they are linked on BeatLeader.</span></div>' +
       '<p class="err" id="joinErr" hidden></p><div class="row"><button type="button" class="btn" id="joinGo">' + (linkOnly ? 'Link profile' : 'Join the game') + '</button>' +
       (demo && !linkOnly ? '<button type="button" class="btn ghost" id="joinDemo">Just play as MSploit</button>' : '') + '</div>',

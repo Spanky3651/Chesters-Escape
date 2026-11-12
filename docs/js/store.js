@@ -320,6 +320,7 @@
     if (r.access !== undefined) this.access = r.access;
     if (r.discord !== undefined) this.discord = r.discord;
     if (r.chat !== undefined) this.chat = r.chat;
+    if (r.accClan !== undefined) this.accClan = r.accClan;
     if (r.undo !== undefined) this.undo = r.undo;
     if (r.hostOut !== undefined) this.hostOut = r.hostOut;
     if (r.admins !== undefined) this.admins = r.admins || [];

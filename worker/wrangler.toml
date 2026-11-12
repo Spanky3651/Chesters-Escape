@@ -35,6 +35,8 @@ ANNOUNCE_DAYS = "0"
 #   webhook  name of the secret holding that clan's Discord channel webhook
 #   maps     songs on the board (a map set from content.js); a theme with its own set wins. Empty = the original songs
 #   hosts    optional extra host Discord IDs for this clan only (comma separated)
+#   accClan  AccSaber mode only: sign-up needs this AccSaber clan (its slug) and the player's Discord linked on
+#            BeatLeader; a player who leaves the clan is paused until they rejoin. accClanName is how it's shown
 [vars.CLANS.genx]
 name = "GenX"
 order = 1
@@ -42,6 +44,8 @@ guild = "933398740008587396"
 game = "main"
 theme = "cemetery"
 webhook = "DISCORD_WEBHOOK_URL"
+accClan = "genx-clan"
+accClanName = "GenX Clan"
 
 [vars.CLANS.beaters]
 name = "Beaters"
