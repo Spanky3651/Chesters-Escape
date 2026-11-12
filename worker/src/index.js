@@ -485,7 +485,7 @@ export class Game extends DurableObject {
   card(title, extra) {
     const t = this.theme(), base = (this.env.GAME_PAGE || '').replace(/\/?$/, '/');
     const hex = String((t.palette || {}).accent || '#f2a33a').replace('#', '');
-    return { title, url: this.page(), color: parseInt(hex, 16) || 0xf2a33a, thumbnail: { url: base + ((t.artHero && t.artHero.src) || 'img/icon.png') }, ...extra };
+    return { title, url: this.page(), color: parseInt(hex, 16) || 0xf2a33a, thumbnail: { url: base + (t.thumb || (t.artHero && t.artHero.src) || 'img/icon.png') }, ...extra };
   }
   mapCount() {
     const s = this.state, maps = new Set();
