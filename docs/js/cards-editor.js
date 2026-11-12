@@ -65,23 +65,29 @@
     $('ceTheme').innerHTML = themes.map(function (k) { return '<option value="' + k + '"' + (k === themeId ? ' selected' : '') + '>' + esc(C.themes[k].name) + '</option>'; }).join('');
     $('ceAuthor').value = drafts.author || '';
     var html = '';
-    GROUPS.forEach(function (g) {
-      var group = list.filter(function (c) { return c.cls === g[0]; });
-      html += '<section class="ce-group"><h2>' + esc(t.card[g[0]] || g[0]) + ' <span class="muted">(' + group.length + ')</span></h2><p class="why">' + g[1] + '. You can change the words; what the card does stays the same.</p>';
-      group.forEach(function (c) {
-        var b = base[c.id], changed = differs(c, b);
-        html += '<article class="ce-card' + (changed ? ' changed' : '') + '" data-card="' + c.id + '">' + cardFace(c) +
-          '<div class="ce-fields"><div class="ce-head"><b>Card ' + c.id.slice(1) + '</b>' + (changed ? '<span class="ce-badge">Changed</span><button type="button" class="btn small link" data-reset="' + c.id + '">Undo changes</button>' : '') + '</div>' +
-          '<div class="ce-row">' + field('art', 'Emoji', c.emoji, LIMITS.art) + field('title', 'Title', c.title, LIMITS.title) + '</div>' +
-          '<div class="ce-pic">' + (c.pic ? '<img src="' + esc(c.pic) + '" alt="Your picture for this card">' : '') +
-          '<label class="btn small ghost file">' + (c.pic ? 'Replace picture' : 'Add a picture') + '<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-pic="' + c.id + '" hidden></label>' +
-          (c.pic ? '<button type="button" class="btn small link" data-unpic="' + c.id + '">Remove picture</button>' : '<span class="hint">Optional. A picture replaces the emoji on the card. Best at 3:2, like 600 × 400.</span>') + '</div>' +
-          field('text', 'Card text', c.text, LIMITS.text, 'area') +
-          '<p class="ce-fx">What it does: <b>' + esc(C.cardEffectText(c)) + '</b></p>' +
-          (changed ? '<p class="ce-was">Was: ' + esc((R.isImg(b.art) ? '' : b.art + ' ') + b.title) + '. ' + esc(b.text) + '</p>' : '') + '</div></article>';
+    if (theme().deck) {
+      // A theme with its own picture cards: the art is the whole card, so there are no words to edit here.
+      html += '<section class="ce-group"><h2>Picture cards <span class="muted">(' + list.length + ')</span></h2><p class="why">This theme plays with its own picture cards. The art is the whole card, and what each one does is set to match it.</p><div class="ce-deck">' +
+        list.map(function (c) { return '<figure class="ce-pc"><img src="' + esc(c.full) + '" alt="' + esc(c.text) + '" loading="lazy"><figcaption><b>' + esc(c.title) + '</b><span>' + esc(C.cardEffectText(c)) + '</span></figcaption></figure>'; }).join('') + '</div></section>';
+    } else {
+      GROUPS.forEach(function (g) {
+        var group = list.filter(function (c) { return c.cls === g[0]; });
+        html += '<section class="ce-group"><h2>' + esc(t.card[g[0]] || g[0]) + ' <span class="muted">(' + group.length + ')</span></h2><p class="why">' + g[1] + '. You can change the words; what the card does stays the same.</p>';
+        group.forEach(function (c) {
+          var b = base[c.id], changed = differs(c, b);
+          html += '<article class="ce-card' + (changed ? ' changed' : '') + '" data-card="' + c.id + '">' + cardFace(c) +
+            '<div class="ce-fields"><div class="ce-head"><b>Card ' + c.id.slice(1) + '</b>' + (changed ? '<span class="ce-badge">Changed</span><button type="button" class="btn small link" data-reset="' + c.id + '">Undo changes</button>' : '') + '</div>' +
+            '<div class="ce-row">' + field('art', 'Emoji', c.emoji, LIMITS.art) + field('title', 'Title', c.title, LIMITS.title) + '</div>' +
+            '<div class="ce-pic">' + (c.pic ? '<img src="' + esc(c.pic) + '" alt="Your picture for this card">' : '') +
+            '<label class="btn small ghost file">' + (c.pic ? 'Replace picture' : 'Add a picture') + '<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-pic="' + c.id + '" hidden></label>' +
+            (c.pic ? '<button type="button" class="btn small link" data-unpic="' + c.id + '">Remove picture</button>' : '<span class="hint">Optional. A picture replaces the emoji on the card. Best at 3:2, like 600 × 400.</span>') + '</div>' +
+            field('text', 'Card text', c.text, LIMITS.text, 'area') +
+            '<p class="ce-fx">What it does: <b>' + esc(C.cardEffectText(c)) + '</b></p>' +
+            (changed ? '<p class="ce-was">Was: ' + esc((R.isImg(b.art) ? '' : b.art + ' ') + b.title) + '. ' + esc(b.text) + '</p>' : '') + '</div></article>';
+        });
+        html += '</section>';
       });
-      html += '</section>';
-    });
+    }
     var k = theme().kinds, now = kinds();
     html += '<section class="ce-group"><h2>Event spaces <span class="muted">(' + Object.keys(k).length + ')</span></h2><p class="why">The names on the board spaces in this theme. Where each one sits and what it does comes from the board.</p><div class="ce-kinds">';
     Object.keys(k).forEach(function (id) {
@@ -96,7 +102,7 @@
   }
   function status() {
     var c = changedCards().length, k = changedKinds().length;
-    $('ceStatus').textContent = (c || k) ? c + ' of 20 cards and ' + k + ' of 14 space names changed in ' + theme().name + '.' : 'Nothing changed yet in ' + theme().name + '.';
+    $('ceStatus').textContent = (c || k) ? c + ' of ' + defaults().length + ' cards and ' + k + ' of ' + Object.keys(theme().kinds).length + ' space names changed in ' + theme().name + '.' : 'Nothing changed yet in ' + theme().name + '.';
     $('ceDownload').disabled = !(c || k);
   }
 

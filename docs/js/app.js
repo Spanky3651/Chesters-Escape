@@ -250,11 +250,19 @@
     window.CGStore.switchClan(b.dataset.clan);
   });
 
+  // Picture cards are full images: fetch them once the page settles so a drawn card shows right away.
+  var deckLoaded = {};
+  function preloadDeck(t) {
+    if (!t.deck || deckLoaded[t.id]) return;
+    deckLoaded[t.id] = true;
+    setTimeout(function () { t.deck.forEach(function (c) { if (c.full) { var i = new Image(); i.decoding = 'async'; i.src = c.full; } }); }, 2500);
+  }
   function renderHeader() {
     var s = st(), t = theme();
     renderClanSwitch(store);
     document.body.setAttribute('data-theme', t.look || t.id);
     R.setFavicon(t);
+    preloadDeck(t);
     $('gameTitle').textContent = t.title;
     $('brandCrow').innerHTML = R.hero(0, 0, 1, t);
     $('dayNum').textContent = s.status === 'finished' ? 'Game over' : s.status === 'signup' ? (E.signupsOpen(s) ? 'Sign-ups open' : 'Sign-ups closed') : 'Day ' + s.day;
@@ -1038,6 +1046,8 @@
 
   // ---- cards -------------------------------------------------------------------------
   function cardFront(card) {
+    // A picture card (a theme's own deck) is the art itself, words and move included.
+    if (card.full) return '<img class="cfull" src="' + esc(card.full) + '" alt="' + esc(card.text + ' ' + C.cardEffectText(card)) + '" draggable="false">';
     var t = theme(), cc = { treasure: 'var(--treasure)', trick: 'var(--trick)', task: 'var(--task)', fate: 'var(--fate)' }[card.cls];
     return '<div class="ctype">' + esc(t.card[card.cls] || 'Card') + '</div><div class="cart' + (R.isImg(card.art) ? ' pic' : '') + '" aria-hidden="true">' + R.cardArt(card.art) + '</div>' +
       '<div class="ctitle">' + esc(card.title) + '</div><div class="ctext">' + esc(card.text) + '</div><div class="cfx">' + esc(C.cardEffectText(card)) + '</div>';
@@ -1047,6 +1057,7 @@
     return new Promise(function (resolve) {
       var t = theme(), ov = $('cardOverlay'), c3 = $('card3d');
       $('cardBack').innerHTML = '<div><svg class="crow" viewBox="-36 -42 72 80" aria-hidden="true">' + R.hero(0, 0, 1, t) + '</svg><p>' + esc(t.card.back) + '</p></div>';
+      $('cardFront').classList.toggle('is-full', !!card.full);
       $('cardFront').innerHTML = cardFront(card) + '<span class="shine" aria-hidden="true"></span>' +
         (card.cls === 'trick' ? '<svg class="crack" viewBox="0 0 100 140" preserveAspectRatio="none" aria-hidden="true"><path class="hi" d="M100 6 L86 17 L90 27 L75 40 L79 50 L66 62 L69 70 M86 17 L72 15 L63 23 L55 21 M75 40 L62 37 L56 44 M90 27 L99 37 M79 50 L90 58 M66 62 L57 61"/><path d="M100 6 L86 17 L90 27 L75 40 L79 50 L66 62 L69 70 M86 17 L72 15 L63 23 L55 21 M75 40 L62 37 L56 44 M90 27 L99 37 M79 50 L90 58 M66 62 L57 61"/></svg>' : '');
       ov.setAttribute('data-cls', card.cls);

@@ -63,6 +63,11 @@
 .cprev { width: 200px; height: 280px; position: relative; overflow: hidden; border-radius: 12px; }
 .cprev-in { width: 320px; height: 448px; transform: scale(.625); transform-origin: top left; position: relative; }
 .cprev .cface { box-shadow: none; }
+.ce-deck { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px; margin-top: 12px; }
+.ce-pc { margin: 0; }
+.ce-pc img { width: 100%; aspect-ratio: 5 / 7; object-fit: cover; border-radius: 12px; display: block; }
+.ce-pc figcaption { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; font-size: 14px; }
+.ce-pc figcaption span { color: var(--muted); }
 .ce-fields { min-width: 0; }
 .ce-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
 .ce-head b { font-size: 16px; }

@@ -216,7 +216,9 @@
         case 'theme':
           s.themeId = a.theme; s.title = C.themes[a.theme].title;
           var words = C.cardsFor(a.theme), byId = {}; words.forEach(function (c) { byId[c.id] = c; });
-          s.cards = s.cards.map(function (c) { return byId[c.id] ? Object.assign({}, c, { title: byId[c.id].title, art: byId[c.id].art, text: byId[c.id].text }) : c; });
+          // A theme with its own deck brings its cards before the game starts; once it's running, cards keep their effects and only take the new words.
+          if (!E.sameCards(s.cards, words) && s.status !== 'running') E.swapCards(s, words);
+          else s.cards = s.cards.map(function (c) { return byId[c.id] ? Object.assign({}, c, { title: byId[c.id].title, art: byId[c.id].art, text: byId[c.id].text, full: byId[c.id].full }) : c; });
           return Promise.resolve(done({}));
         case 'hallRemove': {
           self.hall = self.hall.filter(function (h) { return h.id !== a.id; });

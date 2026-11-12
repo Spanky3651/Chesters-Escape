@@ -354,6 +354,19 @@
   }
 
   // ---- cards -----------------------------------------------------------------
+  // A new card set for the game (a theme with its own deck): fresh shuffled deck, nothing in the discard.
+  function swapCards(s, cards, rng) {
+    s.cards = clone(cards || []);
+    s.deck = shuffle(s.cards.map(function (c) { return c.id; }), rng);
+    s.discard = [];
+  }
+  // True when the two card lists are the same cards (same ids), only maybe worded differently.
+  function sameCards(a, b) {
+    if (!a || !b || a.length !== b.length) return false;
+    var ids = {}; a.forEach(function (c) { ids[c.id] = 1; });
+    return b.every(function (c) { return ids[c.id]; });
+  }
+
   function cardById(s, id) { for (var i = 0; i < s.cards.length; i++) if (s.cards[i].id === id) return s.cards[i]; return null; }
 
   function drawCard(s, p, ctx, forcedId) {
@@ -855,7 +868,7 @@
 
   var E = {
     VERSION: VERSION, makeUpShortDay: makeUpShortDay, swapMaps: swapMaps, DEFAULTS: DEFAULTS,
-    createGame: createGame, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, react: react, reactor: reactor, REACTIONS: REACTIONS, LEGACY_REACTIONS: LEGACY_REACTIONS, signupsOpen: signupsOpen, chooseRoute: chooseRoute,
+    createGame: createGame, swapCards: swapCards, sameCards: sameCards, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, react: react, reactor: reactor, REACTIONS: REACTIONS, LEGACY_REACTIONS: LEGACY_REACTIONS, signupsOpen: signupsOpen, chooseRoute: chooseRoute,
     canRoll: canRoll, roll: roll, advanceDay: advanceDay,
     completeTask: completeTask, claimTask: claimTask, rejectClaim: rejectClaim, matchScores: matchScores, improveClears: improveClears,
     setPosition: setPosition, hostCard: hostCard, resetPlayer: resetPlayer,

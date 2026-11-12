@@ -476,8 +476,34 @@
     }
   };
 
+  // Chester's Snowy Escape: LumberJack's GenX winter theme. It looks like Chester's Christmas and plays with
+  // her own 10 picture cards instead of the usual 20. The art is the whole card, words included, so each
+  // card's move is set here to match what it says. Five go ahead and five go back.
+  var SNOWY_DECK = [
+    ['s01', 1, 'candy-cane', 'Candy cane', '🍬', 'Chester found a candy cane...'],
+    ['s02', 1, 'mistletoe', 'Mistletoe', '💞', 'Chester saw mistletoe and thought of Hazel...'],
+    ['s03', 1, 'jingle-bells', 'Jingle bells', '🔔', 'Chester found some shiny jingle bells...'],
+    ['s04', 2, 'ice-slide', 'Slides on the ice', '⛸️', 'Chester slides on the ice!!'],
+    ['s05', 2, 'nice-elf', 'A nice elf', '🧝', 'A nice elf helped Chester today!!'],
+    ['s06', -1, 'fruitcake', 'Fruitcake', '🍰', 'Chester found some fruitcake...'],
+    ['s07', -1, 'carolers', 'Carolers', '🎶', 'Chester met some carolers...'],
+    ['s08', -1, 'reindeer', 'Reindeer poop', '💩', 'Chester stepped in reindeer poop...'],
+    ['s09', -2, 'ice-slip', 'Slips on the ice', '🥶', 'Chester slips on the ice!!'],
+    ['s10', -2, 'grumpy-elf', 'A grumpy elf', '😠', 'A grumpy elf slowed Chester down today!!']
+  ].map(function (c) {
+    return { id: c[0], cls: c[1] > 0 ? 'treasure' : 'trick', title: c[3], art: c[4], text: c[5], full: 'img/cards/snowy/' + c[2] + '.webp?v=20261112', effects: [{ type: 'move', n: c[1] }] };
+  });
+  THEMES.snowy = (function () {
+    var t = JSON.parse(JSON.stringify(THEMES.christmas));
+    t.id = 'snowy'; t.look = 'christmas'; t.name = "Chester's Snowy Escape"; t.title = "Chester's Snowy Escape";
+    t.card.back = "Chester's Snowy Escape";
+    t.deck = SNOWY_DECK;
+    return t;
+  })();
+
   // ---- cards -------------------------------------------------------------------
   // Same 20 effects in every theme, so balance stays the same. Only the words change.
+  // A theme with its own deck (picture cards) uses that instead.
   var EFFECTS = [
     { id: 'c01', cls: 'treasure', effects: [{ type: 'move', n: 2 }] },
     { id: 'c02', cls: 'treasure', effects: [{ type: 'move', n: 3 }] },
@@ -725,6 +751,8 @@
   };
 
   function cardsFor(themeId) {
+    var th = THEMES[themeId];
+    if (th && th.deck) return JSON.parse(JSON.stringify(th.deck));
     var w = WORDS[themeId] || WORDS.cemetery;
     return EFFECTS.map(function (e) {
       var x = w[e.id];

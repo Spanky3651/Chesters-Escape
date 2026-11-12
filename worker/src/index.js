@@ -996,8 +996,10 @@ export class Game extends DurableObject {
         case 'theme': {
           if (!C.themes[a.theme]) return { error: 'Unknown theme.' };
           s.themeId = a.theme; s.title = C.themes[a.theme].title;
-          const words = Object.fromEntries(C.cardsFor(a.theme).map((c) => [c.id, c]));
-          s.cards = s.cards.map((c) => (words[c.id] ? { ...c, title: words[c.id].title, art: words[c.id].art, text: words[c.id].text } : c));
+          const fresh = C.cardsFor(a.theme), words = Object.fromEntries(fresh.map((c) => [c.id, c]));
+          // A theme with its own deck brings its cards before the game starts; once it's running, cards keep their effects and only take the new words.
+          if (!E.sameCards(s.cards, fresh) && s.status !== 'running') E.swapCards(s, fresh);
+          else s.cards = s.cards.map((c) => (words[c.id] ? { ...c, title: words[c.id].title, art: words[c.id].art, text: words[c.id].text, full: words[c.id].full } : c));
           this.syncMaps();
           break;
         }

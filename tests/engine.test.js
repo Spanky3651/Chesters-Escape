@@ -282,4 +282,19 @@ assert.strictEqual(cardsSeen.size, 20);
   Object.keys(C.themes).forEach((t) => { const ch = (C.themes[t].family || 'chester') === 'chester'; assert.strictEqual(!!C.themes[t].kinds.bridge, ch, t + (ch ? ' has no bridge event' : ' should not have the bridge event')); });
   console.log('blank space ok');
 }
+// Chester's Snowy Escape: LumberJack's 10 picture cards, five ahead and five back, only in the Chester (GenX) family
+{
+  const deck = C.cardsFor('snowy');
+  assert.strictEqual(deck.length, 10);
+  assert.strictEqual(deck.reduce((n, c) => n + c.effects[0].n, 0), 0, 'the deck is balanced');
+  deck.forEach((c) => { assert(c.full && /^img\/cards\/snowy\//.test(c.full), c.id + ' has its picture'); assert.strictEqual(c.cls, c.effects[0].n > 0 ? 'treasure' : 'trick'); });
+  assert.strictEqual((C.themes.snowy.family || 'chester'), 'chester');
+  assert.strictEqual(C.cardsFor('christmas').length, 20, 'other themes keep the 20 cards');
+  const s = E.createGame({ board: C.boardFor(), cards: C.cardsFor('christmas'), themeId: 'christmas', rng: seeded(7) });
+  assert(!E.sameCards(s.cards, deck));
+  E.swapCards(s, deck, seeded(8));
+  assert.strictEqual(s.deck.length, 10); assert.strictEqual(s.discard.length, 0);
+  assert(E.sameCards(s.cards, C.cardsFor('snowy')));
+  console.log('snowy picture deck ok');
+}
 console.log('all engine tests passed');
