@@ -743,6 +743,7 @@ body.gated .foot { border-top: 0; margin-top: 0; }
 @media (max-width: 640px) {
   .topnav { justify-content: flex-start; gap: 18px; align-items: center; padding-left: 2px; }
   #playlistBtn { margin-right: auto; }   /* the bell, skull and clan switcher go to the right edge */
+  .topnav:has(#playlistBtn[hidden]) #howBtn { margin-right: auto; }   /* no Maps (AccSaber mode): Rules does the pushing */
   #howBtn, #playlistBtn { padding: 6px 0; color: var(--text); font-weight: 700; border: 0; border-radius: 0; border-bottom: 2px solid transparent; }
   #howBtn:hover, #playlistBtn:hover, #howBtn:focus-visible, #playlistBtn:focus-visible { border-bottom-color: var(--accent); }
 }
