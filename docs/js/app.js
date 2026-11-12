@@ -2460,7 +2460,7 @@
     T.game += '<section class="hsec"><h3>Rules' + (over ? ' <span class="why">for the next game</span>' : '') + '</h3>' +
       '<label class="check"><input type="checkbox" data-set="exactFinish"' + (s.settings.exactFinish ? ' checked' : '') + '> <span>Exact roll needed to escape</span></label>' +
       '<label class="check"><input type="checkbox" data-set="oneFinishPerDay"' + (s.settings.oneFinishPerDay !== false ? ' checked' : '') + '> <span>Podium escapes one per day (after the top 3, anyone can escape)</span></label>' +
-      '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label>' +
+      (E.isAcc(s) ? '' : '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label>') +   // AccSaber mode sets the rolls itself
       (theme().family === 'taco' && !E.isAcc(s) ? '' : '<label class="check"><input type="checkbox" data-set="accsaber"' + (E.isAcc(s) ? ' checked' : '') + '> <span>AccSaber mode: no maps. One AccSaber daily mission unlocks the day\'s roll, the first weekly mission each week adds a bonus roll, and the day turns over at AccSaber\'s reset (' + esc(new Date(E.nextCutoff({ timeZone: 'UTC', cutoffHour: 4, cutoffMinute: 0 })).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) + ' your time)</span></label>') + '</section>';
     if (!over) {
       T.game += '<section class="hsec"><h3>Theme and board</h3><div class="row"><label>Theme ' + themeOptions(s, 'themeSel') + '</label></div><p style="margin-top:10px">Changing the theme keeps everyone where they are.</p>';
