@@ -517,7 +517,8 @@ export class Game extends DurableObject {
     const fields = [];
     if (s.startsAt) fields.push({ name: '🎲 Starts', value: `<t:${sec(s.startsAt)}:F>` + (list ? '' : ` (<t:${sec(s.startsAt)}:R>)`), inline: true });
     if (span) fields.push({ name: '⏳ Runs', value: span + `, ends <t:${sec(s.endsAt)}:D>`, inline: true });
-    fields.push({ name: '🎵 Maps', value: (maps ? maps + ' maps, ' : '') + 'about one a day', inline: true });
+    if (E.isAcc(s)) fields.push({ name: '✅ Missions', value: 'One AccSaber daily mission a day', inline: true });
+    else fields.push({ name: '🎵 Maps', value: (maps ? maps + ' maps, ' : '') + 'about one a day', inline: true });
     if (list) {
       // Everyone who's in, in sign-up order. Discord caps a field at 1024 characters.
       let names = '';
@@ -530,10 +531,11 @@ export class Game extends DurableObject {
       fields.push({ name: (t.family === 'taco' ? '🌮' : '🎟️') + ` Signed up (${n})`, value: names || 'Nobody yet. Be the first!', inline: false });
     } else {
       const r = this.routeSplit().routes.map((x) => x.name.replace(/ route$/i, '')).join(' or ');
-      fields.push({ name: '📝 How to join', value: `Open the game, sign in with Discord, paste your BeatLeader profile and pick the ${r} route.`, inline: false });
+      const need = this.accClanWant() ? ` You need to be in the ${this.clan().accClanName} on AccSaber, with this Discord linked on BeatLeader.` : '';
+      fields.push({ name: '📝 How to join', value: `Open the game, sign in with Discord, paste your BeatLeader profile and pick the ${r} route.` + need, inline: false });
     }
     const card = this.card('Join ' + s.title, {
-      description: (t.tagline ? t.tagline + ' ' : '') + 'Roll a d4 once a day and play the map you land on. Cards, shortcuts and setbacks along the way. First three to the ' + (t.goal || 'exit') + ' take the podium.',
+      description: (t.tagline ? t.tagline + ' ' : '') + (E.isAcc(s) ? 'Finish an AccSaber daily mission to unlock your d4 roll each day, and a weekly mission adds a bonus roll.' : 'Roll a d4 once a day and play the map you land on.') + ' Cards, shortcuts and setbacks along the way. First three to the ' + (t.goal || 'exit') + ' take the podium.',
       fields
     });
     if (t.shot) card.image = { url: (this.env.GAME_PAGE || '').replace(/\/?$/, '/') + t.shot };
@@ -811,7 +813,8 @@ export class Game extends DurableObject {
       const head = tied.length > 1 ? `${list(tied.map((r) => '**' + name(r.pid) + '**'))} are tied for the lead` : `**${name(a.pid)}** leads`;
       fields.push({ name: '👑 Out front', value: clip(`${head}, ${plural(a.left, 'space')} from the ${goal}.` + (next ? ` ${list(racing.filter((r) => r.left === next.left).map((r) => name(r.pid)))} ${racing.filter((r) => r.left === next.left).length > 1 ? 'are' : 'is'} ${next.left - a.left} back.` : '')), inline: false });
     }
-    const desc = `${plural(rolls, 'roll')} and ${plural(clears, 'map')} cleared on day ${day}.` + (s.status === 'running' ? ` Day ${s.day} is open, roll your d4!` : '');
+    const missions = evs.filter((e) => e.t === 'mission').length;
+    const desc = (E.isAcc(s) ? `${plural(rolls, 'roll')} and ${plural(missions, 'daily mission')} finished on day ${day}.` : `${plural(rolls, 'roll')} and ${plural(clears, 'map')} cleared on day ${day}.`) + (s.status === 'running' ? ` Day ${s.day} is open, roll your d4!` : '');
     return this.card('📰 Day ' + day + ' recap', { description: desc, fields: fields.slice(0, 10) });
   }
   // Who was still racing at the end of a game day and how far each had to go, read back from the
@@ -1456,8 +1459,8 @@ export class Game extends DurableObject {
     const s = this.state, n = s.order.length, sp = this.routeSplit(), fields = [{ name: '👥 Players', value: String(n), inline: true }];
     if (sp.routes.length) fields.push({ name: '🛤️ Routes', value: sp.routes.map((r) => r.n + ' ' + r.name.replace(/ route$/i, '')).join(', '), inline: true });
     if (s.endsAt) fields.push({ name: '🏁 Ends', value: `<t:${sec(s.endsAt)}:D>`, inline: true });
-    const reset = this.meta.nextCutoff ? ` One roll a day, and the roll resets at <t:${sec(this.meta.nextCutoff)}:t> every night.` : ' One roll a day.';
-    await this.sendOrKeep(`🎲 **${md(s.title)} has started!** Day 1 is open: roll your d4 and play the map you land on.`, true,
+    const reset = this.meta.nextCutoff ? (E.isAcc(s) ? ` One roll a day, and it resets with AccSaber's missions at <t:${sec(this.meta.nextCutoff)}:t> every night.` : ` One roll a day, and the roll resets at <t:${sec(this.meta.nextCutoff)}:t> every night.`) : ' One roll a day.';
+    await this.sendOrKeep(`🎲 **${md(s.title)} has started!** Day 1 is open: ` + (E.isAcc(s) ? 'finish an AccSaber daily mission and roll your d4.' : 'roll your d4 and play the map you land on.'), true,
       this.card('Play ' + s.title, { description: (n ? `${plural(n, 'player')} ${n === 1 ? 'is' : 'are'} off.` : 'Sign up and roll your first d4.') + reset, fields }), 'start');
   }
 
@@ -1492,7 +1495,8 @@ export class Game extends DurableObject {
     const medal = ['🥇', '🥈', '🥉'];
     const goal = this.theme().goal || 'exit', tot = this.totals(), out = s.final.filter((r) => r.escaped).length;
     const fields = s.final.filter((r) => r.place <= 3).slice(0, 6).map((r) => ({ name: `${medal[r.place - 1]} ${md(s.players[r.pid].name)}`, value: r.escaped ? `Day ${r.day}` : `${r.left} to go`, inline: true }));
-    fields.push({ name: '📊 By the numbers', value: `${plural(s.final.length, 'player')} · ${plural(tot.clears, 'map')} cleared · ${out} made it to the ${goal}`, inline: false });
+    const done = E.isAcc(s) ? plural(s.events.filter((e) => e.t === 'mission').length, 'daily mission') + ' finished' : plural(tot.clears, 'map') + ' cleared';
+    fields.push({ name: '📊 By the numbers', value: `${plural(s.final.length, 'player')} · ${done} · ${out} made it to the ${goal}`, inline: false });
     if (tot.best && s.players[tot.best.pid]) {
       const song = tot.best.key ? await this.songName(tot.best.key) : '';
       fields.push({ name: '✨ Best clear', value: `**${md(s.players[tot.best.pid].name)}**, ${song ? md(song) : 'a map'}` + (tot.best.diff ? ` (${tot.best.diff})` : '') + ` at ${(tot.best.acc * 100).toFixed(2)}%`, inline: false });
