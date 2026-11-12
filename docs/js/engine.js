@@ -33,8 +33,56 @@
     cutoffHour: 0,           // local hour the day rolls over (0 = midnight)
     cutoffMinute: 59,
     timeZone: 'America/New_York',
-    remindHour: 19           // roll reminders for players who turned them on (null = off)
+    remindHour: 19,          // roll reminders for players who turned them on (null = off)
+    accsaber: false          // AccSaber mode: no maps, a daily AccSaber mission earns the day's roll
   };
+
+  // ---- AccSaber mode -----------------------------------------------------------
+  // The roll is earned on AccSaber instead of with a map: finish one daily mission after the reset
+  // and today's roll unlocks. The first weekly mission each week adds one bonus roll, kept until used.
+  // p.acc holds the player's mission counts from AccSaber's public leaderboard:
+  //   d/base/cur   game day, daily count at the day's start, daily count now
+  //   wk/wbase/wcur  AccSaber week, weekly count at the week's start, weekly count now
+  //   wGot         the week the bonus roll was given
+  var ACC_WEEK0 = Date.UTC(1970, 0, 5, 4);   // a Monday, 4:00 AM UTC (AccSaber's weekly reset)
+  function isAcc(s) { return !!(s && s.settings && s.settings.accsaber); }
+  function accWeek(t) { return Math.floor(((t || now()) - ACC_WEEK0) / (7 * 86400000)); }
+  function accDaily(s, p) { var a = p.acc; return !!(a && a.d === s.day && a.cur > a.base); }
+  // New mission counts from AccSaber. counts: { blId: { d, w } }. known: { d, w } says whether the
+  // whole list was read for that pool, so a player missing from it has done none. rebase: this read
+  // was taken right at the reset, so today's count starts from it.
+  function accUpdate(s, counts, at, known, rebase) {
+    var wk = accWeek(at), changed = false;
+    s.order.forEach(function (pid) {
+      var p = s.players[pid]; if (!p || !p.blId || p.finished) return;
+      var c = counts[p.blId] || {}, a = p.acc || (p.acc = {});
+      var d = c.d != null ? c.d : known.d ? 0 : null, w = c.w != null ? c.w : known.w ? 0 : null;
+      // Counts only ever go up. A lower one means the player slipped between pages of the list.
+      if (d != null && a.cur > d) d = a.cur;
+      if (w != null && a.wcur > w) w = a.wcur;
+      if (d != null) {
+        if (a.d !== s.day || rebase) { a.base = rebase || a.cur == null ? d : a.cur; a.d = s.day; changed = true; }
+        var was = a.cur > a.base;
+        if (a.cur !== d) { a.cur = d; changed = true; }
+        if (!was && a.cur > a.base && s.status === 'running') emit(s, p, { t: 'mission' });
+      }
+      if (w != null) {
+        if (a.wk !== wk) { a.wbase = rebase || a.wcur == null ? w : a.wcur; a.wk = wk; changed = true; }
+        if (a.wcur !== w) { a.wcur = w; changed = true; }
+        if (w > a.wbase && a.wGot !== wk && s.status === 'running') {
+          a.wGot = wk; p.accBonus = (p.accBonus || 0) + 1; changed = true;
+          emit(s, p, { t: 'weekly' });
+        }
+      }
+    });
+    if (changed) s.seq++;
+    return changed;
+  }
+  // At the day's turn: today's count starts where yesterday's ended (the worker reads it again
+  // right after the reset to make it exact).
+  function accNewDay(s) {
+    s.order.forEach(function (pid) { var a = s.players[pid].acc; if (a && a.cur != null) { a.base = a.cur; a.d = s.day; } });
+  }
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function now() { return Date.now(); }
@@ -216,6 +264,11 @@
     if (!p.route) return { ok: false, code: 'no-route', reason: 'Pick your route first.' };
     if (p.tasks.length) return { ok: false, code: 'task', reason: p.tasks.length > 1 ? 'Play your ' + p.tasks.length + ' maps first.' : 'Play your map first.' };
     if (p.skippedDay === s.day) return { ok: false, code: 'skip', reason: 'You lose this turn.' };
+    if (isAcc(s)) {
+      if ((p.rolledDay === s.day && p.extraRoll) || (p.rolledDay !== s.day && accDaily(s, p)) || p.accBonus > 0) return { ok: true };
+      if (p.rolledDay === s.day) return { ok: false, code: 'rolled', reason: 'You already rolled today.' };
+      return { ok: false, code: 'mission', reason: 'Finish an AccSaber daily mission to unlock today\'s roll.' };
+    }
     if (s.settings.oneRollPerDay && p.rolledDay === s.day && !p.extraRoll) return { ok: false, code: 'rolled', reason: 'You already rolled today.' };
     return { ok: true };
   }
@@ -228,10 +281,13 @@
     var sides = s.settings.dieSides || 4;
     var n = opts.forced || (rngInt(opts.rng, sides) + 1);
     var bonus = p.rolledDay === s.day && p.extraRoll;
+    // AccSaber mode: the day's roll needs today's mission; without it, a saved weekly bonus roll is used.
+    var weekly = !bonus && isAcc(s) && !(p.rolledDay !== s.day && accDaily(s, p)) && p.accBonus > 0;
     if (bonus) p.extraRoll = false;
-    p.rolledDay = s.day; p.rolls++;
+    if (weekly) p.accBonus--; else p.rolledDay = s.day;
+    p.rolls++;
     var before = leftMap(s);
-    var start = emit(s, p, { t: 'roll', n: n, from: p.pos, bonus: bonus });
+    var start = emit(s, p, { t: 'roll', n: n, from: p.pos, bonus: bonus || weekly, weekly: weekly || undefined });
     var steps = [];
     var ctx = { rng: opts.rng, steps: steps, depth: 0, firstEvent: start.id };
     var target = p.pos + n, last = exitIndex(s, p);
@@ -251,6 +307,7 @@
   // (a card, an event, lose a turn, back to start), the player gets a bonus map.
   // Exceptions: a Safe or Blank space, escaping, or a bonus roll still to take today.
   function mustPlay(s, p, ctx) {
+    if (isAcc(s)) return;   // AccSaber mode has no maps
     if (p.finished || p.tasks.length || p.extraRoll) return;
     var sp = spaceAt(s, p);
     if (sp && (sp.type === 'safe' || sp.type === 'blank' || sp.type === 'exit')) return;
@@ -285,6 +342,7 @@
     switch (sp.type) {
       case 'map':
       case 'task':
+        if (isAcc(s)) break;
         addTask(s, p, { bsr: sp.bsr || [], space: sp.id, kind: sp.kind || null, source: 'space' });
         break;
       case 'card':
@@ -393,6 +451,7 @@
       case 'again': p.extraRoll = true; emit(s, p, { t: 'again', card: card.id }); break;
       case 'shield': p.shield = true; emit(s, p, { t: 'shield', card: card.id }); break;
       case 'task':
+        if (isAcc(s)) break;
         var keys = fx.bsr && fx.bsr.length ? fx.bsr : pickBonus(s, ctx && ctx.rng, p);
         addTask(s, p, { bsr: keys, card: card.id, source: 'card' });
         break;
@@ -527,6 +586,7 @@
       p.extraRoll = false;
       if (p.skip > 0) { p.skip--; p.skippedDay = s.day; emit(s, p, { t: 'lost-turn', left: p.skip }); }
     });
+    if (isAcc(s)) accNewDay(s);
     emit(s, null, { t: 'day', day: s.day });
     return s.day;
   }
@@ -541,7 +601,7 @@
       if (ctx && ctx.steps) ctx.steps.push(p.pos);
       emit(s, p, { t: 'gate-closed' });
       var wait = spaceAt(s, p);   // waiting on a map space: play that map today
-      if (wait && (wait.type === 'map' || wait.type === 'task') && wait.bsr && wait.bsr.length) addTask(s, p, { bsr: wait.bsr, space: wait.id, kind: wait.kind || null, source: 'space' });
+      if (wait && !isAcc(s) && (wait.type === 'map' || wait.type === 'task') && wait.bsr && wait.bsr.length) addTask(s, p, { bsr: wait.bsr, space: wait.id, kind: wait.kind || null, source: 'space' });
       return;
     }
     p.tasks = []; p.claims = [];
@@ -578,7 +638,9 @@
     if (!p || !p.route || p.finished || s.status !== 'running') return null;
     var open = p.tasks.filter(function (t) { return !p.claims.some(function (c) { return c.task === t.id; }); });
     if (open.length) return { title: 'Your map is still open', body: 'Play !bsr ' + open[0].bsr.join(' or ') + ' to unlock your next roll.' };
-    if (canRoll(s, pid).ok) return { title: 'Your roll is waiting', body: 'You haven\'t rolled today. The day turns over at the cutoff.' };
+    var cr = canRoll(s, pid);
+    if (cr.ok) return { title: 'Your roll is waiting', body: 'You haven\'t rolled today. The day turns over at the cutoff.' };
+    if (cr.code === 'mission') return { title: 'Your roll is waiting', body: 'Finish an AccSaber daily mission to unlock today\'s roll.' };
     return null;
   }
   // The reminder hour, or null when the host turned reminders off. Games made before the
@@ -869,7 +931,7 @@
   var E = {
     VERSION: VERSION, makeUpShortDay: makeUpShortDay, swapMaps: swapMaps, DEFAULTS: DEFAULTS,
     createGame: createGame, swapCards: swapCards, sameCards: sameCards, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, react: react, reactor: reactor, REACTIONS: REACTIONS, LEGACY_REACTIONS: LEGACY_REACTIONS, signupsOpen: signupsOpen, chooseRoute: chooseRoute,
-    canRoll: canRoll, roll: roll, advanceDay: advanceDay,
+    canRoll: canRoll, roll: roll, advanceDay: advanceDay, isAcc: isAcc, accWeek: accWeek, accDaily: accDaily, accUpdate: accUpdate,
     completeTask: completeTask, claimTask: claimTask, rejectClaim: rejectClaim, matchScores: matchScores, improveClears: improveClears,
     setPosition: setPosition, hostCard: hostCard, resetPlayer: resetPlayer,
     routeOf: routeOf, spaceAt: spaceAt, progress: progress, remaining: remaining, exitIndex: exitIndex,

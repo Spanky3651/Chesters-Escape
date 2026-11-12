@@ -297,4 +297,60 @@ assert.strictEqual(cardsSeen.size, 20);
   assert(E.sameCards(s.cards, C.cardsFor('snowy')));
   console.log('snowy picture deck ok');
 }
+// AccSaber mode: no maps, a daily mission unlocks the day's roll, a weekly mission adds a saved bonus roll
+{
+  const settings = { accsaber: true, timeZone: 'UTC', cutoffHour: 4, cutoffMinute: 0 };
+  const s = E.createGame({ board: C.boardFor(), cards: C.cardsFor('snowy'), themeId: 'snowy', settings, rng: seeded(11) });
+  E.addPlayer(s, { id: 'a', name: 'a', blId: '1' }); E.addPlayer(s, { id: 'b', name: 'b', blId: '2' });
+  E.chooseRoute(s, 'a', 'longer'); E.chooseRoute(s, 'b', 'riskier');
+  const all = { d: true, w: true }, t0 = Date.UTC(2026, 11, 2, 5);   // a Wednesday
+  E.accUpdate(s, { 1: { d: 5, w: 2 }, 2: { d: 3, w: 1 } }, t0, all, true);
+  assert.strictEqual(E.canRoll(s, 'a').code, 'mission', 'no mission yet, no roll');
+  E.accUpdate(s, { 1: { d: 6, w: 2 }, 2: { d: 3, w: 1 } }, t0 + 3600000, all);
+  assert(E.canRoll(s, 'a').ok, 'a daily mission unlocks the roll');
+  assert(s.events.some((e) => e.t === 'mission' && e.pid === 'a'));
+  E.roll(s, 'a', { rng: seeded(12) });
+  assert.strictEqual(s.players.a.tasks.length, 0, 'no maps in AccSaber mode');
+  assert.strictEqual(E.canRoll(s, 'a').code, 'rolled');
+  E.accUpdate(s, { 1: { d: 7, w: 3 }, 2: { d: 3, w: 1 } }, t0 + 7200000, all);
+  assert.strictEqual(s.players.a.accBonus, 1, 'a weekly mission adds a bonus roll');
+  assert(E.canRoll(s, 'a').ok);
+  const r = E.roll(s, 'a', { rng: seeded(13) });
+  assert(r.events[0].weekly, 'the bonus roll is marked weekly');
+  assert.strictEqual(s.players.a.accBonus, 0);
+  E.accUpdate(s, { 1: { d: 7, w: 4 }, 2: { d: 3, w: 1 } }, t0 + 9000000, all);
+  assert.strictEqual(s.players.a.accBonus, 0, 'one weekly bonus per week');
+  // b takes the weekly bonus first, then the day's roll still unlocks with a daily mission
+  E.accUpdate(s, { 1: { d: 7, w: 4 }, 2: { d: 3, w: 2 } }, t0 + 9000000, all);
+  E.roll(s, 'b', { rng: seeded(14) });
+  assert.strictEqual(E.canRoll(s, 'b').code, 'mission', 'a used weekly bonus leaves the daily roll');
+  E.accUpdate(s, { 1: { d: 7, w: 4 }, 2: { d: 4, w: 2 } }, t0 + 9600000, all);
+  assert(E.canRoll(s, 'b').ok);
+  // the next day starts from yesterday's count
+  E.advanceDay(s);
+  assert.strictEqual(E.canRoll(s, 'a').code, 'mission');
+  E.accUpdate(s, { 1: { d: 8, w: 4 } }, t0 + 86400000, { d: true, w: false });
+  assert(E.canRoll(s, 'a').ok);
+  assert.strictEqual(s.players.b.acc.cur, 4, 'a count never goes down');
+  // a new week brings a new bonus
+  E.accUpdate(s, { 1: { d: 8, w: 5 } }, t0 + 6 * 86400000, all);
+  assert.strictEqual(s.players.a.accBonus, 1);
+  assert.notStrictEqual(E.accWeek(Date.UTC(2026, 11, 7, 3, 59)), E.accWeek(Date.UTC(2026, 11, 7, 4, 0)), 'weeks turn over Monday 4:00 AM UTC');
+  assert.strictEqual(E.nextCutoff(s.settings, Date.UTC(2026, 11, 2, 3, 0)), Date.UTC(2026, 11, 2, 4, 0), 'the day turns over at 4:00 AM UTC');
+  // full games: nobody ever gets a map
+  for (let g = 0; g < 100; g++) {
+    const rng = seeded(500 + g), q = E.createGame({ board: C.boardFor(), cards: C.cardsFor(g % 2 ? 'snowy' : 'cemetery'), themeId: 'snowy', settings, rng });
+    ['x', 'y', 'z'].forEach((id, i) => { E.addPlayer(q, { id, name: id, blId: 'b' + i }); E.chooseRoute(q, id, i % 2 ? 'longer' : 'riskier'); });
+    let guard = 0;
+    while (q.finishOrder.length < 3 && guard++ < 300) {
+      const c = {};
+      ['x', 'y', 'z'].forEach((id, i) => { if (rng() < 0.7) c['b' + i] = { d: guard }; else c['b' + i] = { d: guard - 1 }; });
+      E.accUpdate(q, c, Date.now(), { d: true, w: false });
+      q.order.forEach((id) => { while (E.canRoll(q, id).ok) E.roll(q, id, { rng }); assert.strictEqual(q.players[id].tasks.length, 0); });
+      E.advanceDay(q);
+    }
+    assert.strictEqual(q.finishOrder.length, 3, 'AccSaber games finish');
+  }
+  console.log('AccSaber mode ok');
+}
 console.log('all engine tests passed');

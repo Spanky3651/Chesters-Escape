@@ -969,8 +969,16 @@ export class Game extends DurableObject {
         }
         case 'route': result = this.mine(s, pid) && E.chooseRoute(s, pid, a.route); break;
         case 'react': result = E.react(s, pid, a.id, a.emoji, s.players[pid] ? null : { name: user.name, avatar: user.avatar }); break;
-        case 'roll': this.mine(s, pid); result = E.roll(s, pid, { rng }); delete result.player; break;
-        case 'verify': this.mine(s, pid); result = { cleared: await this.check(pid) }; break;
+        case 'roll': {
+          this.mine(s, pid);
+          // AccSaber mode: a roll still locked looks for a newly finished mission first.
+          if (E.isAcc(s) && E.canRoll(s, pid).code === 'mission') await this.accRefresh();
+          result = E.roll(s, pid, { rng }); delete result.player; break;
+        }
+        case 'verify':
+          this.mine(s, pid);
+          if (E.isAcc(s)) { await this.accRefresh(); const p = s.players[pid]; result = { acc: { daily: E.accDaily(s, p), bonus: p.accBonus || 0, canRoll: E.canRoll(s, pid).ok } }; break; }
+          result = { cleared: await this.check(pid) }; break;
         case 'claim': {
           this.mine(s, pid); result = E.claimTask(s, pid, a.task, { url: String(a.url || '').slice(0, 300) });
           const p = s.players[pid], t = p.tasks.find((x) => x.id === a.task);
@@ -989,8 +997,13 @@ export class Game extends DurableObject {
         case 'signups': if (s.status !== 'signup') return { error: 'The game has already started.' }; if (a.closed) s.signupsClosed = true; else delete s.signupsClosed; s.seq++; break;
         case 'clearRoute': { const p = s.players[a.pid]; p.route = null; p.pos = -1; p.tasks = []; break; }
         case 'settings': {
-          const allowed = ['exactFinish', 'oneFinishPerDay', 'oneRollPerDay', 'cutoffHour', 'cutoffMinute', 'timeZone', 'remindHour'];
+          const allowed = ['exactFinish', 'oneFinishPerDay', 'oneRollPerDay', 'cutoffHour', 'cutoffMinute', 'timeZone', 'remindHour', 'accsaber'];
           for (const k of Object.keys(a.patch || {})) if (allowed.includes(k)) s.settings[k] = a.patch[k];
+          // AccSaber mode follows AccSaber's day: it turns over at their daily reset, 4:00 AM UTC.
+          if (a.patch && 'accsaber' in a.patch) {
+            if (s.settings.accsaber) Object.assign(s.settings, { timeZone: 'UTC', cutoffHour: 4, cutoffMinute: 0 });
+            else Object.assign(s.settings, { timeZone: E.DEFAULTS.timeZone, cutoffHour: E.DEFAULTS.cutoffHour, cutoffMinute: E.DEFAULTS.cutoffMinute });
+          }
           this.meta.nextCutoff = E.nextCutoff(s.settings); result = s.settings; break;
         }
         case 'theme': {
@@ -1056,6 +1069,7 @@ export class Game extends DurableObject {
         case 'startNow': {
           if (!E.startGame(s, Date.now())) return { error: 'The game has already started.' };
           this.meta.nextCutoff = E.nextCutoff(s.settings);
+          if (E.isAcc(s)) { this.accAt = 0; await this.accRefresh({ force: true, rebase: true }); }
           await this.announceStart();
           break;
         }
@@ -1341,6 +1355,43 @@ export class Game extends DurableObject {
     const p = await r.json();
     return { id: String(p.id), name: p.name, avatar: p.avatar || '' };
   }
+  // AccSaber mode: mission counts from AccSaber's public "Most missions done" leaderboards (daily and
+  // weekly). There's no per-player lookup, so the pages are read until every player is found. Each
+  // row is matched as text (no full parse) to keep the work small. Read at most every 3 minutes;
+  // AccSaber itself refreshes the list about every 10.
+  async accScan(ids) {
+    const api = this.env.ACC_API || 'https://api.accsaber.com', counts = {}, known = { d: true, w: true };
+    for (const pool of ['daily', 'weekly']) {
+      const left = new Set(ids), k = pool[0];
+      for (let page = 0; page < 20 && left.size; page++) {
+        if (!this.take(1)) { known[k] = false; break; }
+        const r = await fetch(`${api}/v1/statistics/missions/leaderboards/most-completed?pool=${pool}&page=${page}&size=600`, { headers: { 'user-agent': 'ChestersEscape' } }).catch(() => null);
+        if (!r || !r.ok) { known[k] = false; break; }
+        const t = await r.text();
+        for (const id of [...left]) {
+          const i = t.indexOf('"player":{"id":"' + id + '"'); if (i < 0) continue;
+          const j = t.lastIndexOf('"missionsCompleted":', i); if (j < 0) continue;
+          const n = parseInt(t.slice(j + 20, j + 32), 10);
+          if (!isNaN(n)) { (counts[id] = counts[id] || {})[k] = n; left.delete(id); }
+        }
+        if (t.indexOf('"last":true') >= 0) break;
+        if (t.indexOf('"last":false') < 0) { known[k] = false; break; }   // not the list we expect
+      }
+    }
+    return { counts, known };
+  }
+  async accRefresh(opts = {}) {
+    const s = this.state, now = Date.now();
+    if (!E.isAcc(s) || s.status === 'finished') return false;
+    if (!opts.force && this.accAt && now - this.accAt < 3 * 60000) return false;
+    const ids = [...new Set(s.order.map((id) => s.players[id].blId).filter(Boolean))];
+    if (!ids.length) return false;
+    this.accAt = now;
+    const { counts, known } = await this.accScan(ids);
+    if (!known.d && !Object.keys(counts).length) return false;   // AccSaber didn't answer
+    if (E.accUpdate(s, counts, now, known, !!opts.rebase && known.d)) this.dirty = true;
+    return known.d;
+  }
   async check(pid) {
     const s = this.state, p = s.players[pid];
     if (!p || !p.blId) return [];
@@ -1426,10 +1477,23 @@ export class Game extends DurableObject {
     if (s.status === 'signup' && s.startsAt && now >= s.startsAt - 1000) {
       E.startGame(s, now);
       this.meta.nextCutoff = E.nextCutoff(s.settings, now + 1000);
+      if (E.isAcc(s)) this.meta.accRebase = now;
       await this.announceStart();
     } else if (s.status === 'running' && this.meta.nextCutoff && now >= this.meta.nextCutoff - 1000) {
+      if (E.isAcc(s)) this.meta.accRebase = this.meta.nextCutoff;
       E.advanceDay(s);
       this.meta.nextCutoff = E.nextCutoff(s.settings, now + 1000);
+    }
+    // AccSaber mode: read everyone's mission counts right after the reset so today starts from them.
+    // Missed by more than 5 minutes: today starts from the last counts seen (a little generous).
+    if (this.meta.accRebase) {
+      if (now - this.meta.accRebase > 5 * 60000 || !E.isAcc(s)) delete this.meta.accRebase;
+      else if (this.budget == null || this.budget >= 15) {
+        this.accAt = 0;
+        const t0 = this.meta.accRebase;
+        if (await this.accRefresh({ force: true, rebase: true }).catch(() => false)) delete this.meta.accRebase;
+        else if (this.meta.accRebase === t0) this.later = true;
+      } else this.later = true;
     }
     // A day cut short (the November 2026 clock change): bonus rolls for whoever missed it, once.
     if (s.status === 'running' && E.makeUpShortDay(s, 1) != null) this.dirty = true;

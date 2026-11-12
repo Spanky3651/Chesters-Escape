@@ -267,6 +267,7 @@
     $('brandCrow').innerHTML = R.hero(0, 0, 1, t);
     $('dayNum').textContent = s.status === 'finished' ? 'Game over' : s.status === 'signup' ? (E.signupsOpen(s) ? 'Sign-ups open' : 'Sign-ups closed') : 'Day ' + s.day;
     $('hostBtn').hidden = !store.isHost || adminCard();
+    $('playlistBtn').hidden = E.isAcc(s);   // AccSaber mode has no maps
     // The Discord button, when the server knows the game's channel (from its webhook).
     var chat = store.mode === 'live' && store.chat && store.chat.url, cb = $('chatBtn');
     if (cb) { cb.hidden = !chat; if (chat) { cb.href = chat; cb.title = 'Open the ' + (store.chat.name || 'game') + ' chat in Discord'; cb.setAttribute('aria-label', cb.title); } }
@@ -436,7 +437,9 @@
     var can = E.canRoll(s, p.id);
     if (!p.finished) {
       html += '<div class="roll-box"><div id="dieSlot"></div><div class="roll-copy">';
-      if (can.ok) html += '<b>' + (p.extraRoll && p.rolledDay === s.day ? 'Bonus roll' : 'Ready to roll') + '</b><p>Roll the d4 and move that many spaces.</p><button type="button" class="btn" id="rollBtn">Roll the d4</button>';
+      var wkRoll = E.isAcc(s) && can.ok && !(p.extraRoll && p.rolledDay === s.day) && !(p.rolledDay !== s.day && E.accDaily(s, p));
+      if (can.ok) html += '<b>' + (wkRoll ? 'Weekly bonus roll' : p.extraRoll && p.rolledDay === s.day ? 'Bonus roll' : 'Ready to roll') + '</b><p>Roll the d4 and move that many spaces.' + (E.isAcc(s) && p.accBonus > (wkRoll ? 1 : 0) ? ' You also have ' + (p.accBonus - (wkRoll ? 1 : 0) > 1 ? (p.accBonus - (wkRoll ? 1 : 0)) + ' weekly bonus rolls' : 'a weekly bonus roll') + ' saved.' : '') + '</p><button type="button" class="btn" id="rollBtn">Roll the d4</button>';
+      else if (can.code === 'mission') html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><button type="button" class="btn" id="accCheck">Check my missions</button>';
       else html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><button type="button" class="btn" id="rollBtn" disabled>Roll the d4</button>';
       html += '</div></div>';
     } else {
@@ -504,7 +507,7 @@
     }
     return '<div class="near-exit">' + lines.map(function (l) { return '<p><span aria-hidden="true">' + l[0] + '</span><span>' + l[1] + '</span></p>'; }).join('') + '</div>';
   }
-  function rollTitle(c) { return { task: 'Play your map', rolled: 'Rolled for today', skip: 'Turn lost', 'not-running': 'Waiting', finished: 'Escaped' }[c.code] || 'Not yet'; }
+  function rollTitle(c) { return { task: 'Play your map', rolled: 'Rolled for today', skip: 'Turn lost', 'not-running': 'Waiting', finished: 'Escaped', mission: 'Do a daily mission' }[c.code] || 'Not yet'; }
   // A lost turn waiting after today's roll pushes the next roll past tomorrow.
   function nextRollDay(s, p) { return s.day + (p.skip || 0) + 1; }
   function lostAhead(s, p) {
@@ -523,8 +526,10 @@
       if (p.skip) return lostAhead(s, p) + (store.mode === 'demo' ? ' In the demo, use Start the next day.' : '');
       var here = E.spaceAt(s, p);
       if (here && here.type === 'blank' && p.rolledDay === s.day) return C.spaceEffectText(here) + (store.mode === 'demo' ? ' In the demo, use Start the next day.' : '');
+      if (E.isAcc(s)) return store.mode === 'demo' ? 'Come back tomorrow. In the demo, use Start the next day.' : 'AccSaber\'s daily missions reset at ' + cutoffLabel(s) + '. Finish one after that to unlock your next roll.';
       return store.mode === 'demo' ? 'Come back tomorrow. In the demo, use Start the next day.' : 'Your next roll opens when the day turns over.';
     }
+    if (c.code === 'mission') return 'Finish one AccSaber daily mission, then check here. AccSaber can take up to 10 minutes to show it. Missions reset at ' + cutoffLabel(s) + '.';
     if (c.code === 'skip') return p.skip ? 'You sit this one out. ' + p.skip + ' more after today.' : 'You sit this one out. You can roll again tomorrow.';
     return c.reason;
   }
@@ -577,11 +582,13 @@
   }
 
   // ---- feed --------------------------------------------------------------------
-  var ICON = { rest: '🛡️', roll: '🎲', land: '📍', task: '🎵', card: '🃏', move: '➡️', skip: '⏸️', start: '↩️', warp: '🌀', cleared: '✅', claim: '📨', 'claim-rejected': '❌', 'lost-turn': '💤', escaped: '🎉', route: '🧭', join: '👋', shield: '🛡️', 'shield-used': '🛡️', again: '🎲', overshoot: '🎯', 'gate-closed': '🔒', 'host-move': '🧹', 'host-reset': '🧹', reshuffle: '🔀', begin: '🏁', pass: '⚡' };
+  var ICON = { rest: '🛡️', roll: '🎲', land: '📍', task: '🎵', card: '🃏', move: '➡️', skip: '⏸️', start: '↩️', warp: '🌀', cleared: '✅', claim: '📨', 'claim-rejected': '❌', 'lost-turn': '💤', escaped: '🎉', route: '🧭', join: '👋', shield: '🛡️', 'shield-used': '🛡️', again: '🎲', overshoot: '🎯', 'gate-closed': '🔒', 'host-move': '🧹', 'host-reset': '🧹', reshuffle: '🔀', begin: '🏁', pass: '⚡', mission: '✅', weekly: '⭐' };
   function evText(e) {
     var s = st(), t = theme(), sp = e.space ? s.board.spaces[e.space] : null, card = e.card ? E.cardById(s, e.card) : null;
     switch (e.t) {
-      case 'roll': return { html: (e.bonus ? 'Bonus roll: ' : 'Rolled a ') + '<b>' + e.n + '</b>' };
+      case 'roll': return { html: (e.weekly ? 'Weekly bonus roll: ' : e.bonus ? 'Bonus roll: ' : 'Rolled a ') + '<b>' + e.n + '</b>' };
+      case 'mission': return { html: 'Finished an AccSaber daily mission. Today\'s roll is unlocked', cls: 'good' };
+      case 'weekly': return { html: 'Finished an AccSaber weekly mission. <b>Bonus roll</b> earned', cls: 'good' };
       case 'land': {
         // Only Safe gets a line: every other space logs what it does, and Safe does nothing, so without this the roll looks like it went nowhere.
         if (sp && sp.type === 'blank') { var kB = sp.kind && t.kinds[sp.kind]; return { html: (kB ? '<b>' + esc(kB.title) + '</b> ' : '') + esc(C.spaceEffectText(sp)), icon: kB ? kB.icon : '\u2714\uFE0F' }; }
@@ -806,10 +813,11 @@
       var sp = b.spaces[id]; if (!sp) return;
       if (sp.type === 'map') n.map++; else if (sp.type === 'task') n.task++; else if (sp.type === 'card') n.card++;
       else if ((sp.type === 'move' && sp.n > 0) || sp.type === 'safe' || (sp.type === 'warp' && sp.kind === 'swim')) n.good++;
-      else if (sp.type !== 'exit') n.bad++;
+      else if (sp.type !== 'exit' && sp.type !== 'blank') n.bad++;
     });
-    var w = function (k, one, many) { return n[k] + ' ' + (n[k] === 1 ? one : many); };
-    return [w('map', 'map', 'maps'), w('task', 'blocker', 'blockers'), w('card', 'card drop', 'card drops'), w('good', 'boost', 'boosts'), w('bad', 'setback', 'setbacks')].join(' \u00b7 ');
+    var acc = E.isAcc(st());   // AccSaber mode: only what the route has
+    var w = function (k, one, many) { return acc && !n[k] ? '' : n[k] + ' ' + (n[k] === 1 ? one : many); };
+    return [w('map', 'map', 'maps'), w('task', 'blocker', 'blockers'), w('card', 'card drop', 'card drops'), w('good', 'boost', 'boosts'), w('bad', 'setback', 'setbacks')].filter(Boolean).join(' \u00b7 ');
   }
   // Song names for the standings. Board maps arrive with the covers; bonus maps are looked up here.
   var mapInfo = {}, mapAsked = {};
@@ -849,6 +857,7 @@
     } else {
       var c = E.canRoll(s, p.id);
       if (c.ok) html = ava + '<span class="mb-txt"><b>Ready to roll</b><span>' + E.remaining(s, p) + ' spaces to go</span></span><button type="button" class="btn small" id="mRoll">Roll the d4</button>';
+      else if (c.code === 'mission') html = ava + '<span class="mb-txt"><b>Do a daily mission</b><span>Then check here</span></span><button type="button" class="btn small" id="mAcc">Check missions</button>';
       else html = ava + '<span class="mb-txt"><b>' + esc(rollTitle(c)) + '</b><span>' + esc(c.code === 'rolled' ? (p.skip ? 'Next turn lost. Roll again on day ' + nextRollDay(s, p) : store.mode === 'demo' ? 'Next roll tomorrow' : 'Next roll after the cutoff') : c.reason) + '</span></span><button type="button" class="btn small ghost" id="mGo">Details</button>';
     }
     bar.innerHTML = html; bar.hidden = false; document.body.classList.add('has-mbar');
@@ -1104,6 +1113,17 @@
       if (n) { celebrateClear(r.cleared); }
       else { animating = false; renderAll(); toast('No new score on that map yet. BeatLeader can take a minute after you finish.', ''); }
     }).catch(function (e) { animating = false; renderAll(); if (/Link your BeatLeader/.test(e.message)) openJoin(true); else fail(e); });
+  }
+  // AccSaber mode: look for a newly finished mission (the server reads AccSaber's leaderboard).
+  function doAccCheck(btn) {
+    btn.disabled = true; btn.textContent = 'Checking AccSaber';
+    track('check-accsaber');
+    store.act('verify').then(function (r) {
+      var a = r && r.acc;
+      renderAll();
+      if (a && a.canRoll) { sfx.good(); toast(a.daily ? 'Daily mission found. Roll the d4!' : 'You have a weekly bonus roll. Roll the d4!', 'good'); }
+      else toast('No daily mission yet. AccSaber can take up to 10 minutes to show one.', '');
+    }).catch(function (e) { renderAll(); fail(e); });
   }
   function celebrateClear(cleared) {
     sfx.good();
@@ -1659,7 +1679,12 @@
     var t = theme(), s = st(), b = s.board, ri = b.routeInfo, cardWord = t.words.card.join(' ').toLowerCase();
     track('how-to-play');
     var step = function (icon, h, p) { return '<li class="hw-step"><span class="hw-ic" aria-hidden="true">' + icon + '</span><b>' + h + '</b><span>' + p + '</span></li>'; };
-    var loop = '<ol class="hw-loop">' +
+    var acc = E.isAcc(s);
+    var loop = acc ? '<ol class="hw-loop">' +
+      step(HOW_CHECK, 'Do a mission', 'One AccSaber daily mission a day.') +
+      step(R.dieIcon(), 'Roll the d4', 'Your roll unlocks. Move that many spaces.') +
+      step('<svg viewBox="0 0 40 40"><path d="M20 5l4.6 9.4 10.4 1.5-7.5 7.3 1.8 10.3L20 28.6l-9.3 4.9 1.8-10.3L5 15.9l10.4-1.5z" fill="#ffd34d"/></svg>', 'Weekly bonus', 'A weekly mission adds a bonus roll.') +
+      step(HOW_AGAIN, 'Roll again', 'Missions reset at ' + esc(cutoffLabel(s)) + '.') + '</ol>' : '<ol class="hw-loop">' +
       step(R.dieIcon(), 'Roll the d4', 'Once a day. Move that many spaces.') +
       step(HOW_MAP, 'Play the map', 'Any difficulty, any modifiers.') +
       step(HOW_CHECK, 'Get cleared', 'BeatLeader is checked for you.') +
@@ -1670,7 +1695,7 @@
     // One example of every kind of space on this board, cut from the board itself.
     var kinds = [
       ['map', function (sp) { return sp.type === 'map'; }, 'Map space', 'Play its map. Some offer two.'],
-      ['card', function (sp) { return sp.type === 'card'; }, cap(cardWord), 'Draw a card. Good, bad or a bonus map.'],
+      ['card', function (sp) { return sp.type === 'card'; }, cap(cardWord), E.isAcc(s) ? 'Draw a card. Good or bad.' : 'Draw a card. Good, bad or a bonus map.'],
       ['task', function (sp) { return sp.type === 'task'; }, 'Blocker', 'Play its map to get past.'],
       ['up', function (sp) { return sp.type === 'move' && sp.n > 0; }, 'Boost', 'Jump ahead.'],
       ['shortcut', function (sp) { return sp.type === 'warp' && sp.kind === 'swim'; }, 'Shortcut', 'Carried ahead.'],
@@ -1690,8 +1715,9 @@
     });
     var tip = function (icon, html) { return '<li><span class="hw-ti" aria-hidden="true">' + icon + '</span><span>' + html + '</span></li>'; };
     var tips = '<ul class="hw-tips">' +
-      tip('🎵', 'Every roll ends with a map. Stop on a space without one and you get a bonus map. Safe is the only break.') +
-      tip('🔗', 'Moved by a card or event? Play the space if it\'s a map. Anything else you land on that way (back to start, lose a turn, move spaces, cards) is skipped.') +
+      (acc ? tip('✅', 'No maps to play here. Finish one AccSaber daily mission after the reset and your roll for the day unlocks. The first weekly mission each week adds one bonus roll, saved until you use it.') :
+      tip('🎵', 'Every roll ends with a map. Stop on a space without one and you get a bonus map. Safe is the only break.')) +
+      (acc ? '' : tip('🔗', 'Moved by a card or event? Play the space if it\'s a map. Anything else you land on that way (back to start, lose a turn, move spaces, cards) is skipped.')) +
       tip('🏁', 'First to the ' + esc(t.goal) + ' wins. Everyone else plays on for their place.') +
       (s.settings.exactFinish ? tip('🎯', 'You need the exact roll to reach the ' + esc(t.goal) + '. Roll higher and you stay where you are.') : '') +
       (s.settings.oneFinishPerDay !== false ? tip('🚪', 'The podium escapes one a day: if someone got out today, you wait at the gate until your next roll. Once the top 3 are out, anyone can escape any day.') : '') +
@@ -1709,7 +1735,7 @@
       (legend ? '<h3 class="hw-h">What the spaces do</h3><ul class="hw-legend">' + legend + '</ul>' : '') +
       '<h3 class="hw-h">Good to know</h3>' + tips +
       '<h3 class="hw-h">Around the board</h3>' + extras +
-      '<div class="hw-help"><b>Played it but it didn\'t count?</b> Use "I played it" and the host can approve it.</div>' +
+      (acc ? '' : '<div class="hw-help"><b>Played it but it didn\'t count?</b> Use "I played it" and the host can approve it.</div>') +
       '<label class="check sound-opt"><input type="checkbox" id="soundChk"' + (muted ? '' : ' checked') + '> <span>Sound effects</span></label>',
       null, { cls: 'how', focusClose: true });
   }
@@ -2202,7 +2228,10 @@
     [50, 300, 800, 1500, 2500].forEach(function (ms) { setTimeout(go, ms); });
   }
   function closeHost() { $('hostDrawer').hidden = true; $('scrim').hidden = true; ($('hostBtn').hidden && $('meTools') ? $('meTools') : $('hostBtn')).focus(); setTimeout(checkNewClears, 300); }
-  function cutoffLabel(s) { var h = s.settings.cutoffHour || 0, m = s.settings.cutoffMinute || 0; return ((h % 12) || 12) + ':' + pad2(m) + ' ' + (h < 12 ? 'AM' : 'PM'); }
+  function cutoffLabel(s) {
+    if (E.isAcc(s)) return new Date(E.nextCutoff(s.settings)).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });   // AccSaber's reset, in your time
+    var h = s.settings.cutoffHour || 0, m = s.settings.cutoffMinute || 0; return ((h % 12) || 12) + ':' + pad2(m) + ' ' + (h < 12 ? 'AM' : 'PM');
+  }
   function toLocalInput(ts) { var d = new Date(ts); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
   function readStart(id) {
     var el = $(id), v = el && el.value; if (!v) return null;
@@ -2430,7 +2459,8 @@
     T.game += '<section class="hsec"><h3>Rules' + (over ? ' <span class="why">for the next game</span>' : '') + '</h3>' +
       '<label class="check"><input type="checkbox" data-set="exactFinish"' + (s.settings.exactFinish ? ' checked' : '') + '> <span>Exact roll needed to escape</span></label>' +
       '<label class="check"><input type="checkbox" data-set="oneFinishPerDay"' + (s.settings.oneFinishPerDay !== false ? ' checked' : '') + '> <span>Podium escapes one per day (after the top 3, anyone can escape)</span></label>' +
-      '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label></section>';
+      '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label>' +
+      (theme().family === 'taco' && !E.isAcc(s) ? '' : '<label class="check"><input type="checkbox" data-set="accsaber"' + (E.isAcc(s) ? ' checked' : '') + '> <span>AccSaber mode: no maps. One AccSaber daily mission unlocks the day\'s roll, the first weekly mission each week adds a bonus roll, and the day turns over at AccSaber\'s reset (' + esc(new Date(E.nextCutoff({ timeZone: 'UTC', cutoffHour: 4, cutoffMinute: 0 })).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) + ' your time)</span></label>') + '</section>';
     if (!over) {
       T.game += '<section class="hsec"><h3>Theme and board</h3><div class="row"><label>Theme ' + themeOptions(s, 'themeSel') + '</label></div><p style="margin-top:10px">Changing the theme keeps everyone where they are.</p>';
       if (signup && designerBoard()) T.game += '<h4 class="hsub">Designer board</h4><p>Swap this game onto the board from the designer. Sign-ups and the start time stay, and everyone picks a route again.</p><div class="row"><button type="button" class="btn small ghost" data-h="loadboard">Use the designer board</button></div>';
@@ -2842,6 +2872,7 @@
       if (!e.target.closest('#remPop')) closeRem();
       var pb = e.target.closest('[data-push]'); if (pb) { ({ on: pushOn, off: pushOff, test: pushTest })[pb.dataset.push](); return; }
       var mv = e.target.closest('#mVerify'); if (mv) { doVerify(mv); return; }
+      var ma = e.target.closest('#accCheck') || e.target.closest('#mAcc'); if (ma) { doAccCheck(ma); return; }
       if (e.target.closest('#mGo')) { $('turnPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('turnPanel').focus({ preventScroll: true }); return; }
       var rc = e.target.closest('.route-card'); if (rc) {
         var info = st().board.routeInfo[rc.dataset.route];
