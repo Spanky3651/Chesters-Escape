@@ -155,7 +155,7 @@
     },
     christmas: {
       id: 'christmas',
-      name: 'Snowy Christmas',
+      name: "Chester's Christmas",
       title: "Chester's Christmas",
       tagline: "Help Santa reach Chester's tombstone home with shiny crow gifts.",
       goal: 'tombstone home',
