@@ -103,53 +103,38 @@
     o += '</g>';
     return o;
   }
-  // Snowy Escape's Chester, drawn after LumberJack's painting: a swept-back crest dusted with snow, a grey
-  // face with happy closed eyes, a big open yellow beak and a snowflake knit scarf blowing to the left.
+  // Snowy Escape's Chester: the classic round Chester from the other themes, with snow on his head and a
+  // red snowflake scarf. His eyes blink like the other themes' Chester.
   function chesterSnow(x, y, s) {
-    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + (s * 0.9) + ')">';
-    o += '<ellipse cx="0" cy="31" rx="22" ry="4.5" fill="#000" opacity=".3"/>';
-    // legs and claws
-    o += '<g stroke="#15161a" stroke-width="2.2" stroke-linecap="round" fill="none"><path d="M-5,24 L-7,31 M-7,31 l-4,1 M-7,31 l-1,2.5 M-7,31 l3,1"/><path d="M6,24 L7,31 M7,31 l-3,1 M7,31 l1,2.5 M7,31 l4,1"/></g>';
-    // tail
-    o += '<path d="M-12,18 C-22,22 -28,28 -30,31 C-24,30 -20,28 -16,26 C-20,30 -21,32 -21,33 C-15,30 -10,26 -8,22 Z" fill="#17181c"/>';
-    // fluffy body
-    o += '<path d="M-15,10 C-19,18 -15,26 -6,27 L-3,25 L0,27.5 L3,25 L6,27.5 L9,25 C16,24 19,16 15,8 C10,2 -10,2 -15,10 Z" fill="#23252b"/>';
-    // chest feather scallops
-    o += '<g fill="none" stroke="#3a3d46" stroke-width="1.1" stroke-linecap="round"><path d="M-9,17 q2.5,2.5 5,0 q2.5,2.5 5,0 q2.5,2.5 5,0"/><path d="M-6,21.5 q2.5,2.5 5,0 q2.5,2.5 5,0"/></g>';
-    // wing, layered
-    o += '<path d="M8,8 C20,6 26,14 24,22 L21,20 L20,24 L17,21 L15,24 L13,20 C11,16 9,12 8,8 Z" fill="#1a1b20"/><g fill="none" stroke="#3a3d46" stroke-width="1" stroke-linecap="round"><path d="M11,11 q4,1 7,5"/><path d="M12,15 q4,1 6,5"/></g>';
-    // head: tilted up and to the right
-    o += '<g class="cs-head"><g transform="rotate(-12 2 -6)">';   // cs-head: the laughing nod (game.css)
-    o += '<ellipse cx="0" cy="-8" rx="16" ry="14.5" fill="#26282e"/>';
-    // swept-back crest with a dusting of snow, drawn over the top of the head
-    o += '<path d="M-12,-16 C-17,-19 -21,-21 -24,-21 C-20,-24 -15,-24 -11,-22 C-15,-26 -17,-29 -17,-32 C-12,-29 -8,-27 -5,-24 C-6,-28 -5,-31 -2,-33 C-1,-29 1,-26 4,-23 C5,-26 8,-28 10,-28 C9,-25 9,-22 8,-20 Z" fill="#26282e"/>';
-    o += '<path d="M-23,-21.5 C-19,-23.5 -15,-23.5 -12,-22.5 C-15,-21.5 -19,-21 -23,-21.5 Z M-16.5,-31 C-13,-29.5 -9,-27.5 -6.5,-25.5 C-10,-26.5 -14,-28 -16.5,-31 Z M-2.5,-32.5 C-1,-29.5 1,-27 3.5,-24.5 C0,-26 -2,-29 -2.5,-32.5 Z M9.5,-27.5 C8.5,-25.5 8.2,-23.5 8,-21.5 C7,-23.5 7.5,-26 9.5,-27.5 Z" fill="#f4f8ff"/>';
-    o += '<path d="M-14,-19 C-8,-24 4,-25 10,-19 C4,-21 -6,-21 -14,-19 Z" fill="#eef4ff" opacity=".85"/>';
-    // grey face mask
-    o += '<path d="M-8,-12 C-6,-19 9,-20 13,-12 C15,-6 11,1 3,1 C-5,1 -10,-5 -8,-12 Z" fill="#50545e"/>';
-    // brows
-    o += '<g fill="none" stroke="#17181c" stroke-width="1.3" stroke-linecap="round"><path d="M-6,-16 q3,-2.5 6,-.5"/><path d="M5,-17 q3,-1.5 6,1"/></g>';
-    // closed happy eyes with lashes
-    o += '<g fill="none" stroke="#0c0d10" stroke-width="1.8" stroke-linecap="round"><path d="M-6,-10 q3,-3.5 6,0"/><path d="M5,-11 q3,-3.5 6,0"/></g>';
-    o += '<g stroke="#0c0d10" stroke-width=".9" stroke-linecap="round"><path d="M-6,-10 l-1.6,-.8 M-5.6,-11.4 l-1.4,-1.4"/><path d="M11,-11 l1.6,-.6 M10.7,-12.3 l1.3,-1.3"/></g>';
+    var o = '<g transform="translate(' + x + ',' + y + ') scale(' + s + ')">';
+    // shadow
+    o += '<ellipse cx="0" cy="30" rx="24" ry="4" fill="#000" opacity=".3"/>';
+    // legs
+    o += '<g stroke="#e8a33c" stroke-width="2.4" stroke-linecap="round" fill="none"><path d="M-6,24 L-7,30 l-3.5,1 M-7,30 l3,1"/><path d="M6,24 L7,30 l-3,1 M7,30 l3.5,1"/></g>';
+    // wings
+    o += '<path d="M14,8 C34,10 40,22 30,26 C26,20 20,16 14,14 Z" fill="#16181d"/>';
+    // body
+    o += '<ellipse cx="0" cy="6" rx="22" ry="22" fill="#20232a"/>';
+    o += '<path d="M-20,4 C-30,10 -30,22 -18,24 C-16,16 -16,10 -20,4 Z" fill="#16181d"/>';
+    // eyes (they blink, like the other themes)
+    o += '<g class="eyes"><circle cx="-7" cy="-2" r="6" fill="#fff"/><circle cx="7" cy="-2" r="6" fill="#fff"/><circle cx="-6" cy="-1" r="3.2" fill="#111"/><circle cx="8" cy="-1" r="3.2" fill="#111"/><circle cx="-5" cy="-2.4" r="1" fill="#fff"/><circle cx="9" cy="-2.4" r="1" fill="#fff"/></g>';
+    // beak
+    o += '<path d="M-5,5 L5,5 L0,13 Z" fill="#f2a33a"/>';
     // blush
-    o += '<ellipse cx="-2" cy="-4.5" rx="3.6" ry="2.2" fill="#ff5d7a" opacity=".55"/>';
-    // big open laughing beak
-    o += '<path d="M8,-8 C14,-11 21,-11 26,-8 C21,-6 15,-5 9,-4 Z" fill="#f7b928"/><path d="M8,-8 C14,-10.5 20,-10.5 24,-8.6 C19,-8 14,-7.5 9,-7 Z" fill="#ffd468"/>';
-    o += '<path d="M9,-4 C15,-5 20,-5.5 24,-6 C21,-1 15,1 10,0 Z" fill="#8c1f2c"/><path d="M10,0 C15,1 20,-1 23,-4 C22,0 17,3 11,2 Z" fill="#e8962d"/>';
-    o += '</g></g>';
-    // snowflake knit scarf, tails blowing out to the left
-    o += '<path d="M-14,2 C-6,7 8,7 15,1 L16,7 C8,13 -6,13 -15,8 Z" fill="#c21f30"/>';
-    o += '<path d="M-14,4.5 C-6,9.5 8,9.5 15,3.5 M-14.5,7 C-6,12 8,12 15.5,6" fill="none" stroke="#e04452" stroke-width=".6"/>';
-    [[-9,7.6],[-2,9.6],[5,9.4],[11,6.8]].forEach(function (p) { o += '<path d="M' + p[0] + ',' + (p[1] - 1.7) + ' v3.4 M' + (p[0] - 1.5) + ',' + (p[1] - .85) + ' l3,1.7 M' + (p[0] - 1.5) + ',' + (p[1] + .85) + ' l3,-1.7" stroke="#fff" stroke-width=".7" stroke-linecap="round"/>'; });
-    // long tail flying left (cs-scarf: it flutters)
-    o += '<g class="cs-scarf">';
-    o += '<path d="M-13,4 C-20,2 -27,3 -33,1 L-34,8 C-28,10 -21,9 -14,9 Z" fill="#c21f30"/>';
-    o += '<path d="M-14,8 C-19,11 -23,15 -26,19 L-21,22 C-18,18 -14,14 -11,10 Z" fill="#a81a29"/>';
-    [[-21,5.5],[-28,5]].forEach(function (p) { o += '<path d="M' + p[0] + ',' + (p[1] - 1.6) + ' v3.2 M' + (p[0] - 1.4) + ',' + (p[1] - .8) + ' l2.8,1.6 M' + (p[0] - 1.4) + ',' + (p[1] + .8) + ' l2.8,-1.6" stroke="#fff" stroke-width=".65" stroke-linecap="round"/>'; });
-    o += '<g stroke="#c21f30" stroke-width="1.1" stroke-linecap="round"><path d="M-33.5,1.5 l-3,-.5 M-33.7,3.5 l-3,0 M-33.8,5.5 l-3,.3 M-34,7.5 l-3,.6"/></g>';
-    o += '<g stroke="#a81a29" stroke-width="1.1" stroke-linecap="round"><path d="M-25.5,19.5 l-1.5,2.5 M-24,20.5 l-1.2,2.6 M-22.5,21.5 l-1,2.6"/></g>';
-    o += '</g>';
+    o += '<ellipse cx="-13" cy="8" rx="3.4" ry="2" fill="#ff5d7a" opacity=".6"/>';
+    o += '<ellipse cx="13" cy="8" rx="3.4" ry="2" fill="#ff5d7a" opacity=".6"/>';
+    // crest feather with snow on it
+    o += '<g transform="translate(2,-14)"><path d="M0,0 C-2,-5 -6,-8 -11,-9 C-8,-6 -6,-3 -6,0 Z M2,0 C1,-5 -1,-9 -4,-11 C-1,-7 0,-3 -1,1 Z" fill="#20232a"/><path d="M-10.5,-8.8 C-8,-7.6 -6.4,-6 -5.6,-4 C-7.4,-5.6 -9,-7 -10.5,-8.8 Z M-3.6,-10.6 C-1.6,-8.6 -.6,-6.6 -.2,-4.6 C-1.6,-6.4 -2.8,-8.4 -3.6,-10.6 Z" fill="#f4f8ff"/></g>';
+    // snow on his head
+    o += '<path d="M-13,-12.5 C-12,-16.5 -5.85,-17.5 0,-17.5 C5.85,-17.5 12,-16.5 13,-12.5 C11,-13.5 10,-11 8.5,-12.5 C3.9,-13.5 2.6,-9.5 0.65,-12 C-1.95,-13 -4.55,-11 -6.5,-12.9 C-8.45,-13.5 -10.5,-10.5 -13,-12.5 Z" fill="#f4f8ff"/>';
+    // snowflake scarf, tail hanging down
+    o += '<path d="M-19,13 C-9.5,19 9.5,19 19,13 L18,19 C9.5,25 -9.5,25 -18,19 Z" fill="#c21f30"/>';
+    o += '<path d="M6.65,21 L12.65,20 L14.65,33 L8.65,34 Z" fill="#a81a29"/>';
+    o += '<path d="M9.15,34 v2.5 M11.15,33.8 v2.5 M13.15,33.4 v2.5" stroke="#a81a29" stroke-width="1.1" stroke-linecap="round"/>';
+    o += '<path d="M-10.45,16.7 v3 M-11.76,17.45 l2.61,1.5 M-11.76,18.95 l2.61,-1.5" stroke="#fff" stroke-width=".7" stroke-linecap="round"/>';
+    o += '<path d="M0,18.5 v3 M-1.3,19.25 l2.61,1.5 M-1.3,20.75 l2.61,-1.5" stroke="#fff" stroke-width=".7" stroke-linecap="round"/>';
+    o += '<path d="M10.45,16.7 v3 M9.15,17.45 l2.61,1.5 M9.15,18.95 l2.61,-1.5" stroke="#fff" stroke-width=".7" stroke-linecap="round"/>';
+    o += '<path d="M11.15,25.6 v2.8 M9.93,26.3 l2.44,1.4 M9.93,27.7 l2.44,-1.4" stroke="#fff" stroke-width=".7" stroke-linecap="round"/>';
     o += '</g>';
     return o;
   }
@@ -224,7 +209,7 @@
   // Browser tab icon for a theme: the theme's character, cropped close, in that theme's hat.
   function faviconSvg(theme) {
     var taco = theme.hero === 'taco', hat = hatFor(theme);
-    var vb = taco ? '-31 -30 62 62' : theme.hero === 'snowchester' ? '-24 -34 52 52' : hat !== 'none' ? '-27 -32 54 54' : '-25 -21 50 50';
+    var vb = taco ? '-31 -30 62 62' : theme.hero === 'snowchester' ? '-30 -30 68 68' : hat !== 'none' ? '-27 -32 54 54' : '-25 -21 50 50';
     var n = vb.split(' ').map(Number);
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + vb + '"><rect x="' + n[0] + '" y="' + n[1] + '" width="' + n[2] + '" height="' + n[3] + '" rx="' + (n[2] * .22) + '" fill="' + (taco ? '#2a1a0e' : '#f2a33a') + '"/>' + hero(0, taco ? 2 : 0, 1, theme) + '</svg>';
   }
