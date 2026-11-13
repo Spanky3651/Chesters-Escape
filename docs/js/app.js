@@ -278,6 +278,9 @@
     $('hostBtn').hidden = !store.isHost || adminCard();
     $('playlistBtn').hidden = E.isAcc(s);   // AccSaber mode has no maps
     $('accBtn').hidden = !E.isAcc(s);       // ...and links to the missions instead
+    var ab = $('accBtn'), slug = store.accClanSlug;   // the clan's missions tab when the game has an AccSaber clan
+    ab.href = slug ? 'https://accsaber.com/clans/' + encodeURIComponent(slug) + '?tab=missions' : 'https://accsaber.com/';
+    ab.title = slug ? (store.accClan || 'Clan') + ' missions on AccSaber. Your own daily mission is in AccSaber\'s top bar.' : 'Open AccSaber. Missions are in its top bar.';
     // The Discord button, when the server knows the game's channel (from its webhook).
     var chat = store.mode === 'live' && store.chat && store.chat.url, cb = $('chatBtn');
     if (cb) { cb.hidden = !chat; if (chat) { cb.href = chat; cb.title = 'Open the ' + (store.chat.name || 'game') + ' chat in Discord'; cb.setAttribute('aria-label', cb.title); } }

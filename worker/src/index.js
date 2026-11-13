@@ -939,6 +939,7 @@ export class Game extends DurableObject {
     if (since === s.seq) return { state: null, me, canPlay, online: this.onlineNow(), chat };
     const out = { state: E.publicState(s), me, canPlay, isHost: !!user.isHost, user: { id: user.id, name: user.name, avatar: user.avatar }, online: this.onlineNow(), hall: this.meta.hall || [], admins: this.admins(), chat };
     out.accClan = this.accClanWant() ? this.clan().accClanName : '';
+    out.accClanSlug = this.accClanWant();   // the Missions button opens this clan's missions tab
     if (user && user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); out.hostOut = this.hostOut(user); }
     return out;
   }
