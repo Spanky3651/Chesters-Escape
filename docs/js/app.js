@@ -277,6 +277,7 @@
     $('dayNum').textContent = s.status === 'finished' ? 'Game over' : s.status === 'signup' ? (E.signupsOpen(s) ? 'Sign-ups open' : 'Sign-ups closed') : 'Day ' + s.day;
     $('hostBtn').hidden = !store.isHost || adminCard();
     $('playlistBtn').hidden = E.isAcc(s);   // AccSaber mode has no maps
+    $('accBtn').hidden = !E.isAcc(s);       // ...and links to the missions instead
     // The Discord button, when the server knows the game's channel (from its webhook).
     var chat = store.mode === 'live' && store.chat && store.chat.url, cb = $('chatBtn');
     if (cb) { cb.hidden = !chat; if (chat) { cb.href = chat; cb.title = 'Open the ' + (store.chat.name || 'game') + ' chat in Discord'; cb.setAttribute('aria-label', cb.title); } }
