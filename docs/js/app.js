@@ -258,13 +258,21 @@
     deckLoaded[t.id] = true;
     setTimeout(function () { t.deck.forEach(function (c) { if (c.full) { var i = new Image(); i.decoding = 'async'; i.src = c.full; } }); }, 2500);
   }
+  // The header title. Snowy Escape styles it like LumberJack's board logo: "Chester's" in red, the rest
+  // in icy blue, and the "Acc" of AccScape in red, a little smaller and tipped like it was written in.
+  function titleHtml(name, t) {
+    if (t.look !== 'snowy') return esc(name);
+    var m = String(name).match(/^(.*?'s)\s+(.*)$/), r = m ? m[1] : '', rest = esc(m ? m[2] : String(name));
+    var b = '<span class="tt-b">' + rest.replace(/Acc(?=Scape)/, '</span><span class="tt-acc">Acc</span><span class="tt-b">') + '</span>';
+    return (r ? '<span class="tt-r">' + esc(r) + '</span> ' : '') + b;
+  }
   function renderHeader() {
     var s = st(), t = theme();
     renderClanSwitch(store);
     document.body.setAttribute('data-theme', t.look || t.id);
     R.setFavicon(t);
     preloadDeck(t);
-    $('gameTitle').textContent = s.title || t.title;   // a designer board's own name wins (C.gameTitle)
+    $('gameTitle').innerHTML = titleHtml(s.title || t.title, t);   // a designer board's own name wins (C.gameTitle)
     $('brandCrow').innerHTML = R.hero(0, 0, 1, t);
     $('dayNum').textContent = s.status === 'finished' ? 'Game over' : s.status === 'signup' ? (E.signupsOpen(s) ? 'Sign-ups open' : 'Sign-ups closed') : 'Day ' + s.day;
     $('hostBtn').hidden = !store.isHost || adminCard();
@@ -2435,8 +2443,7 @@
         (!ud.ok ? '<div class="rc-note"><span aria-hidden="true">🔒</span><span>Undo is off because players have moved since your last change. Undoing now would wipe their moves.</span></div>'
           : '<div class="rc-note"><span aria-hidden="true">↩️</span><span>Undo takes back the newest change. Discord posts that already went out stay posted.</span></div>') + '</section>';
     }
-    if (signup) T.today += startSection(s);
-    else if (running) T.today += '<section class="hsec"><h3>Day ' + s.day + '</h3><p>' + (demo ? 'Starting the next day lets every bot clear maps and roll.' : 'The day turns over by itself at ' + esc(cutoffLabel(s)) + '. Start the next day is only for fixing a missed rollover.') + '</p><div class="row">' +
+    if (running) T.today += '<section class="hsec"><h3>Day ' + s.day + '</h3><p>' + (demo ? 'Starting the next day lets every bot clear maps and roll.' : 'The day turns over by itself at ' + esc(cutoffLabel(s)) + '. Start the next day is only for fixing a missed rollover.') + '</p><div class="row">' +
       '<button type="button" class="btn small ghost" data-h="advance">Start the next day</button>' + (demo ? '<button type="button" class="btn small ghost" data-h="simulate">Skip ahead 3 days</button>' : '') + '</div></section>';
     else T.today += '<section class="hsec"><h3>Game over</h3><p>The standings are frozen.</p><div class="row"><button type="button" class="btn small ghost" data-h="finale">Show the final standings</button></div></section>' + newGameSection(s);
     T.stats = '<div class="hp-stats" id="statsBody">' + statsHtml(s) + '</div>';
@@ -2481,7 +2488,8 @@
       T.players += '</section>';
     }
 
-    // ---- Game: end time, rules, theme and board ----
+    // ---- Game: start (before it begins), end time, rules, theme and board ----
+    if (signup) T.game += startSection(s);
     if (!over) T.game += endSection(s);
     T.game += '<section class="hsec"><h3>Rules' + (over ? ' <span class="why">for the next game</span>' : '') + '</h3>' +
       '<label class="check"><input type="checkbox" data-set="exactFinish"' + (s.settings.exactFinish ? ' checked' : '') + '> <span>Exact roll needed to escape</span></label>' +

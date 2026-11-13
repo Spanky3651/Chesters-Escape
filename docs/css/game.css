@@ -199,6 +199,10 @@ img { max-width: 100%; }
 .brand-crow { width: 42px; height: 46px; flex: none; }
 .brand h1 { margin: 0; font: 700 34px/1 var(--display); letter-spacing: .5px; white-space: nowrap; }
 body[data-theme="christmas"] .brand h1, body[data-theme="snowy"] .brand h1 { color: #ff5a6e; }
+/* Snowy Escape's title, styled like LumberJack's board logo (app.js titleHtml) */
+body[data-theme="snowy"] .brand h1 .tt-r, body[data-theme="snowy"] .brand h1 .tt-acc { color: #ff4d61; -webkit-text-stroke: 1px #fff; paint-order: stroke fill; text-shadow: 0 2px 0 #4a0710; }
+body[data-theme="snowy"] .brand h1 .tt-b { color: #d6ecff; -webkit-text-stroke: 1px #14284a; paint-order: stroke fill; text-shadow: 0 2px 0 #0b1830; }
+body[data-theme="snowy"] .brand h1 .tt-acc { display: inline-block; font-size: .8em; transform: rotate(-8deg) translateY(-.22em); margin-right: -.06em; }
 body[data-theme="thanksgiving"] .brand h1 { color: #f39a4a; }
 .daybox { display: flex; align-items: baseline; gap: 12px; padding: 6px 14px; border: 1px solid var(--line-2); border-radius: 999px; }
 .day { font: 700 22px/1 var(--display); color: var(--gold); }
