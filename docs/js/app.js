@@ -2422,7 +2422,8 @@
     s.order.forEach(function (pid) { s.players[pid].claims.forEach(function (c) { claims.push({ p: s.players[pid], c: c }); }); });
     var ac = !demo && store.access ? store.access : null, waiting = ac ? ac.pending : [], todo = claims.length + waiting.length;
 
-    // ---- Today: what needs the host, where the game is, and who's been on ----
+    // ---- Today: day to day. What needs the host, recent changes, the current day, and who's been on.
+    // Setting up a game (start, sign-ups, end, the next game) lives on the Game tab. ----
     T.today += '<section class="hsec' + (todo ? ' attn' : '') + '"><h3>Needs you' + (todo ? ' <span class="nav-badge">' + todo + '</span>' : '') + '</h3>';
     if (!todo) T.today += '<p>Nothing needs you right now. ' + (over ? 'People waiting to get in show up here.' : 'Runs to approve and people waiting to get in show up here.') + '</p>';
     if (claims.length) T.today += '<h4 class="hsub">Runs to approve</h4>' + claims.map(function (x) { return claimCard(s, x.p, x.c); }).join('');
@@ -2445,7 +2446,9 @@
     }
     if (running) T.today += '<section class="hsec"><h3>Day ' + s.day + '</h3><p>' + (demo ? 'Starting the next day lets every bot clear maps and roll.' : 'The day turns over by itself at ' + esc(cutoffLabel(s)) + '. Start the next day is only for fixing a missed rollover.') + '</p><div class="row">' +
       '<button type="button" class="btn small ghost" data-h="advance">Start the next day</button>' + (demo ? '<button type="button" class="btn small ghost" data-h="simulate">Skip ahead 3 days</button>' : '') + '</div></section>';
-    else T.today += '<section class="hsec"><h3>Game over</h3><p>The standings are frozen.</p><div class="row"><button type="button" class="btn small ghost" data-h="finale">Show the final standings</button></div></section>' + newGameSection(s);
+    else if (signup) T.today += '<section class="hsec"><h3>Waiting to start</h3><p>' + (s.startsAt ? 'The first roll unlocks <b>' + esc(startWhen(s.startsAt)) + '</b>, in <span data-countdown="' + s.startsAt + '">' + fmtLeft(s.startsAt - Date.now()) + '</span>. ' : 'No start time is set yet. ') +
+      (E.signupsOpen(s) ? 'Sign-ups are open' : 'Sign-ups are closed') + ', ' + s.order.length + ' signed up.</p><p class="why">The start time and sign-ups are in the Game tab.</p></section>';
+    else T.today += '<section class="hsec"><h3>Game over</h3><p>The standings are frozen.</p><div class="row"><button type="button" class="btn small ghost" data-h="finale">Show the final standings</button></div><p class="why">Set up the next game in the Game tab.</p></section>';
     T.stats = '<div class="hp-stats" id="statsBody">' + statsHtml(s) + '</div>';
     T.today += '<section class="hsec"><div class="thread-head"><h3>Visits</h3><button type="button" class="icon-btn refresh-btn" data-h="visits-refresh" aria-label="Refresh" title="Refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20.5V16h-4.5"/></svg></button></div><p>When signed-in people opened the game and when they left. Coming back within 10 minutes counts as the same visit, so a visit ends 10 minutes after they close it, switch away or lock their phone. The last two weeks are kept.</p><div id="visitBox"><p class="why">Loading</p></div></section>';
 
@@ -2488,8 +2491,9 @@
       T.players += '</section>';
     }
 
-    // ---- Game: start (before it begins), end time, rules, theme and board ----
+    // ---- Game: the game's own setup. Before it starts: start time and sign-ups; once it's over: the next game. ----
     if (signup) T.game += startSection(s);
+    if (over) T.game += newGameSection(s);
     if (!over) T.game += endSection(s);
     T.game += '<section class="hsec"><h3>Rules' + (over ? ' <span class="why">for the next game</span>' : '') + '</h3>' +
       '<label class="check"><input type="checkbox" data-set="exactFinish"' + (s.settings.exactFinish ? ' checked' : '') + '> <span>Exact roll needed to escape</span></label>' +
@@ -2499,7 +2503,7 @@
     if (!over) {
       T.game += '<section class="hsec"><h3>Theme and board</h3><div class="row"><label>Theme ' + themeOptions(s, 'themeSel') + '</label></div><p style="margin-top:10px">Changing the theme keeps everyone where they are.</p>';
       if (signup && designerBoard()) T.game += '<h4 class="hsub">Designer board</h4><p>Swap this game onto the board from the designer. Sign-ups and the start time stay, and everyone picks a route again.</p><div class="row"><button type="button" class="btn small ghost" data-h="loadboard">Use the designer board</button></div>';
-      if (running) T.game += '<p class="why">To start a new game, end this one first (End of the game, above). The next game is set up from the Today tab.</p>';
+      if (running) T.game += '<p class="why">To start a new game, end this one first (End of the game, above). The next game is set up here once it\'s over.</p>';
       T.game += '</section>';
     }
 
