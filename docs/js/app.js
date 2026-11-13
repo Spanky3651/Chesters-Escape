@@ -258,21 +258,13 @@
     deckLoaded[t.id] = true;
     setTimeout(function () { t.deck.forEach(function (c) { if (c.full) { var i = new Image(); i.decoding = 'async'; i.src = c.full; } }); }, 2500);
   }
-  // The header title. Snowy Escape styles it like LumberJack's board logo: "Chester's" in red, the rest
-  // in icy blue, and the "Acc" of AccScape as a small red word raised over the start of Scape.
-  function titleHtml(name, t) {
-    if (t.look !== 'snowy') return esc(name);
-    var m = String(name).match(/^(.*?'s)\s+(.*)$/), r = m ? m[1] : '', rest = m ? m[2] : String(name);
-    var b = esc(rest).replace(/Acc(?=Scape)/, '<sup class="tt-acc">Acc</sup>');
-    return (r ? '<span class="tt-r">' + esc(r) + '</span> ' : '') + '<span class="tt-b">' + b + '</span>';
-  }
   function renderHeader() {
     var s = st(), t = theme();
     renderClanSwitch(store);
     document.body.setAttribute('data-theme', t.look || t.id);
     R.setFavicon(t);
     preloadDeck(t);
-    $('gameTitle').innerHTML = titleHtml(s.title || t.title, t);   // a designer board's own name wins (C.gameTitle)
+    $('gameTitle').textContent = s.title || t.title;   // a designer board's own name wins (C.gameTitle)
     $('brandCrow').innerHTML = R.hero(0, 0, 1, t);
     $('dayNum').textContent = s.status === 'finished' ? 'Game over' : s.status === 'signup' ? (E.signupsOpen(s) ? 'Sign-ups open' : 'Sign-ups closed') : 'Day ' + s.day;
     $('hostBtn').hidden = !store.isHost || adminCard();
