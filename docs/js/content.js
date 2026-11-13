@@ -887,6 +887,12 @@
   }; /*MAPSETS*/
 
   // The board with a map set's songs in it. No set (or an unknown one) gives the original songs.
+  // The game's name: a designer board's own name when it has one (it's usually painted on the art,
+  // like LumberJack's "Chester's AccScape"), else the theme's title.
+  function gameTitle(themeId, board) {
+    var th = THEMES[themeId] || {}, bt = board && board.custom && String(board.title || '').trim();
+    return bt && bt !== "Chester's Escape" ? bt : th.title;
+  }
   function boardFor(setId) { var b = buildBoard(); applyMapSet(b, setId); return b; }
   function applyMapSet(board, setId) {
     var set = MAP_SETS[setId], base = buildBoard();
@@ -903,7 +909,7 @@
   root.CGContent = {
     CELL: CELL, PAD: PAD,
     boards: { 'chester-escape': buildBoard },
-    mapSets: MAP_SETS, boardFor: boardFor, applyMapSet: applyMapSet,
+    mapSets: MAP_SETS, boardFor: boardFor, gameTitle: gameTitle, applyMapSet: applyMapSet,
     themes: THEMES,
     cardsFor: cardsFor,
     effectText: effectText, cardEffectText: cardEffectText, spaceEffectText: spaceEffectText, BLANK_MSG: BLANK_MSG

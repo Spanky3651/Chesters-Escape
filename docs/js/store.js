@@ -219,7 +219,7 @@
         case 'clearRoute': { var q = s.players[a.pid]; q.route = null; q.pos = -1; q.tasks = []; return Promise.resolve(done({})); }
         case 'settings': Object.assign(s.settings, a.patch || {}); return Promise.resolve(done(s.settings));
         case 'theme':
-          s.themeId = a.theme; s.title = C.themes[a.theme].title;
+          s.themeId = a.theme; s.title = C.gameTitle(a.theme, s.board);
           var words = C.cardsFor(a.theme), byId = {}; words.forEach(function (c) { byId[c.id] = c; });
           // A theme with its own deck brings its cards before the game starts; once it's running, cards keep their effects and only take the new words.
           if (!E.sameCards(s.cards, words) && s.status !== 'running') E.swapCards(s, words);

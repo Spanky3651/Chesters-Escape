@@ -264,7 +264,7 @@
     document.body.setAttribute('data-theme', t.look || t.id);
     R.setFavicon(t);
     preloadDeck(t);
-    $('gameTitle').textContent = t.title;
+    $('gameTitle').textContent = s.title || t.title;   // a designer board's own name wins (C.gameTitle)
     $('brandCrow').innerHTML = R.hero(0, 0, 1, t);
     $('dayNum').textContent = s.status === 'finished' ? 'Game over' : s.status === 'signup' ? (E.signupsOpen(s) ? 'Sign-ups open' : 'Sign-ups closed') : 'Day ' + s.day;
     $('hostBtn').hidden = !store.isHost || adminCard();
@@ -273,7 +273,7 @@
     var chat = store.mode === 'live' && store.chat && store.chat.url, cb = $('chatBtn');
     if (cb) { cb.hidden = !chat; if (chat) { cb.href = chat; cb.title = 'Open the ' + (store.chat.name || 'game') + ' chat in Discord'; cb.setAttribute('aria-label', cb.title); } }
     var todo = store.isHost ? hostTodo() : { total: 0 };
-    document.title = (todo.total ? '(' + todo.total + ') ' : '') + t.title;
+    document.title = (todo.total ? '(' + todo.total + ') ' : '') + (s.title || t.title);
     var hb = $('hostBtn');
     // The skull is drawn once so its animations keep running; only the badge changes.
     if (!hb.querySelector('.skull')) hb.innerHTML = SKULL;

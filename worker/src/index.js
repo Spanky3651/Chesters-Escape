@@ -1025,7 +1025,7 @@ export class Game extends DurableObject {
         }
         case 'theme': {
           if (!C.themes[a.theme]) return { error: 'Unknown theme.' };
-          s.themeId = a.theme; s.title = C.themes[a.theme].title;
+          s.themeId = a.theme; s.title = C.gameTitle(a.theme, s.board);
           const fresh = C.cardsFor(a.theme), words = Object.fromEntries(fresh.map((c) => [c.id, c]));
           // A theme with its own deck brings its cards before the game starts; once it's running, cards keep their effects and only take the new words.
           if (!E.sameCards(s.cards, fresh) && s.status !== 'running') E.swapCards(s, fresh);
@@ -1043,7 +1043,7 @@ export class Game extends DurableObject {
           const keep = s.order.map((id) => s.players[id]);
           const startsAt = Number(a.startsAt) > Date.now() + 60000 ? Number(a.startsAt) : null;
           const endsAt = Number(a.endsAt) > (startsAt || Date.now()) + 3600000 ? Number(a.endsAt) : null;
-          this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.themes[themeId].title, settings: s.settings, rng, status: startsAt || a.signup ? 'signup' : 'running', startsAt, endsAt });
+          this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.gameTitle(themeId, board), settings: s.settings, rng, status: startsAt || a.signup ? 'signup' : 'running', startsAt, endsAt });
           keep.forEach((p) => E.addPlayer(this.state, { id: p.id, discordId: p.discordId, name: p.name, avatar: p.avatar, blId: p.blId }));
           this.meta.nextCutoff = startsAt || a.signup ? null : E.nextCutoff(this.state.settings);
           if (this.meta.feed) this.meta.feed.game = null;   // a new game: its sign-up post can go out
@@ -1057,7 +1057,7 @@ export class Game extends DurableObject {
           const board = C.boardFor(mapSetFor(this.clan(), themeId));
           const startsAt = Number(a.startsAt) > Date.now() + 60000 ? Number(a.startsAt) : null;
           const endsAt = Number(a.endsAt) > (startsAt || Date.now()) + 3600000 ? Number(a.endsAt) : null;
-          this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.themes[themeId].title, settings: s.settings, rng, status: 'signup', startsAt, endsAt });
+          this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.gameTitle(themeId, board), settings: s.settings, rng, status: 'signup', startsAt, endsAt });
           this.state.seq = (s.seq || 0) + 1;   // keep counting up so open pages pick up the change
           this.meta.nextCutoff = null;
           if (this.meta.feed) this.meta.feed.game = null;   // a new game: its sign-up post can go out
