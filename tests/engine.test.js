@@ -353,5 +353,60 @@ assert.strictEqual(cardsSeen.size, 20);
   }
   console.log('AccSaber mode ok');
 }
+// Lifelines: 3 to start, one stands in for a day's mission, both dailies in a day earn one back (max 3),
+// and still one roll a day
+{
+  const settings = { accsaber: true, timeZone: 'UTC', cutoffHour: 4, cutoffMinute: 0 };
+  const s = E.createGame({ board: C.boardFor(), cards: C.cardsFor('snowy'), themeId: 'snowy', settings, rng: seeded(21) });
+  E.addPlayer(s, { id: 'a', name: 'a', blId: '1' }); E.chooseRoute(s, 'a', 'longer');
+  const all = { d: true, w: true }, t0 = Date.UTC(2026, 11, 2, 5);
+  E.accUpdate(s, { 1: { d: 5, w: 2 } }, t0, all, true);
+  const a = s.players.a;
+  assert.strictEqual(E.lifeLeft(a), 3, 'everyone starts with 3');
+  assert.strictEqual(E.canRoll(s, 'a').code, 'mission');
+  assert(E.canLifeline(s, 'a').ok, 'no mission: a lifeline can roll');
+  const r = E.roll(s, 'a', { rng: seeded(22), lifeline: true });
+  assert(r.events[0].lifeline, 'the roll is marked as a lifeline');
+  assert.strictEqual(E.lifeLeft(a), 2);
+  assert.strictEqual(E.canRoll(s, 'a').code, 'rolled', 'still one roll a day');
+  assert.strictEqual(E.canLifeline(s, 'a').ok, false, 'no second lifeline roll the same day');
+  assert.throws(() => E.roll(s, 'a', { lifeline: true }));
+  // a mission later the same day does not give a second roll
+  E.accUpdate(s, { 1: { d: 6, w: 2 } }, t0 + 3600000, all);
+  assert.strictEqual(E.canRoll(s, 'a').code, 'rolled');
+  // the second daily the same day earns the lifeline back
+  E.accUpdate(s, { 1: { d: 7, w: 2 } }, t0 + 7200000, all);
+  assert.strictEqual(E.lifeLeft(a), 3, 'both dailies earn one back');
+  assert(s.events.some((e) => e.t === 'lifeline-back' && e.pid === 'a'));
+  E.accUpdate(s, { 1: { d: 7, w: 2 } }, t0 + 7300000, all);
+  assert.strictEqual(E.lifeLeft(a), 3, 'never above 3');
+  // with a mission done, no lifeline is needed
+  E.advanceDay(s);
+  E.accUpdate(s, { 1: { d: 8, w: 2 } }, t0 + 86400000, all);
+  assert.strictEqual(E.canLifeline(s, 'a').ok, false);
+  E.roll(s, 'a', { rng: seeded(23) });
+  // already at 3: both dailies change nothing
+  E.accUpdate(s, { 1: { d: 9, w: 2 } }, t0 + 86400000 + 3600000, all);
+  assert.strictEqual(E.lifeLeft(a), 3);
+  // use them all up
+  for (let i = 0; i < 3; i++) { E.advanceDay(s); E.roll(s, 'a', { rng: seeded(30 + i), lifeline: true }); }
+  assert.strictEqual(E.lifeLeft(a), 0);
+  E.advanceDay(s);
+  assert.strictEqual(E.canLifeline(s, 'a').code, 'no-lifeline', 'none left');
+  // a saved weekly bonus can still be kept: the lifeline takes the day's roll, the bonus stays
+  E.accUpdate(s, { 1: { d: 9, w: 3 } }, t0 + 6 * 86400000, all);
+  assert.strictEqual(a.accBonus, 1);
+  s.players.a.lifelines = 1;
+  E.roll(s, 'a', { rng: seeded(40), lifeline: true });
+  assert.strictEqual(a.accBonus, 1, 'the weekly bonus stays saved');
+  assert(E.canRoll(s, 'a').ok, 'and can be used any time');
+  E.roll(s, 'a', { rng: seeded(41) });
+  assert.strictEqual(a.accBonus, 0);
+  // not in regular games
+  const g = E.createGame({ board: C.boardFor(), cards: C.cardsFor('cemetery'), themeId: 'cemetery', rng: seeded(50) });
+  E.addPlayer(g, { id: 'x', name: 'x', blId: '9' }); E.chooseRoute(g, 'x', 'longer');
+  assert.strictEqual(E.canLifeline(g, 'x').ok, false);
+  console.log('lifelines ok');
+}
 console.log('all engine tests passed');
 require('./themes.test.js');

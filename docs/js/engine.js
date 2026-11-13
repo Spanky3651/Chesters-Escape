@@ -48,6 +48,20 @@
   function isAcc(s) { return !!(s && s.settings && s.settings.accsaber); }
   function accWeek(t) { return Math.floor(((t || now()) - ACC_WEEK0) / (7 * 86400000)); }
   function accDaily(s, p) { var a = p.acc; return !!(a && a.d === s.day && a.cur > a.base); }
+  // Lifelines: on a day the dailies are too hard, a lifeline stands in for the day's mission. Everyone
+  // starts with LIFELINES; finishing both dailies in one game day earns one back, never above LIFELINES.
+  // Still one roll a day: a lifeline only unlocks that day's roll, it never adds one.
+  var LIFELINES = 3;
+  function lifeLeft(p) { return p.lifelines == null ? LIFELINES : p.lifelines; }
+  function canLifeline(s, pid) {
+    var p = s.players[pid];
+    if (!isAcc(s) || !p) return { ok: false, code: 'no-lifeline', reason: 'Lifelines are only in AccSaber games.' };
+    var c = canRoll(s, pid);
+    if (!c.ok && c.code !== 'mission') return c;
+    if (p.rolledDay === s.day || accDaily(s, p)) return { ok: false, code: 'no-lifeline', reason: 'You don\'t need a lifeline today.' };
+    if (lifeLeft(p) < 1) return { ok: false, code: 'no-lifeline', reason: 'You have no lifelines left. Finish both dailies in one day to earn one back.' };
+    return { ok: true };
+  }
   // New mission counts from AccSaber. counts: { blId: { d, w } }. known: { d, w } says whether the
   // whole list was read for that pool, so a player missing from it has done none. rebase: this read
   // was taken right at the reset, so today's count starts from it.
@@ -71,6 +85,11 @@
         var was = a.cur > a.base;
         if (a.cur !== d) { a.cur = d; changed = true; }
         if (!was && a.cur > a.base && s.status === 'running') emit(s, p, { t: 'mission' });
+        // Both dailies done in one game day: a lifeline back, if one was used.
+        if (a.cur - a.base >= 2 && a.lifeDay !== s.day && s.status === 'running' && lifeLeft(p) < LIFELINES) {
+          a.lifeDay = s.day; p.lifelines = lifeLeft(p) + 1; changed = true;
+          emit(s, p, { t: 'lifeline-back' });
+        }
       }
       if (w != null) {
         if (a.wk !== wk) { a.wbase = rebase || a.wcur == null ? w : a.wcur; a.wk = wk; changed = true; }
@@ -282,19 +301,22 @@
 
   function roll(s, pid, opts) {
     opts = opts || {};
-    var c = canRoll(s, pid);
+    var life = !!opts.lifeline;
+    var c = life ? canLifeline(s, pid) : canRoll(s, pid);
     if (!c.ok) throw err(c.code, c.reason);
     var p = s.players[pid];
     var sides = s.settings.dieSides || 4;
     var n = opts.forced || (rngInt(opts.rng, sides) + 1);
-    var bonus = p.rolledDay === s.day && p.extraRoll;
-    // AccSaber mode: the day's roll needs today's mission; without it, a saved weekly bonus roll is used.
-    var weekly = !bonus && isAcc(s) && !(p.rolledDay !== s.day && accDaily(s, p)) && p.accBonus > 0;
+    var bonus = !life && p.rolledDay === s.day && p.extraRoll;
+    // AccSaber mode: the day's roll needs today's mission; without it, a saved weekly bonus roll is
+    // used, unless the player chose to spend a lifeline on the day's roll instead.
+    var weekly = !life && !bonus && isAcc(s) && !(p.rolledDay !== s.day && accDaily(s, p)) && p.accBonus > 0;
     if (bonus) p.extraRoll = false;
+    if (life) p.lifelines = lifeLeft(p) - 1;
     if (weekly) p.accBonus--; else p.rolledDay = s.day;
     p.rolls++;
     var before = leftMap(s);
-    var start = emit(s, p, { t: 'roll', n: n, from: p.pos, bonus: bonus || weekly, weekly: weekly || undefined });
+    var start = emit(s, p, { t: 'roll', n: n, from: p.pos, bonus: bonus || weekly, weekly: weekly || undefined, lifeline: life || undefined });
     var steps = [];
     var ctx = { rng: opts.rng, steps: steps, depth: 0, firstEvent: start.id };
     var target = p.pos + n, last = exitIndex(s, p);
@@ -647,7 +669,7 @@
     if (open.length) return { title: 'Your map is still open', body: 'Play !bsr ' + open[0].bsr.join(' or ') + ' to unlock your next roll.' };
     var cr = canRoll(s, pid);
     if (cr.ok) return { title: 'Your roll is waiting', body: 'You haven\'t rolled today. The day turns over at the cutoff.' };
-    if (cr.code === 'mission') return { title: 'Your roll is waiting', body: 'Finish an AccSaber daily mission to unlock today\'s roll.' };
+    if (cr.code === 'mission') return { title: 'Your roll is waiting', body: 'Finish an AccSaber daily mission to unlock today\'s roll' + (lifeLeft(p) > 0 ? ', or use a lifeline if your dailies are too hard.' : '.') };
     return null;
   }
   // The reminder hour, or null when the host turned reminders off. Games made before the
@@ -938,7 +960,7 @@
   var E = {
     VERSION: VERSION, makeUpShortDay: makeUpShortDay, swapMaps: swapMaps, DEFAULTS: DEFAULTS,
     createGame: createGame, swapCards: swapCards, sameCards: sameCards, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, react: react, reactor: reactor, REACTIONS: REACTIONS, LEGACY_REACTIONS: LEGACY_REACTIONS, signupsOpen: signupsOpen, chooseRoute: chooseRoute,
-    canRoll: canRoll, roll: roll, advanceDay: advanceDay, isAcc: isAcc, accWeek: accWeek, accDaily: accDaily, accUpdate: accUpdate,
+    canRoll: canRoll, canLifeline: canLifeline, lifeLeft: lifeLeft, LIFELINES: LIFELINES, roll: roll, advanceDay: advanceDay, isAcc: isAcc, accWeek: accWeek, accDaily: accDaily, accUpdate: accUpdate,
     completeTask: completeTask, claimTask: claimTask, rejectClaim: rejectClaim, matchScores: matchScores, improveClears: improveClears,
     setPosition: setPosition, hostCard: hostCard, resetPlayer: resetPlayer,
     routeOf: routeOf, spaceAt: spaceAt, progress: progress, remaining: remaining, exitIndex: exitIndex,

@@ -451,9 +451,11 @@
     if (!p.finished) {
       html += '<div class="roll-box"><div id="dieSlot"></div><div class="roll-copy">';
       var wkRoll = E.isAcc(s) && can.ok && !(p.extraRoll && p.rolledDay === s.day) && !(p.rolledDay !== s.day && E.accDaily(s, p));
-      if (can.ok) html += '<b>' + (wkRoll ? 'Weekly bonus roll' : p.extraRoll && p.rolledDay === s.day ? 'Bonus roll' : 'Ready to roll') + '</b><p>Roll the d4 and move that many spaces.' + (E.isAcc(s) && p.accBonus > (wkRoll ? 1 : 0) ? ' You also have ' + (p.accBonus - (wkRoll ? 1 : 0) > 1 ? (p.accBonus - (wkRoll ? 1 : 0)) + ' weekly bonus rolls' : 'a weekly bonus roll') + ' saved.' : '') + '</p><button type="button" class="btn" id="rollBtn">Roll the d4</button>';
+      if (can.ok) html += '<b>' + (wkRoll ? 'Weekly bonus roll' : p.extraRoll && p.rolledDay === s.day ? 'Bonus roll' : 'Ready to roll') + '</b><p>Roll the d4 and move that many spaces.' + (E.isAcc(s) && p.accBonus > (wkRoll ? 1 : 0) ? ' You also have ' + (p.accBonus - (wkRoll ? 1 : 0) > 1 ? (p.accBonus - (wkRoll ? 1 : 0)) + ' weekly bonus rolls' : 'a weekly bonus roll') + ' saved.' : '') + '</p><button type="button" class="btn" id="rollBtn">Roll the d4</button>' +
+        (wkRoll ? lifelineHtml(s, p, true) : '');
       else if (can.code === 'mission' || can.code === 'paused') html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><div class="acc-row"><button type="button" class="btn" id="accCheck">' + (can.code === 'paused' ? 'Check again' : 'Check my missions') + '</button>' +
-        '<a class="btn ghost acc-open" href="https://accsaber.com/" target="_blank" rel="noopener">' + ACC_MARK + 'Open AccSaber</a></div>';
+        '<a class="btn ghost acc-open" href="https://accsaber.com/" target="_blank" rel="noopener">' + ACC_MARK + 'Open AccSaber</a></div>' +
+        (can.code === 'mission' ? lifelineHtml(s, p, false) : '');
       else html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><button type="button" class="btn" id="rollBtn" disabled>Roll the d4</button>';
       html += '</div></div>';
     } else {
@@ -600,7 +602,8 @@
   function evText(e) {
     var s = st(), t = theme(), sp = e.space ? s.board.spaces[e.space] : null, card = e.card ? E.cardById(s, e.card) : null;
     switch (e.t) {
-      case 'roll': return { html: (e.weekly ? 'Weekly bonus roll: ' : e.bonus ? 'Bonus roll: ' : 'Rolled a ') + '<b>' + e.n + '</b>' };
+      case 'roll': return { html: (e.lifeline ? 'Used a lifeline and rolled a ' : e.weekly ? 'Weekly bonus roll: ' : e.bonus ? 'Bonus roll: ' : 'Rolled a ') + '<b>' + e.n + '</b>' };
+      case 'lifeline-back': return { html: 'Finished both AccSaber dailies today. <b>Lifeline</b> earned back', cls: 'good' };
       case 'mission': return { html: 'Finished an AccSaber daily mission. Today\'s roll is unlocked', cls: 'good' };
       case 'paused': return { html: 'Left the clan on AccSaber. Rolls are paused until they rejoin', cls: 'bad' };
       case 'unpaused': return { html: 'Back in the clan on AccSaber. Rolls are on again', cls: 'good' };
@@ -981,17 +984,17 @@
   }
 
   var stageDie = null;
-  function doRoll() {
+  function doRoll(lifeline) {
     var p = me(); if (!p || animating) return;
     animating = true;
-    ['rollBtn', 'mRoll'].forEach(function (id) { var b = $(id); if (b) b.disabled = true; });
+    ['rollBtn', 'mRoll', 'lifeBtn'].forEach(function (id) { var b = $(id); if (b) b.disabled = true; });
     audio();
     var startPos = p.pos;
     var hl = svgEl.querySelector('.hl'); if (hl) Array.prototype.forEach.call(hl.querySelectorAll('.prev'), function (x) { x.remove(); });
     var zone = document.querySelector('.board-zone'); zone.classList.add('busy');
     if (isPhone()) zone.scrollIntoView({ behavior: 'smooth', block: 'start' });
     track('roll');
-    store.act('roll').then(function (res) {
+    store.act('roll', lifeline ? { lifeline: true } : undefined).then(function (res) {
       var pp = st().players[store.me];
       res.events.forEach(function (e) { if (e.pid !== pp.id) return; if (e.t === 'card') track('card-' + e.card); if (e.t === 'escaped') track('escaped'); if (e.t === 'warp' || e.t === 'start') track('space-' + e.t); });
       // keep the token where it was until the animation walks it
@@ -1132,6 +1135,20 @@
     }).catch(function (e) { animating = false; renderAll(); if (/Link your BeatLeader/.test(e.message)) openJoin(true); else fail(e); });
   }
   // AccSaber's own mark (its tab icon), for the Open AccSaber button.
+  // Lifelines (AccSaber mode): an "or" line under the mission buttons, the rings left and a button that
+  // rolls today's d4 without a mission. keepWeekly: the player could use a saved weekly bonus roll instead.
+  function lifeRing(on, size) {
+    return on ? '<svg class="lf-ring" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#f3f7fb" stroke-width="5"/><circle cx="12" cy="12" r="8.5" fill="none" stroke="#e23a4e" stroke-width="5" stroke-dasharray="6.68 6.68" transform="rotate(22 12 12)"/></svg>'
+      : '<svg class="lf-ring off" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="2.5 2.5"/></svg>';
+  }
+  function lifelineHtml(s, p, keepWeekly) {
+    var left = E.lifeLeft(p), max = E.LIFELINES, rings = '';
+    for (var i = 0; i < max; i++) rings += lifeRing(i < left, 22);
+    var head = '<div class="lf-or"><span>or</span></div><div class="lf"><div class="lf-row"><span class="lf-pips">' + rings + '</span><span class="lf-n">' + left + ' of ' + max + ' lifelines left</span></div>';
+    if (!left) return head + '<p>No lifelines left. Finish both dailies in one day to earn one back.</p></div>';
+    return head + '<p>' + (keepWeekly ? 'Dailies too hard today? Use a lifeline for today\'s roll and keep your weekly bonus saved.' : 'Dailies too hard today? Use a lifeline to roll anyway.') + ' Do both dailies in one day to earn one back.</p>' +
+      '<button type="button" class="btn ghost lf-btn" id="lifeBtn">' + lifeRing(true, 18) + 'Roll with a lifeline</button></div>';
+  }
   var ACC_MARK = '<svg class="acc-mark" viewBox="0 0 16 16" aria-hidden="true"><path transform="translate(-.5 -.5)" fill="#C6613F" d="M2 1.5 14.2 6.6a.7.7 0 0 1-.06 1.32L9.2 9.4a.7.7 0 0 0-.46.46l-1.5 4.9a.7.7 0 0 1-1.32.05z"/></svg>';
   // Coming back to the game while today's roll waits on a mission: check AccSaber quietly, and say so
   // only when the roll unlocked. At most once a minute (the server reads AccSaber every 3 minutes at most).
@@ -1752,7 +1769,8 @@
     });
     var tip = function (icon, html) { return '<li><span class="hw-ti" aria-hidden="true">' + icon + '</span><span>' + html + '</span></li>'; };
     var tips = '<ul class="hw-tips">' +
-      (acc ? tip('✅', 'No maps to play here. Finish one AccSaber daily mission after the reset and your roll for the day unlocks. The first weekly mission each week adds one bonus roll, saved until you use it.') :
+      (acc ? tip('✅', 'No maps to play here. Finish one AccSaber daily mission after the reset and your roll for the day unlocks. The first weekly mission each week adds one bonus roll, saved until you use it.') +
+        tip('🛟', 'Dailies too hard today? Everyone starts with ' + E.LIFELINES + ' lifelines. Use one to take that day\'s roll without a mission. Finish both dailies in one day to earn one back, up to ' + E.LIFELINES + '. Still one roll a day: a lifeline never adds an extra roll.') :
       tip('🎵', 'Every roll ends with a map. Stop on a space without one and you get a bonus map. Safe is the only break.')) +
       (acc ? '' : tip('🔗', 'Moved by a card or event? Play the space if it\'s a map. Anything else you land on that way (back to start, lose a turn, move spaces, cards) is skipped.')) +
       tip('🏁', 'First to the ' + esc(t.goal) + ' wins. Everyone else plays on for their place.') +
@@ -2910,6 +2928,7 @@
       var egg = e.target.closest('.board-svg .egg'); if (egg && !animating) { doEgg(egg); return; }
       var bdg = e.target.closest('[data-badges]'); if (bdg) { e.preventDefault(); openBadges(bdg.getAttribute('data-badges')); return; }
       if (e.target.closest('#rollBtn') || e.target.closest('#mRoll')) { doRoll(); return; }
+      if (e.target.closest('#lifeBtn')) { doRoll(true); return; }
       if (e.target.closest('#finaleBtn') || e.target.closest('#mFinale')) { openFinale(); return; }
       if (e.target.closest('#remBtn')) { $('remPop').hidden ? openRem() : closeRem(); return; }
       if (!e.target.closest('#remPop')) closeRem();

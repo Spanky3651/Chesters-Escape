@@ -517,7 +517,7 @@ export class Game extends DurableObject {
     const fields = [];
     if (s.startsAt) fields.push({ name: '🎲 Starts', value: `<t:${sec(s.startsAt)}:F>` + (list ? '' : ` (<t:${sec(s.startsAt)}:R>)`), inline: true });
     if (span) fields.push({ name: '⏳ Runs', value: span + `, ends <t:${sec(s.endsAt)}:D>`, inline: true });
-    if (E.isAcc(s)) fields.push({ name: '✅ Missions', value: 'One AccSaber daily mission a day', inline: true });
+    if (E.isAcc(s)) fields.push({ name: '✅ Missions', value: `One AccSaber daily mission a day, plus ${E.LIFELINES} lifelines for hard days`, inline: true });
     else fields.push({ name: '🎵 Maps', value: (maps ? maps + ' maps, ' : '') + 'about one a day', inline: true });
     if (list) {
       // Everyone who's in, in sign-up order. Discord caps a field at 1024 characters.
@@ -535,7 +535,7 @@ export class Game extends DurableObject {
       fields.push({ name: '📝 How to join', value: `Open the game, sign in with Discord, paste your BeatLeader profile and pick the ${r} route.` + need, inline: false });
     }
     const card = this.card('Join ' + s.title, {
-      description: (t.tagline ? t.tagline + ' ' : '') + (E.isAcc(s) ? 'Finish an AccSaber daily mission to unlock your d4 roll each day, and a weekly mission adds a bonus roll.' : 'Roll a d4 once a day and play the map you land on.') + ' Cards, shortcuts and setbacks along the way. First three to the ' + (t.goal || 'exit') + ' take the podium.',
+      description: (t.tagline ? t.tagline + ' ' : '') + (E.isAcc(s) ? `Finish an AccSaber daily mission to unlock your d4 roll each day, and a weekly mission adds a bonus roll. Dailies too hard? Everyone gets ${E.LIFELINES} lifelines to roll without one.` : 'Roll a d4 once a day and play the map you land on.') + ' Cards, shortcuts and setbacks along the way. First three to the ' + (t.goal || 'exit') + ' take the podium.',
       fields
     });
     if (t.shot) card.image = { url: (this.env.GAME_PAGE || '').replace(/\/?$/, '/') + t.shot };
@@ -988,12 +988,12 @@ export class Game extends DurableObject {
         case 'roll': {
           this.mine(s, pid);
           // AccSaber mode: a roll still locked looks for a newly finished mission first.
-          if (E.isAcc(s) && ['mission', 'paused'].includes(E.canRoll(s, pid).code)) await this.accRefresh();
-          result = E.roll(s, pid, { rng }); delete result.player; break;
+          if (E.isAcc(s) && (a.lifeline || ['mission', 'paused'].includes(E.canRoll(s, pid).code))) await this.accRefresh();
+          result = E.roll(s, pid, { rng, lifeline: !!a.lifeline }); delete result.player; break;
         }
         case 'verify':
           this.mine(s, pid);
-          if (E.isAcc(s)) { await this.accRefresh(); const p = s.players[pid]; result = { acc: { daily: E.accDaily(s, p), bonus: p.accBonus || 0, canRoll: E.canRoll(s, pid).ok, paused: !!p.paused } }; break; }
+          if (E.isAcc(s)) { await this.accRefresh(); const p = s.players[pid]; result = { acc: { daily: E.accDaily(s, p), bonus: p.accBonus || 0, lifelines: E.lifeLeft(p), canRoll: E.canRoll(s, pid).ok, paused: !!p.paused } }; break; }
           result = { cleared: await this.check(pid) }; break;
         case 'claim': {
           this.mine(s, pid); result = E.claimTask(s, pid, a.task, { url: String(a.url || '').slice(0, 300) });
@@ -1463,7 +1463,7 @@ export class Game extends DurableObject {
     if (sp.routes.length) fields.push({ name: '🛤️ Routes', value: sp.routes.map((r) => r.n + ' ' + r.name.replace(/ route$/i, '')).join(', '), inline: true });
     if (s.endsAt) fields.push({ name: '🏁 Ends', value: `<t:${sec(s.endsAt)}:D>`, inline: true });
     const reset = this.meta.nextCutoff ? (E.isAcc(s) ? ` One roll a day, and it resets with AccSaber's missions at <t:${sec(this.meta.nextCutoff)}:t> every night.` : ` One roll a day, and the roll resets at <t:${sec(this.meta.nextCutoff)}:t> every night.`) : ' One roll a day.';
-    await this.sendOrKeep(`🎲 **${md(s.title)} has started!** Day 1 is open: ` + (E.isAcc(s) ? 'finish an AccSaber daily mission and roll your d4.' : 'roll your d4 and play the map you land on.'), true,
+    await this.sendOrKeep(`🎲 **${md(s.title)} has started!** Day 1 is open: ` + (E.isAcc(s) ? `finish an AccSaber daily mission and roll your d4. Dailies too hard? Use one of your ${E.LIFELINES} lifelines, and finish both dailies in a day to earn one back.` : 'roll your d4 and play the map you land on.'), true,
       this.card('Play ' + s.title, { description: (n ? `${plural(n, 'player')} ${n === 1 ? 'is' : 'are'} off.` : 'Sign up and roll your first d4.') + reset, fields }), 'start');
   }
 

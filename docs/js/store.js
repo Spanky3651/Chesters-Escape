@@ -174,12 +174,12 @@
         case 'playAs': self.me = a.pid; return Promise.resolve(done({}));
         case 'react': if (!s.players[me]) return Promise.reject(new Error('Join the game to react.')); return Promise.resolve(done(E.react(s, me, a.id, a.emoji)));
         case 'route': return Promise.resolve(done(E.chooseRoute(s, me, a.route)));
-        case 'roll': return Promise.resolve(done(E.roll(s, me, { rng: rng })));
+        case 'roll': return Promise.resolve(done(E.roll(s, me, { rng: rng, lifeline: !!(a && a.lifeline) })));
         case 'verify':
           if (E.isAcc(s)) {   // demo: pretend AccSaber shows a finished daily mission
             var c0 = {}; s.order.forEach(function (q) { var pq = s.players[q]; if (pq.blId) c0[pq.blId] = { d: ((pq.acc && pq.acc.cur) || 0) + (q === me ? 1 : 0) }; });
             E.accUpdate(s, c0, Date.now(), { d: true, w: false });
-            return Promise.resolve(done({ acc: { daily: E.accDaily(s, s.players[me]), bonus: s.players[me].accBonus || 0, canRoll: E.canRoll(s, me).ok } }));
+            return Promise.resolve(done({ acc: { daily: E.accDaily(s, s.players[me]), bonus: s.players[me].accBonus || 0, lifelines: E.lifeLeft(s.players[me]), canRoll: E.canRoll(s, me).ok } }));
           }
           return S.checkTasks(E, s, me).then(function (r) { return done(r); });
         case 'claim': return Promise.resolve(done(E.claimTask(s, me, a.task, { url: a.url, note: a.note })));
