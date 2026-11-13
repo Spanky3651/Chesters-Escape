@@ -911,7 +911,7 @@
     boards: { 'chester-escape': buildBoard },
     mapSets: MAP_SETS, boardFor: boardFor, gameTitle: gameTitle, applyMapSet: applyMapSet,
     themes: THEMES,
-    cardsFor: cardsFor,
+    cardsFor: cardsFor, cardWords: WORDS,
     effectText: effectText, cardEffectText: cardEffectText, spaceEffectText: spaceEffectText, BLANK_MSG: BLANK_MSG
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.CGContent;

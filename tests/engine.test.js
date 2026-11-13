@@ -354,3 +354,4 @@ assert.strictEqual(cardsSeen.size, 20);
   console.log('AccSaber mode ok');
 }
 console.log('all engine tests passed');
+require('./themes.test.js');
