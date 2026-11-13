@@ -497,7 +497,7 @@
     // Plain winter, not Christmas: Chester in a knit beanie and scarf like on her cards, snowy pines and lanterns,
     // and winter names for everything. Fonts and colors come from Chester's Christmas.
     var t = JSON.parse(JSON.stringify(THEMES.christmas));
-    t.id = 'snowy'; t.look = 'snowy'; t.hat = 'beanie';
+    t.id = 'snowy'; t.look = 'snowy'; t.hat = 'beanie'; t.hero = 'snowchester';   // Chester drawn after LumberJack's painting
     t.thumb = 'img/themes/snowy-thumb.jpg?v=20261112';   // the picture on its Discord posts
     t.name = "Chester's Snowy Escape"; t.title = "Chester's Snowy Escape";
     t.tagline = 'Help Chester find his way home to his cabin before the snow gets any deeper.';
