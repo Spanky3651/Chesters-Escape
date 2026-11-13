@@ -347,6 +347,9 @@ body[data-theme="thanksgiving"] .chip.long { border-color: #4a6a2a; color: #c8e3
 .roll-box { display: grid; grid-template-columns: 120px minmax(0,1fr); gap: 16px; align-items: center; }
 .roll-copy b { display: block; font: 700 22px/1.1 var(--display); }
 .roll-copy p { margin: 4px 0 10px; color: var(--muted); font-size: 14.5px; }
+.acc-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.acc-open { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.acc-mark { width: 16px; height: 16px; flex: none; }
 .why { color: var(--muted); font-size: 14px; }
 
 /* d4 */

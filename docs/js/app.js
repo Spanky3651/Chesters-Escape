@@ -440,7 +440,8 @@
       html += '<div class="roll-box"><div id="dieSlot"></div><div class="roll-copy">';
       var wkRoll = E.isAcc(s) && can.ok && !(p.extraRoll && p.rolledDay === s.day) && !(p.rolledDay !== s.day && E.accDaily(s, p));
       if (can.ok) html += '<b>' + (wkRoll ? 'Weekly bonus roll' : p.extraRoll && p.rolledDay === s.day ? 'Bonus roll' : 'Ready to roll') + '</b><p>Roll the d4 and move that many spaces.' + (E.isAcc(s) && p.accBonus > (wkRoll ? 1 : 0) ? ' You also have ' + (p.accBonus - (wkRoll ? 1 : 0) > 1 ? (p.accBonus - (wkRoll ? 1 : 0)) + ' weekly bonus rolls' : 'a weekly bonus roll') + ' saved.' : '') + '</p><button type="button" class="btn" id="rollBtn">Roll the d4</button>';
-      else if (can.code === 'mission' || can.code === 'paused') html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><button type="button" class="btn" id="accCheck">' + (can.code === 'paused' ? 'Check again' : 'Check my missions') + '</button>';
+      else if (can.code === 'mission' || can.code === 'paused') html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><div class="acc-row"><button type="button" class="btn" id="accCheck">' + (can.code === 'paused' ? 'Check again' : 'Check my missions') + '</button>' +
+        '<a class="btn ghost acc-open" href="https://accsaber.com/" target="_blank" rel="noopener">' + ACC_MARK + 'Open AccSaber</a></div>';
       else html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><button type="button" class="btn" id="rollBtn" disabled>Roll the d4</button>';
       html += '</div></div>';
     } else {
@@ -530,7 +531,7 @@
       if (E.isAcc(s)) return store.mode === 'demo' ? 'Come back tomorrow. In the demo, use Start the next day.' : 'AccSaber\'s daily missions reset at ' + cutoffLabel(s) + '. Finish one after that to unlock your next roll.';
       return store.mode === 'demo' ? 'Come back tomorrow. In the demo, use Start the next day.' : 'Your next roll opens when the day turns over.';
     }
-    if (c.code === 'mission') return 'Finish one AccSaber daily mission, then check here. AccSaber can take up to 10 minutes to show it. Missions reset at ' + cutoffLabel(s) + '.';
+    if (c.code === 'mission') return 'Finish one AccSaber daily mission and come back. The game checks when you return. Missions reset at ' + cutoffLabel(s) + '.';
     if (c.code === 'skip') return p.skip ? 'You sit this one out. ' + p.skip + ' more after today.' : 'You sit this one out. You can roll again tomorrow.';
     return c.reason;
   }
@@ -1118,6 +1119,25 @@
       else { animating = false; renderAll(); toast('No new score on that map yet. BeatLeader can take a minute after you finish.', ''); }
     }).catch(function (e) { animating = false; renderAll(); if (/Link your BeatLeader/.test(e.message)) openJoin(true); else fail(e); });
   }
+  // AccSaber's own mark (its tab icon), for the Open AccSaber button.
+  var ACC_MARK = '<svg class="acc-mark" viewBox="0 0 16 16" aria-hidden="true"><path transform="translate(-.5 -.5)" fill="#C6613F" d="M2 1.5 14.2 6.6a.7.7 0 0 1-.06 1.32L9.2 9.4a.7.7 0 0 0-.46.46l-1.5 4.9a.7.7 0 0 1-1.32.05z"/></svg>';
+  // Coming back to the game while today's roll waits on a mission: check AccSaber quietly, and say so
+  // only when the roll unlocked. At most once a minute (the server reads AccSaber every 3 minutes at most).
+  var accBackAt = 0;
+  function accOnReturn() {
+    if (typeof store === 'undefined' || !store) return;
+    var s = st(), p = me();
+    if (store.mode !== 'live' || !s || !p || !E.isAcc(s) || animating || Date.now() - accBackAt < 60000) return;
+    var code = E.canRoll(s, p.id).code;
+    if (code !== 'mission' && code !== 'paused') return;
+    accBackAt = Date.now();
+    store.act('verify').then(function (r) {
+      var a = r && r.acc; renderAll();
+      if (a && a.canRoll) { sfx.good(); toast(a.daily ? 'Daily mission found. Roll the d4!' : 'You have a weekly bonus roll. Roll the d4!', 'good'); }
+    }).catch(function () {});
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') accOnReturn(); });
+  window.addEventListener('focus', accOnReturn);
   // AccSaber mode: look for a newly finished mission (the server reads AccSaber's leaderboard).
   function doAccCheck(btn) {
     btn.disabled = true; btn.textContent = 'Checking AccSaber';
