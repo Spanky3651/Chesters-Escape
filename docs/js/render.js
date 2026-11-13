@@ -119,7 +119,7 @@
     // wing, layered
     o += '<path d="M8,8 C20,6 26,14 24,22 L21,20 L20,24 L17,21 L15,24 L13,20 C11,16 9,12 8,8 Z" fill="#1a1b20"/><g fill="none" stroke="#3a3d46" stroke-width="1" stroke-linecap="round"><path d="M11,11 q4,1 7,5"/><path d="M12,15 q4,1 6,5"/></g>';
     // head: tilted up and to the right
-    o += '<g transform="rotate(-12 2 -6)">';
+    o += '<g class="cs-head"><g transform="rotate(-12 2 -6)">';   // cs-head: the laughing nod (game.css)
     o += '<ellipse cx="0" cy="-8" rx="16" ry="14.5" fill="#26282e"/>';
     // swept-back crest with a dusting of snow, drawn over the top of the head
     o += '<path d="M-12,-16 C-17,-19 -21,-21 -24,-21 C-20,-24 -15,-24 -11,-22 C-15,-26 -17,-29 -17,-32 C-12,-29 -8,-27 -5,-24 C-6,-28 -5,-31 -2,-33 C-1,-29 1,-26 4,-23 C5,-26 8,-28 10,-28 C9,-25 9,-22 8,-20 Z" fill="#26282e"/>';
@@ -137,17 +137,19 @@
     // big open laughing beak
     o += '<path d="M8,-8 C14,-11 21,-11 26,-8 C21,-6 15,-5 9,-4 Z" fill="#f7b928"/><path d="M8,-8 C14,-10.5 20,-10.5 24,-8.6 C19,-8 14,-7.5 9,-7 Z" fill="#ffd468"/>';
     o += '<path d="M9,-4 C15,-5 20,-5.5 24,-6 C21,-1 15,1 10,0 Z" fill="#8c1f2c"/><path d="M10,0 C15,1 20,-1 23,-4 C22,0 17,3 11,2 Z" fill="#e8962d"/>';
-    o += '</g>';
+    o += '</g></g>';
     // snowflake knit scarf, tails blowing out to the left
     o += '<path d="M-14,2 C-6,7 8,7 15,1 L16,7 C8,13 -6,13 -15,8 Z" fill="#c21f30"/>';
     o += '<path d="M-14,4.5 C-6,9.5 8,9.5 15,3.5 M-14.5,7 C-6,12 8,12 15.5,6" fill="none" stroke="#e04452" stroke-width=".6"/>';
     [[-9,7.6],[-2,9.6],[5,9.4],[11,6.8]].forEach(function (p) { o += '<path d="M' + p[0] + ',' + (p[1] - 1.7) + ' v3.4 M' + (p[0] - 1.5) + ',' + (p[1] - .85) + ' l3,1.7 M' + (p[0] - 1.5) + ',' + (p[1] + .85) + ' l3,-1.7" stroke="#fff" stroke-width=".7" stroke-linecap="round"/>'; });
-    // long tail flying left
+    // long tail flying left (cs-scarf: it flutters)
+    o += '<g class="cs-scarf">';
     o += '<path d="M-13,4 C-20,2 -27,3 -33,1 L-34,8 C-28,10 -21,9 -14,9 Z" fill="#c21f30"/>';
     o += '<path d="M-14,8 C-19,11 -23,15 -26,19 L-21,22 C-18,18 -14,14 -11,10 Z" fill="#a81a29"/>';
     [[-21,5.5],[-28,5]].forEach(function (p) { o += '<path d="M' + p[0] + ',' + (p[1] - 1.6) + ' v3.2 M' + (p[0] - 1.4) + ',' + (p[1] - .8) + ' l2.8,1.6 M' + (p[0] - 1.4) + ',' + (p[1] + .8) + ' l2.8,-1.6" stroke="#fff" stroke-width=".65" stroke-linecap="round"/>'; });
     o += '<g stroke="#c21f30" stroke-width="1.1" stroke-linecap="round"><path d="M-33.5,1.5 l-3,-.5 M-33.7,3.5 l-3,0 M-33.8,5.5 l-3,.3 M-34,7.5 l-3,.6"/></g>';
     o += '<g stroke="#a81a29" stroke-width="1.1" stroke-linecap="round"><path d="M-25.5,19.5 l-1.5,2.5 M-24,20.5 l-1.2,2.6 M-22.5,21.5 l-1,2.6"/></g>';
+    o += '</g>';
     o += '</g>';
     return o;
   }
