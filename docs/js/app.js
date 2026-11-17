@@ -1404,17 +1404,42 @@
   function openHall() {
     var hall = (store.hall || []).slice().reverse(), totals = E.hallTotals(store.hall || []).slice(0, 10);
     track('hall-of-fame');
-    var medal = ['🥇', '🥈', '🥉'];
-    var ava = function (t) { return t.avatar ? '<img class="hf-ava" src="' + esc(t.avatar) + '" alt="" onerror="this.outerHTML=\'<span class=&quot;hf-ava&quot;>' + esc(R.initials(t.name)) + '</span>\'">' : '<span class="hf-ava">' + esc(R.initials(t.name)) + '</span>'; };
+    var MC = ['#f2c046', '#cfd6df', '#d08a4e'], ORD = ['1st', '2nd', '3rd'], medal = ['🥇', '🥈', '🥉'];
+    var ava = function (t, cls) { return t.avatar ? '<img class="' + cls + '" src="' + esc(t.avatar) + '" alt="" onerror="this.outerHTML=\'<span class=&quot;' + cls + '&quot;>' + esc(R.initials(t.name)) + '</span>\'">' : '<span class="' + cls + '">' + esc(R.initials(t.name)) + '</span>'; };
     var when = function (ts) { return ts ? new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : ''; };
+    var rm = function (g) { return store.isHost ? '<button type="button" class="btn small link hf-rm" data-hallrm="' + esc(g.id) + '">Remove</button>' : ''; };
+    var did = function (t) { return t.escaped ? 'Escaped day ' + t.day : t.left + ' to go'; };
+    // The newest game in the spotlight: its top 3 in laurels, the winner in the middle, confetti behind.
+    var spot = function (g) {
+      var seed = 7, rnd = function () { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }, bits = '';
+      for (var c = 0; c < 40; c++) { var x = rnd() * 100, y = rnd() * 80, w = 4 + rnd() * 4, h = 8 + rnd() * 6, op = .45 + rnd() * .45, rot = Math.round(rnd() * 180); bits += '<rect x="' + x.toFixed(1) + '%" y="' + y.toFixed(1) + '%" width="' + w.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="1.5" fill="' + ['#f2c046', '#e8792a', '#8cc152', '#cfd6df', '#ff8a65'][c % 5] + '" opacity="' + op.toFixed(2) + '" style="transform:rotate(' + rot + 'deg)"/>'; }
+      var laurel = function (col) {
+        var l = '';
+        for (var k = 0; k < 8; k++) { var a = 115 + k * 17, r = a * Math.PI / 180, lx = (50 + 43 * Math.cos(r)).toFixed(1), ly = (50 + 43 * Math.sin(r)).toFixed(1), rx = (100 - lx).toFixed(1);
+          l += '<ellipse cx="' + lx + '" cy="' + ly + '" rx="7.5" ry="3.6" transform="rotate(' + (a + 70) + ' ' + lx + ' ' + ly + ')" fill="' + col + '"/><ellipse cx="' + rx + '" cy="' + ly + '" rx="7.5" ry="3.6" transform="rotate(' + (-(a + 70)) + ' ' + rx + ' ' + ly + ')" fill="' + col + '"/>'; }
+        return '<svg class="hf-lau" viewBox="0 0 100 100" aria-hidden="true">' + l + '</svg>';
+      };
+      var crown = '<svg class="hf-crown" viewBox="0 0 30 21" aria-hidden="true"><path d="M2 19 L1 5 L8.5 11 L15 1 L21.5 11 L29 5 L28 19 Z" fill="#f2c046" stroke="#a9781a" stroke-width="1.2" stroke-linejoin="round"/><circle cx="15" cy="13" r="2" fill="#e8792a"/></svg>';
+      var card = function (t, i) {
+        return '<div class="hf-tc hf-c' + (i + 1) + '" style="--m:' + MC[i] + '"><div class="hf-lw">' + laurel(i ? MC[i] : '#8cc152') + (i ? '' : crown) + ava(t, 'hf-sa') + '</div>' +
+          '<span class="hf-pl">' + ORD[i] + '</span><b>' + esc(t.name) + '</b><span class="hf-dy">' + esc(did(t)) + '</span></div>';
+      };
+      var top = g.top || [], order = [1, 0, 2].filter(function (i) { return top[i]; });
+      var out = (g.all || []).filter(function (r) { return r.escaped; }).length;
+      return '<div class="hf-spot"><svg class="hf-conf" width="100%" height="100%" aria-hidden="true">' + bits + '</svg>' +
+        '<div class="hf-kick">' + esc(g.title) + ' · ' + esc(when(g.endedAt)) + rm(g) + '</div>' +
+        '<div class="hf-trio">' + order.map(function (i) { return card(top[i], i); }).join('') + '</div>' +
+        '<div class="hf-stats"><span><b>' + g.days + '</b>day' + (g.days === 1 ? '' : 's') + '</span><span><b>' + g.players + '</b>player' + (g.players === 1 ? '' : 's') + '</span><span><b>' + out + '</b>escaped</span></div></div>';
+    };
+    // Older games keep the small card until they get their own look.
+    var older = function (g) {
+      return '<div class="hf-game"><div class="hf-gh"><b>' + esc(g.title) + '</b><span>' + esc(when(g.endedAt)) + ' · ' + g.days + ' day' + (g.days === 1 ? '' : 's') + ' · ' + g.players + ' player' + (g.players === 1 ? '' : 's') + rm(g) + '</span></div>' +
+        '<ol class="hf-pod">' + g.top.map(function (t, i) { return '<li class="p' + (i + 1) + '"><span class="hf-m">' + medal[i] + '</span>' + ava(t, 'hf-ava') + '<b>' + esc(t.name) + '</b><span>' + esc(did(t)) + '</span></li>'; }).join('') + '</ol></div>';
+    };
     var html = !hall.length ? '<p class="lede">No game has finished yet. The first winner goes up here.</p>' :
-      '<p class="lede">Every finished game, newest first.</p><div class="hf-games">' + hall.map(function (g) {
-        return '<div class="hf-game"><div class="hf-gh"><b>' + esc(g.title) + '</b><span>' + esc(when(g.endedAt)) + ' · ' + g.days + ' day' + (g.days === 1 ? '' : 's') + ' · ' + g.players + ' player' + (g.players === 1 ? '' : 's') +
-          (store.isHost ? '<button type="button" class="btn small link hf-rm" data-hallrm="' + esc(g.id) + '">Remove</button>' : '') + '</span></div>' +
-          '<ol class="hf-pod">' + g.top.map(function (t, i) { return '<li class="p' + (i + 1) + '"><span class="hf-m">' + medal[i] + '</span>' + ava(t) + '<b>' + esc(t.name) + '</b><span>' + (t.escaped ? 'Escaped day ' + t.day : t.left + ' to go') + '</span></li>'; }).join('') + '</ol></div>';
-      }).join('') + '</div>' +
+      spot(hall[0]) + (hall.length > 1 ? '<h3 class="hw-h">Earlier games</h3><div class="hf-games">' + hall.slice(1).map(older).join('') + '</div>' : '') +
       '<h3 class="hw-h">All time</h3><table class="hf-table"><thead><tr><th>Player</th><th>Wins</th><th>Podiums</th><th>Escapes</th><th>Games</th></tr></thead><tbody>' +
-      totals.map(function (t, i) { return '<tr' + (t.pid === store.me ? ' class="me"' : '') + '><td><span class="hf-rank">' + (i + 1) + '</span>' + esc(t.name) + '</td><td>' + t.wins + '</td><td>' + t.podiums + '</td><td>' + t.escapes + '</td><td>' + t.games + '</td></tr>'; }).join('') + '</tbody></table>';
+      totals.map(function (t, i) { return '<tr class="' + (i < 3 ? 'hf-t' + (i + 1) : '') + (t.pid === store.me ? ' me' : '') + '"><td><span class="hf-who"><span class="hf-rank' + (i < 3 ? ' g' + (i + 1) : '') + '">' + (i + 1) + '</span><span>' + esc(t.name) + '</span></span></td><td>' + t.wins + '</td><td>' + t.podiums + '</td><td>' + t.escapes + '</td><td>' + t.games + '</td></tr>'; }).join('') + '</tbody></table>';
     modal('🏆 Hall of fame', html, null, { cls: 'hall', focusClose: true });
   }
   function openBadges(pid) {

@@ -866,11 +866,11 @@
     var by = {};
     (hall || []).forEach(function (g) {
       (g.all || []).forEach(function (r) {
-        var t = by[r.pid] = by[r.pid] || { pid: r.pid, name: r.name, games: 0, wins: 0, podiums: 0, escapes: 0 };
-        t.name = r.name; t.games++; if (r.place === 1) t.wins++; if (r.place <= 3) t.podiums++; if (r.escaped) t.escapes++;
+        var t = by[r.pid] = by[r.pid] || { pid: r.pid, name: r.name, games: 0, wins: 0, podiums: 0, escapes: 0, best: Infinity };
+        t.name = r.name; t.games++; if (r.place === 1) t.wins++; if (r.place <= 3) t.podiums++; if (r.escaped) t.escapes++; if (r.place < t.best) t.best = r.place;
       });
     });
-    return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.wins - a.wins || b.podiums - a.podiums || b.escapes - a.escapes || b.games - a.games || String(a.name).localeCompare(String(b.name)); });
+    return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.wins - a.wins || b.podiums - a.podiums || b.escapes - a.escapes || b.games - a.games || a.best - b.best || String(a.name).localeCompare(String(b.name)); });   // ties: the better finish first
   }
 
   // ---- host undo -------------------------------------------------------------------

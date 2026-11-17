@@ -408,5 +408,11 @@ assert.strictEqual(cardsSeen.size, 20);
   assert.strictEqual(E.canLifeline(g, 'x').ok, false);
   console.log('lifelines ok');
 }
+// Hall of fame all-time table: ties go to the better finish, not the alphabet
+{
+  const hall = [{ id: 'g1', all: [{ pid: 'a', name: 'Zed', place: 1, escaped: true }, { pid: 'b', name: 'Yan', place: 2, escaped: false }, { pid: 'c', name: 'Abe', place: 17, escaped: false }, { pid: 'd', name: 'Mo', place: 6, escaped: false }] }];
+  assert.deepStrictEqual(E.hallTotals(hall).map((t) => t.name), ['Zed', 'Yan', 'Mo', 'Abe']);
+  console.log('hall of fame order ok');
+}
 console.log('all engine tests passed');
 require('./themes.test.js');
