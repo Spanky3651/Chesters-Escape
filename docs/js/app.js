@@ -313,11 +313,18 @@
     if (s.status === 'signup') { el.textContent = s.startsAt ? 'Starts in ' + fmtLeft(s.startsAt - Date.now(), true) : 'Starting soon'; return; }
     if (s.status === 'finished') { el.textContent = 'Final standings are in'; return; }
     if (store.mode === 'demo') { el.textContent = 'The host starts each new day' + (s.endsAt ? ' · ends in ' + fmtLeft(s.endsAt - Date.now(), true) : ''); return; }
-    var at = E.nextCutoff(s.settings), left = at - Date.now();
+    var at = E.nextCutoff(s.settings), last = lastDay(s, at);
+    if (last) at = Math.min(at, s.endsAt);   // the game ends before (or at) the next day's turn: no next day to count to
+    var left = at - Date.now();
     if (left < 0) left = 0;
     var h = Math.floor(left / 3600000), m = Math.floor(left % 3600000 / 60000);
     var when = new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    if (last) { el.textContent = 'Final day · ends in ' + (h ? h + 'h ' : '') + m + 'm (' + when + ')'; return; }
     el.textContent = 'Next day in ' + (h ? h + 'h ' : '') + m + 'm (' + when + ')' + (s.endsAt && s.status === 'running' ? ' · ends in ' + fmtLeft(s.endsAt - Date.now(), true) : '');
+  }
+  // The game's end date falls before the next day's turn (or within a minute of it), so today is the last day.
+  function lastDay(s, at) {
+    return !!(s && s.status === 'running' && s.endsAt && s.endsAt <= (at || E.nextCutoff(s.settings)) + 60000);
   }
 
   // ---- countdown to the start ----------------------------------------------------
@@ -1528,11 +1535,12 @@
   function applyDusk() {
     var zone = document.querySelector('.board-zone'), d = $('dusk'), s = st(); if (!zone || !d || !s) return;
     var left = null;
-    if (s.status === 'running') { if (store.mode === 'live') left = E.nextCutoff(s.settings) - Date.now(); else if (duskTest != null) left = duskTest * 60000; }
+    var last = s.status === 'running' && lastDay(s);
+    if (s.status === 'running') { if (store.mode === 'live') left = (last ? Math.min(E.nextCutoff(s.settings), s.endsAt) : E.nextCutoff(s.settings)) - Date.now(); else if (duskTest != null) left = duskTest * 60000; }
     if (left == null || left > 3600000 || left < 0) { d.hidden = true; zone.classList.remove('dusk-on', 'dusk-late'); zone.style.setProperty('--dusk', 0); return; }
     zone.style.setProperty('--dusk', (0.15 + 0.85 * Math.min(1, 1 - left / 3600000)).toFixed(3));
     d.hidden = false; zone.classList.add('dusk-on'); zone.classList.toggle('dusk-late', left < 600000);
-    $('duskPill').textContent = '\uD83C\uDF19 Day ' + s.day + ' ends in ' + Math.max(1, Math.ceil(left / 60000)) + ' min';
+    $('duskPill').textContent = '\uD83C\uDF19 ' + (last ? 'Final day' : 'Day ' + s.day) + ' ends in ' + Math.max(1, Math.ceil(left / 60000)) + ' min';
   }
 
   // ---- easter eggs -----------------------------------------------------------------------------------
