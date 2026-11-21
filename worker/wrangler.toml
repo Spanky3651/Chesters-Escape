@@ -15,7 +15,7 @@ new_sqlite_classes = ["Game"]
 # The game page. Sign-in sends players back here.
 GAME_PAGE = "https://spanky3651.github.io/Chesters-Escape/"
 # Pages allowed to call this server (comma separated).
-ALLOWED_ORIGINS = "https://spanky3651.github.io"
+ALLOWED_ORIGINS = "https://spanky3651.github.io,https://beatsabergames.com,https://www.beatsabergames.com"
 # Discord user IDs that get the host tools (comma separated).
 HOSTS = "909550896571113492"
 # The game starts invite-only. People who sign in land on the host's waiting list

@@ -221,6 +221,9 @@ export default {
         if (!user) return json(env, req, { error: 'Sign in with Discord first.' }, 401);
         const body = await req.json().catch(() => ({}));
         const op = url.pathname.slice('/api/push/'.length);
+        // Which address the page was on (the old GitHub one or beatsabergames.com), so a device's old copy can be retired.
+        const from = req.headers.get('origin') || '';
+        body.origin = origins(env).includes(from) ? from : '';
         const r = await gameStub(env, user.clan).pushOp(user, op, body);
         // A browser has one subscription for the whole site, so it goes to every clan this person is in.
         // Otherwise turning it on in one clan leaves a dead copy in the other.
@@ -1330,8 +1333,12 @@ export class Game extends DurableObject {
     const sub = body && body.subscription;
     if (op === 'subscribe') {
       if (!sub || !/^https:\/\//.test(sub.endpoint || '') || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) return { error: 'That device did not give a usable subscription.' };
-      this.meta.push = list.filter((x) => x.endpoint !== sub.endpoint);
-      this.meta.push.push({ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth }, uid: user.id, name: user.name, label: String(body.label || 'Device').slice(0, 60), tz: validZone(body.tz), at: Date.now() });
+      const label = String(body.label || 'Device').slice(0, 60), origin = String(body.origin || '');
+      // The same device turning the bell on at the other address (old GitHub page vs beatsabergames.com) replaces its
+      // copy from there, so nobody gets every notification twice. Copies saved before addresses were kept count as the first one.
+      const first = origins(this.env)[0] || '';
+      this.meta.push = list.filter((x) => x.endpoint !== sub.endpoint && !(origin && x.uid === user.id && x.label === label && (x.origin || first) !== origin));
+      this.meta.push.push({ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth }, uid: user.id, name: user.name, label, origin, tz: validZone(body.tz), at: Date.now() });
       if (this.meta.push.length > 100) this.meta.push.shift();
       await this.save();
       return { ok: true, devices: this.meta.push.filter((x) => x.uid === user.id).length };
