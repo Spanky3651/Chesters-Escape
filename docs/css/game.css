@@ -1277,3 +1277,5 @@ body.between .brand h1 { font: 700 30px/1 var(--ui); letter-spacing: -.01em; }
   body.between .brand h1 { font-size: 24px; }
   body.between .brand-crow { width: 34px; height: 34px; }
 }
+/* Phones: the clan switcher keeps the right edge, in the Between games row (no Rules or Maps here to push it over) */
+@media (max-width: 640px) { body.between .topnav { margin-left: auto; width: auto; } }
