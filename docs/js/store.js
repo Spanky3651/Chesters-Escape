@@ -225,6 +225,11 @@
           if (!E.sameCards(s.cards, words) && s.status !== 'running') E.swapCards(s, words);
           else s.cards = s.cards.map(function (c) { return byId[c.id] ? Object.assign({}, c, { title: byId[c.id].title, art: byId[c.id].art, text: byId[c.id].text, full: byId[c.id].full }) : c; });
           return Promise.resolve(done({}));
+        case 'hide': {
+          if (s.status !== 'signup') return Promise.reject(new Error('Only a game that has not started can be hidden.'));
+          if (a.on) E.hide(s, true, a.until || null); else E.reveal(s);
+          return Promise.resolve(done({}));
+        }
         case 'hallRemove': {
           self.hall = self.hall.filter(function (h) { return h.id !== a.id; });
           (self.hallHidden = self.hallHidden || []).push(a.id); self._saveHall(); s.seq++;
@@ -234,6 +239,7 @@
           var keepMe = self.me;
           var st0 = a.startsAt > Date.now() + 60000 ? a.startsAt : null;
           self.fresh(a.theme || s.themeId, a.board || null, !!a.history, st0, a.endsAt > (st0 || Date.now()) + 3600000 ? a.endsAt : null);
+          if (a.hide) { if (self.state.status !== 'signup') { self.state.status = 'signup'; self.state.day = 1; } E.hide(self.state, true, a.revealAt > Date.now() + 60000 ? a.revealAt : null); }
           if (keepMe && !self.state.players[keepMe]) self.me = 'msploit';
           return Promise.resolve(done({}));
         }
@@ -310,7 +316,7 @@
   LiveStore.prototype.logout = function () { setToken(''); location.reload(); };
   LiveStore.prototype.load = function () {
     var self = this;
-    return this._fetch('/api/state').then(function (r) { self._apply(r); return self.state; });
+    return this._fetch('/api/state').then(function (r) { if (r.hidden) { location.reload(); return new Promise(function () {}); } self._apply(r); return self.state; });
   };
   LiveStore.prototype._apply = function (r) {
     if (r.state) { this.state = r.state; this._seq = r.state.seq; }
@@ -332,6 +338,7 @@
   LiveStore.prototype.poll = function () {
     var self = this;
     return this._fetch('/api/state?since=' + this._seq).then(function (r) {
+      if (r.hidden) { location.reload(); return; }   // the host hid the next game: show the between-games page
       if (r.state && r.state.seq !== self._seq) { self._apply(r); self._emit({ action: 'poll' }); }
       else if (r.online && (r.online.slice().sort().join() !== (self.online || []).slice().sort().join())) { self.online = r.online; self._emit({ action: 'online' }); }
     }).catch(function () {});
@@ -357,7 +364,14 @@
   function Gate(kind, api, cfg) {
     this.mode = 'gate'; this.kind = kind; this.api = api ? api.replace(/\/+$/, '') : ''; this.user = (cfg && cfg.user) || null; this.startsAt = (cfg && cfg.startsAt) || null;
     this.clan = (cfg && cfg.clan) || ''; this.clans = (cfg && cfg.clans) || []; this.theme = (cfg && cfg.theme) || '';
+    this.hidden = (cfg && cfg.hidden) || null; this.hall = (cfg && cfg.hall) || []; this.isHost = false; this.me = null;
+    this.cfgUrl = this.api ? this.api + withClan('/api/config', this.clan) : '';
   }
+  // Between games: ask now and then whether the next board has been revealed yet.
+  Gate.prototype.stillHidden = function () {
+    var t = token();
+    return fetch(this.cfgUrl, { headers: t ? { authorization: 'Bearer ' + t } : {} }).then(function (r) { return r.json(); }).then(function (c) { return !!(c && c.hidden); }, function () { return true; });
+  };
   Gate.prototype.loginUrl = LiveStore.prototype.loginUrl;
   Gate.prototype.logout = LiveStore.prototype.logout;
 
@@ -379,6 +393,7 @@
         // In more than one clan server and never picked: ask which game first.
         if ((cfg.clans || []).length > 1 && !want) return new Gate('choose', api, cfg);
         if (cfg.clan) saveClan(cfg.clan);
+        if (cfg.hidden && (cfg.access === 'ok' || cfg.access === 'pending')) return new Gate('between', api, cfg);
         if (cfg.access === 'ok' || cfg.access === 'pending') return new LiveStore(api, cfg);
         return new Gate('signin', api, cfg);
       }, function () { return new Gate('down', api); });

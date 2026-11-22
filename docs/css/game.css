@@ -1241,3 +1241,39 @@ body .msp-av { background: var(--raise-2); color: var(--text); }
 .near-exit p + p { margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--line); color: var(--muted); }
 .near-exit p + p b { color: var(--text); }
 .near-exit b { color: var(--accent); }
+
+/* ---- Between games: the next board is a secret (players only, while the host hides the next game) ---- */
+body.between { --bg: #000; --raise: #0d0f14; --raise-2: #151821; --line: #232734; --line-2: #313748; --text: #f1f3f8; --muted: #a7aec0; --faint: #6c7489;
+  --accent: #2f7bff; --accent-ink: #fff; --display: var(--ui); background: #000; }
+body.between .brand-crow { width: 42px; height: 42px; }
+body.between .brand h1 { font: 700 30px/1 var(--ui); letter-spacing: -.01em; }
+.bsg-b { color: #ff2740; } .bsg-s { color: #2f7bff; } .bsg-g { color: #fff; }
+.between-main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 22px; padding: 20px 22px 8px; max-width: 1280px; margin: 0 auto; align-items: start; }
+.bt-board { position: relative; overflow: hidden; padding: 26px 22px 22px; background: radial-gradient(ellipse at 50% 0%, rgba(47,123,255,.16), transparent 60%), radial-gradient(ellipse at 50% 100%, rgba(255,39,64,.12), transparent 60%), var(--raise); }
+.bt-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: clamp(8px, 1.6vw, 16px); max-width: 620px; margin: 0 auto; }
+.bt-note { aspect-ratio: 1; border-radius: 16%; display: grid; place-items: center; font: 700 clamp(22px, 4vw, 40px)/1 var(--ui); color: #fff; transform: rotate(var(--tilt, 0deg));
+  box-shadow: inset 0 -6px 0 rgba(0,0,0,.25), 0 10px 22px -12px rgba(0,0,0,.9); animation: btBob 4.8s ease-in-out infinite; }
+.bt-note:nth-child(3n) { animation-delay: -1.6s; } .bt-note:nth-child(3n+1) { animation-delay: -3.2s; }
+.bt-note.r { background: linear-gradient(160deg, #ff4a5f, #c8152a); }
+.bt-note.b { background: linear-gradient(160deg, #4f90ff, #1c58cf); }
+@keyframes btBob { 0%, 100% { transform: rotate(var(--tilt, 0deg)) translateY(0); } 50% { transform: rotate(var(--tilt, 0deg)) translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .bt-note { animation: none; } }
+.bt-cap { text-align: center; margin-top: 22px; }
+.bt-cap h2 { margin: 0 0 6px; font: 700 30px/1.1 var(--ui); letter-spacing: -.01em; }
+.bt-cap p { margin: 0; color: var(--muted); font-size: 16px; }
+.bt-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.bt-side .panel h2 { font: 700 20px/1.1 var(--ui); }
+.bt-side .countdown { margin: 0; }
+.bt-soon { margin: 0; color: var(--muted); }
+.bt-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.bt-steps li { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; align-items: center; padding: 10px 12px; border-radius: var(--r); background: var(--raise-2); border: 1px solid var(--line); }
+.bt-ic { width: 36px; height: 36px; display: block; } .bt-ic svg { width: 100%; height: 100%; display: block; }
+.bt-steps b { display: block; font-size: 15.5px; } .bt-steps li span span { display: block; font-size: 13.5px; color: var(--muted); }
+.bt-hall { align-self: stretch; }
+@media (max-width: 900px) {
+  .between-main { grid-template-columns: minmax(0, 1fr); padding: 14px 10px 6px; gap: 14px; }
+  .bt-board { padding: 18px 12px 16px; }
+  .bt-cap h2 { font-size: 24px; }
+  body.between .brand h1 { font-size: 24px; }
+  body.between .brand-crow { width: 34px; height: 34px; }
+}

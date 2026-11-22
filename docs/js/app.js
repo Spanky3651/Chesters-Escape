@@ -274,7 +274,7 @@
     preloadDeck(t);
     $('gameTitle').innerHTML = titleHtml(s.title || t.title, t);   // a designer board's own name wins (C.gameTitle)
     $('brandCrow').innerHTML = R.hero(0, 0, 1, t);
-    $('dayNum').textContent = s.status === 'finished' ? 'Game over' : s.status === 'signup' ? (E.signupsOpen(s) ? 'Sign-ups open' : 'Sign-ups closed') : 'Day ' + s.day;
+    $('dayNum').textContent = s.status === 'finished' ? 'Game over' : E.isHidden(s) ? 'Hidden from players' : s.status === 'signup' ? (E.signupsOpen(s) ? 'Sign-ups open' : 'Sign-ups closed') : 'Day ' + s.day;
     $('hostBtn').hidden = !store.isHost || adminCard();
     $('playlistBtn').hidden = E.isAcc(s);   // AccSaber mode has no maps
     $('accBtn').hidden = !E.isAcc(s);       // ...and links to the missions instead
@@ -2336,8 +2336,20 @@
       '<div class="row"><button type="button" class="btn small" data-h="setend">Save end time</button>' + (s.endsAt ? '<button type="button" class="btn small ghost" data-h="clearend">Clear end time</button>' : '') +
       (running ? '<button type="button" class="btn small danger" data-h="endnow">End the game now</button>' : '') + '</div></section>';
   }
+  // Hide the board between games: players see a secret "?" board until the reveal, when sign-ups open.
+  function hideSection(s) {
+    var hid = E.isHidden(s), until = hid && s.hidden.until;
+    if (!hid) return '<section class="hsec"><h3>Hide the board</h3><p>Players can see this board now. Hide it to keep the next game a secret: they get a Beat Saber Games page with a "?" board until you reveal it, and nobody can join until then.</p>' +
+      '<div class="row"><button type="button" class="btn small ghost" data-h="hideboard">Hide the board until sign-ups open</button></div></section>';
+    return '<section class="hsec"><h3>Hide the board</h3><p><b>Hidden from players.</b> ' + (until ? 'Sign-ups open and the board shows <b>' + esc(startWhen(until)) + '</b>, in <span data-countdown="' + until + '">' + fmtLeft(until - Date.now()) + '</span>, and the bot posts the game in Discord.' : 'No reveal time yet: players see "Coming soon" until you set one or reveal it.') + '</p>' +
+      '<label class="start-field"><span>Open sign-ups and reveal on</span><input type="datetime-local" id="revealEdit" value="' + (until ? toLocalInput(until) : '') + '"></label>' +
+      '<div class="row"><button type="button" class="btn small" data-h="setreveal">Save reveal time</button>' + (until ? '<button type="button" class="btn small ghost" data-h="clearreveal">Clear reveal time</button>' : '') + '<button type="button" class="btn small ghost" data-h="revealnow">Reveal now</button></div></section>';
+  }
   function startSection(s) {
     var open = E.signupsOpen(s), n = s.order.length;
+    if (E.isHidden(s)) return '<section class="hsec"><h3>Before the start</h3><p>' + (s.startsAt ? 'The first roll unlocks <b>' + esc(startWhen(s.startsAt)) + '</b>.' : 'No start time is set yet.') + ' Sign-ups open when the board is revealed.</p>' +
+      '<label class="start-field"><span>Start time</span><input type="datetime-local" id="startEdit" value="' + (s.startsAt ? toLocalInput(s.startsAt) : '') + '"></label>' +
+      '<div class="row"><button type="button" class="btn small" data-h="reschedule">Save start time</button>' + (s.startsAt ? '<button type="button" class="btn small ghost" data-h="clearstart">Cancel the countdown</button>' : '') + '</div></section>';
     return '<section class="hsec"><h3>Before the start</h3><p>' + (s.startsAt ? 'The first roll unlocks <b>' + esc(startWhen(s.startsAt)) + '</b>, in <span data-countdown="' + s.startsAt + '">' + fmtLeft(s.startsAt - Date.now()) + '</span>.' : 'No start time is set yet.') +
       (open ? ' Until then people can join and pick a route, but nobody rolls.' : ' Sign-ups are closed until then.') + '</p>' +
       '<label class="start-field"><span>Start time</span><input type="datetime-local" id="startEdit" value="' + (s.startsAt ? toLocalInput(s.startsAt) : '') + '"></label>' +
@@ -2366,7 +2378,9 @@
       '<div class="row"><label>Theme ' + themeOptions(s, 'newTheme') + '</label></div>' +
       '<label class="start-field"><span>Start time (optional)</span><input type="datetime-local" id="newStart"></label>' +
       '<label class="start-field"><span>End time (optional)</span><input type="datetime-local" id="newEnd"></label>' +
-      '<p class="why">With a start time, sign-ups open now and the first roll unlocks then. Leave it empty to start right away. Day 1 lasts until the next ' + esc(cutoffLabel(s)) + ' cutoff, so a ' + esc(cutoffLabel(s)) + ' start gives everyone a full first day. With an end time, the game locks then and the standings freeze; without one it runs until everyone escapes.</p><div class="row">' +
+      '<label class="check"><input type="checkbox" id="newHide" checked> <span>Hide the board until sign-ups open. Players see a "?" board and nobody can join until the reveal.</span></label>' +
+      '<label class="start-field"><span>Open sign-ups and reveal on (optional)</span><input type="datetime-local" id="newReveal"></label>' +
+      '<p class="why">With the board hidden, the game waits in sign-ups until the reveal, even without a start time. With a start time, sign-ups open now and the first roll unlocks then. Leave it empty to start right away. Day 1 lasts until the next ' + esc(cutoffLabel(s)) + ' cutoff, so a ' + esc(cutoffLabel(s)) + ' start gives everyone a full first day. With an end time, the game locks then and the standings freeze; without one it runs until everyone escapes.</p><div class="row">' +
       '<button type="button" class="btn small" data-h="newgame">Start the next game</button>' + (designerBoard() ? '<button type="button" class="btn small ghost" data-h="loadboard">Start it on the designer board</button>' : '') + '</div>' +
       '<h4 class="hsub">Start fresh instead</h4><p>Clears everyone off the board and empties the thread, so the next game opens with nobody signed up. It uses the theme and times above.</p>' +
       '<div class="row"><button type="button" class="btn small danger" data-h="cleargame" data-f="new">Clear the old game</button></div></section>';
@@ -2374,7 +2388,7 @@
   // ---- Your recent changes: an icon for each kind of change, grouped by day ----
   function rcIcon(label) {
     var L = String(label || '');
-    var pairs = [[/^Approved/, '✅'], [/^Rejected/, '❌'], [/^Moved .* to space/, '📍'], [/^Gave/, '🃏'], [/^Reset/, '↩️'], [/^Removed|^Cleared all/, '🗑️'], [/^Opened sign-ups/, '🔓'], [/^Closed sign-ups/, '🔒'],
+    var pairs = [[/^Approved/, '✅'], [/^Rejected/, '❌'], [/^Moved .* to space/, '📍'], [/^Gave/, '🃏'], [/^Reset/, '↩️'], [/^Removed|^Cleared all/, '🗑️'], [/^Opened sign-ups/, '🔓'], [/^Hid the board|reveal/i, '🫣'], [/^Closed sign-ups/, '🔒'],
       [/route/, '🧭'], [/reminders/, '🔔'], [/rules/, '⚙️'], [/theme/, '🎨'], [/board|new game|old game/, '🗺️'], [/start time|countdown/, '⏰'], [/end time|Ended/, '🏁'], [/^Started the game/, '🎲'], [/^Started day/, '🌅']];
     for (var i = 0; i < pairs.length; i++) if (pairs[i][0].test(L)) return pairs[i][1];
     return '✏️';
@@ -2547,7 +2561,7 @@
     }
 
     // ---- Game: the game's own setup. Before it starts: start time and sign-ups; once it's over: the next game. ----
-    if (signup) T.game += startSection(s);
+    if (signup) T.game += hideSection(s) + startSection(s);
     if (over) T.game += newGameSection(s);
     if (!over) T.game += endSection(s);
     T.game += '<section class="hsec"><h3>Rules' + (over ? ' <span class="why">for the next game</span>' : '') + '</h3>' +
@@ -2846,7 +2860,9 @@
         var ns = readStart('newStart'); if (ns === false) break;
         var ne = readStart('newEnd'); if (ne === false) break;
         if (ne && ne < (ns || Date.now()) + 3600000) { toast('The end time needs to be at least an hour after the start.', 'bad'); break; }
-        if (confirm((ns ? 'Start a new game with sign-ups open until ' + startWhen(ns) + '?' : 'Start a new game now?') + (ne ? ' It ends ' + startWhen(ne) + '.' : '') + ' Everyone goes back to the start.')) run('newGame', { theme: ($('newTheme') && $('newTheme').value) || st().themeId, startsAt: ns, endsAt: ne }, ns ? 'Sign-ups are open.' : 'New game started.');
+        var nh = !!($('newHide') && $('newHide').checked), nr = nh ? readStart('newReveal') : null; if (nr === false) break;
+        if (nr && ns && nr >= ns) { toast('The reveal has to come before the start time.', 'bad'); break; }
+        if (confirm((nh ? 'Set up the next game with the board hidden' + (nr ? ' until ' + startWhen(nr) : '') + '?' : ns ? 'Start a new game with sign-ups open until ' + startWhen(ns) + '?' : 'Start a new game now?') + (ne ? ' It ends ' + startWhen(ne) + '.' : '') + ' Everyone goes back to the start.')) run('newGame', { theme: ($('newTheme') && $('newTheme').value) || st().themeId, startsAt: ns, endsAt: ne, hide: nh, revealAt: nr }, nh ? 'The next game is set up and hidden from players.' : ns ? 'Sign-ups are open.' : 'New game started.');
         break;
       }
       case 'cleargame': {
@@ -2855,7 +2871,7 @@
         if (ce && ce < (cs || Date.now()) + 3600000) { toast('The end time needs to be at least an hour after the start.', 'bad'); break; }
         var cur = st(), n = cur.order.length;
         if (confirm('Clear the old game?' + (n ? ' All ' + n + (n === 1 ? ' player comes' : ' players come') + ' off the board,' : '') + ' the thread starts empty and sign-ups open' + (cs ? ' until ' + startWhen(cs) : '') + '.' + (ce ? ' The new game ends ' + startWhen(ce) + '.' : '') + ' You can undo it until someone joins.'))
-          run('clearGame', { theme: ($(f + 'Theme') && $(f + 'Theme').value) || cur.themeId, startsAt: cs, endsAt: ce }, 'The old game is cleared. Sign-ups are open.');
+          run('clearGame', { theme: ($(f + 'Theme') && $(f + 'Theme').value) || cur.themeId, startsAt: cs, endsAt: ce, hide: !!($('newHide') && $('newHide').checked), revealAt: $('newHide') && $('newHide').checked ? readStart('newReveal') || null : null }, 'The old game is cleared.');
         break;
       }
       case 'reschedule': { var rs = readStart('startEdit'); if (!rs) { if (rs === null) toast('Pick a start time first.', 'bad'); break; } run('schedule', { startsAt: rs }, 'Start time saved.'); break; }
@@ -2867,6 +2883,10 @@
       case 'stats-refresh': btn.classList.remove('spin'); void btn.offsetWidth; btn.classList.add('spin'); setTimeout(function () { btn.classList.remove('spin'); }, 700); fillStats(true); break;
       case 'stats-more': statsMore[btn.dataset.k] = true; renderStats(); break;
       case 'clearplayers': if (confirm('Take all ' + st().order.length + ' sign-ups off the board? They can join again whenever sign-ups are open.')) run('clearPlayers', {}, 'Sign-ups cleared.'); break;
+      case 'hideboard': if (confirm('Hide this board from players? They see a "?" board and nobody can join until you reveal it.')) run('hide', { on: true, until: null }, 'The board is hidden from players.'); break;
+      case 'setreveal': { var rv = readStart('revealEdit'); if (!rv) { if (rv === null) toast('Pick a reveal time first.', 'bad'); break; } if (st().startsAt && rv >= st().startsAt) { toast('The reveal has to come before the start time.', 'bad'); break; } run('hide', { on: true, until: rv }, 'Reveal time saved.'); break; }
+      case 'clearreveal': run('hide', { on: true, until: null }, 'Reveal time cleared. Players see Coming soon.'); break;
+      case 'revealnow': if (confirm('Reveal the board now? Sign-ups open and the bot posts the game in Discord.')) run('hide', { on: false }, 'The board is revealed and sign-ups are open.'); break;
       case 'clearstart': if (confirm('Cancel the countdown? Sign-ups stay open and nobody can roll until you set a new start time.')) run('schedule', { startsAt: null }, 'Countdown canceled. Sign-ups are still open.'); break;
       case 'endnow': if (confirm('End the game now? The standings freeze and nobody can roll again.')) run('endNow', {}, 'The game is over.'); break;
       case 'startnow': if (confirm('Start the game now? Everyone can roll right away.')) run('startNow', {}, 'The game has started.'); break;
@@ -2879,12 +2899,13 @@
         if (cur.status === 'signup') {
           // Still in sign-ups: same start and end, new board.
           var keepStart = cur.startsAt && cur.startsAt > Date.now() + 60000 ? cur.startsAt : null;
-          if (confirm('Move this game onto "' + (b.title || 'the designer board') + '"? Sign-ups stay and everyone picks a route again.')) run('newGame', { theme: cur.themeId, board: b, startsAt: keepStart, endsAt: cur.endsAt, signup: true }, 'The game is on the designer board now.');
+          if (confirm('Move this game onto "' + (b.title || 'the designer board') + '"? Sign-ups stay and everyone picks a route again.')) run('newGame', { theme: cur.themeId, board: b, startsAt: keepStart, endsAt: cur.endsAt, signup: true, hide: E.isHidden(cur), revealAt: E.isHidden(cur) ? cur.hidden.until : null }, 'The game is on the designer board now.');
           break;
         }
         var ls = readStart('newStart'); if (ls === false) break;
         var le = readStart('newEnd'); if (le === false) break;
-        if (confirm('Start the next game on "' + (b.title || 'the designer board') + '"' + (ls ? ' with sign-ups open until ' + startWhen(ls) : '') + '?')) run('newGame', { theme: ($('newTheme') && $('newTheme').value) || cur.themeId, board: b, startsAt: ls, endsAt: le && le > (ls || Date.now()) + 3600000 ? le : null });
+        var lh = !!($('newHide') && $('newHide').checked), lr = lh ? readStart('newReveal') : null; if (lr === false) break;
+        if (confirm('Start the next game on "' + (b.title || 'the designer board') + '"' + (lh ? ' with the board hidden' + (lr ? ' until ' + startWhen(lr) : '') : ls ? ' with sign-ups open until ' + startWhen(ls) : '') + '?')) run('newGame', { theme: ($('newTheme') && $('newTheme').value) || cur.themeId, board: b, startsAt: ls, endsAt: le && le > (ls || Date.now()) + 3600000 ? le : null, hide: lh, revealAt: lr });
         break;
       }
       case 'removeplayer': if (confirm('Take ' + st().players[pid].name + ' off the sign-up list? They can join again while sign-ups are open.')) run('removePlayer', { pid: pid }, 'Removed.'); break;
@@ -3114,6 +3135,7 @@
   function theme0(t) { return t.hero === 'taco' ? 'The game starts in' : null; }
   function renderGate(g) {
     if (window.CGSkipOwner && g.user) window.CGSkipOwner(g.user.id);
+    if (g.kind === 'between') return renderBetween(g);
     // The game picker stays neutral; each game's own theme shows once you pick it.
     // Before a game is picked, the page is neutral: a d4, a plain font and no game name.
     var t = g.kind !== 'choose' && g.theme && C.themes[g.theme] || null;
@@ -3146,6 +3168,45 @@
     var r = $('gateRetry'); if (r) r.onclick = function () { location.reload(); };
     var o = $('gateOut'); if (o) o.onclick = function () { g.logout(); };
     if (g.startsAt) setInterval(tickCountdowns, 1000);
+  }
+
+  // ---- between games: the next board is a secret ---------------------------------------------
+  // While the host keeps the next game hidden, players get a Beat Saber Games page: a board of "?"
+  // note blocks, a countdown to the reveal and how the game works. The server sends nothing about the game.
+  var BSG_LOGO = '<defs><radialGradient id="bsgTile" cx=".3" cy=".25" r=".9"><stop offset="0" stop-color="#12151d"/><stop offset="1" stop-color="#000"/></radialGradient></defs><rect width="64" height="64" rx="12" fill="url(#bsgTile)"/><g transform="rotate(-9 22 34)"><rect x="8" y="20" width="27" height="27" rx="6" fill="#ff2740"/><path d="M13.5 26.5 L30.5 26.5 L22 34.5 Z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></g><g transform="rotate(11 42 31)"><rect x="29" y="17" width="27" height="27" rx="6" fill="#2f7bff" stroke="#08090c" stroke-width="2.6"/><circle cx="36.5" cy="24.5" r="2.4" fill="#fff"/><circle cx="48.5" cy="24.5" r="2.4" fill="#fff"/><circle cx="36.5" cy="36.5" r="2.4" fill="#fff"/><circle cx="48.5" cy="36.5" r="2.4" fill="#fff"/></g>';
+  var BSG_WORDMARK = '<span class="bsg-b">Beat</span> <span class="bsg-s">Saber</span> <span class="bsg-g">Games</span>';
+  var BT_FLAG = '<svg viewBox="0 0 40 40"><rect x="8" y="5" width="3" height="31" rx="1.5" fill="#cfd6e4"/><path d="M11 7h22v16H11z" fill="#f4f6fb"/><path d="M11 7h5.5v4H11zM22 7h5.5v4H22zM16.5 11H22v4h-5.5zM27.5 11H33v4h-5.5zM11 15h5.5v4H11zM22 15h5.5v4H22zM16.5 19H22v4h-5.5zM27.5 19H33v4h-5.5z" fill="#1b2030"/></svg>';
+  function renderBetween(g) {
+    var h = g.hidden || {}, until = h.until && h.until > Date.now() ? h.until : null;
+    track('gate-between');
+    document.body.classList.add('between');
+    document.body.removeAttribute('data-theme');
+    $('brandCrow').setAttribute('viewBox', '0 0 64 64'); $('brandCrow').innerHTML = BSG_LOGO;
+    $('gameTitle').innerHTML = BSG_WORDMARK; document.title = 'Beat Saber Games';
+    R.setFavicon(null);
+    ['howBtn', 'playlistBtn', 'accBtn', 'chatBtn', 'remBtn', 'hostBtn'].forEach(function (id) { var b = $(id); if (b) b.hidden = true; });
+    $('dayNum').textContent = 'Between games';
+    $('dayClock').textContent = until ? 'Next game ' + new Date(until).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : 'Coming soon';
+    renderClanSwitch(g);
+    // The secret board: a grid of red and blue note blocks, each a question mark.
+    var blocks = '';
+    for (var i = 0; i < 24; i++) blocks += '<span class="bt-note ' + ((i + Math.floor(i / 6)) % 2 ? 'b' : 'r') + '" style="--tilt:' + ((i * 37) % 11 - 5) + 'deg">?</span>';
+    var steps = h.acc ? [[HOW_CHECK, 'Do a daily mission', 'One AccSaber daily mission unlocks your roll.'], [R.dieIcon(), 'Roll the d4', 'Move that many spaces.'], ['<svg viewBox="0 0 40 40"><path d="M20 5l4.6 9.4 10.4 1.5-7.5 7.3 1.8 10.3L20 28.6l-9.3 4.9 1.8-10.3L5 15.9l10.4-1.5z" fill="#ffd34d"/></svg>', 'Weekly bonus', 'A weekly mission adds a bonus roll.'], [BT_FLAG, 'Race to the finish', 'Cards and shortcuts along the way. First three take the podium.']]
+      : [[R.dieIcon(), 'Roll the d4', 'Once a day. Move that many spaces.'], [HOW_MAP, 'Play the map', 'Any difficulty, any modifiers.'], [HOW_CHECK, 'Get cleared', 'BeatLeader is checked for you.'], [BT_FLAG, 'Race to the finish', 'Cards and shortcuts along the way. First three take the podium.']];
+    var when = until ? new Date(until).toLocaleString([], { weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+    var html = '<section class="bt-board panel"><div class="bt-grid" aria-hidden="true">' + blocks + '</div>' +
+      '<div class="bt-cap"><h2>The next board is a secret</h2><p>' + (until ? 'Revealed ' + esc(when) + '. Sign-ups open then.' : 'Watch your clan Discord for the reveal.') + '</p></div></section>' +
+      '<aside class="bt-side"><section class="panel"><h2>Next game</h2>' +
+      (until ? countdownHtml(until, 'Sign-ups open in') : '<p class="bt-soon">Coming soon. The host will set the date.</p>') + '</section>' +
+      '<section class="panel"><h2>How it works</h2><ol class="bt-steps">' + steps.map(function (st0) { return '<li><span class="bt-ic" aria-hidden="true">' + st0[0] + '</span><span><b>' + st0[1] + '</b><span>' + st0[2] + '</span></span></li>'; }).join('') + '</ol></section>' +
+      ((g.hall || []).length ? '<button type="button" class="btn ghost bt-hall" data-hall>🏆 Hall of fame</button>' : '') + '</aside>';
+    document.querySelector('main.layout').outerHTML = '<main class="between-main">' + html + '</main>';
+    document.addEventListener('click', function (e) { if (e.target.closest('[data-hall]')) openHall(); });
+    $('modalX').onclick = closeModal;
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('modal').hidden) closeModal(); });
+    if (until) setInterval(function () { tickCountdowns(); if (Date.now() > until + 3000) location.reload(); }, 1000);
+    // The host may reveal it early: check every two minutes.
+    setInterval(function () { g.stillHidden().then(function (yes) { if (!yes) location.reload(); }); }, 120000);
   }
 
   // Footer links to the other tools say which game the click came from (GoatCounter reads utm_campaign).

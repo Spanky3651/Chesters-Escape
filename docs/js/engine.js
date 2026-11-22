@@ -183,7 +183,23 @@
     s.order.slice().forEach(function (pid) { removePlayer(s, pid); });
     return true;
   }
-  function signupsOpen(s) { return !(s.status === 'signup' && s.signupsClosed); }
+  function signupsOpen(s) { return !(s.status === 'signup' && (s.signupsClosed || s.hidden)); }
+  // Hidden board between games: until the reveal, players see a "next board is a secret" page instead of
+  // this game, and nobody can join. s.hidden.until is when it reveals itself (null: when the host does).
+  function isHidden(s) { return !!(s && s.status === 'signup' && s.hidden); }
+  function hide(s, on, until) {
+    if (s.status !== 'signup') return false;
+    if (on) s.hidden = { until: until || null }; else delete s.hidden;
+    s.seq++;
+    return true;
+  }
+  // The reveal: the board shows and sign-ups open.
+  function reveal(s) {
+    if (!isHidden(s)) return false;
+    delete s.hidden; delete s.signupsClosed;
+    s.seq++;
+    return true;
+  }
 
   function chooseRoute(s, pid, route) {
     var p = need(s, pid);
@@ -601,7 +617,7 @@
   function startGame(s, at) {
     if (s.status !== 'signup') return false;
     s.status = 'running'; s.day = 1; s.startedAt = at || now();
-    delete s.signupsClosed;   // joining always reopens once the game is running
+    delete s.signupsClosed; delete s.hidden;   // joining always reopens once the game is running
     emit(s, null, { t: 'begin' });
     return true;
   }
@@ -875,7 +891,7 @@
 
   // ---- host undo -------------------------------------------------------------------
   // Host changes that can be taken back, and how each reads in the undo list.
-  var UNDOABLE = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'clearGame'];
+  var UNDOABLE = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'clearGame', 'hide'];
   function hostLabel(s, action, a) {
     a = a || {};
     var nm = (s.players[a.pid] || {}).name || 'a player', card = a.card ? (s.cards || []).filter(function (c) { return c.id === a.card; })[0] : null;
@@ -889,6 +905,7 @@
       case 'removePlayer': return 'Removed ' + nm;
       case 'clearPlayers': return 'Cleared all sign-ups';
       case 'signups': return a.closed ? 'Closed sign-ups' : 'Opened sign-ups';
+      case 'hide': return a.on ? (a.until ? 'Set the reveal time' : 'Hid the board') : 'Revealed the board';
       case 'clearRoute': return 'Cleared ' + nm + '’s route';
       case 'settings': return a.patch && 'remindHour' in a.patch ? 'Changed roll reminders' : 'Changed the rules';
       case 'theme': return 'Changed the theme';
@@ -959,7 +976,7 @@
 
   var E = {
     VERSION: VERSION, makeUpShortDay: makeUpShortDay, swapMaps: swapMaps, DEFAULTS: DEFAULTS,
-    createGame: createGame, swapCards: swapCards, sameCards: sameCards, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, react: react, reactor: reactor, REACTIONS: REACTIONS, LEGACY_REACTIONS: LEGACY_REACTIONS, signupsOpen: signupsOpen, chooseRoute: chooseRoute,
+    createGame: createGame, swapCards: swapCards, sameCards: sameCards, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, react: react, reactor: reactor, REACTIONS: REACTIONS, LEGACY_REACTIONS: LEGACY_REACTIONS, signupsOpen: signupsOpen, isHidden: isHidden, hide: hide, reveal: reveal, chooseRoute: chooseRoute,
     canRoll: canRoll, canLifeline: canLifeline, lifeLeft: lifeLeft, LIFELINES: LIFELINES, roll: roll, advanceDay: advanceDay, isAcc: isAcc, accWeek: accWeek, accDaily: accDaily, accUpdate: accUpdate,
     completeTask: completeTask, claimTask: claimTask, rejectClaim: rejectClaim, matchScores: matchScores, improveClears: improveClears,
     setPosition: setPosition, hostCard: hostCard, resetPlayer: resetPlayer,

@@ -195,7 +195,7 @@ export default {
         if (!user) return json(env, req, { live: true, access: 'signin', clans: [] });
         const r = await gameStub(env, user.clan).whoAmI(user);
         const vapidKey = env.VAPID_PUBLIC_KEY ? String(env.VAPID_PUBLIC_KEY).trim() : undefined;
-        return json(env, req, { live: true, access: r.access, startsAt: r.startsAt, vapidKey, user: { id: user.id, name: user.name, avatar: user.avatar }, isHost: user.isHost, pid: r.pid, clan: user.clan.id, clans: user.clans, theme: r.theme });
+        return json(env, req, { live: true, access: r.access, startsAt: r.startsAt, vapidKey, user: { id: user.id, name: user.name, avatar: user.avatar }, isHost: user.isHost, pid: r.pid, clan: user.clan.id, clans: user.clans, theme: r.theme, hidden: r.hidden, hall: r.hall });
       }
       if (url.pathname === '/api/state' && req.method === 'GET') {
         if (!user) return json(env, req, { error: 'Sign in with Discord to see the game.', code: 'no-access', access: 'signin' }, 403);
@@ -620,12 +620,12 @@ export class Game extends DurableObject {
     const open = s.status === 'signup' && E.signupsOpen(s);
     if (open && !f.open && this.announcing('signups')) { const p = this.signupsPost(); if (later(await this.discordPost(p.text, true, p.card, 'signups'))) return; }
     f.open = open;
-    if (s.status === 'signup' && s.startsAt && !f.day && now >= s.startsAt - DAY && now < s.startsAt - HOUR) {
+    if (s.status === 'signup' && s.startsAt && !f.day && !E.isHidden(s) && now >= s.startsAt - DAY && now < s.startsAt - HOUR) {
       const d = this.dayPost();
       if (this.announcing('day') && later(await this.discordPost(d.text, true, d.card, 'day'))) return;
       f.day = true;
     }
-    if (s.status === 'signup' && s.startsAt && !f.hour && now >= s.startsAt - HOUR && now < s.startsAt) {
+    if (s.status === 'signup' && s.startsAt && !f.hour && !E.isHidden(s) && now >= s.startsAt - HOUR && now < s.startsAt) {
       if (this.announcing('hour')) { const p = this.hourPost(); if (later(await this.discordPost(p.text, true, p.card, 'hour'))) return; }
       f.hour = true;
     }
@@ -897,7 +897,7 @@ export class Game extends DurableObject {
     await this.ctx.storage.put('state', this.state);
     await this.ctx.storage.put('meta', this.meta);
     const s = this.state;
-    let next = !s ? null : s.status === 'signup' ? s.startsAt : s.status === 'running' ? Math.min(this.meta.nextCutoff || Infinity, s.endsAt || Infinity) : null;
+    let next = !s ? null : s.status === 'signup' ? Math.min(s.startsAt || Infinity, (s.hidden && s.hidden.until) || Infinity) : s.status === 'running' ? Math.min(this.meta.nextCutoff || Infinity, s.endsAt || Infinity) : null;
     // wake up for the day-before, one-hour and last-day posts too
     const f = this.meta.feed || {}, soon = [s && s.status === 'signup' && s.startsAt && !f.day ? s.startsAt - DAY : 0, s && s.status === 'signup' && s.startsAt && !f.hour ? s.startsAt - HOUR : 0, s && s.status === 'running' && s.endsAt && !f.lastcall ? s.endsAt - DAY : 0].filter((x) => x > Date.now());
     if (soon.length) next = Math.min(next || Infinity, ...soon);
@@ -925,7 +925,13 @@ export class Game extends DurableObject {
     }
     await this.visit(user);
     if (this.dirty) { this.dirty = false; await this.save(); }
+    if (E.isHidden(s) && !user.isHost) return { pid: null, access: status, startsAt: null, theme: null, hidden: this.hiddenInfo(), hall: this.meta.hall || [] };
     return { pid: status === 'ok' && pid && s.players[pid] ? pid : null, access: status, startsAt: s.status === 'signup' ? s.startsAt || null : null, theme: s.themeId };
+  }
+  // What a player may know about a hidden game: when it reveals, and whether it's an AccSaber game (for How it works).
+  hiddenInfo() {
+    const s = this.state;
+    return { until: (s.hidden && s.hidden.until) || null, acc: E.isAcc(s) };
   }
 
   async getState(user, since) {
@@ -934,6 +940,8 @@ export class Game extends DurableObject {
     // Anyone signed in can watch. Only approved players can join and play (checked in act()).
     if (!user) return { error: 'Sign in with Discord to see the game.', code: 'no-access', access: 'signin' };
     const canPlay = this.canUse(user);
+    // The next board is a secret until the reveal: an open page reloads into the between-games page.
+    if (E.isHidden(s) && !user.isHost) return { hidden: this.hiddenInfo(), hall: this.meta.hall || [] };
     const me = canPlay && pid && s.players[pid] ? pid : null;
     if (me) this.seen(me);
     await this.visit(user);
@@ -951,8 +959,9 @@ export class Game extends DurableObject {
     this.useClan(user);
     const s = this.game(); const pid = this.pidFor(user);
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
-    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove', 'hostPlays'];
+    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove', 'hostPlays', 'hide'];
     if (hostOnly.includes(action) && !user.isHost) return { error: 'Only the host can do that.', status: 403 };
+    if (E.isHidden(s) && !user.isHost) return { error: 'The next game is still a secret. Watch your clan Discord for the reveal.', code: 'hidden' };
     if (s.status === 'finished' && ['join', 'route', 'roll', 'verify', 'claim'].includes(action)) return { error: 'The game is over.' };
     const wasRunning = s.status === 'running';
     // Host changes keep a snapshot so the host can take the last few back.
@@ -1013,6 +1022,16 @@ export class Game extends DurableObject {
         case 'resetPlayer': E.resetPlayer(s, a.pid); break;
         case 'removePlayer': E.removePlayer(s, a.pid); break;
         case 'clearPlayers': if (!E.clearPlayers(s)) return { error: 'You can only clear sign-ups before the game starts.' }; break;
+        case 'hide': {
+          if (s.status !== 'signup') return { error: 'Only a game that has not started can be hidden.' };
+          const until = a.until == null ? null : Number(a.until);
+          if (a.on && until != null) {
+            if (!(until > Date.now() + 60000)) return { error: 'Pick a reveal time in the future.' };
+            if (s.startsAt && until >= s.startsAt) return { error: 'The reveal has to come before the start time.' };
+          }
+          if (a.on) E.hide(s, true, until); else E.reveal(s);
+          break;
+        }
         case 'signups': if (s.status !== 'signup') return { error: 'The game has already started.' }; if (a.closed) s.signupsClosed = true; else delete s.signupsClosed; s.seq++; break;
         case 'clearRoute': { const p = s.players[a.pid]; p.route = null; p.pos = -1; p.tasks = []; break; }
         case 'settings': {
@@ -1047,9 +1066,12 @@ export class Game extends DurableObject {
           const keep = s.order.map((id) => s.players[id]);
           const startsAt = Number(a.startsAt) > Date.now() + 60000 ? Number(a.startsAt) : null;
           const endsAt = Number(a.endsAt) > (startsAt || Date.now()) + 3600000 ? Number(a.endsAt) : null;
-          this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.gameTitle(themeId, board), settings: s.settings, rng, status: startsAt || a.signup ? 'signup' : 'running', startsAt, endsAt });
+          const revealAt = a.hide && Number(a.revealAt) > Date.now() + 60000 ? Number(a.revealAt) : null;
+          if (revealAt && startsAt && revealAt >= startsAt) return { error: 'The reveal has to come before the start time.' };
+          this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.gameTitle(themeId, board), settings: s.settings, rng, status: startsAt || a.signup || a.hide ? 'signup' : 'running', startsAt, endsAt });
+          if (a.hide) E.hide(this.state, true, revealAt);
           keep.forEach((p) => E.addPlayer(this.state, { id: p.id, discordId: p.discordId, name: p.name, avatar: p.avatar, blId: p.blId }));
-          this.meta.nextCutoff = startsAt || a.signup ? null : E.nextCutoff(this.state.settings);
+          this.meta.nextCutoff = startsAt || a.signup || a.hide ? null : E.nextCutoff(this.state.settings);
           if (this.meta.feed) this.meta.feed.game = null;   // a new game: its sign-up post can go out
           break;
         }
@@ -1062,6 +1084,7 @@ export class Game extends DurableObject {
           const startsAt = Number(a.startsAt) > Date.now() + 60000 ? Number(a.startsAt) : null;
           const endsAt = Number(a.endsAt) > (startsAt || Date.now()) + 3600000 ? Number(a.endsAt) : null;
           this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.gameTitle(themeId, board), settings: s.settings, rng, status: 'signup', startsAt, endsAt });
+          if (a.hide) E.hide(this.state, true, a.hide && Number(a.revealAt) > Date.now() + 60000 && (!startsAt || Number(a.revealAt) < startsAt) ? Number(a.revealAt) : null);
           this.state.seq = (s.seq || 0) + 1;   // keep counting up so open pages pick up the change
           this.meta.nextCutoff = null;
           if (this.meta.feed) this.meta.feed.game = null;   // a new game: its sign-up post can go out
@@ -1523,6 +1546,8 @@ export class Game extends DurableObject {
     const now = Date.now();
     await this.sweepVisits(now);
     if (s.status === 'running' && s.endsAt && now >= s.endsAt - 1000) { E.endGame(s, now); this.recordHall(); await this.announceEnd(); }
+    // Reveal time: the board shows and sign-ups open (the sign-up post goes out from discordFeed below).
+    if (E.isHidden(s) && s.hidden.until && now >= s.hidden.until - 1000) E.reveal(s);
     if (s.status === 'signup' && s.startsAt && now >= s.startsAt - 1000) {
       E.startGame(s, now);
       this.meta.nextCutoff = E.nextCutoff(s.settings, now + 1000);

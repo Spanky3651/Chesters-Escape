@@ -414,5 +414,23 @@ assert.strictEqual(cardsSeen.size, 20);
   assert.deepStrictEqual(E.hallTotals(hall).map((t) => t.name), ['Zed', 'Yan', 'Mo', 'Abe']);
   console.log('hall of fame order ok');
 }
+// Hidden board between games: sign-ups stay shut until the reveal
+{
+  const s = E.createGame({ board: C.boardFor(), cards: C.cardsFor('cemetery'), themeId: 'cemetery', rng: seeded(60) });
+  s.status = 'signup';
+  assert.strictEqual(E.isHidden(s), false);
+  assert(E.hide(s, true, 12345));
+  assert(E.isHidden(s) && s.hidden.until === 12345);
+  assert.strictEqual(E.signupsOpen(s), false, 'no joining while hidden');
+  assert(E.reveal(s));
+  assert.strictEqual(E.isHidden(s), false);
+  assert.strictEqual(E.signupsOpen(s), true, 'the reveal opens sign-ups');
+  assert.strictEqual(E.reveal(s), false, 'nothing to reveal twice');
+  E.hide(s, true);
+  E.startGame(s, Date.now());
+  assert.strictEqual(E.isHidden(s), false, 'starting the game drops the hidden flag');
+  assert.strictEqual(E.hide(s, true), false, 'a running game cannot be hidden');
+  console.log('hidden board ok');
+}
 console.log('all engine tests passed');
 require('./themes.test.js');
