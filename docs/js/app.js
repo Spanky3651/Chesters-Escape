@@ -465,6 +465,8 @@
         (wkRolled ? 'You rolled today. Your weekly bonus roll is saved until you use it, so roll it now or keep it for another day.' : wkRoll ? 'No daily mission yet today. Roll your saved weekly bonus now, or finish a daily mission and keep it.' : 'Roll the d4 and move that many spaces.') +
         (E.isAcc(s) && p.accBonus > (wkRoll ? 1 : 0) ? ' You also have ' + (p.accBonus - (wkRoll ? 1 : 0) > 1 ? (p.accBonus - (wkRoll ? 1 : 0)) + ' weekly bonus rolls' : 'a weekly bonus roll') + ' saved.' : '') + '</p><button type="button" class="btn" id="rollBtn">' + (wkRoll ? 'Roll the weekly bonus' : 'Roll the d4') + '</button>' +
         (wkRoll && !wkRolled ? '<div class="acc-row"><button type="button" class="btn ghost" id="accCheck">Check my missions</button><a class="btn ghost acc-open" href="https://accsaber.com/" target="_blank" rel="noopener">' + ACC_MARK + 'Open AccSaber</a></div>' + lifelineHtml(s, p, true) : '');
+      else if (can.code === 'paused' && p.paused === 'bl') html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><div class="acc-row"><button type="button" class="btn" id="blCheck">Check again</button>' +
+        '<a class="btn ghost" href="https://beatleader.com/u/' + encodeURIComponent(p.blId || '') + '" target="_blank" rel="noopener">Open BeatLeader</a></div>';
       else if (can.code === 'mission' || can.code === 'paused') html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><div class="acc-row"><button type="button" class="btn" id="accCheck">' + (can.code === 'paused' ? 'Check again' : 'Check my missions') + '</button>' +
         '<a class="btn ghost acc-open" href="https://accsaber.com/" target="_blank" rel="noopener">' + ACC_MARK + 'Open AccSaber</a></div>' +
         (can.code === 'mission' ? lifelineHtml(s, p, false) : '');
@@ -619,8 +621,8 @@
       case 'roll': return { html: (e.lifeline ? 'Used a lifeline and rolled a ' : e.weekly ? 'Weekly bonus roll: ' : e.bonus ? 'Bonus roll: ' : 'Rolled a ') + '<b>' + e.n + '</b>' };
       case 'lifeline-back': return { html: 'Finished both AccSaber dailies today. <b>Lifeline</b> earned back', cls: 'good' };
       case 'mission': return { html: 'Finished an AccSaber daily mission. Today\'s roll is unlocked', cls: 'good' };
-      case 'paused': return { html: 'Left the clan on AccSaber. Rolls are paused until they rejoin', cls: 'bad' };
-      case 'unpaused': return { html: 'Back in the clan on AccSaber. Rolls are on again', cls: 'good' };
+      case 'paused': return { html: 'Left the clan on ' + (e.on === 'bl' ? 'BeatLeader' : 'AccSaber') + '. Rolls are paused until they rejoin', cls: 'bad' };
+      case 'unpaused': return { html: 'Back in the clan on ' + (e.on === 'bl' ? 'BeatLeader' : 'AccSaber') + '. Rolls are on again', cls: 'good' };
       case 'weekly': return { html: 'Finished an AccSaber weekly mission. <b>Bonus roll</b> earned', cls: 'good' };
       case 'land': {
         // Only Safe gets a line: every other space logs what it does, and Safe does nothing, so without this the roll looks like it went nowhere.
@@ -876,7 +878,7 @@
     if (c.ok) return 'Ready to roll' + togo;
     if (c.code === 'rolled') return 'Rolled today, ' + E.remaining(s, p) + ' to go';
     if (c.code === 'mission') return 'Waiting on a daily mission' + togo;
-    if (c.code === 'paused') return 'Paused, not in the clan on AccSaber';
+    if (c.code === 'paused') return 'Paused, not in the clan on ' + (p.paused === 'bl' ? 'BeatLeader' : 'AccSaber');
     return c.reason;
   }
 
@@ -900,6 +902,7 @@
         : ava + '<span class="mb-txt"><b>Do a daily mission</b><span>Or use your weekly bonus</span></span><button type="button" class="btn small" id="mAcc">Check missions</button>';
       else if (c.ok) html = ava + '<span class="mb-txt"><b>Ready to roll</b><span>' + E.remaining(s, p) + ' spaces to go</span></span><button type="button" class="btn small" id="mRoll">Roll the d4</button>';
       else if (c.code === 'mission') html = ava + '<span class="mb-txt"><b>Do a daily mission</b><span>Then check here</span></span><button type="button" class="btn small" id="mAcc">Check missions</button>';
+      else if (c.code === 'paused' && p.paused === 'bl') html = ava + '<span class="mb-txt"><b>Paused</b><span>Add the clan back on BeatLeader</span></span><button type="button" class="btn small" id="mBl">Check again</button>';
       else if (c.code === 'paused') html = ava + '<span class="mb-txt"><b>Paused</b><span>Rejoin the clan on AccSaber</span></span><button type="button" class="btn small" id="mAcc">Check again</button>';
       else html = ava + '<span class="mb-txt"><b>' + esc(rollTitle(c)) + '</b><span>' + esc(c.code === 'rolled' ? (p.skip ? 'Next turn lost. Roll again on day ' + nextRollDay(s, p) : store.mode === 'demo' ? 'Next roll tomorrow' : 'Next roll after the cutoff') : c.reason) + '</span></span><button type="button" class="btn small ghost" id="mGo">Details</button>';
     }
@@ -1181,18 +1184,29 @@
   function accOnReturn() {
     if (typeof store === 'undefined' || !store) return;
     var s = st(), p = me();
-    if (store.mode !== 'live' || !s || !p || !E.isAcc(s) || animating || Date.now() - accBackAt < 60000) return;
+    if (store.mode !== 'live' || !s || !p || !(E.isAcc(s) || p.paused === 'bl') || animating || Date.now() - accBackAt < 60000) return;
     var cr = E.canRoll(s, p.id), code = cr.bonus && p.rolledDay !== s.day ? 'mission' : cr.code;
     if (code !== 'mission' && code !== 'paused') return;
     accBackAt = Date.now();
     store.act('verify').then(function (r) {
       var a = r && r.acc; renderAll();
+      if (r && !a && code === 'paused' && !r.paused) { sfx.good(); toast('You\'re back in the clan. Roll the d4!', 'good'); return; }
       if (a && a.daily && p.rolledDay !== s.day) { sfx.good(); toast('Daily mission found. Roll the d4!', 'good'); }
       else if (a && a.canRoll && code === 'paused') { sfx.good(); toast('You\'re back in the clan. Roll the d4!', 'good'); }
     }).catch(function () {});
   }
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') accOnReturn(); });
   window.addEventListener('focus', accOnReturn);
+  // Map game: paused for leaving the BeatLeader clan, check whether it's back.
+  function doBlCheck(btn) {
+    btn.disabled = true; btn.textContent = 'Checking BeatLeader';
+    track('check-blclan');
+    store.act('verify').then(function (r) {
+      renderAll();
+      if (r && r.paused) toast('BeatLeader still doesn\'t show you in the clan. Add it back on beatleader.com, then check again.', '');
+      else { sfx.good(); toast('You\'re back in the clan. Roll the d4!', 'good'); }
+    }).catch(function (e) { renderAll(); fail(e); });
+  }
   // AccSaber mode: look for a newly finished mission (the server reads AccSaber's leaderboard).
   function doAccCheck(btn) {
     btn.disabled = true; btn.textContent = 'Checking AccSaber';
@@ -2744,7 +2758,7 @@
     if (!p.finished) html += '<div class="hp-act"><h5>Give a card</h5><div class="hp-give"><select data-cardpick="' + esc(pid) + '" aria-label="Card for ' + esc(p.name) + '"><option value="">Pick a card…</option>' +
       s.cards.map(function (c) { return '<option value="' + c.id + '">' + esc((c.art ? c.art + ' ' : '') + c.title) + '</option>'; }).join('') + '</select>' +
       '<button type="button" class="btn small ghost" data-h="givecard" data-pid="' + esc(pid) + '">Give</button></div></div>';
-    if (p.paused && !p.finished) html += '<div class="hp-act"><h5>Paused</h5><div class="hp-danger"><p>AccSaber doesn\'t show them in the clan, so their rolls are paused. Let them play anyway if that\'s wrong. The clan check leaves them alone after that.</p><button type="button" class="btn small" data-h="unpause" data-pid="' + esc(pid) + '">Let them play</button></div></div>';
+    if (p.paused && !p.finished) html += '<div class="hp-act"><h5>Paused</h5><div class="hp-danger"><p>' + (p.paused === 'bl' ? 'BeatLeader' : 'AccSaber') + ' doesn\'t show them in the clan, so their rolls are paused. Let them play anyway if that\'s wrong. The clan check leaves them alone after that.</p><button type="button" class="btn small" data-h="unpause" data-pid="' + esc(pid) + '">Let them play</button></div></div>';
     html += '<div class="hp-act"><h5>Start over</h5><div class="hp-danger"><p>Back to the start with no open maps. Their clears stay.</p><button type="button" class="btn small danger" data-h="reset" data-pid="' + esc(pid) + '">Reset</button></div></div>';
     return html + '</div>';
   }
@@ -3039,6 +3053,7 @@
       var pb = e.target.closest('[data-push]'); if (pb) { ({ on: pushOn, off: pushOff, test: pushTest })[pb.dataset.push](); return; }
       var mv = e.target.closest('#mVerify'); if (mv) { doVerify(mv); return; }
       var ma = e.target.closest('#accCheck') || e.target.closest('#mAcc'); if (ma) { doAccCheck(ma); return; }
+      var mb = e.target.closest('#blCheck') || e.target.closest('#mBl'); if (mb) { doBlCheck(mb); return; }
       if (e.target.closest('#mGo')) { $('turnPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('turnPanel').focus({ preventScroll: true }); return; }
       var rc = e.target.closest('.route-card'); if (rc) {
         var info = st().board.routeInfo[rc.dataset.route];

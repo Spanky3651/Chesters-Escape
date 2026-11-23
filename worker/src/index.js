@@ -1066,12 +1066,15 @@ export class Game extends DurableObject {
           this.mine(s, pid);
           // AccSaber mode: a roll still locked looks for a newly finished mission first.
           if (E.isAcc(s) && (a.lifeline || ['mission', 'paused'].includes(E.canRoll(s, pid).code))) await this.accRefresh();
+          // Map game: a player paused for leaving the BeatLeader clan may have added it back.
+          if (s.players[pid] && s.players[pid].paused === 'bl') await this.blClanCheck([pid]);
           result = E.roll(s, pid, { rng, lifeline: !!a.lifeline }); delete result.player; break;
         }
         case 'verify':
           this.mine(s, pid);
           if (E.isAcc(s)) { await this.accRefresh(); const p = s.players[pid]; result = { acc: { daily: E.accDaily(s, p), bonus: p.accBonus || 0, lifelines: E.lifeLeft(p), canRoll: E.canRoll(s, pid).ok, paused: !!p.paused } }; break; }
-          result = { cleared: await this.check(pid) }; break;
+          if (s.players[pid] && s.players[pid].paused === 'bl') await this.blClanCheck([pid]);
+          result = { cleared: await this.check(pid), paused: !!(s.players[pid] && s.players[pid].paused) }; break;
         case 'claim': {
           this.mine(s, pid); result = E.claimTask(s, pid, a.task, { url: String(a.url || '').slice(0, 300) });
           const p = s.players[pid], t = p.tasks.find((x) => x.id === a.task);
@@ -1488,6 +1491,29 @@ export class Game extends DurableObject {
   accClanWant() { const c = this.clan(); return E.isAcc(this.state) && c.accClan ? c.accClan : ''; }
   // A map game with a BeatLeader clan set for this server (wrangler.toml blClan): players must be in it.
   blClanWant() { const c = this.clan(); return !E.isAcc(this.state) && c.blClan ? c.blClan : ''; }
+  // Map game with a BeatLeader clan: look at these players' BeatLeader clans and pause anyone who left it.
+  // A player BeatLeader doesn't answer for is left alone (never paused on a failed lookup).
+  async blClanCheck(pids) {
+    const s = this.state, want = this.blClanWant();
+    if (!want || s.status !== 'running') return;
+    for (const pid of pids) {
+      const p = s.players[pid];
+      if (!p || !p.blId || p.finished || p.clanOk) continue;
+      if (!this.take(1)) break;
+      let bl; try { bl = await this.blPlayer(p.blId); } catch { continue; }
+      if (E.blClanSeen(s, pid, bl.clans.includes(want))) this.dirty = true;
+    }
+  }
+  // A few players each alarm, taking turns, so everyone is looked at about every hour or two.
+  async blClanSweep() {
+    const s = this.state;
+    if (!this.blClanWant() || s.status !== 'running') return;
+    const ids = s.order.filter((id) => s.players[id].blId && !s.players[id].finished && !s.players[id].clanOk);
+    if (!ids.length) return;
+    const off = (this.meta.blClanOff || 0) % ids.length, batch = ids.slice(off).concat(ids.slice(0, off)).slice(0, 5);
+    this.meta.blClanOff = off + batch.length;
+    await this.blClanCheck(batch);
+  }
   // Which join checks this game has: 'acc' (AccSaber clan), 'bl' (BeatLeader clan) or '' (none).
   joinRule() { return this.accClanWant() ? 'acc' : this.blClanWant() ? 'bl' : ''; }
   // One player's AccSaber profile: { clan: slug or null }, null with no profile, undefined if AccSaber didn't answer.
@@ -1731,6 +1757,7 @@ export class Game extends DurableObject {
     // reminders, the thread and the day's last read work from current counts.
     if (E.isAcc(s) && (s.status === 'running' || s.status === 'signup') && (this.budget == null || this.budget >= 20)) await this.accRefresh().catch(() => false);
     if (s.status === 'signup' && (this.budget == null || this.budget >= 20)) await this.accVet().catch(() => {});
+    if (s.status === 'running' && (this.budget == null || this.budget >= 20)) await this.blClanSweep().catch(() => {});
     // A day cut short (the November 2026 clock change): bonus rolls for whoever missed it, once.
     if (s.status === 'running' && E.makeUpShortDay(s, 1) != null) this.dirty = true;
     // A new map list for a running game: swap it in even if nobody has opened the page yet.

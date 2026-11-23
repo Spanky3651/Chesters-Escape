@@ -103,6 +103,15 @@
     if (changed) s.seq++;
     return changed;
   }
+  // Map game with a BeatLeader clan: a player seen outside it is paused ('bl') until they're back in it.
+  // Only while the game runs; the host's "let them play" (clanOk) wins.
+  function blClanSeen(s, pid, inClan) {
+    var p = s.players[pid];
+    if (!p || p.finished || p.clanOk || s.status !== 'running') return false;
+    if (!inClan && !p.paused) { p.paused = 'bl'; emit(s, p, { t: 'paused', on: 'bl' }); s.seq++; return true; }
+    if (inClan && p.paused === 'bl') { delete p.paused; emit(s, p, { t: 'unpaused', on: 'bl' }); s.seq++; return true; }
+    return false;
+  }
   // The host lets a paused player play again, and the clan check leaves them alone from then on.
   function unpause(s, pid) {
     var p = s.players[pid]; if (!p) return false;
@@ -313,7 +322,7 @@
     if (!p.route) return { ok: false, code: 'no-route', reason: 'Pick your route first.' };
     if (p.tasks.length) return { ok: false, code: 'task', reason: p.tasks.length > 1 ? 'Play your ' + p.tasks.length + ' maps first.' : 'Play your map first.' };
     if (p.skippedDay === s.day) return { ok: false, code: 'skip', reason: 'You lose this turn.' };
-    if (p.paused) return { ok: false, code: 'paused', reason: 'You left the clan on AccSaber, so your rolls are paused. Rejoin it, then check again.' };
+    if (p.paused) return { ok: false, code: 'paused', reason: p.paused === 'bl' ? 'You left the clan on BeatLeader, so your rolls are paused. Add it back on beatleader.com, then check again.' : 'You left the clan on AccSaber, so your rolls are paused. Rejoin it, then check again.' };
     if (isAcc(s)) {
       if ((p.rolledDay === s.day && p.extraRoll) || (p.rolledDay !== s.day && accDaily(s, p))) return { ok: true };
       // Only the saved weekly bonus allows a roll right now: ok, but marked, so reminders and the
@@ -1006,7 +1015,7 @@
   var E = {
     VERSION: VERSION, makeUpShortDay: makeUpShortDay, swapMaps: swapMaps, DEFAULTS: DEFAULTS,
     createGame: createGame, swapCards: swapCards, sameCards: sameCards, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, react: react, reactor: reactor, REACTIONS: REACTIONS, LEGACY_REACTIONS: LEGACY_REACTIONS, signupsOpen: signupsOpen, isHidden: isHidden, hide: hide, reveal: reveal, chooseRoute: chooseRoute,
-    canRoll: canRoll, canLifeline: canLifeline, lifeLeft: lifeLeft, LIFELINES: LIFELINES, roll: roll, advanceDay: advanceDay, unpause: unpause, isAcc: isAcc, accWeek: accWeek, accDaily: accDaily, accUpdate: accUpdate,
+    canRoll: canRoll, canLifeline: canLifeline, lifeLeft: lifeLeft, LIFELINES: LIFELINES, roll: roll, advanceDay: advanceDay, unpause: unpause, blClanSeen: blClanSeen, isAcc: isAcc, accWeek: accWeek, accDaily: accDaily, accUpdate: accUpdate,
     completeTask: completeTask, claimTask: claimTask, rejectClaim: rejectClaim, matchScores: matchScores, improveClears: improveClears,
     setPosition: setPosition, hostCard: hostCard, resetPlayer: resetPlayer,
     routeOf: routeOf, spaceAt: spaceAt, progress: progress, remaining: remaining, exitIndex: exitIndex,

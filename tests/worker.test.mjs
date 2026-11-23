@@ -8,11 +8,12 @@ await import(R + '/docs/js/content.js'); await import(R + '/docs/js/engine.js');
 const { Game } = await import(R + '/worker/src/index.js');
 const E = globalThis.CGEngine, C = globalThis.CGContent;
 // fake AccSaber: counts per pool
-let BLDISC = { bl1: '1', bl2: '2' }, BLCLAN = {};
+let BLDISC = { bl1: '1', bl2: '2' }, BLCLAN = {}, blUp = true;
 let ACC = { daily: {}, weekly: {} }, accUp = true, clock = Date.UTC(2026, 10, 30, 20);
 const realNow = Date.now; Date.now = () => clock;
 globalThis.fetch = async (url) => {
   url = String(url);
+  if (url.includes('/player/') && !blUp) return { ok: false, status: 503, json: async () => ({}) };
   if (url.includes('/player/')) { const id = url.split('/player/')[1]; return { ok: true, status: 200, json: async () => ({ id, name: 'N' + id, socials: BLDISC[id] ? [{ service: 'Discord', userId: BLDISC[id] }] : [], clans: (BLCLAN[id] || []).map((c) => ({ id: c, tag: c === 85 ? 'GENX' : 'X' })) }) }; }
   if (!url.includes('accsaber')) return { ok: false, status: 500, text: async () => '', json: async () => ({}) };
   if (!accUp) return { ok: false, status: 503, text: async () => '' };
@@ -162,5 +163,52 @@ const ok = (name) => console.log('ok  ' + name);
   await g.accVet();
   assert(!g.state.players.d4, 'unchecked sign-up outside GENX is taken off');
   ok('GenX map game checks GENX on BeatLeader and the Discord link');
+}
+// GenX map game mid-game: leaving GENX on BeatLeader pauses rolls, adding it back unpauses
+{
+  clock = Date.UTC(2026, 11, 14, 20);
+  const g = await setup({});
+  g.state.settings.accsaber = false; g.state.settings.timeZone = 'UTC';
+  BLDISC = { bl1: '1', bl2: '2' }; BLCLAN = { bl1: [85], bl2: [85] };
+  E.startGame(g.state, clock); g.meta.nextCutoff = E.nextCutoff(g.state.settings, clock + 1000);
+  await g.blClanSweep();
+  assert(!g.state.players.d1.paused && !g.state.players.d2.paused, 'everyone in GENX: nobody paused');
+  BLCLAN.bl2 = [12];
+  blUp = false; await g.blClanSweep(); blUp = true;
+  assert(!g.state.players.d2.paused, 'BeatLeader down: nobody paused');
+  await g.blClanSweep();
+  assert.strictEqual(g.state.players.d2.paused, 'bl', 'left GENX: paused');
+  assert.strictEqual(E.canRoll(g.state, 'd2').code, 'paused');
+  assert(/BeatLeader/.test(E.canRoll(g.state, 'd2').reason));
+  let r = await g.act(U('2'), 'roll', {});
+  assert(r && r.error, 'paused player cannot roll');
+  r = await g.act(U('1'), 'roll', {});
+  assert(!r.error, 'others still roll: ' + (r && r.error));
+  BLCLAN.bl2 = [85, 12];
+  r = await g.act(U('2'), 'verify', {});
+  assert(!r.error && !r.paused && !g.state.players.d2.paused, 'added back: check again unpauses');
+  assert(g.state.events.some((e) => e.t === 'unpaused' && e.on === 'bl'));
+  // host lets them play: the check leaves them alone
+  BLCLAN.bl2 = [12]; await g.blClanSweep(); await g.blClanSweep();
+  assert.strictEqual(g.state.players.d2.paused, 'bl');
+  await g.act({ id: 'h', isHost: true }, 'unpause', { pid: 'd2' });
+  await g.blClanSweep(); await g.blClanSweep();
+  assert(!g.state.players.d2.paused, 'host override sticks');
+  ok('GenX map game pauses a player who leaves GENX and unpauses them when they are back');
+}
+// AccSaber games and clans without a BeatLeader clan never do the BeatLeader clan check
+{
+  clock = Date.UTC(2026, 11, 16, 20);
+  const g = await setup({});
+  E.startGame(g.state, clock);
+  BLCLAN = { bl1: [12], bl2: [12] };
+  await g.blClanSweep();
+  assert(!g.state.players.d1.paused, 'AccSaber game: no BeatLeader clan pause');
+  const b = await setup({});
+  b.clan = () => ({ id: 'beaters' });
+  b.state.settings.accsaber = false; E.startGame(b.state, clock);
+  await b.blClanSweep(); await b.accVet();
+  assert(!b.state.players.d1.paused && b.state.players.d1, 'Beaters: no clan checks');
+  ok('AccSaber and Beaters games are untouched');
 }
 console.log('worker timing tests passed');
