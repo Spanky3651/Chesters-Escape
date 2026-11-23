@@ -1865,7 +1865,8 @@
       tip('<span class="hw-dot"></span>', 'A green dot means that player has the game open.') +
       tip('▶️', 'Coming back? Watch the moves you missed.') +
       (store.mode === 'live' && E.remindHour(s) != null ? tip('🔔', 'Tap the bell for a reminder when you haven\'t rolled.') : '') +
-      tip('👀', 'Some things on the board tap back.') + '</ul>';
+      // only when this board has something to tap (custom board art replaces the props and hero)
+      (document.querySelector('.board-svg .egg') ? tip('👀', 'Some things on the board tap back.') : '') + '</ul>';
     modal('How to play',
       '<div class="hw-hero"><svg viewBox="-31 -36 62 64" aria-hidden="true"><g class="a-bob">' + R.hero(0, 0, 1, t) + '</g></svg><p>' + esc(t.tagline) + '</p></div>' +
       '<h3 class="hw-h">Every day</h3>' + loop +
