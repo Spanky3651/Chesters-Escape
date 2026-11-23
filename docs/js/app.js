@@ -3235,12 +3235,20 @@
     });
   }
 
+  // After a clan switch the dice loader shows at once; keep it up for one full roll (1.6 s from page start)
+  // so it doesn't just flicker. A normal visit doesn't wait.
+  function holdBoot() {
+    var sw = document.body.classList.contains('switching');
+    try { sessionStorage.removeItem('cg.switching'); } catch (e) {}
+    var wait = sw ? 1600 - (window.performance ? performance.now() : 0) : 0;
+    return wait > 0 ? new Promise(function (r) { setTimeout(r, wait); }) : Promise.resolve();
+  }
   window.CGStore.detect().then(function (s) {
     store = s;
     toolLinks(s);
-    if (store.mode === 'gate') { renderGate(store); throw 'gated'; }
+    if (store.mode === 'gate') return holdBoot().then(function () { renderGate(store); throw 'gated'; });
     return store.load();
-  }).then(function () {
+  }).then(holdBoot).then(function () {
     bind();
     if (store.mode === 'live') track(store.canPlay ? (store.me ? 'visit-player' : 'visit-not-joined') : 'visit-waiting-list');
     // Re-send this device's notification subscription once per visit so every clan has a working copy.
@@ -3295,6 +3303,7 @@
     window.addEventListener('pagehide', writeSeen);
   }).catch(function (e) {
     if (e === 'gated') return;
+    document.body.classList.remove('booting');
     console.error(e);
     $('boardWrap').innerHTML = '<p class="err" style="padding:20px">The game could not load: ' + esc(e.message) + '</p>';
   });

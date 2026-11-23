@@ -1252,6 +1252,7 @@ body.booting .boot-ld { position: fixed; inset: 72px 0 0; display: flex; flex-di
 .boot-ld p { margin: 0; font: 700 16px var(--ui); color: #a7aec0; letter-spacing: .02em; }
 .boot-ld .r, .boot-ld .b { transform-box: fill-box; transform-origin: 50% 100%; animation: 1.6s cubic-bezier(.4, 0, .2, 1) infinite; }
 .boot-ld .r { animation-name: bootRollR; } .boot-ld .b { animation-name: bootRollB; }
+body.booting.switching .boot-ld { animation: none; opacity: 1; }   /* switching clans: show the roll right away */
 @keyframes bootIn { to { opacity: 1; } }
 @keyframes bootRollR { 0% { transform: translateY(0) rotate(-9deg); } 20% { transform: translateY(-22px) rotate(-120deg); } 40%, 100% { transform: translateY(0) rotate(-189deg); } }
 @keyframes bootRollB { 0%, 30% { transform: translateY(0) rotate(11deg); } 50% { transform: translateY(-22px) rotate(110deg); } 70%, 100% { transform: translateY(0) rotate(191deg); } }
