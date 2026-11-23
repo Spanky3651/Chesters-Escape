@@ -467,7 +467,7 @@
         (wkRoll && !wkRolled ? '<div class="acc-row"><button type="button" class="btn ghost" id="accCheck">Check my missions</button><a class="btn ghost acc-open" href="https://accsaber.com/" target="_blank" rel="noopener">' + ACC_MARK + 'Open AccSaber</a></div>' + lifelineHtml(s, p, true) : '');
       else if (can.code === 'paused' && p.paused === 'bl') html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><div class="acc-row"><button type="button" class="btn" id="blCheck">Check again</button>' +
         '<a class="btn ghost" href="https://beatleader.com/u/' + encodeURIComponent(p.blId || '') + '" target="_blank" rel="noopener">Open BeatLeader</a></div>';
-      else if (can.code === 'mission' || can.code === 'paused') html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><div class="acc-row"><button type="button" class="btn" id="accCheck">' + (can.code === 'paused' ? 'Check again' : 'Check my missions') + '</button>' +
+      else if (can.code === 'mission' || can.code === 'paused') html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><div class="acc-row acc-stack"><button type="button" class="btn" id="accCheck">' + (can.code === 'paused' ? 'Check again' : 'Check my missions') + '</button>' +
         '<a class="btn ghost acc-open" href="https://accsaber.com/" target="_blank" rel="noopener">' + ACC_MARK + 'Open AccSaber</a></div>' +
         (can.code === 'mission' ? lifelineHtml(s, p, false) : '');
       else html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><button type="button" class="btn" id="rollBtn" disabled>Roll the d4</button>';
@@ -561,7 +561,7 @@
       if (E.isAcc(s)) return store.mode === 'demo' ? 'Come back tomorrow. In the demo, use Start the next day.' : 'AccSaber\'s daily missions reset at ' + cutoffLabel(s) + '. Finish one after that to unlock your next roll.';
       return store.mode === 'demo' ? 'Come back tomorrow. In the demo, use Start the next day.' : 'Your next roll opens when the day turns over.';
     }
-    if (c.code === 'mission') return 'Finish one AccSaber daily mission and come back. The game checks when you return. Missions reset at ' + cutoffLabel(s) + '.';
+    if (c.code === 'mission') return 'Finish one AccSaber daily mission to unlock today\'s roll. Resets at ' + cutoffLabel(s) + '.';
     if (c.code === 'skip') return p.skip ? 'You sit this one out. ' + p.skip + ' more after today.' : 'You sit this one out. You can roll again tomorrow.';
     return c.reason;
   }
@@ -1015,14 +1015,21 @@
     animating = true;
     ['rollBtn', 'mRoll', 'lifeBtn'].forEach(function (id) { var b = $(id); if (b) b.disabled = true; });
     // A lifeline roll checks AccSaber first (so a daily already done isn't wasted), which can take a few seconds.
-    var lb = lifeline && $('lifeBtn'); if (lb) lb.textContent = 'Checking AccSaber first…';
+    var lb = lifeline && $('lifeBtn'); if (lb) lb.textContent = 'Checking…';
     audio();
     var startPos = p.pos;
     var hl = svgEl.querySelector('.hl'); if (hl) Array.prototype.forEach.call(hl.querySelectorAll('.prev'), function (x) { x.remove(); });
     var zone = document.querySelector('.board-zone'); zone.classList.add('busy');
-    if (isPhone()) zone.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (isPhone() && !lifeline) zone.scrollIntoView({ behavior: 'smooth', block: 'start' });
     track('roll');
     store.act('roll', lifeline ? { lifeline: true } : undefined).then(function (res) {
+      // A lifeline that was really spent breaks a heart first (the check may have found a daily instead).
+      var spent = res.events.some(function (e) { return e.t === 'roll' && e.pid === store.me && e.lifeline; });
+      return (spent ? shatterHeart() : Promise.resolve()).then(function () {
+        if (isPhone() && lifeline) zone.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return wait(isPhone() && lifeline ? 350 : 0);
+      }).then(function () { return res; });
+    }).then(function (res) {
       var pp = st().players[store.me];
       res.events.forEach(function (e) { if (e.pid !== pp.id) return; if (e.t === 'card') track('card-' + e.card); if (e.t === 'escaped') track('escaped'); if (e.t === 'warp' || e.t === 'start') track('space-' + e.t); });
       // keep the token where it was until the animation walks it
@@ -1163,19 +1170,51 @@
     }).catch(function (e) { animating = false; renderAll(); if (/Link your BeatLeader/.test(e.message)) openJoin(true); else fail(e); });
   }
   // AccSaber's own mark (its tab icon), for the Open AccSaber button.
-  // Lifelines (AccSaber mode): an "or" line under the mission buttons, the rings left and a button that
-  // rolls today's d4 without a mission. keepWeekly: the player could use a saved weekly bonus roll instead.
-  function lifeRing(on, size) {
-    return on ? '<svg class="lf-ring" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#f3f7fb" stroke-width="5"/><circle cx="12" cy="12" r="8.5" fill="none" stroke="#e23a4e" stroke-width="5" stroke-dasharray="6.68 6.68" transform="rotate(22 12 12)"/></svg>'
-      : '<svg class="lf-ring off" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="2.5 2.5"/></svg>';
+  // Lifelines (AccSaber mode): a strip under the mission buttons with a pixel heart per lifeline and a button
+  // that rolls today's d4 without a mission. keepWeekly: the player could use a saved weekly bonus roll instead.
+  var HEART = ['..XX.XX..', '.XXXXXXX.', 'XXXXXXXXX', 'XXXXXXXXX', '.XXXXXXX.', '..XXXXX..', '...XXX...', '....X....'];
+  function heartEdge(x, y) { return [[1, 0], [-1, 0], [0, 1], [0, -1]].some(function (d) { var r = HEART[y + d[1]]; return !(r && r[x + d[0]] === 'X'); }); }
+  function heartColor(x, y) { return heartEdge(x, y) ? '#7a1422' : (x === 2 && y === 1) || (x === 1 && y === 2) ? '#ffd2d8' : '#e23a4e'; }
+  function lifeHeart(on) {
+    var r = '';
+    HEART.forEach(function (row, y) {
+      row.split('').forEach(function (c, x) {
+        if (c !== 'X' || (!on && !heartEdge(x, y))) return;
+        r += '<rect x="' + x + '" y="' + y + '" width="1.02" height="1.02" fill="' + (on ? heartColor(x, y) : 'currentColor') + '"/>';
+      });
+    });
+    return '<svg viewBox="0 0 9 8" shape-rendering="crispEdges" aria-hidden="true">' + r + '</svg>';
   }
   function lifelineHtml(s, p, keepWeekly) {
-    var left = E.lifeLeft(p), max = E.LIFELINES, rings = '';
-    for (var i = 0; i < max; i++) rings += lifeRing(i < left, 22);
-    var head = '<div class="lf-or"><span>or</span></div><div class="lf"><div class="lf-row"><span class="lf-pips">' + rings + '</span><span class="lf-n">' + left + ' of ' + max + ' lifelines left</span></div>';
-    if (!left) return head + '<p>No lifelines left. Finish both dailies in one day to earn one back.</p></div>';
-    return head + '<p>' + (keepWeekly ? 'Dailies too hard today? Use a lifeline for today\'s roll and keep your weekly bonus saved.' : 'Dailies too hard today? Use a lifeline to roll anyway.') + ' Do both dailies in one day to earn one back.</p>' +
-      '<button type="button" class="btn ghost lf-btn" id="lifeBtn">' + lifeRing(true, 18) + 'Roll with a lifeline</button></div>';
+    var left = E.lifeLeft(p), max = E.LIFELINES, hearts = '';
+    for (var i = 0; i < max; i++) hearts += '<span class="lf-h">' + lifeHeart(false) + (i < left ? '<span class="lf-full">' + lifeHeart(true) + '</span>' : '') + '</span>';
+    var tip = (keepWeekly ? 'Use a lifeline for today\'s roll and keep your weekly bonus saved.' : 'Dailies too hard today? Use a lifeline to roll anyway.') + ' Do both dailies in one day to earn one back.';
+    return '<div class="lf"><div class="lf-lbl"><b>Lifelines</b><span class="lf-hearts" role="img" aria-label="' + left + ' of ' + max + ' lifelines left">' + hearts + '</span></div>' +
+      (left ? '<button type="button" class="btn ghost small lf-btn" id="lifeBtn" title="' + esc(tip) + '">Roll with one</button>' : '<p class="lf-earn">Do both dailies in one day to earn one back.</p>') + '</div>';
+  }
+  // Using a lifeline: the last full heart flashes, swells and bursts into its pixels, leaving the empty outline.
+  function shatterHeart() {
+    var hs = document.querySelectorAll('#turnPanel .lf-full'), full = hs[hs.length - 1];
+    if (!full || !full.animate || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) { if (full) full.remove(); return Promise.resolve(); }
+    sfx.bad();
+    full.animate([{ filter: 'brightness(1)', transform: 'scale(1)' }, { filter: 'brightness(2.4)', transform: 'scale(1.25)', offset: .6 }, { filter: 'brightness(2.4)', transform: 'scale(1.25)' }], { duration: 260, fill: 'forwards' });
+    var slot = full.parentNode, box = slot.getBoundingClientRect(), u = box.width / 9, layer = document.createElement('span');
+    layer.className = 'lf-burst'; slot.appendChild(layer);
+    setTimeout(function () {
+      full.style.visibility = 'hidden';
+      HEART.forEach(function (row, y) {
+        row.split('').forEach(function (c, x) {
+          if (c !== 'X') return;
+          var px = document.createElement('i');
+          px.style.cssText = 'left:' + x * u + 'px;top:' + y * u + 'px;width:' + (u + .3) + 'px;height:' + (u + .3) + 'px;background:' + heartColor(x, y);
+          layer.appendChild(px);
+          var vx = (x - 4) * (9 + Math.random() * 9) + (Math.random() - .5) * 14, vy = -(28 + Math.random() * 34) + (y - 3) * 4, T = .75 + Math.random() * .25, k = [];
+          for (var i = 0; i <= 8; i++) { var t = i / 8 * T; k.push({ transform: 'translate(' + vx * t + 'px,' + (vy * t + 150 * t * t) + 'px) rotate(' + vx * t * 4 + 'deg)', opacity: i < 5 ? 1 : 1 - (i - 4) / 4 }); }
+          px.animate(k, { duration: T * 1000, fill: 'forwards' });
+        });
+      });
+    }, 260);
+    return wait(1150);
   }
   var ACC_MARK = '<svg class="acc-mark" viewBox="0 0 16 16" aria-hidden="true"><path transform="translate(-.5 -.5)" fill="#C6613F" d="M2 1.5 14.2 6.6a.7.7 0 0 1-.06 1.32L9.2 9.4a.7.7 0 0 0-.46.46l-1.5 4.9a.7.7 0 0 1-1.32.05z"/></svg>';
   // Coming back to the game while today's roll waits on a mission: check AccSaber quietly, and say so
