@@ -447,11 +447,13 @@ export class Game extends DurableObject {
     }
     out.games = games.map((x) => (x && x.id) || '');
     for (const g of hall) {
-      const src = games.find((x) => x && x.id === g.id && x.players);
+      // Every saved copy of this game, newest first: older copies can be from before some players joined.
+      const srcs = games.filter((x) => x && x.id === g.id && x.players).reverse();
       const tops = Object.fromEntries((g.top || []).map((t) => [t.pid, t.avatar]));
       for (const r of g.all || []) {
         if (r.avatar) continue;
-        const a = (src && src.players[r.pid] && src.players[r.pid].avatar) || tops[r.pid] || '';
+        const hit = srcs.find((x) => x.players[r.pid] && x.players[r.pid].avatar);
+        const a = (hit && hit.players[r.pid].avatar) || tops[r.pid] || '';
         if (a) { r.avatar = blFix(a); out.filled++; } else out.missing++;
       }
     }
