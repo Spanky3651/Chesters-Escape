@@ -479,6 +479,8 @@ export class Game extends DurableObject {
   // Player ids of hosts running this game without playing, so the page can mark their name "admin".
   admins() { return (this.meta.hostOut || []).map((id) => 'd' + id); }
   hostOut(user) { return !!user && (this.meta.hostOut || []).includes(String(user.id)); }
+  // A host can hide from the online dots and count. Only hosts, and only in this clan's game.
+  invisible(user) { return !!user && !!user.isHost && (this.meta.invisible || []).includes(String(user.id)); }
   // The game's Discord channel, worked out from the webhook it posts with (Discord tells the webhook
   // owner its server and channel), so the chat button lands where the game's posts are. Cached per
   // webhook; a failed lookup tries again after an hour.
@@ -1004,7 +1006,7 @@ export class Game extends DurableObject {
     // The next board is a secret until the reveal: an open page reloads into the between-games page.
     if (E.isHidden(s) && !user.isHost) return { hidden: this.hiddenInfo(), hall: this.meta.hall || [] };
     const me = canPlay && pid && s.players[pid] ? pid : null;
-    if (me) this.seen(me);
+    if (me && !this.invisible(user)) this.seen(me);
     await this.visit(user);
     const chat = await this.chatLink();
     if (this.dirty) { this.dirty = false; await this.save(); }
@@ -1012,7 +1014,7 @@ export class Game extends DurableObject {
     const out = { state: E.publicState(s), me, canPlay, isHost: !!user.isHost, user: { id: user.id, name: user.name, avatar: user.avatar }, online: this.onlineNow(), hall: this.meta.hall || [], admins: this.admins(), chat };
     out.accClan = this.accClanWant() ? this.clan().accClanName : '';
     out.accClanSlug = this.accClanWant();   // the Missions button opens this clan's missions tab
-    if (user && user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); out.hostOut = this.hostOut(user); }
+    if (user && user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); out.hostOut = this.hostOut(user); out.invisible = this.invisible(user); }
     return out;
   }
 
@@ -1020,7 +1022,7 @@ export class Game extends DurableObject {
     this.useClan(user);
     const s = this.game(); const pid = this.pidFor(user);
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
-    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove', 'hostPlays', 'hide', 'hallPics'];
+    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove', 'hostPlays', 'invisible', 'hide', 'hallPics'];
     if (hostOnly.includes(action) && !user.isHost) return { error: 'Only the host can do that.', status: 403 };
     if (E.isHidden(s) && !user.isHost) return { error: 'The next game is still a secret. Watch your clan Discord for the reveal.', code: 'hidden' };
     if (s.status === 'finished' && ['join', 'route', 'roll', 'verify', 'claim'].includes(action)) return { error: 'The game is over.' };
@@ -1215,6 +1217,11 @@ export class Game extends DurableObject {
           result = { undone: top.label };
           break;
         }
+        case 'invisible': {
+          const id = String(user.id), l = (this.meta.invisible || []).filter((x) => x !== id);
+          if (a.on) { l.push(id); if (this.seenAt && pid) delete this.seenAt[pid]; }
+          this.meta.invisible = l; break;
+        }
         case 'hostPlays': {
           const id = String(user.id), l = (this.meta.hostOut = this.meta.hostOut || []).filter((x) => x !== id);
           if (!a.plays) { if (s.players[pid]) return { error: 'You are signed up for this game. Take yourself off it in the Players tab first.' }; l.push(id); }
@@ -1241,9 +1248,9 @@ export class Game extends DurableObject {
     if (wasRunning && this.state.status === 'finished' && action !== 'endNow') { this.recordHall(); await this.announceEnd(); }
     if (snap) await this.pushUndo(snap, user);
     await this.save();
-    if (this.state.players[pid]) this.seen(pid);
+    if (this.state.players[pid] && !this.invisible(user)) this.seen(pid);
     const out = { result, state: E.publicState(this.state), me: this.state.players[pid] ? pid : null, canPlay: true, online: this.onlineNow(), hall: this.meta.hall || [], admins: this.admins() };
-    if (user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); out.hostOut = this.hostOut(user); }
+    if (user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); out.hostOut = this.hostOut(user); out.invisible = this.invisible(user); }
     return out;
   }
   // Who has the game open right now. Open pages check in every 20 seconds while visible, so

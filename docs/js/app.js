@@ -110,7 +110,7 @@
       });
     });
   }
-  function onlineMap() { var m = {}, s = st(); (store.online || []).forEach(function (pid) { if (s.players[pid]) m[pid] = 1; }); if (store.me && s.players[store.me]) m[store.me] = 1; return m; }
+  function onlineMap() { var m = {}, s = st(); (store.online || []).forEach(function (pid) { if (s.players[pid]) m[pid] = 1; }); if (store.me && s.players[store.me] && !store.invisible) m[store.me] = 1; return m; }
   function placeTokens(overrides) { R.placeTokens(svgEl, st(), theme(), { me: store.me, overrides: overrides, flair: X.flair(st()), online: onlineMap() }); }
   function markMine() {
     Array.prototype.forEach.call(svgEl.querySelectorAll('.sp.mine'), function (g) { g.classList.remove('mine'); });
@@ -2540,10 +2540,12 @@
 
     // ---- Players ----
     if (s.order.length > 6 || (ac && ac.allowed.length > 6)) T.players += '<div class="psearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input type="search" id="pSearch" placeholder="Find a player" aria-label="Find a player" autocomplete="off" value="' + esc(playerQuery) + '"><span class="psearch-n" id="pSearchN" aria-live="polite"></span></div>';
-    if (!demo) T.players += '<section class="hsec"><h3>You</h3><label class="hp-you">' + (store.user ? avatarHtml({ id: store.user.id, name: store.user.name, avatar: store.user.avatar }, 'hp-ava') : '') +
+    if (!demo) T.players += '<section class="hsec"><h3>You</h3><div class="hp-you-group"><label class="hp-you">' + (store.user ? avatarHtml({ id: store.user.id, name: store.user.name, avatar: store.user.avatar }, 'hp-ava') : '') +
       '<span class="hp-you-main"><b>' + esc(store.user ? store.user.name : 'You') + '</b><span class="why">Hosting, not playing</span></span>' +
       '<span class="hp-switch"><input type="checkbox" role="switch" id="hostOutBox"' + (store.hostOut ? ' checked' : '') + ' aria-label="Hosting, not playing"><i aria-hidden="true"></i></span></label>' +
-      '<p class="why hp-you-note">' + (store.hostOut ? 'You get an Admin badge instead of the Join button.' : 'Turn this on if you\'re running the game and not playing. You get an Admin badge instead of the Join button.') + ' Only in this clan\'s game.</p>' +
+      '<label class="hp-you"><span class="hp-ava hp-ic"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.7 10.7 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1"/><path d="M6.6 6.6C3.7 8.4 2 12 2 12s3.5 7 10 7a9.8 9.8 0 0 0 5.4-1.6"/><path d="M9.9 10a3 3 0 0 0 4.1 4.1"/></svg></span><span class="hp-you-main"><b>Invisible</b><span class="why">Hide your online dot from players</span></span>' +
+      '<span class="hp-switch"><input type="checkbox" role="switch" id="invisibleBox"' + (store.invisible ? ' checked' : '') + ' aria-label="Invisible"><i aria-hidden="true"></i></span></label></div>' +
+      '<p class="why hp-you-note">Hosting, not playing gives you an Admin badge instead of the Join button. Invisible keeps you out of the online count. Both are only in this clan\'s game.</p>' +
       (store.user ? '<div class="hp-you-foot"><span class="why">Signed in as ' + esc(store.user.name) + ' on this device</span><button type="button" class="btn small link" id="logoutBtn">Sign out</button></div>' : '') + '</section>';
     if (signup) {
       T.players += '<section class="hsec"><h3>Signed up</h3><p>' + (s.order.length ? 'Tokens go on the board when the game starts.' : 'Nobody has signed up yet.') + '</p>';
@@ -3059,6 +3061,7 @@
       if (t.dataset.set) {
         if (st().status === 'running' && !confirm('Change this rule for everyone in the game that is running now?')) { t.checked = !t.checked; return; }
         var patch = {}; patch[t.dataset.set] = t.checked; store.act('settings', { patch: patch }).catch(fail); return; }
+      if (t.id === 'invisibleBox') { var inv = t.checked; store.act('invisible', { on: inv }).then(function () { toast(inv ? 'You\'re invisible. Players won\'t see you online.' : 'Players can see you online again.', 'good'); renderStandings(); placeTokens(); }, function (e) { t.checked = !inv; fail(e); }); return; }
       if (t.id === 'hostOutBox') { var out = t.checked; store.act('hostPlays', { plays: !out }).then(function () { toast(out ? 'You\'re hosting only. The Admin badge is on.' : 'You can join this game again.', 'good'); }, function (e) { t.checked = !out; fail(e); }); return; }
       if (t.name === 'sumode') {
         if (t.value === 'closed' && !confirm('Close sign-ups? Nobody new can join until the game starts.')) { renderHost(); return; }

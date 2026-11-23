@@ -330,6 +330,7 @@
     if (r.accClanSlug !== undefined) this.accClanSlug = r.accClanSlug;
     if (r.undo !== undefined) this.undo = r.undo;
     if (r.hostOut !== undefined) this.hostOut = r.hostOut;
+    if (r.invisible !== undefined) this.invisible = r.invisible;
     if (r.admins !== undefined) this.admins = r.admins || [];
     if (r.hall !== undefined) this.hall = r.hall;
     if (r.canPlay !== undefined) this.canPlay = r.canPlay;
