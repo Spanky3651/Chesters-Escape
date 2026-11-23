@@ -77,7 +77,7 @@
     var s = st(), t = theme();
     var key = s.themeId + '|' + s.board.id + '|' + (s.board.background ? s.board.background.length : 0) + '|' + Object.keys(s.board.spaces).length;
     if (force || key !== builtKey) {
-      $('boardWrap').innerHTML = R.board(s.board, t, { focusable: true });
+      $('boardWrap').innerHTML = R.board(s.board, t, { focusable: true, acc: E.isAcc(s) });
       svgEl = $('boardWrap').querySelector('svg');
       cam = new X.Camera(svgEl);
       builtKey = key;
@@ -399,7 +399,7 @@
       } else if (store.mode === 'live' && !store.user) {
         el.innerHTML = '<h2>Join the escape</h2><p class="lede">Sign in with Discord so the game knows which token is yours. You only do this once.</p><a class="btn" href="' + esc(store.loginUrl()) + '">Sign in with Discord</a>';
       } else {
-        el.innerHTML = '<h2>Join the escape</h2><p class="lede">Link your BeatLeader profile. The game checks it to see when you have played your map.</p><button type="button" class="btn" id="joinBtn">Join the game</button>' +
+        el.innerHTML = '<h2>Join the escape</h2><p class="lede">Link your BeatLeader profile. ' + (E.isAcc(s) ? 'The game uses it to find your AccSaber missions.' : 'The game checks it to see when you have played your map.') + '</p><button type="button" class="btn" id="joinBtn">Join the game</button>' +
           (store.mode === 'live' && store.user ? '<p class="why">Signed in as ' + esc(store.user.name) + '. <button type="button" class="btn link" id="logoutBtn">Sign out</button></p>' : '');
       }
       return;
@@ -440,11 +440,11 @@
     }
     var pre = s.status === 'signup' ? countdownHtml(s.startsAt) : '';
     if (pre && p && p.route) {
-      el.innerHTML = '<h2>You\'re signed up</h2>' + pre + '<p class="why">You\'re on the ' + esc(s.board.routeInfo[p.route].name.toLowerCase()) + '. Your first roll unlocks when the countdown ends. Come back then and roll the d4.</p>';
+      el.innerHTML = '<h2>You\'re signed up</h2>' + pre + '<p class="why">You\'re on the ' + esc(s.board.routeInfo[p.route].name.toLowerCase()) + '. Your first roll unlocks when the countdown ends. ' + (E.isAcc(s) ? 'Come back then, finish an AccSaber daily mission and roll the d4.' : 'Come back then and roll the d4.') + '</p>';
       return;
     }
     if (pre && !p && !E.signupsOpen(s)) { el.innerHTML = '<h2>Sign-ups are closed</h2>' + pre + '<p class="empty">Joining opens when the game starts. Come back then to get a token and pick your route.</p>'; return; }
-    if (pre && !p) { el.innerHTML = '<h2>Sign-ups are open</h2>' + pre + '<p class="empty">' + (store.mode === 'live' && !store.canPlay ? 'Once the host lets you in, you can join and pick your route before the start.' : 'Join now and pick your route. Everyone rolls for the first time when the countdown ends.') + '</p>'; return; }
+    if (pre && !p) { el.innerHTML = '<h2>Sign-ups are open</h2>' + pre + '<p class="empty">' + (store.mode === 'live' && !store.canPlay ? 'Once the host lets you in, you can join and pick your route before the start.' : (E.isAcc(s) ? 'Join now and pick your route. Day 1 starts when the countdown ends: finish an AccSaber daily mission to roll.' : 'Join now and pick your route. Everyone rolls for the first time when the countdown ends.')) + '</p>'; return; }
     if (!p) { el.innerHTML = '<h2>Your turn</h2><p class="empty">' + (store.mode === 'live' && !store.canPlay ? 'Once the host lets you in, you can join and get a token on the board.' : 'Join the game to get a token on the board.') + '</p>'; return; }
     if (!p.route) {
       el.innerHTML = '<h2>Pick your route</h2>' + pre + '<p class="why">You can\'t change it later.</p><div class="routes">' +
@@ -485,12 +485,13 @@
   var CHAT_LINES = {
     escaped: ['You made it!', 'Celebrate in the {c} chat'],
     cleared: ['Nice run!', 'Brag about it in the {c} chat'],
+    weekly: ['Weekly mission done!', 'Brag about it in the {c} chat'],
     start: ['Back to the start?', 'Get some sympathy in the {c} chat'],
     bad: ['Rough day?', 'Tell the {c} about it in Discord']
   };
   function chatNudge(p) {
     var chat = store.mode === 'live' && store.chat && store.chat.url, s = st(); if (!chat) return '';
-    var ev = s.events.filter(function (e) { return e.pid === p.id && e.day === s.day && (e.t === 'escaped' || e.t === 'cleared' || e.t === 'start' || e.t === 'lost-turn' || e.t === 'skip' || (e.t === 'move' && e.n < 0)); }).pop();
+    var ev = s.events.filter(function (e) { return e.pid === p.id && e.day === s.day && (e.t === 'escaped' || e.t === 'cleared' || e.t === 'weekly' || e.t === 'start' || e.t === 'lost-turn' || e.t === 'skip' || (e.t === 'move' && e.n < 0)); }).pop();
     if (!ev) return '';
     var line = CHAT_LINES[ev.t] || CHAT_LINES.bad, c = store.chat.name || 'game';
     return '<a class="turn-dc" href="' + esc(chat) + '" target="_blank" rel="noopener"><i class="tdc-ic">' + DISCORD_LOGO + '</i><div><b>' + esc(line[0]) + '</b><span>' + esc(line[1].replace('{c}', c)) + '</span></div>' +
@@ -508,7 +509,7 @@
       (h.waitUntil > now ? ' Posts pause until ' + esc(when(h.waitUntil)) + ', then pick up where they left off.' : h.err.status >= 400 && h.err.status < 500 && h.err.status !== 429 ? ' That post was skipped; the next one will try again.' : '') + '</p>');
     var line = h.ok ? 'Last post: ' + esc(FEED_KINDS[h.ok.kind] || 'a post') + ', ' + esc(when(h.ok.at)) + '.' : 'Nothing has posted yet.';
     if (h.queued) line += ' ' + h.queued + ' moment' + (h.queued === 1 ? '' : 's') + ' waiting' + (h.nextAt > now ? ', next post after ' + esc(when(h.nextAt)) : ', posting on the next check') + '.';
-    else if (h.ok && !bad && now - h.ok.at > 2 * 3600000) line += ' Quiet since then: no clear at ' + Math.round((h.bigAcc || .95) * 100) + '% or better, no big setback, lead change or escape.';
+    else if (h.ok && !bad && now - h.ok.at > 2 * 3600000) line += ' Quiet since then: ' + (E.isAcc(st()) ? '' : 'no clear at ' + Math.round((h.bigAcc || .95) * 100) + '% or better, ') + 'no big setback, lead change or escape.';
     if (h.outbox) line += ' ' + h.outbox + ' post' + (h.outbox === 1 ? '' : 's') + ' waiting to resend.';
     line += ' Today: ' + (h.today || 0) + ' of ' + (h.cap || 8) + ' moment posts.';
     out.push('<p class="feed-stat">' + line + '</p>');
@@ -553,7 +554,7 @@
     if (c.code === 'rolled') {
       if (p.skip) return lostAhead(s, p) + (store.mode === 'demo' ? ' In the demo, use Start the next day.' : '');
       var here = E.spaceAt(s, p);
-      if (here && here.type === 'blank' && p.rolledDay === s.day) return C.spaceEffectText(here) + (store.mode === 'demo' ? ' In the demo, use Start the next day.' : '');
+      if (here && here.type === 'blank' && p.rolledDay === s.day) return C.spaceEffectText(here, E.isAcc(s)) + (store.mode === 'demo' ? ' In the demo, use Start the next day.' : '');
       if (E.isAcc(s)) return store.mode === 'demo' ? 'Come back tomorrow. In the demo, use Start the next day.' : 'AccSaber\'s daily missions reset at ' + cutoffLabel(s) + '. Finish one after that to unlock your next roll.';
       return store.mode === 'demo' ? 'Come back tomorrow. In the demo, use Start the next day.' : 'Your next roll opens when the day turns over.';
     }
@@ -625,7 +626,7 @@
         if (sp && sp.type === 'blank') { var kB = sp.kind && t.kinds[sp.kind]; return { html: (kB ? '<b>' + esc(kB.title) + '</b> ' : '') + esc(C.spaceEffectText(sp)), icon: kB ? kB.icon : '\u2714\uFE0F' }; }
         if (!sp || sp.type !== 'safe') return null;
         var kSafe = sp.kind && t.kinds[sp.kind];
-        return { html: '<b>' + esc(kSafe ? kSafe.title : 'Safe!') + '</b> Catch your breath, no map this turn', cls: 'good', icon: kSafe && kSafe.icon };
+        return { html: '<b>' + esc(kSafe ? kSafe.title : 'Safe!') + '</b> Catch your breath' + (E.isAcc(s) ? '' : ', no map this turn'), cls: 'good', icon: kSafe && kSafe.icon };
       }
       case 'task': return { html: 'Play <b>!bsr ' + esc(e.bsr.join(' or ')) + '</b>' + (e.bonus ? ' (bonus map)' : sp && sp.kind ? ' (' + esc(t.kinds[sp.kind].title) + ')' : card ? ' (' + esc(card.title) + ')' : '') };
       case 'card': return { html: 'Drew <b>' + esc(card ? card.title : 'a card') + '</b>: ' + esc(card ? C.cardEffectText(card) : ''), cls: card && card.cls === 'trick' ? 'bad' : card && card.cls === 'treasure' ? 'good' : '' };
@@ -668,7 +669,7 @@
         var kd = rs.kind && t.kinds[rs.kind], by = mv && mv.card ? E.cardById(s, mv.card) : null;
         var from = by ? '<b>' + esc(by.title) + '</b>' : mv && mv.space ? '<b>' + esc(spaceName(s.board.spaces[mv.space])) + '</b>' : 'a card or event';
         var spared = rs.type === 'start' || rs.type === 'skip' || (rs.type === 'move' && rs.n < 0);
-        return { html: 'Moved onto ' + (kd && kd.icon ? kd.icon + ' ' : '') + 'a ' + what + ' by ' + from + '. Card and event moves only count on maps, so it didn\'t apply', cls: spared ? 'good' : '' };
+        return { html: 'Moved onto ' + (kd && kd.icon ? kd.icon + ' ' : '') + 'a ' + what + ' by ' + from + '. ' + (E.isAcc(s) ? 'Card and event moves never set off another space' : 'Card and event moves only count on maps') + ', so it didn\'t apply', cls: spared ? 'good' : '' };
       }
       case 'reshuffle': return { html: 'The card deck was reshuffled' };
       case 'pass': { var nm = (e.over || []).map(function (q) { return s.players[q] ? '<b>' + esc(s.players[q].name) + '</b>' : ''; }).filter(Boolean); return nm.length ? { html: 'Passed ' + (nm.length > 2 ? nm.slice(0, -1).join(', ') + ' and ' + nm[nm.length - 1] : nm.join(' and ')), cls: 'good' } : null; }
@@ -905,7 +906,7 @@
   var lastStatus = null;
   function renderAll() {
     if (!st()) return;
-    if (lastStatus === 'signup' && st().status === 'running') toast('The game has started! Roll your first d4.', 'good');
+    if (lastStatus === 'signup' && st().status === 'running') toast(E.isAcc(st()) ? 'The game has started! Finish an AccSaber daily mission to roll.' : 'The game has started! Roll your first d4.', 'good');
     if (lastStatus && lastStatus !== 'finished' && st().status === 'finished') setTimeout(maybeFinale, 400);
     lastStatus = st().status;
     renderHeader(); renderBoard(); renderMe(); renderTurn(); renderFeed(); renderStandings(); renderBar(); renderReplayBtn();
@@ -1495,7 +1496,7 @@
     else if (ev.t === 'start') { o.kicker = 'Ouch'; o.headline = 'Back to the start'; o.sub = kind ? kind.title : ''; }
     else if (ev.t === 'warp') { var fwd = sp && sp.kind === 'swim'; o.kicker = fwd ? 'Lucky break' : 'Swept away'; o.headline = fwd ? 'Carried ahead' : 'Carried away'; o.sub = 'Now at ' + spaceName(s.board.spaces[ev.to]); }
     else if (ev.t === 'move') { o.kicker = ev.n > 0 ? 'Boost' : 'Setback'; o.headline = ev.n > 0 ? 'Jumped ahead ' + ev.n : 'Pushed back ' + (-ev.n); o.sub = kind ? kind.title : ''; }
-    else if (ev.t === 'card') { var cd = E.cardById(s, ev.card); o.kicker = (t.card[cd && cd.cls] || 'Card') + ' card'; o.headline = cd ? cd.title : 'A card'; o.sub = cd ? C.cardEffectText(cd) : ''; if (cd && R.isImg(cd.art) && /^https:|^img\//.test(cd.art)) o.cover = cd.art; }
+    else if (ev.t === 'card') { var cd = E.cardById(s, ev.card); var ck = t.card[cd && cd.cls] || 'Card'; o.kicker = /card$/i.test(ck) ? ck : ck + ' card'; o.headline = cd ? cd.title : 'A card'; o.sub = cd ? C.cardEffectText(cd) : ''; if (cd && R.isImg(cd.art) && /^https:|^img\//.test(cd.art)) o.cover = cd.art; }
     return Promise.resolve(o);
   }
   // Where a player stood right after an old moment (from the moves logged up to it), so a share
@@ -1543,7 +1544,7 @@
       if (k > 0 && k !== lastN) { lastN = k; n.textContent = k; n.className = 'launch-n'; void n.offsetWidth; n.classList.add('tick'); blip(420 + (10 - k) * 40, .12, 'triangle', .07); }
       if (l <= 0) {
         clearInterval(iv);
-        n.textContent = 'GO!'; n.className = 'launch-n'; void n.offsetWidth; n.classList.add('go'); sub.textContent = 'Day 1 is open. Roll your d4!';
+        n.textContent = 'GO!'; n.className = 'launch-n'; void n.offsetWidth; n.classList.add('go'); sub.textContent = E.isAcc(st()) ? 'Day 1 is open. Finish a daily mission and roll!' : 'Day 1 is open. Roll your d4!';
         sfx.win(); confettiBurst();
         setTimeout(function () { box.hidden = true; zone.classList.remove('prelaunch'); if (svgEl) FX.unlight(svgEl); }, 2300);
       }
@@ -1621,12 +1622,13 @@
     track('space-details');
     var s = st(), sp = s.board.spaces[id], t = theme(), pop = $('spacePop');
     var k = sp.kind && t.kinds[sp.kind];
-    var title = k ? k.title : sp.type === 'card' ? 'Card drop' : sp.type === 'map' ? 'Map space' : sp.type === 'blank' ? 'Turn over' : 'Space';
+    var acc = E.isAcc(s);
+    var title = k ? k.title : sp.type === 'card' ? 'Card drop' : sp.type === 'map' && !acc ? 'Map space' : sp.type === 'blank' ? 'Turn over' : 'Space';
     var here = s.order.filter(function (pid) { var p = s.players[pid]; return p.route && p.pos >= 0 && s.board.routes[p.route][p.pos] === id; }).map(function (pid) { return s.players[pid].name; });
     var steps = []; Object.keys(s.board.routes).forEach(function (r) { var i = s.board.routes[r].indexOf(id); if (i >= 0) steps.push(s.board.routeInfo[r].name + ' space ' + (i + 1)); });
-    var html = '<button type="button" class="x" data-close aria-label="Close">&times;</button><h3>' + (k ? k.icon + ' ' : '') + esc(title) + '</h3><div class="fx">' + esc(C.spaceEffectText(sp)) + '</div>';
+    var html = '<button type="button" class="x" data-close aria-label="Close">&times;</button><h3>' + (k ? k.icon + ' ' : '') + esc(title) + '</h3><div class="fx">' + esc(C.spaceEffectText(sp, acc)) + '</div>';
     if (sp.type === 'warp' && s.board.spaces[sp.to]) html += '<p class="why">Takes you to ' + esc(spaceName(s.board.spaces[sp.to])) + '.</p>';
-    if (sp.bsr && sp.bsr.length) html += '<div class="maps">' + sp.bsr.map(function (key) { return '<div class="mapline" data-key="' + esc(key) + '"><img alt=""><div><b data-n>!bsr ' + esc(key) + '</b><div class="why" data-m>Loading</div><div class="row"><button type="button" class="key" data-copy="!bsr ' + esc(key) + '">Copy !bsr ' + esc(key) + '</button><a class="why" target="_blank" rel="noopener" href="https://beatsaver.com/maps/' + esc(key) + '">BeatSaver</a></div></div></div>'; }).join('') + '</div>';
+    if (sp.bsr && sp.bsr.length && !acc) html += '<div class="maps">' + sp.bsr.map(function (key) { return '<div class="mapline" data-key="' + esc(key) + '"><img alt=""><div><b data-n>!bsr ' + esc(key) + '</b><div class="why" data-m>Loading</div><div class="row"><button type="button" class="key" data-copy="!bsr ' + esc(key) + '">Copy !bsr ' + esc(key) + '</button><a class="why" target="_blank" rel="noopener" href="https://beatsaver.com/maps/' + esc(key) + '">BeatSaver</a></div></div></div>'; }).join('') + '</div>';
     html += '<p class="here">' + esc(steps.join(', ')) + (here.length ? '. Here now: ' + esc(here.join(', ')) : '') + '</p>';
     pop.innerHTML = html; pop.hidden = false;
     // Fit the part of the page the player can see. When someone has pinch-zoomed on a phone that is
@@ -1802,13 +1804,14 @@
     }).join('') + '</div>';
     // One example of every kind of space on this board, cut from the board itself.
     var kinds = [
-      ['map', function (sp) { return sp.type === 'map'; }, 'Map space', 'Play its map. Some offer two.'],
+      // AccSaber games have no maps: map and blocker spaces just end the turn there.
+      ['map', function (sp) { return sp.type === 'map' || (E.isAcc(s) && sp.type === 'task'); }, E.isAcc(s) ? 'Space' : 'Map space', E.isAcc(s) ? 'Your turn ends here.' : 'Play its map. Some offer two.'],
       ['card', function (sp) { return sp.type === 'card'; }, cap(cardWord), E.isAcc(s) ? 'Draw a card. Good or bad.' : 'Draw a card. Good, bad or a bonus map.'],
-      ['task', function (sp) { return sp.type === 'task'; }, 'Blocker', 'Play its map to get past.'],
+      ['task', function (sp) { return sp.type === 'task' && !E.isAcc(s); }, 'Blocker', 'Play its map to get past.'],
       ['up', function (sp) { return sp.type === 'move' && sp.n > 0; }, 'Boost', 'Jump ahead.'],
       ['shortcut', function (sp) { return sp.type === 'warp' && sp.kind === 'swim'; }, 'Shortcut', 'Carried ahead.'],
-      ['safe', function (sp) { return sp.type === 'safe'; }, 'Safe', 'A rest. No map.'],
-      ['blank', function (sp) { return sp.type === 'blank'; }, 'Turn over', 'Your turn ends here. No map.'],
+      ['safe', function (sp) { return sp.type === 'safe'; }, 'Safe', E.isAcc(s) ? 'A rest.' : 'A rest. No map.'],
+      ['blank', function (sp) { return sp.type === 'blank'; }, 'Turn over', E.isAcc(s) ? 'Your turn ends here.' : 'Your turn ends here. No map.'],
       ['down', function (sp) { return sp.type === 'move' && sp.n < 0; }, 'Setback', 'Sent back.'],
       ['warp', function (sp) { return sp.type === 'warp' && sp.kind !== 'swim'; }, 'Swept away', 'Carried off course.'],
       ['skip', function (sp) { return sp.type === 'skip'; }, 'Lose a turn', 'Sit out a roll.'],
@@ -2614,7 +2617,7 @@
       T.alerts += '<section class="hsec"><h3>Discord posts</h3>' +
         (dc.hooked ? '<p>Automatic posts to the game channel. All of them start off.</p>' + feedStatus(dc.health) : '<p class="why">No channel webhook is set up for this game yet, so nothing can post. Add the webhook to the Worker first.</p>') +
         POST_LIST.map(function (g) {
-          return '<h4 class="hsub">' + g[0] + (g[0] === 'Moments' ? ' <span class="why">up to ' + ((dc.health && dc.health.cap) || 8) + ' a day, ' + ((dc.health && dc.health.gapH) || 2) + ' hours apart; escapes always post</span>' : '') + '</h4>' + g[1].map(function (k) {
+          return '<h4 class="hsub">' + g[0] + (g[0] === 'Moments' ? ' <span class="why">up to ' + ((dc.health && dc.health.cap) || 8) + ' a day, ' + ((dc.health && dc.health.gapH) || 2) + ' hours apart; escapes always post</span>' : '') + '</h4>' + g[1].filter(function (k) { return !(k[0] === 'big' && E.isAcc(st())); }).map(function (k) {   // AccSaber games have no map clears
             return '<label class="check"><input type="checkbox" data-post="' + k[0] + '"' + (dc[k[0]] ? ' checked' : '') + off + '> <span>' + esc(k[1]) + '</span></label>';
           }).join('');
         }).join('') +
@@ -2672,12 +2675,14 @@
     var k = sp.kind && theme().kinds[sp.kind];
     if (sp.type === 'exit') return { icon: k ? k.icon : '🚪', text: cap(theme().goal || 'the exit') };
     if (k) return { icon: k.icon, text: k.title.replace(/!+$/, '') };
-    return { icon: { map: '🎵', task: '🎵', card: '🃏', safe: '🛟', blank: '✔️' }[sp.type] || '•', text: { map: 'Map space', task: 'Map space', card: 'Card drop', safe: 'Safe', blank: 'Blank space' }[sp.type] || cap(sp.type) };
+    if (E.isAcc(s) && (sp.type === 'map' || sp.type === 'task')) return { icon: '•', text: 'Space' };
+    return { icon: { map: '🎵', task: '🎵', card: '🃏', safe: '🛟', blank: '✔️' }[sp.type] || '•', text: { map: 'Map space', task: 'Map space', card: 'Card drop', safe: 'Safe', blank: 'Turn over' }[sp.type] || cap(sp.type) };
   }
   function hpSong(key) { var m = songFor(key); return '<span data-song="' + esc(key) + '">' + (m ? esc(m.name) : '!bsr ' + esc(key)) + '</span>'; }
   function hostPlayerGroups(s, p) {
     var g = [];
     if (p.tasks.length) g.push('map');
+    if (p.paused) g.push('paused');
     if (p.route) g.push(p.route); else g.push('noroute');
     if (p.finished) g.push('escaped');
     return g;
@@ -2685,8 +2690,9 @@
   function hostPlayerChips(s) {
     var count = { all: s.order.length };
     s.order.forEach(function (pid) { hostPlayerGroups(s, s.players[pid]).forEach(function (k) { count[k] = (count[k] || 0) + 1; }); });
-    var chips = [['all', 'All'], ['map', 'On a map'], ['riskier', 'Riskier'], ['longer', 'Longer'], ['escaped', 'Escaped'], ['noroute', 'No route']]
-      .filter(function (c) { return c[0] === 'all' || c[0] === 'map' || count[c[0]]; });
+    var acc = E.isAcc(s);
+    var chips = [['all', 'All'], ['map', 'On a map'], ['paused', 'Paused'], ['riskier', 'Riskier'], ['longer', 'Longer'], ['escaped', 'Escaped'], ['noroute', 'No route']]
+      .filter(function (c) { return c[0] === 'all' || (c[0] === 'map' && !acc) || count[c[0]]; });
     if (!chips.some(function (c) { return c[0] === playerFilter; })) playerFilter = 'all';
     return '<div class="hp-chips" role="group" aria-label="Show players">' + chips.map(function (c) {
       return '<button type="button" class="hp-chip" data-h="pfilter" data-f="' + c[0] + '" aria-pressed="' + (playerFilter === c[0]) + '">' + c[1] + '<b>' + (count[c[0]] || 0) + '</b></button>';
@@ -2705,6 +2711,7 @@
       if (p.accBonus > 0) tags.push('<span class="hp-tag">🎁 Weekly bonus saved</span>');
     }
     if (p.skip && !p.finished) tags.push('<span class="hp-tag warn">💤 Loses ' + p.skip + ' turn' + (p.skip > 1 ? 's' : '') + '</span>');
+    if (p.paused && !p.finished) tags.push('<span class="hp-tag warn">⏸️ Paused, not in the clan</span>');
     if (p.shield && !p.finished) tags.push('<span class="hp-tag ok">🛡️ Protected</span>');
     if (p.extraRoll && !p.finished) tags.push('<span class="hp-tag ok">🎁 Extra roll</span>');
     return '<article class="hp-card' + (open ? ' open' : '') + '" data-pname="' + esc(p.name.toLowerCase()) + '" data-pf="' + hostPlayerGroups(s, p).join(' ') + '">' +
@@ -2730,6 +2737,7 @@
     if (!p.finished) html += '<div class="hp-act"><h5>Give a card</h5><div class="hp-give"><select data-cardpick="' + esc(pid) + '" aria-label="Card for ' + esc(p.name) + '"><option value="">Pick a card…</option>' +
       s.cards.map(function (c) { return '<option value="' + c.id + '">' + esc((c.art ? c.art + ' ' : '') + c.title) + '</option>'; }).join('') + '</select>' +
       '<button type="button" class="btn small ghost" data-h="givecard" data-pid="' + esc(pid) + '">Give</button></div></div>';
+    if (p.paused && !p.finished) html += '<div class="hp-act"><h5>Paused</h5><div class="hp-danger"><p>AccSaber doesn\'t show them in the clan, so their rolls are paused. Let them play anyway if that\'s wrong. The clan check leaves them alone after that.</p><button type="button" class="btn small" data-h="unpause" data-pid="' + esc(pid) + '">Let them play</button></div></div>';
     html += '<div class="hp-act"><h5>Start over</h5><div class="hp-danger"><p>Back to the start with no open maps. Their clears stay.</p><button type="button" class="btn small danger" data-h="reset" data-pid="' + esc(pid) + '">Reset</button></div></div>';
     return html + '</div>';
   }
@@ -2889,6 +2897,7 @@
       case 'approve': run('approve', { pid: pid, task: btn.dataset.task }, 'Approved.'); break;
       case 'reject': if (confirm('Reject ' + st().players[pid].name + '\'s run? They keep the map and can play it again or send a new run.')) run('reject', { pid: pid, task: btn.dataset.task }, 'Run rejected.'); break;
       case 'clearmap': { var p = st().players[pid], tid = btn.dataset.task || (p.tasks[0] && p.tasks[0].id); if (!tid) break; if (!confirm('Mark ' + p.name + '\'s map as cleared? They can roll again.')) break; run('approve', { pid: pid, task: tid }, 'Map cleared for ' + p.name + '.'); break; }
+      case 'unpause': run('unpause', { pid: pid }, st().players[pid].name + ' can roll again.'); break;
       case 'reset': if (confirm('Send ' + st().players[pid].name + ' back to the start and clear their maps?')) run('resetPlayer', { pid: pid }); break;
       case 'newgame': {
         var ns = readStart('newStart'); if (ns === false) break;
@@ -2923,7 +2932,7 @@
       case 'revealnow': if (confirm('Reveal the board now? Sign-ups open and the bot posts the game in Discord.')) run('hide', { on: false }, 'The board is revealed and sign-ups are open.'); break;
       case 'clearstart': if (confirm('Cancel the countdown? Sign-ups stay open and nobody can roll until you set a new start time.')) run('schedule', { startsAt: null }, 'Countdown canceled. Sign-ups are still open.'); break;
       case 'endnow': if (confirm('End the game now? The standings freeze and nobody can roll again.')) run('endNow', {}, 'The game is over.'); break;
-      case 'startnow': if (confirm('Start the game now? Everyone can roll right away.')) run('startNow', {}, 'The game has started.'); break;
+      case 'startnow': if (confirm(E.isAcc(st()) ? 'Start the game now? Day 1 starts right away: everyone rolls once they finish a daily mission.' : 'Start the game now? Everyone can roll right away.')) run('startNow', {}, 'The game has started.'); break;
       case 'letin': run('letIn', { id: btn.dataset.id }, 'Let in.'); break;
       case 'dismiss': run('dismiss', { id: btn.dataset.id }); break;
       case 'unallow': if (confirm('Remove their access? They will see the invite-only screen.')) run('removeAccess', { id: btn.dataset.id }); break;
@@ -3197,7 +3206,7 @@
     var html = '<section class="gate-card' + (t ? '' : ' bsg-card') + '">' + (t ? '<svg class="gate-crow" viewBox="-36 -42 72 80" aria-hidden="true">' + R.hero(0, 0, 1, t) + '</svg>' : logo);
     // Signed out: what the site is, then Discord sign-in.
     if (g.kind === 'signin' && !t) html += '<h2>' + BSG_WORDMARK + '</h2><p class="gate-tag">Board games for Beat Saber clans</p>' +
-      '<p>Roll once a day, play the map you land on, and race your clan to the finish. Sign in with Discord to see your clan\'s game.</p><div class="row" style="justify-content:center">';
+      '<p>Roll once a day, clear a map or an AccSaber mission, and race your clan to the finish. Sign in with Discord to see your clan\'s game.</p><div class="row" style="justify-content:center">';
     else html += '<h2>' + esc(msg[0]) + '</h2><p>' + esc(msg[1]) + '</p>' + (t && g.startsAt && g.startsAt > Date.now() ? countdownHtml(g.startsAt, theme0(t)) : '') + '<div class="row" style="justify-content:center">';
     if (g.kind === 'signin') html += '<a class="btn discord" href="' + esc(g.loginUrl()) + '">' + DISCORD_ICON + 'Sign in with Discord</a>';
     if (g.kind === 'noclan') html += '<a class="btn discord" href="' + CLAN_DM + '" target="_blank" rel="noopener">' + DISCORD_ICON + 'Message MSploit</a><a class="btn ghost" href="' + esc(g.loginUrl()) + '">Check again</a>';

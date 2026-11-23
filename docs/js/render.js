@@ -561,7 +561,7 @@
     var pal = theme.palette, L = look(theme), k = sp.kind && theme.kinds[sp.kind];
     var s = 58, h = s / 2, o = '';
     var cls = 'sp sp-' + sp.type + (opts.selected === sp.id ? ' sel' : '');
-    o += '<g class="' + cls + '" data-id="' + esc(sp.id) + '" transform="translate(' + sp.x + ',' + sp.y + ')" tabindex="' + (opts.focusable ? 0 : -1) + '" role="button" aria-label="' + esc(label(sp, theme)) + '">';
+    o += '<g class="' + cls + '" data-id="' + esc(sp.id) + '" transform="translate(' + sp.x + ',' + sp.y + ')" tabindex="' + (opts.focusable ? 0 : -1) + '" role="button" aria-label="' + esc(label(sp, theme, opts.acc)) + '">';
     if (opts.artSpaces) {
       // The background art already shows this space; draw only a hit area (visible in the designer).
       o += '<rect class="face ghost" x="' + (-h) + '" y="' + (-h) + '" width="' + s + '" height="' + s + '" rx="5" fill="' + (opts.designer ? 'rgba(242,163,58,.18)' : 'transparent') + '" stroke="' + (opts.designer ? '#f2a33a' : 'transparent') + '" stroke-width="2"/>';
@@ -613,11 +613,12 @@
       default: return '';
     }
   }
-  function label(sp, theme) {
+  // acc: an AccSaber game, where map spaces have no map.
+  function label(sp, theme, acc) {
     var k = sp.kind && theme.kinds[sp.kind];
-    var base = k ? k.title : sp.type === 'card' ? 'Card drop' : sp.type === 'map' ? 'Map space' : sp.type === 'blank' ? 'Blank space' : sp.type;
-    var maps = sp.bsr && sp.bsr.length ? ' !bsr ' + sp.bsr.join(' or ') : '';
-    return base + maps + '. ' + C.spaceEffectText(sp);
+    var base = k ? k.title : sp.type === 'card' ? 'Card drop' : sp.type === 'map' && !acc ? 'Map space' : sp.type === 'blank' ? 'Turn over' : sp.type === 'map' || sp.type === 'task' ? 'Space' : sp.type;
+    var maps = sp.bsr && sp.bsr.length && !acc ? ' !bsr ' + sp.bsr.join(' or ') : '';
+    return base + maps + '. ' + C.spaceEffectText(sp, acc);
   }
 
   function connectors(board, theme) {

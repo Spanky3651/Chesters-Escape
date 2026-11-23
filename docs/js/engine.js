@@ -71,7 +71,7 @@
     s.order.forEach(function (pid) {
       var p = s.players[pid]; if (!p || !p.blId || p.finished) return;
       var c = counts[p.blId] || {}, a = p.acc || (p.acc = {});
-      if (clanWant && c.c !== undefined) {
+      if (clanWant && c.c !== undefined && !p.clanOk) {   // clanOk: the host let them play anyway
         var inClan = c.c === clanWant;
         if (!inClan && !p.paused) { p.paused = 'clan'; changed = true; if (s.status === 'running') emit(s, p, { t: 'paused' }); }
         else if (inClan && p.paused === 'clan') { delete p.paused; changed = true; if (s.status === 'running') emit(s, p, { t: 'unpaused' }); }
@@ -102,6 +102,14 @@
     });
     if (changed) s.seq++;
     return changed;
+  }
+  // The host lets a paused player play again, and the clan check leaves them alone from then on.
+  function unpause(s, pid) {
+    var p = s.players[pid]; if (!p) return false;
+    p.clanOk = true;
+    if (p.paused) { delete p.paused; if (s.status === 'running') emit(s, p, { t: 'unpaused' }); }
+    s.seq++;
+    return true;
   }
   // At the day's turn: today's count starts where yesterday's ended (the worker reads it again
   // right after the reset to make it exact).
@@ -998,7 +1006,7 @@
   var E = {
     VERSION: VERSION, makeUpShortDay: makeUpShortDay, swapMaps: swapMaps, DEFAULTS: DEFAULTS,
     createGame: createGame, swapCards: swapCards, sameCards: sameCards, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, react: react, reactor: reactor, REACTIONS: REACTIONS, LEGACY_REACTIONS: LEGACY_REACTIONS, signupsOpen: signupsOpen, isHidden: isHidden, hide: hide, reveal: reveal, chooseRoute: chooseRoute,
-    canRoll: canRoll, canLifeline: canLifeline, lifeLeft: lifeLeft, LIFELINES: LIFELINES, roll: roll, advanceDay: advanceDay, isAcc: isAcc, accWeek: accWeek, accDaily: accDaily, accUpdate: accUpdate,
+    canRoll: canRoll, canLifeline: canLifeline, lifeLeft: lifeLeft, LIFELINES: LIFELINES, roll: roll, advanceDay: advanceDay, unpause: unpause, isAcc: isAcc, accWeek: accWeek, accDaily: accDaily, accUpdate: accUpdate,
     completeTask: completeTask, claimTask: claimTask, rejectClaim: rejectClaim, matchScores: matchScores, improveClears: improveClears,
     setPosition: setPosition, hostCard: hostCard, resetPlayer: resetPlayer,
     routeOf: routeOf, spaceAt: spaceAt, progress: progress, remaining: remaining, exitIndex: exitIndex,

@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Beat Saber Games",
   "short_name": "Beat Saber Games",
-  "description": "Board games for Beat Saber clans. Roll once a day, play the map you land on, and race your clan to the finish.",
+  "description": "Board games for Beat Saber clans. Roll once a day, clear a map or an AccSaber mission, and race your clan to the finish.",
   "start_url": "./?utm_source=pwa&utm_campaign=installed",
   "scope": "./",
   "display": "standalone",

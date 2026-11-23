@@ -606,7 +606,7 @@ export class Game extends DurableObject {
     if (t.shot) card.image = { url: (this.env.GAME_PAGE || '').replace(/\/?$/, '/') + t.shot };
     return card;
   }
-  icon() { return { thanksgiving: '🦃', halloween: '🎃', christmas: '🎄', newyear: '🎉', valentine: '💘', spring: '🐣', summer: '☀️' }[this.theme().look] || '📅'; }
+  icon() { return { thanksgiving: '🦃', halloween: '🎃', christmas: '🎄', snowy: '❄️', newyear: '🎉', valentine: '💘', spring: '🐣', summer: '☀️' }[this.theme().look] || '📅'; }
   // Sign-ups open.
   signupsPost() {
     const s = this.state, maps = this.mapCount(), span = this.span();
@@ -716,7 +716,7 @@ export class Game extends DurableObject {
       } else if (e.t === 'gate-closed') {
         const first = s.finishOrder.find((pid) => s.players[pid] && s.players[pid].finished && s.players[pid].finished.day === e.day);
         const when = this.meta.nextCutoff ? `<t:${sec(this.meta.nextCutoff)}:R>` : 'tomorrow';
-        ok = queue('gate', e.day, `🚪 **${name(e.pid)}** reached the ${goal}, but ${first ? `**${name(first)}**` : 'someone'} already got out today. ${name(e.pid)} waits one space short and can roll for it again ${when}.`);
+        ok = queue('gate', e.day, `🚪 **${name(e.pid)}** reached the ${goal}, but ${first ? `**${name(first)}**` : 'someone'} already got out today. ${name(e.pid)} waits one space short and can roll for it again ${when}${E.isAcc(s) ? ' after a daily mission' : ''}.`);
       }
       else if (e.t === 'start') ok = queue('setback', e.day, hit(e.pid, 'is sent back to the start').replace(/ and is now [^.]*/, ''), { key: 'start:' + art + what, art, what, pid: e.pid });
       else if (e.t === 'move' && e.n <= -SETBACK) ok = queue('setback', e.day, hit(e.pid, `goes back ${-e.n} spaces`, e.to));
@@ -767,7 +767,7 @@ export class Game extends DurableObject {
         const list = (a) => (a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]);
         const shown = near.slice(0, 5), who = list(shown.map((x) => `**${name(x.pid)}** (${x.left} away)`)) + (near.length > 5 ? ` and ${near.length - 5} more` : '');
         const next = this.meta.nextCutoff ? ` The next day starts <t:${sec(this.meta.nextCutoff)}:t>.` : '';
-        let text = `🏁 **Race to the ${goal}!** ${who} can ${near.length === 2 ? 'both' : 'all'} get out with one roll, but only one player can escape a day. The first one out takes the spot, so roll early.${next}`;
+        let text = `🏁 **Race to the ${goal}!** ${who} can ${near.length === 2 ? 'both' : 'all'} get out with one roll, but only one player can escape a day. The first one out takes the spot, so ${E.isAcc(s) ? 'finish a daily mission and roll early' : 'roll early'}.${next}`;
         if (s.settings.exactFinish) text += '\n🎯 Exact rolls only: ' + shown.map((x) => `${name(x.pid)} needs a **${x.left}**`).join(', ') + '.';
         if (!(await postNow('race', text))) return;
         near.forEach((x) => { if (!f.raced.includes(x.pid)) f.raced.push(x.pid); });
@@ -880,7 +880,7 @@ export class Game extends DurableObject {
       fields.push({ name: '👑 Out front', value: clip(`${head}, ${plural(a.left, 'space')} from the ${goal}.` + (next ? ` ${list(racing.filter((r) => r.left === next.left).map((r) => name(r.pid)))} ${racing.filter((r) => r.left === next.left).length > 1 ? 'are' : 'is'} ${next.left - a.left} back.` : '')), inline: false });
     }
     const missions = evs.filter((e) => e.t === 'mission').length;
-    const desc = (E.isAcc(s) ? `${plural(rolls, 'roll')} and ${plural(missions, 'daily mission')} finished on day ${day}.` : `${plural(rolls, 'roll')} and ${plural(clears, 'map')} cleared on day ${day}.`) + (s.status === 'running' ? ` Day ${s.day} is open, roll your d4!` : '');
+    const desc = (E.isAcc(s) ? `${plural(rolls, 'roll')} and ${plural(missions, 'daily mission')} finished on day ${day}.` : `${plural(rolls, 'roll')} and ${plural(clears, 'map')} cleared on day ${day}.`) + (s.status === 'running' ? (E.isAcc(s) ? ` Day ${s.day} is open: finish a daily mission and roll your d4!` : ` Day ${s.day} is open, roll your d4!`) : '');
     return this.card('📰 Day ' + day + ' recap', { description: desc, fields: fields.slice(0, 10) });
   }
   // Who was still racing at the end of a game day and how far each had to go, read back from the
@@ -1025,7 +1025,7 @@ export class Game extends DurableObject {
     const s = this.game(); const pid = this.pidFor(user);
     await this.catchUp();
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
-    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove', 'hostPlays', 'invisible', 'hide', 'hallPics'];
+    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'unpause', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove', 'hostPlays', 'invisible', 'hide', 'hallPics'];
     if (hostOnly.includes(action) && !user.isHost) return { error: 'Only the host can do that.', status: 403 };
     if (E.isHidden(s) && !user.isHost) return { error: 'The next game is still a secret. Watch your clan Discord for the reveal.', code: 'hidden' };
     if (s.status === 'finished' && ['join', 'route', 'roll', 'verify', 'claim'].includes(action)) return { error: 'The game is over.' };
@@ -1087,6 +1087,7 @@ export class Game extends DurableObject {
         case 'setpos': E.setPosition(s, a.pid, Number(a.pos), { apply: !!a.apply }); break;
         case 'card': E.hostCard(s, a.pid, a.card); break;
         case 'resetPlayer': E.resetPlayer(s, a.pid); break;
+        case 'unpause': if (!E.unpause(s, a.pid)) return { error: 'No such player.' }; break;
         case 'removePlayer': E.removePlayer(s, a.pid); break;
         case 'clearPlayers': if (!E.clearPlayers(s)) return { error: 'You can only clear sign-ups before the game starts.' }; break;
         case 'hide': {

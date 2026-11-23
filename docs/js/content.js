@@ -815,10 +815,11 @@
   }
   // What a Blank space tells the player when the host hasn't written its own message.
   var BLANK_MSG = 'Turn complete. Roll again tomorrow.';
-  function spaceEffectText(sp) {
+  // acc: an AccSaber game, where map and blocker spaces have no map and just end the turn.
+  function spaceEffectText(sp, acc) {
     switch (sp.type) {
-      case 'map': return sp.bsr.length > 1 ? 'Play one of these maps' : 'Play this map';
-      case 'task': return 'Play this map to continue';
+      case 'map': return acc ? BLANK_MSG : sp.bsr.length > 1 ? 'Play one of these maps' : 'Play this map';
+      case 'task': return acc ? BLANK_MSG : 'Play this map to continue';
       case 'card': return 'Draw a card';
       case 'move': return sp.n > 0 ? 'Move ahead ' + sp.n + ' spaces' : 'Back up ' + (-sp.n) + ' spaces';
       case 'skip': return sp.turns > 1 ? 'Lose ' + sp.turns + ' turns' : 'Lose a turn';
