@@ -518,8 +518,9 @@
   // The built-in board's route blurbs follow the theme. A designer board keeps its own words.
   function routeBlurb(r) {
     var s = st(), t = theme(), info = s.board.routeInfo[r] || {}, builtIn = C.boards['chester-escape']().routeInfo[r] || {};
-    if (t.routes && t.routes[r] && (!info.blurb || info.blurb === builtIn.blurb)) return t.routes[r].replace('{n}', (s.board.routes[r] || []).length);
-    return info.blurb || '';
+    var out = t.routes && t.routes[r] && (!info.blurb || info.blurb === builtIn.blurb) ? t.routes[r].replace('{n}', (s.board.routes[r] || []).length) : info.blurb || '';
+    // AccSaber games have no maps: "Plowed paths, more maps." reads "Plowed paths."
+    return E.isAcc(s) ? out.replace(/,? (and )?more maps\b/i, '') : out;
   }
   // Within one roll of the exit: say what it takes to get out, and whether the gate is open today.
   function nearExit(s, p) {
@@ -850,7 +851,7 @@
       else if (sp.type !== 'exit' && sp.type !== 'blank') n.bad++;
     });
     var acc = E.isAcc(st());   // AccSaber mode: only what the route has
-    var w = function (k, one, many) { return acc && !n[k] ? '' : n[k] + ' ' + (n[k] === 1 ? one : many); };
+    var w = function (k, one, many) { return acc && (!n[k] || k === 'map' || k === 'task') ? '' : n[k] + ' ' + (n[k] === 1 ? one : many); };   // no maps or blockers in AccSaber games
     return [w('map', 'map', 'maps'), w('task', 'blocker', 'blockers'), w('card', 'card drop', 'card drops'), w('good', 'boost', 'boosts'), w('bad', 'setback', 'setbacks')].filter(Boolean).join(' \u00b7 ');
   }
   // Song names for the standings. Board maps arrive with the covers; bonus maps are looked up here.
