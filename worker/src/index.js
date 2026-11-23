@@ -608,7 +608,8 @@ export class Game extends DurableObject {
   // Sign-ups open.
   signupsPost() {
     const s = this.state, maps = this.mapCount(), span = this.span();
-    const what = maps ? maps + ' maps' + (span ? ' over ' + span : '') + '. ' : '';
+    // AccSaber games play missions, not maps (the board can still carry maps from the board it was made from).
+    const what = E.isAcc(s) ? (span ? span + ' of AccSaber missions. ' : '') : maps ? maps + ' maps' + (span ? ' over ' + span : '') + '. ' : '';
     return { text: `📣 **Sign-ups are open for ${md(s.title)}!** ${what}Sign up any time before the first roll.`, card: this.pitch(false) };
   }
   // The post a day before the start: what the game is, when it runs and everyone who's in so far.
