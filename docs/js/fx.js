@@ -532,9 +532,35 @@
     good: ['fire', 'jaw', 'strong', 'love', 'sabers', 'letsgo', 'bump', 'salt', 'sweat', 'popcorn', 'hero', 'medal', 'lol', 'rage', 'ss', 'cry','broken', 'mud', 'rip', 'hype'],
     other: ['letsgo', 'bump', 'hype', 'love', 'lol', 'popcorn', 'hero', 'fire', 'jaw', 'strong', 'sweat', 'medal', 'sabers', 'salt', 'rage', 'cry','broken', 'mud', 'rip', 'ss']
   };
+  // Stuck! follows the theme: the theme's own character stuck in its back-to-start spot, sinking and struggling
+  // like the mud pit pig (which stays for the mud pit). The theme's `stuck` in content.js picks the drawing.
+  var MOUND = 'M1 25.4Q1.6 22.6 4.6 22.8Q6.6 21.4 9 22.6Q11.4 21.8 13 23Q16 22 19 23Q21 21.8 23.2 22.8Q25.6 21.6 27.6 22.8Q30.6 22.8 31 25.4Q31 31 16 31Q1 31 1 25.4Z';
+  var SOFT = 'M1 25.6Q2 21.4 7 21.8Q10 19.6 14 21Q17.6 19.4 21.4 21Q25.6 19.8 28.4 22.6Q31 23.4 31 25.6Q31 31 16 31Q1 31 1 25.6Z';
+  function stuckHero(t, base) { var taco = t && t.hero === 'taco'; return '<g class="a-sink"><g transform="translate(16 ' + (base + (taco ? -4.5 : 0)) + ') scale(' + (taco ? 0.38 : 0.34) + ')">' + R.hero(0, 0, 1, t) + '</g></g>'; }
+  function stuckGround(d, fill, stroke, extra) { return '<path class="a-ground" d="' + d + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width=".8" stroke-linejoin="round"/>' + (extra || ''); }
+  function stuckStone(snow) { return '<path d="M21 5h6.4a3.2 3.2 0 0 1 3.2 3.2V21H17.8V8.2A3.2 3.2 0 0 1 21 5z" fill="#9aa0a3" stroke="#2c3134" stroke-width="1"/><path d="M24.2 8.6v6M21.8 10.8h4.8" stroke="#5d6366" stroke-width="1.2" stroke-linecap="round"/>' + (snow ? '<path d="M18.4 6.6q5.8-2.6 11.6 0 .4.8.6 1.6-6-1.2-12.8 0z" fill="#fff"/>' : ''); }
+  function stuckFlakes() { return '<g class="a-flk" fill="#fff"><circle cx="4" cy="6" r=".8"/><circle cx="9" cy="3.4" r=".6"/><circle cx="28" cy="2.6" r=".6"/><circle cx="3" cy="14" r=".5"/></g>'; }
+  var STUCK = {
+    grave: function (t) { return stuckStone() + '<ellipse cx="14" cy="24" rx="12" ry="4" fill="#120d08"/>' + stuckHero(t, 19) + stuckGround(MOUND, '#5a3b22', '#2a1a0c', '<path d="M5 25.2Q9 24 12.6 25M20 24.8Q24 24.2 27.2 25.4" stroke="#7a5233" stroke-width=".8" fill="none" stroke-linecap="round"/>'); },
+    snowgrave: function (t) { return stuckStone(1) + '<ellipse cx="14" cy="24" rx="12" ry="4" fill="#1b2433"/>' + stuckHero(t, 19) + stuckGround(SOFT, '#f4f8ff', '#8fa6c4') + stuckFlakes(); },
+    snowdrift: function (t) { return stuckHero(t, 18) + stuckGround(SOFT, '#f4f8ff', '#8fa6c4', '<path d="M6 25.6Q9 24.4 12 25.4M19 25.2Q22.6 24 26 25.4" stroke="#c9d7ea" stroke-width=".9" fill="none" stroke-linecap="round"/>') + stuckFlakes(); },
+    sand: function (t) { return stuckHero(t, 18) + stuckGround(SOFT, '#f2d28a', '#b08a3e', '<circle cx="8" cy="26.6" r=".6" fill="#c9a352"/><circle cx="13" cy="28.4" r=".5" fill="#c9a352"/><circle cx="21" cy="27.6" r=".6" fill="#c9a352"/>') + '<path d="M24.6 16.4h4.8l-.9 5h-3z" fill="#ff5b6b" stroke="#8a1d28" stroke-width=".7" stroke-linejoin="round"/><path d="M25 16.4q2.4-2.8 4.8 0" fill="none" stroke="#8a1d28" stroke-width=".7"/>'; },
+    rabbithole: function (t) { return '<ellipse cx="16" cy="23.6" rx="10.5" ry="3.8" fill="#1a1208"/>' + stuckHero(t, 20) + stuckGround('M1 25.4Q1.4 22.6 4.6 22.6Q7 22.4 8.4 23.6Q12 25.6 16 25.6T23.6 23.6Q25 22.4 27.4 22.6Q30.6 22.6 31 25.4Q31 31 16 31Q1 31 1 25.4Z', '#6cbf4a', '#2e6b1d', '<path d="M4 23l.6-2.4.8 2M27.4 23l.6-2.6.8 2.2M9 27.6l.5-2 .7 1.8M21 27.8l.5-2 .7 1.8" stroke="#2e6b1d" stroke-width=".8" fill="none" stroke-linecap="round"/><circle cx="26" cy="28" r="1.3" fill="#ffd34d"/><circle cx="26" cy="28" r=".55" fill="#e8822a"/>'); },
+    letters: function (t) {
+      var ball = function (x, y, r) { return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="#fff4f6" stroke="#c0607a" stroke-width=".7"/><path d="M' + (x - r * 0.6) + ' ' + (y - r * 0.1) + 'l' + (r * 0.5) + ' ' + (r * 0.4) + ' ' + (r * 0.3) + ' ' + (-r * 0.6) + ' ' + (r * 0.4) + ' ' + (r * 0.5) + '" fill="none" stroke="#e7a3b4" stroke-width=".6"/>'; };
+      return stuckHero(t, 18) + '<g class="a-ground">' + ball(4.4, 26.4, 3) + ball(10, 24.4, 3.2) + ball(16.4, 25, 3.3) + ball(22.6, 24.2, 3) + ball(27.8, 26.4, 2.8) + ball(7.4, 29, 2.6) + ball(13.6, 29.2, 2.8) + ball(20, 29, 2.8) + ball(25.6, 29.4, 2.4) + '</g>' +
+        '<path class="a-heart" d="M26 7.6c.8-1.6 3-1.2 3 .6 0 1.6-3 3.4-3 3.4s-3-1.8-3-3.4c0-1.8 2.2-2.2 3-.6z" fill="#ff4d6d" stroke="#8a1d33" stroke-width=".6"/>';
+    },
+    bus: function (t) {
+      return '<g class="a-bus"><rect x="16" y="9.4" width="14.6" height="9.4" rx="2" fill="#ffcc33" stroke="#6b4a00" stroke-width=".8"/><rect x="17.6" y="11" width="3" height="3.2" rx=".6" fill="#9fd8ff"/><rect x="21.6" y="11" width="3" height="3.2" rx=".6" fill="#9fd8ff"/><rect x="25.6" y="11" width="3" height="3.2" rx=".6" fill="#9fd8ff"/><circle cx="19.4" cy="19" r="1.6" fill="#222"/><circle cx="27.2" cy="19" r="1.6" fill="#222"/><circle cx="14" cy="16" r="1.2" fill="#bfc6d2" opacity=".8"/><circle cx="12" cy="14.6" r=".9" fill="#bfc6d2" opacity=".6"/></g>' +
+        '<g transform="translate(-4.6 2)">' + stuckHero(t, 19) + '</g>' + stuckGround('M1 24.2Q1 22.6 3 22.6H29Q31 22.6 31 24.2V29Q31 31 29 31H3Q1 31 1 29Z', '#3a3f4b', '#1d2027', '<path d="M4 26.8h4M12 26.8h4M20 26.8h4" stroke="#ffd34d" stroke-width="1"/>');
+    }
+  };
+  function stuckIcon(theme, cls) { return '<svg class="' + (cls || 'rx-ico') + ' rx-mud rx-stuck" viewBox="0 0 32 32" aria-hidden="true">' + STUCK[theme.stuck](theme) + '</svg>'; }
   function rxLabel(id, theme) { return id === 'hero' ? (theme && theme.hero === 'taco' ? 'Taco!' : 'Caw!') : (RX[id] ? RX[id].label : ''); }
   function rxIcon(id, theme, cls) {
     if (id === 'hero') return '<svg class="' + (cls || 'rx-ico') + ' rx-hero' + (theme && theme.hero === 'taco' ? ' taco' : '') + '" viewBox="-31 -36 62 64" aria-hidden="true"><g class="a-bob">' + R.hero(0, 0, 1, theme) + '</g></svg>';
+    if (id === 'mud' && theme && STUCK[theme.stuck]) return stuckIcon(theme, cls);
     if (RX[id] && RX[id].img) return '<img class="' + (cls || 'rx-ico') + ' rx-' + id + '" src="' + RX[id].img + '" alt="" aria-hidden="true" draggable="false" decoding="async">';
     return RX[id] ? '<svg class="' + (cls || 'rx-ico') + ' rx-' + id + '" viewBox="0 0 32 32" aria-hidden="true">' + RX[id].svg() + '</svg>' : '';
   }
@@ -558,5 +584,5 @@
     return out;
   }
 
-  root.CGFx = { rxIcon: rxIcon, rxLabel: rxLabel, rxOrder: rxOrder, rxCounts: rxCounts, Camera: Camera, fx: fx, grade: grade, BADGES: BADGES, BADGE_BY: BADGE_BY, badgesFor: badgesFor, flair: flair, rivals: rivals, shareCard: shareCard, eggLine: eggLine, eggContext: eggContext, DIZZY: DIZZY, LEGEND: LEGEND, still: still };
+  root.CGFx = { STUCK_SPOTS: Object.keys(STUCK).concat('mud'), rxIcon: rxIcon, rxLabel: rxLabel, rxOrder: rxOrder, rxCounts: rxCounts, Camera: Camera, fx: fx, grade: grade, BADGES: BADGES, BADGE_BY: BADGE_BY, badgesFor: badgesFor, flair: flair, rivals: rivals, shareCard: shareCard, eggLine: eggLine, eggContext: eggContext, DIZZY: DIZZY, LEGEND: LEGEND, still: still };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

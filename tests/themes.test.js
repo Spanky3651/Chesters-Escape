@@ -8,7 +8,7 @@ const C = require('../docs/js/content.js');
 
 const root = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
-const css = read('docs/css/game.css'), render = read('docs/js/render.js'), index = read('docs/index.html');
+const css = read('docs/css/game.css'), render = read('docs/js/render.js'), index = read('docs/index.html'), fxSrc = read('docs/js/fx.js');
 const file = (u) => fs.existsSync(path.join(root, 'docs', String(u).split('?')[0]));
 
 // Themes that still show the graveyard Chester on their Discord posts. Give them a thumb before a game uses them.
@@ -28,6 +28,8 @@ for (const [id, t] of Object.entries(C.themes)) {
   need(t.words && Array.isArray(t.words.card) && t.words.card.length === 2, id, 'words.card needs two words (the card-space label)');
   for (const k of ['longer', 'riskier']) need(t.routes && t.routes[k], id, 'missing routes.' + k + ' (route blurb)');
   for (const k of boardKinds) need(t.kinds && t.kinds[k] && t.kinds[k].title && t.kinds[k].icon, id, 'missing kinds.' + k + ' (an event on the board)');
+  // Stuck! reaction: a drawing for the theme's back-to-start spot (STUCK in fx.js), or the mud pit pig
+  need(t.stuck && (t.stuck === 'mud' || fxSrc.includes('\n    ' + t.stuck + ': function (t)')), id, 'missing stuck, or no Stuck! drawing for it in STUCK in fx.js');
   // card words: its own deck, or its own entry in the card wording table
   need(t.deck || C.cardWords[id], id, 'no card wording: add it to WORDS in content.js (or give the theme a deck)');
   if (t.deck) t.deck.forEach((c) => need(!c.full || file(c.full), id, 'card picture not found: ' + c.full));

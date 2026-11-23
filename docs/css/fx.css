@@ -643,3 +643,13 @@ a.srow:hover, a.ptr:hover { background: var(--raise); }
 @keyframes rx_hype_r{0%{transform:translate(.8px,0)}50%{transform:translate(-.8px,0)}}
 @keyframes rx_hype_c2{0%{opacity:0}50%{opacity:1}}
 @keyframes rx_hype_spark{0%{opacity:1;transform:rotate(0)}50%{opacity:.2;transform:rotate(8deg)}}
+
+/* Stuck! drawn for the theme (fx.js STUCK): the sinking comes from .rx-mud .a-sink above */
+.rx-stuck .a-flk { animation: rx_stuck_flk 2.6s linear infinite; }
+.rx-stuck .a-bus { animation: rx_stuck_bus 2.6s ease-in infinite; }
+.rx-stuck .a-heart { transform-origin: 26px 10px; animation: rx_stuck_heart 1.3s ease-in-out infinite alternate; }
+.rx-stuck .a-ground { transform-origin: 16px 27px; animation: rx_mud_wob 1.3s ease-in-out infinite alternate; }
+@keyframes rx_stuck_flk { 0% { transform: translateY(-2px); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(6px); opacity: 0; } }
+@keyframes rx_stuck_bus { 0%, 30% { transform: translateX(0); opacity: 1; } 85% { transform: translateX(9px); opacity: 0; } 100% { transform: translateX(0); opacity: 0; } }
+@keyframes rx_stuck_heart { from { transform: scale(.9) rotate(-6deg); } to { transform: scale(1.1) rotate(6deg); } }
+@media (prefers-reduced-motion: reduce) { .rx-stuck * { animation: none !important; } }

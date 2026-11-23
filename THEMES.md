@@ -15,6 +15,7 @@ Copy the closest existing theme and change it. Chester themes have no `family` (
    - `card` names (back, treasure, trick, task, fate) and `words` (card-space label, start, routes, escaped, results)
    - `routes.longer` and `routes.riskier` blurbs (`{n}` becomes the space count)
    - `kinds`: every event, with a title and an icon. Same list as the other themes in its family.
+   - `stuck`: the Stuck! reaction drawing for its back-to-start spot: `grave`, `snowgrave`, `mud`, `snowdrift`, `sand`, `rabbithole`, `bus` or `letters`. A new kind of spot needs its own drawing in `STUCK` in `docs/js/fx.js`.
    - Optional: `look` (reuse another theme's look), `hat`, `hero`, `deck` (picture cards), `mapSet`, `art`, `artHero`, `shot`
 2. **Card wording** in `WORDS` in `content.js` (20 cards), unless the theme has its own `deck`.
 3. **Discord picture**: `thumb` (a square image in `docs/img/themes/`), or `artHero` for Taco themes. Without one, posts show the graveyard Chester.

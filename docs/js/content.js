@@ -130,6 +130,7 @@
       title: "Chester's Escape",
       tagline: 'Help Chester find his way out of the cemetery. If you dare.',
       goal: 'cemetery gates',
+      stuck: 'grave',   // the Stuck! reaction drawing: this theme's back-to-start spot
       font: "'Grenze Gotisch', Georgia, serif",
       palette: { ground: '#4a6a2c', ground2: '#2f4a1d', stone: '#9aa0a3', stoneDark: '#5d6366', ink: '#2b2f31', accent: '#f2a33a', good: '#3fd04a', bad: '#8b5cf6', water: '#1d4f73' },
       card: { back: 'Chester’s Escape', treasure: 'Treasure card', trick: 'Trick card', task: 'Task card', fate: 'Fate card' },
@@ -159,6 +160,7 @@
       title: "Chester's Christmas",
       tagline: "Help Santa reach Chester's tombstone home with shiny crow gifts.",
       goal: 'tombstone home',
+      stuck: 'snowgrave',   // the Stuck! reaction drawing: this theme's back-to-start spot
       font: "'Mountains of Christmas', Georgia, serif",
       taglineSize: 16,
       fontQuery: 'Mountains+of+Christmas:wght@700',
@@ -192,6 +194,7 @@
       title: "Chester's Thanksgiving",
       tagline: 'Help Chester reach the harvest feast before the pie is gone.',
       goal: 'feast table',
+      stuck: 'mud',   // the Stuck! reaction drawing: this theme's back-to-start spot
       font: "'Cherry Swash', Georgia, serif",
       fontQuery: 'Cherry+Swash:wght@700',
       hat: 'pilgrim',
@@ -227,6 +230,7 @@
       title: "Taco's Halloween",
       tagline: "Help Taco reach the haunted house.",
       goal: "haunted house",
+      stuck: "grave",   // the Stuck! reaction drawing: this theme's back-to-start spot
       font: "'Creepster', Georgia, serif",
       fontQuery: "Creepster",
       hero: 'taco',
@@ -263,6 +267,7 @@
       title: "Taco's Thanksgiving",
       tagline: "Help Taco get to Thanksgiving dinner.",
       goal: "dinner table",
+      stuck: "mud",   // the Stuck! reaction drawing: this theme's back-to-start spot
       font: "'Cherry Swash', Georgia, serif",
       fontQuery: "Cherry+Swash:wght@700",
       hero: 'taco',
@@ -301,6 +306,7 @@
       title: "Taco's Christmas",
       tagline: "Help Taco get to Santa's house.",
       goal: "North Pole",
+      stuck: "snowdrift",   // the Stuck! reaction drawing: this theme's back-to-start spot
       font: "'Mountains of Christmas', Georgia, serif",
       fontQuery: "Mountains+of+Christmas:wght@700",
       hero: 'taco',
@@ -337,6 +343,7 @@
       title: "Taco's New Year",
       tagline: "Help Taco reach the midnight party.",
       goal: "midnight party",
+      stuck: "bus",   // the Stuck! reaction drawing: this theme's back-to-start spot
       font: "'Sniglet', system-ui, sans-serif",
       fontQuery: "Sniglet:wght@800",
       hero: 'taco',
@@ -373,6 +380,7 @@
       title: "Taco's Valentine's Day",
       tagline: "Help Taco deliver a valentine.",
       goal: "mailbox",
+      stuck: "letters",   // the Stuck! reaction drawing: this theme's back-to-start spot
       font: "'Pacifico', Georgia, serif",
       fontQuery: "Pacifico",
       hero: 'taco',
@@ -409,6 +417,7 @@
       title: "Taco's Easter",
       tagline: "Help Taco find the Easter basket.",
       goal: "Easter basket",
+      stuck: "rabbithole",   // the Stuck! reaction drawing: this theme's back-to-start spot
       font: "'Sniglet', system-ui, sans-serif",
       fontQuery: "Sniglet:wght@800",
       hero: 'taco',
@@ -445,6 +454,7 @@
       title: "Taco's Summer",
       tagline: "Help Taco reach the beach party.",
       goal: "beach party",
+      stuck: "sand",   // the Stuck! reaction drawing: this theme's back-to-start spot
       font: "'Sniglet', system-ui, sans-serif",
       fontQuery: "Sniglet:wght@800",
       hero: 'taco',
@@ -503,6 +513,7 @@
     t.name = "Chester's Snowy Escape"; t.title = "Chester's Snowy Escape";
     t.tagline = 'Help Chester find his way home to his cabin before the snow gets any deeper.';
     t.goal = 'cabin';
+    t.stuck = 'snowdrift';   // Stuck! shows Chester in a snowdrift, like its back-to-start space
     t.card = { back: "Chester's Snowy Escape", treasure: 'Snowflake card', trick: 'Icicle card', task: 'Snowball card', fate: 'Snow globe' };
     t.kinds = {
       cat:        { title: 'Chased by a snowman!', icon: '⛄' },
