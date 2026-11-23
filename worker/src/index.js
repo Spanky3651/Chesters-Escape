@@ -647,14 +647,15 @@ export class Game extends DurableObject {
   // The game's totals, counting moments that have aged out of the log.
   totals() {
     const s = this.state, T = (s.tally && s.tally.p) || {};
-    let clears = 0, best = null;
-    for (const pid of Object.keys(T)) { clears += T[pid].clears || 0; if (T[pid].best && (!best || T[pid].best.acc > best.acc)) best = { pid, ...T[pid].best }; }
+    let clears = 0, missions = 0, best = null;
+    for (const pid of Object.keys(T)) { clears += T[pid].clears || 0; missions += T[pid].missions || 0; if (T[pid].best && (!best || T[pid].best.acc > best.acc)) best = { pid, ...T[pid].best }; }
     for (const e of s.events) {
+      if (e.t === 'mission') missions++;
       if (e.t !== 'cleared') continue;
       clears++;
       if (e.proof && e.proof.acc && (!best || e.proof.acc > best.acc)) best = { pid: e.pid, acc: e.proof.acc, key: (e.bsr || [])[0], diff: e.proof.diff || '' };
     }
-    return { clears, best };
+    return { clears, missions, best };
   }
   // Game moments for the channel,  // Game moments for the channel, read from the event log so nothing posts twice. The first run
   // after an update only notes where the log is. Moments are capped per game day so a busy day
@@ -1549,7 +1550,14 @@ export class Game extends DurableObject {
     }
     return { counts, known };
   }
-  async accRefresh(opts = {}) {
+  // One AccSaber read at a time: a check that comes in while one is running waits for it and uses
+  // its result, instead of getting "no mission yet" from counts that are about to change.
+  accRefresh(opts = {}) {
+    if (this.accBusy) return this.accBusy.then((r) => (opts.force ? this.accRefresh(opts) : r));
+    this.accBusy = this.accRead(opts).finally(() => { this.accBusy = null; });
+    return this.accBusy;
+  }
+  async accRead(opts = {}) {
     const s = this.state, now = Date.now();
     if (!E.isAcc(s) || s.status === 'finished') return false;
     if (!opts.force && this.accAt && now - this.accAt < 3 * 60000) return false;
@@ -1560,7 +1568,10 @@ export class Game extends DurableObject {
     if (!known.d && !Object.keys(counts).length) return false;   // AccSaber didn't answer
     const want = this.accClanWant();
     // Not on the missions list yet (no missions ever): look up their clan one by one, a few at a time.
-    if (want) for (const id of ids.filter((x) => !counts[x] || counts[x].c === undefined).slice(0, 5)) {
+    // Taking turns, so everyone gets checked over a few reads, not just the same first five.
+    const unseen = ids.filter((x) => !counts[x] || counts[x].c === undefined), off = (this.meta.accUserOff || 0) % (unseen.length || 1);
+    if (want && unseen.length) this.meta.accUserOff = off + Math.min(5, unseen.length);
+    if (want) for (const id of unseen.slice(off).concat(unseen.slice(0, off)).slice(0, 5)) {
       if (!this.take(1)) break;
       const u = await this.accUser(id);
       if (u) (counts[id] = counts[id] || {}).c = u.clan;
@@ -1641,7 +1652,7 @@ export class Game extends DurableObject {
     const medal = ['🥇', '🥈', '🥉'];
     const goal = this.theme().goal || 'exit', tot = this.totals(), out = s.final.filter((r) => r.escaped).length;
     const fields = s.final.filter((r) => r.place <= 3).slice(0, 6).map((r) => ({ name: `${medal[r.place - 1]} ${md(s.players[r.pid].name)}`, value: r.escaped ? `Day ${r.day}` : `${r.left} to go`, inline: true }));
-    const done = E.isAcc(s) ? plural(s.events.filter((e) => e.t === 'mission').length, 'daily mission') + ' finished' : plural(tot.clears, 'map') + ' cleared';
+    const done = E.isAcc(s) ? plural(tot.missions, 'daily mission') + ' finished' : plural(tot.clears, 'map') + ' cleared';
     fields.push({ name: '📊 By the numbers', value: `${plural(s.final.length, 'player')} · ${done} · ${out} made it to the ${goal}`, inline: false });
     if (tot.best && s.players[tot.best.pid]) {
       const song = tot.best.key ? await this.songName(tot.best.key) : '';

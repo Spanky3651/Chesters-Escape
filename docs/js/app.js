@@ -611,7 +611,7 @@
   }
 
   // ---- feed --------------------------------------------------------------------
-  var ICON = { rest: '🛡️', roll: '🎲', land: '📍', task: '🎵', card: '🃏', move: '➡️', skip: '⏸️', start: '↩️', warp: '🌀', cleared: '✅', claim: '📨', 'claim-rejected': '❌', 'lost-turn': '💤', escaped: '🎉', route: '🧭', join: '👋', shield: '🛡️', 'shield-used': '🛡️', again: '🎲', overshoot: '🎯', 'gate-closed': '🔒', 'host-move': '🧹', 'host-reset': '🧹', reshuffle: '🔀', begin: '🏁', pass: '⚡', mission: '✅', weekly: '⭐', paused: '⏸️', unpaused: '▶️' };
+  var ICON = { rest: '🛡️', roll: '🎲', land: '📍', task: '🎵', card: '🃏', move: '➡️', skip: '⏸️', start: '↩️', warp: '🌀', cleared: '✅', claim: '📨', 'claim-rejected': '❌', 'lost-turn': '💤', escaped: '🎉', route: '🧭', join: '👋', shield: '🛡️', 'shield-used': '🛡️', again: '🎲', overshoot: '🎯', 'gate-closed': '🔒', 'host-move': '🧹', 'host-reset': '🧹', reshuffle: '🔀', begin: '🏁', pass: '⚡', mission: '✅', weekly: '⭐', 'lifeline-back': '🛟', paused: '⏸️', unpaused: '▶️' };
   function evText(e) {
     var s = st(), t = theme(), sp = e.space ? s.board.spaces[e.space] : null, card = e.card ? E.cardById(s, e.card) : null;
     switch (e.t) {
@@ -745,8 +745,9 @@
   // Reactions under a thread item, plus react and share buttons.
   var RX_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="12" r="8"/><path d="M8 14.5c1.6 1.8 4.4 1.8 6 0"/><path d="M8.5 9.5h.01M13.5 9.5h.01"/><path d="M20 3v4M18 5h4"/></svg>';
   var SHARE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>';
-  var REACTABLE = { cleared: 1, escaped: 1, card: 1, move: 1, start: 1, warp: 1, pass: 1, skip: 1, 'lost-turn': 1, join: 1, 'gate-closed': 1, 'shield-used': 1 };
-  function shareable(e) { return e.pid === store.me && (e.t === 'cleared' || e.t === 'escaped' || e.t === 'pass' || e.t === 'start' || (e.t === 'warp') || (e.t === 'move' && Math.abs(e.n) >= 3) || e.t === 'card'); }
+  // AccSaber games: the mission moments are their clears, so they can be reacted to and shared too.
+  var REACTABLE = { cleared: 1, escaped: 1, card: 1, move: 1, start: 1, warp: 1, pass: 1, skip: 1, 'lost-turn': 1, join: 1, 'gate-closed': 1, 'shield-used': 1, mission: 1, weekly: 1, 'lifeline-back': 1 };
+  function shareable(e) { return e.pid === store.me && (e.t === 'cleared' || e.t === 'escaped' || e.t === 'pass' || e.t === 'start' || (e.t === 'warp') || (e.t === 'move' && Math.abs(e.n) >= 3) || e.t === 'card' || e.t === 'weekly' || e.t === 'lifeline-back'); }
   // Who reacts from this browser: your player, or (live) anyone signed in and let in, joined or not.
   function rxMe() {
     var p = me(); if (p) return p;
@@ -1008,6 +1009,8 @@
     var p = me(); if (!p || animating) return;
     animating = true;
     ['rollBtn', 'mRoll', 'lifeBtn'].forEach(function (id) { var b = $(id); if (b) b.disabled = true; });
+    // A lifeline roll checks AccSaber first (so a daily already done isn't wasted), which can take a few seconds.
+    var lb = lifeline && $('lifeBtn'); if (lb) lb.textContent = 'Checking AccSaber first…';
     audio();
     var startPos = p.pos;
     var hl = svgEl.querySelector('.hl'); if (hl) Array.prototype.forEach.call(hl.querySelectorAll('.prev'), function (x) { x.remove(); });
@@ -1491,6 +1494,8 @@
       var gr = X.grade(pr.acc); o.kicker = pr.firstAcc != null ? 'New personal best' : 'Map cleared'; o.headline = pr.acc ? (pr.acc * 100).toFixed(2) + '%' : 'Cleared'; o.grade = gr ? gr.g : null;
       return S.map((ev.bsr || [])[0]).then(function (m) { o.sub = m.name + (pr.diff ? ' \u00b7 ' + pr.diff.replace('ExpertPlus', 'Expert+') : ''); o.cover = m.cover; return o; }, function () { o.sub = '!bsr ' + (ev.bsr || [])[0]; return o; });
     }
+    if (ev.t === 'weekly') { o.kicker = 'AccSaber'; o.headline = 'Weekly mission done'; o.sub = 'Bonus roll earned'; return Promise.resolve(o); }
+    if (ev.t === 'lifeline-back') { o.kicker = 'AccSaber'; o.headline = 'Both dailies done'; o.sub = 'A lifeline back'; return Promise.resolve(o); }
     if (ev.t === 'escaped') { o.kicker = 'The ' + t.goal; o.headline = t.words.escaped; o.sub = ordinal(ev.place) + ' place on day ' + ev.day; }
     else if (ev.t === 'pass') { o.kicker = 'Overtake'; o.headline = 'Passed ' + (ev.over || []).map(function (q) { return s.players[q] ? s.players[q].name : ''; }).filter(Boolean).join(' & '); var at = posAt(s, ev); o.sub = (at != null ? E.routeOf(s, p).length - 1 - at : E.remaining(s, p)) + ' spaces to go'; }
     else if (ev.t === 'start') { o.kicker = 'Ouch'; o.headline = 'Back to the start'; o.sub = kind ? kind.title : ''; }

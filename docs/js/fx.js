@@ -581,7 +581,8 @@
     if (e.t === 'cleared') return RX_ORDER.cleared;
     if (e.t === 'escaped') return RX_ORDER.escaped;
     if (e.t === 'start' || e.t === 'skip' || e.t === 'lost-turn' || e.t === 'gate-closed' || (e.t === 'move' && e.n < 0) || e.t === 'claim-rejected') return RX_ORDER.bad;
-    if (e.t === 'pass' || e.t === 'shield-used' || e.t === 'warp' || (e.t === 'move' && e.n > 0)) return RX_ORDER.good;
+    if (e.t === 'pass' || e.t === 'shield-used' || e.t === 'warp' || (e.t === 'move' && e.n > 0) || e.t === 'weekly' || e.t === 'lifeline-back') return RX_ORDER.good;
+    if (e.t === 'mission') return RX_ORDER.cleared;
     return RX_ORDER.other;
   }
   // One event's reactions as { id: [player ids] }, with old emoji reactions folded in.
