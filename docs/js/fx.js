@@ -204,11 +204,30 @@
     { id: 'crowd', icon: '📣', name: 'Crowd Favorite', desc: 'Got 10 reactions on your moments' }
   ];
   var BADGE_BY = {}; BADGES.forEach(function (b) { BADGE_BY[b.id] = b; });
-  // AccSaber games have no maps: Golden Run can't happen there, and On Fire counts daily missions.
-  var ACC_BADGE = { streak: 'Finished a daily mission 3 days in a row' };
+  // The badges this game can actually give. AccSaber games have no maps, so Golden Run can't happen
+  // and On Fire counts daily missions. A badge the board or deck has no way to give is left out:
+  // Untouchable needs a protection card, Rode the Current a warp that moves you ahead, Back From the
+  // Start a back-to-start space, Risk Taker a riskier route. The words follow the theme's goal.
+  var listCache = { key: '', val: null };
   function badgeList(s) {
-    if (!E.isAcc(s)) return BADGES;
-    return BADGES.filter(function (b) { return b.id !== 'golden'; }).map(function (b) { return ACC_BADGE[b.id] ? Object.assign({}, b, { desc: ACC_BADGE[b.id] }) : b; });
+    var b = s.board || {}, sp = b.spaces || {}, routes = b.routes || {}, acc = E.isAcc(s);
+    var key = s.id + '|' + s.seq + '|' + s.themeId + '|' + acc;
+    if (listCache.key === key) return listCache.val;
+    var t = (root.CGContent && root.CGContent.themes[s.themeId]) || {}, goal = t.goal || 'exit', no = {};
+    if (acc) no.golden = 1;
+    if (!(s.cards || []).some(function (c) { return (c.effects || []).some(function (fx) { return fx.type === 'shield'; }); })) no.shield = 1;
+    if (!Object.keys(routes).some(function (r) { var ids = routes[r] || []; return ids.some(function (id, i) { var x = sp[id]; return x && x.type === 'warp' && ids.indexOf(x.to) > i; }); })) no.current = 1;
+    if (!Object.keys(sp).some(function (id) { return sp[id].type === 'start'; })) no.phoenix = 1;
+    if (!routes.riskier) no.risk = 1;
+    var desc = {
+      first: 'First player to reach the ' + goal,
+      risk: 'Reached the ' + goal + ' on the riskier route',
+      phoenix: 'Sent back to the start and still reached the ' + goal
+    };
+    if (acc) desc.streak = 'Finished a daily mission 3 days in a row';
+    var val = BADGES.filter(function (x) { return !no[x.id]; }).map(function (x) { return desc[x.id] ? Object.assign({}, x, { desc: desc[x.id] }) : x; });
+    listCache = { key: key, val: val };
+    return val;
   }
   var badgeCache = { key: '', val: null };
   function badgesFor(s) {

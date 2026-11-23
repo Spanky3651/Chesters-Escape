@@ -875,7 +875,7 @@
     switch (e.t) {
       case 'roll': t.rolls++; t.total += e.n; t.pos = Math.min(last, (e.from == null ? t.pos : e.from) + e.n); t.run4 = e.n === 4 ? t.run4 + 1 : 0; if (t.run4 >= 3) t.flags.fours = 1; break;
       case 'move': if (e.n < 0) t.lost += Math.min(-e.n, Math.max(0, (e.from == null ? t.pos : e.from) + 1)); else t.gained += e.n; t.pos = e.to; break;
-      case 'warp': { var a = r.indexOf(e.space), b = r.indexOf(e.to); if (a >= 0 && b >= 0) { if (b < a) t.lost += a - b; else { t.gained += b - a; t.flags.current = 1; } t.pos = b; } break; }
+      case 'warp': { var a = r.indexOf(e.space), b = r.indexOf(e.to); if (a >= 0 && b >= 0) { if (b < a) t.lost += a - b; else if (b > a) { t.gained += b - a; t.flags.current = 1; } t.pos = b; } break; }
       case 'start': t.lost += Math.max(0, t.pos + 1); t.pos = -1; t.flags.sent = 1; break;
       case 'host-move': t.pos = e.to; break;
       case 'host-reset': t.pos = -1; break;
