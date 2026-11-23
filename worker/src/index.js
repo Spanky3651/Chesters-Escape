@@ -373,17 +373,8 @@ export class Game extends DurableObject {
       this.visits = (await ctx.storage.get('visits')) || [];
       this.undoList = (await ctx.storage.get('undoList')) || [];
       const was = JSON.stringify([this.state, this.meta, this.visits]);
-      // Hall of fame rows from before pictures were kept there get them from the finished game,
-      // either the current one or the copy saved for undo when the host cleared it.
-      if ((this.meta.hall || []).some((g) => (g.all || []).some((r) => !r.avatar))) {
-        const games = this.state ? [this.state] : [];
-        for (const u of this.undoList) { try { const raw = await ctx.storage.get('undo:' + u.id); if (raw) games.push(JSON.parse(raw)); } catch (e) {} }
-        for (const g of this.meta.hall) {
-          const src = games.find((x) => x && x.id === g.id && x.players);
-          if (!src) continue;
-          for (const r of g.all || []) if (!r.avatar && src.players[r.pid] && src.players[r.pid].avatar) r.avatar = src.players[r.pid].avatar;
-        }
-      }
+      // Hall of fame rows from before pictures were kept there get them from the finished game.
+      await this.fillHallPics();
       // Player pictures saved with BeatLeader's old .xyz address (dead since Nov 2026) move to .com.
       blFix(this.state); blFix(this.meta); blFix(this.visits);
       if (JSON.stringify([this.state, this.meta, this.visits]) !== was) {
@@ -443,6 +434,28 @@ export class Game extends DurableObject {
     // The race post came later too: games set up before it follow their wait-at-the-gate setting.
     if (this.meta.posts.race === undefined) this.meta.posts.race = !!this.meta.posts.gate;
     return this.meta.posts;
+  }
+  // Hall of fame rows saved before pictures were kept there: take each player's picture from the
+  // finished game, either the current one or the copy saved for undo when the host cleared it.
+  async fillHallPics() {
+    const hall = this.meta.hall || [];
+    const out = { snaps: 0, games: [], filled: 0, missing: 0 };
+    if (!hall.some((g) => (g.all || []).some((r) => !r.avatar))) return out;
+    const games = this.state ? [this.state] : [];
+    for (const u of this.undoList || []) {
+      try { const raw = await this.ctx.storage.get('undo:' + u.id); if (raw) { out.snaps++; games.push(typeof raw === 'string' ? JSON.parse(raw) : raw); } } catch (e) {}
+    }
+    out.games = games.map((x) => (x && x.id) || '');
+    for (const g of hall) {
+      const src = games.find((x) => x && x.id === g.id && x.players);
+      const tops = Object.fromEntries((g.top || []).map((t) => [t.pid, t.avatar]));
+      for (const r of g.all || []) {
+        if (r.avatar) continue;
+        const a = (src && src.players[r.pid] && src.players[r.pid].avatar) || tops[r.pid] || '';
+        if (a) { r.avatar = blFix(a); out.filled++; } else out.missing++;
+      }
+    }
+    return out;
   }
   recordHall() { if ((this.meta.hallHidden || []).includes(this.state.id)) return; E.addToHall(this.meta.hall = this.meta.hall || [], this.state); }
   // The last few host changes, newest last. Each keeps the game as it was before the change.
@@ -1004,7 +1017,7 @@ export class Game extends DurableObject {
     this.useClan(user);
     const s = this.game(); const pid = this.pidFor(user);
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
-    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove', 'hostPlays', 'hide'];
+    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove', 'hostPlays', 'hide', 'hallPics'];
     if (hostOnly.includes(action) && !user.isHost) return { error: 'Only the host can do that.', status: 403 };
     if (E.isHidden(s) && !user.isHost) return { error: 'The next game is still a secret. Watch your clan Discord for the reveal.', code: 'hidden' };
     if (s.status === 'finished' && ['join', 'route', 'roll', 'verify', 'claim'].includes(action)) return { error: 'The game is over.' };
@@ -1172,6 +1185,7 @@ export class Game extends DurableObject {
           ac.names = ac.names || {}; if (w) ac.names[id] = w.name; else if (a.name) ac.names[id] = String(a.name).slice(0, 60);
           ac.pending = ac.pending.filter((x) => x.id !== id); s.seq++; break;
         }
+        case 'hallPics': result = await this.fillHallPics(); break;
         case 'hallRemove': {
           const id = String(a.id || ''), hall = this.meta.hall || [];
           if (!hall.some((h) => h.id === id)) return { error: 'That game is not in the hall of fame.' };
