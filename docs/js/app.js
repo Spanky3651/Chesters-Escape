@@ -1811,6 +1811,11 @@
     track('how-to-play');
     var step = function (icon, h, p) { return '<li class="hw-step"><span class="hw-ic" aria-hidden="true">' + icon + '</span><b>' + h + '</b><span>' + p + '</span></li>'; };
     var acc = E.isAcc(s);
+    // Only describe what this board and deck can actually do.
+    var onBoard = function (f) { return (b.routes.longer || []).concat(b.routes.riskier || []).some(function (q) { return b.spaces[q] && f(b.spaces[q]); }); };
+    var bonusCards = (s.cards || []).some(function (c) { return (c.effects || []).some(function (fx) { return fx.type === 'task'; }); });
+    var twoMaps = onBoard(function (sp) { return (sp.type === 'map' || sp.type === 'task') && sp.bsr && sp.bsr.length > 1; });
+    var breaks = [onBoard(function (sp) { return sp.type === 'safe'; }) ? 'Safe' : '', onBoard(function (sp) { return sp.type === 'blank'; }) ? 'Turn over' : ''].filter(Boolean);
     var loop = acc ? '<ol class="hw-loop">' +
       step(HOW_CHECK, 'Do a mission', 'One AccSaber daily mission a day.') +
       step(R.dieIcon(), 'Roll the d4', 'Your roll unlocks. Move that many spaces.') +
@@ -1826,8 +1831,8 @@
     // One example of every kind of space on this board, cut from the board itself.
     var kinds = [
       // AccSaber games have no maps: map and blocker spaces just end the turn there.
-      ['map', function (sp) { return sp.type === 'map' || (E.isAcc(s) && sp.type === 'task'); }, E.isAcc(s) ? 'Space' : 'Map space', E.isAcc(s) ? 'Your turn ends here.' : 'Play its map. Some offer two.'],
-      ['card', function (sp) { return sp.type === 'card'; }, cap(cardWord), E.isAcc(s) ? 'Draw a card. Good or bad.' : 'Draw a card. Good, bad or a bonus map.'],
+      ['map', function (sp) { return sp.type === 'map' || (E.isAcc(s) && sp.type === 'task'); }, E.isAcc(s) ? 'Space' : 'Map space', E.isAcc(s) ? 'Your turn ends here.' : 'Play its map.' + (twoMaps ? ' Some offer two.' : '')],
+      ['card', function (sp) { return sp.type === 'card'; }, cap(cardWord), E.isAcc(s) || !bonusCards ? 'Draw a card. Good or bad.' : 'Draw a card. Good, bad or a bonus map.'],
       ['task', function (sp) { return sp.type === 'task' && !E.isAcc(s); }, 'Blocker', 'Play its map to get past.'],
       ['up', function (sp) { return sp.type === 'move' && sp.n > 0; }, 'Boost', 'Jump ahead.'],
       ['shortcut', function (sp) { return sp.type === 'warp' && sp.kind === 'swim'; }, 'Shortcut', 'Carried ahead.'],
@@ -1849,8 +1854,8 @@
     var tips = '<ul class="hw-tips">' +
       (acc ? tip('✅', 'No maps to play here. Finish one AccSaber daily mission after the reset and your roll for the day unlocks. The first weekly mission each week adds one bonus roll, saved until you use it.') +
         tip('🛟', 'Dailies too hard today? Everyone starts with ' + E.LIFELINES + ' lifelines. Use one to take that day\'s roll without a mission. Finish both dailies in one day to earn one back, up to ' + E.LIFELINES + '. Still one roll a day: a lifeline never adds an extra roll.') :
-      tip('🎵', 'Every roll ends with a map. Stop on a space without one and you get a bonus map. Safe is the only break.')) +
-      (acc ? '' : tip('🔗', 'Moved by a card or event? Play the space if it\'s a map. Anything else you land on that way (back to start, lose a turn, move spaces, cards) is skipped.')) +
+      tip('🎵', 'Every roll ends with a map. Stop on a space without one and you get a bonus map.' + (breaks.length ? ' ' + breaks.join(' and ') + (breaks.length > 1 ? ' spaces are the only breaks.' : ' is the only break.') : ''))) +
+      tip('🔗', acc ? 'Moved by a card or event? Whatever you land on that way (back to start, lose a turn, move spaces, cards) is skipped.' : 'Moved by a card or event? Play the space if it\'s a map. Anything else you land on that way (back to start, lose a turn, move spaces, cards) is skipped.') +
       tip('🏁', 'First to the ' + esc(t.goal) + ' wins. Everyone else plays on for their place.') +
       (s.settings.exactFinish ? tip('🎯', 'You need the exact roll to reach the ' + esc(t.goal) + '. Roll higher and you stay where you are.') : '') +
       (s.settings.oneFinishPerDay !== false ? tip('🚪', 'The podium escapes one a day: if someone got out today, you wait at the gate until your next roll. Once the top 3 are out, anyone can escape any day.') : '') +

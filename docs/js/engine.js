@@ -490,14 +490,20 @@
     return b.every(function (c) { return ids[c.id]; });
   }
 
+  function mapOnly(card) { return !!(card && card.effects && card.effects.length && card.effects.every(function (fx) { return fx.type === 'task'; })); }
   function cardById(s, id) { for (var i = 0; i < s.cards.length; i++) if (s.cards[i].id === id) return s.cards[i]; return null; }
 
   function drawCard(s, p, ctx, forcedId) {
     if (!s.cards.length) return null;
     var id = forcedId;
     if (!id) {
-      if (!s.deck.length) { s.deck = shuffle(s.discard.splice(0), ctx && ctx.rng); emit(s, null, { t: 'reshuffle' }); }
-      id = s.deck.shift();
+      // AccSaber games have no maps, so a card that only hands out a bonus map is set aside unplayed.
+      for (var tries = 0; tries <= s.cards.length && !id; tries++) {
+        if (!s.deck.length) { s.deck = shuffle(s.discard.splice(0), ctx && ctx.rng); emit(s, null, { t: 'reshuffle' }); }
+        id = s.deck.shift();
+        if (id && isAcc(s) && mapOnly(cardById(s, id))) { s.discard.push(id); id = null; }
+      }
+      if (!id) return null;
     } else {
       s.deck = s.deck.filter(function (x) { return x !== id; });
     }
