@@ -269,6 +269,8 @@
   function renderHeader() {
     var s = st(), t = theme();
     renderClanSwitch(store);
+    // The page opens in the Beat Saber Games look while the game loads; the game's own theme takes over here.
+    if (document.body.classList.contains('booting')) { document.body.classList.remove('bsg', 'booting'); $('brandCrow').setAttribute('viewBox', '-36 -42 72 80'); }
     document.body.setAttribute('data-theme', t.look || t.id);
     R.setFavicon(t);
     preloadDeck(t);
@@ -3143,6 +3145,7 @@
     // Each game's own theme shows once you pick it.
     var t = g.kind !== 'choose' && g.theme && C.themes[g.theme] || null;
     var logo = '<svg class="gate-logo" viewBox="0 0 64 64" aria-hidden="true">' + BSG_LOGO.replace(/bsgTile/g, 'bsgTileBig') + '</svg>';
+    document.body.classList.remove('booting'); if (t) document.body.classList.remove('bsg');
     if (!t) { document.body.classList.add('neutral', 'bsg'); $('gameTitle').innerHTML = BSG_WORDMARK; document.title = 'Beat Saber Games'; }
     track('gate-' + g.kind);
     document.addEventListener('click', function (e) { if (e.target.closest('a[href*="/auth/login"]')) track('sign-in'); });
@@ -3192,6 +3195,7 @@
   function renderBetween(g) {
     var h = g.hidden || {}, until = h.until && h.until > Date.now() ? h.until : null;
     track('gate-between');
+    document.body.classList.remove('booting');
     document.body.classList.add('between');
     document.body.removeAttribute('data-theme');
     $('brandCrow').setAttribute('viewBox', '0 0 64 64'); $('brandCrow').innerHTML = BSG_LOGO;

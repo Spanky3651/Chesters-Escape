@@ -1244,6 +1244,8 @@ body .msp-av { background: var(--raise-2); color: var(--text); }
 .near-exit b { color: var(--accent); }
 
 /* ---- Between games: the next board is a secret (players only, while the host hides the next game) ---- */
+/* While the page loads (and when switching clans) it shows the Beat Saber Games header and nothing else. */
+body.booting .daybox, body.booting .topnav, body.booting main.layout, body.booting .demo-bar { visibility: hidden; }
 body.between, body.bsg { --bg: #000; --raise: #0d0f14; --raise-2: #151821; --line: #232734; --line-2: #313748; --text: #f1f3f8; --muted: #a7aec0; --faint: #6c7489;
   --accent: #2f7bff; --accent-ink: #fff; --display: var(--ui); background: #000; }
 body.between .brand-crow, body.bsg .brand-crow { width: 42px; height: 42px; }
