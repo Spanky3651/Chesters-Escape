@@ -22,7 +22,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Grenze+Gotisch:wght@500;700;800&family=Mountains+of+Christmas:wght@700&family=Cherry+Swash:wght@700&family=Creepster&family=Pacifico&family=Sniglet:wght@800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/game.css?v=20261123c">
+<link rel="stylesheet" href="css/game.css?v=20261123d">
 <link rel="stylesheet" href="css/fx.css?v=20261123b">
 <script data-goatcounter="https://chesters-escape.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
@@ -49,6 +49,9 @@
     <div class="clan-switch" id="clanSwitch" hidden></div>
   </nav>
 </header>
+
+<!-- While the page loads: the logo blocks roll like dice (shown only while body has .booting) -->
+<div class="boot-ld" aria-live="polite"><svg viewBox="0 0 64 64" aria-hidden="true"><g class="r"><rect x="8" y="20" width="27" height="27" rx="6" fill="#ff2740"/><path d="M13.5 26.5 L30.5 26.5 L22 34.5 Z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></g><g class="b"><rect x="29" y="17" width="27" height="27" rx="6" fill="#2f7bff" stroke="#08090c" stroke-width="2.6"/><circle cx="36.5" cy="24.5" r="2.4" fill="#fff"/><circle cx="48.5" cy="24.5" r="2.4" fill="#fff"/><circle cx="36.5" cy="36.5" r="2.4" fill="#fff"/><circle cx="48.5" cy="36.5" r="2.4" fill="#fff"/></g></svg><p>Loading the game</p></div>
 
 <div class="demo-bar" id="demoBar" hidden>
   <p><b>Demo game.</b> It runs in this browser with bot players. Rolls, cards and the BeatLeader check are real; the host tools let you skip ahead.</p>
@@ -104,7 +107,7 @@
   <div class="foot-more" id="footTools"><span class="fm-label">More Beat Saber tools:</span> <a href="https://spanky3651.github.io/Playlist-Studio/?utm_source=chesters-escape&amp;utm_medium=footer&amp;utm_campaign=site" data-tool="playlist-studio">Playlist Studio</a> <span class="sep">&middot;</span> <a href="https://spanky3651.github.io/HSV-Config-Generator/?utm_source=chesters-escape&amp;utm_medium=footer&amp;utm_campaign=site" data-tool="hsv-config-generator">HSV <span class="fm-long">Config </span>Generator</a> <span class="sep">&middot;</span> <a href="https://spanky3651.github.io/ReeSaber-Studio/?utm_source=chesters-escape&amp;utm_medium=footer&amp;utm_campaign=site" data-tool="reesaber-studio">ReeSaber Studio</a></div>
   <div class="foot-meta">
     <div class="foot-count" id="footCount" hidden></div>
-    <span class="foot-updated" id="footUpdated" data-updated="2026-11-23T13:16Z">Site updated recently</span>
+    <span class="foot-updated" id="footUpdated" data-updated="2026-11-23T13:29Z">Site updated recently</span>
   </div>
 </footer>
 

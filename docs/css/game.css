@@ -1246,6 +1246,16 @@ body .msp-av { background: var(--raise-2); color: var(--text); }
 /* ---- Between games: the next board is a secret (players only, while the host hides the next game) ---- */
 /* While the page loads (and when switching clans) it shows the Beat Saber Games header and nothing else. */
 body.booting .daybox, body.booting .topnav, body.booting main.layout, body.booting .demo-bar { visibility: hidden; }
+.boot-ld { display: none; }
+body.booting .boot-ld { position: fixed; inset: 72px 0 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; opacity: 0; animation: bootIn .3s ease .25s forwards; }
+.boot-ld svg { width: 120px; height: 120px; overflow: visible; }
+.boot-ld p { margin: 0; font: 700 16px var(--ui); color: #a7aec0; letter-spacing: .02em; }
+.boot-ld .r, .boot-ld .b { transform-box: fill-box; transform-origin: 50% 100%; animation: 1.6s cubic-bezier(.4, 0, .2, 1) infinite; }
+.boot-ld .r { animation-name: bootRollR; } .boot-ld .b { animation-name: bootRollB; }
+@keyframes bootIn { to { opacity: 1; } }
+@keyframes bootRollR { 0% { transform: translateY(0) rotate(-9deg); } 20% { transform: translateY(-22px) rotate(-120deg); } 40%, 100% { transform: translateY(0) rotate(-189deg); } }
+@keyframes bootRollB { 0%, 30% { transform: translateY(0) rotate(11deg); } 50% { transform: translateY(-22px) rotate(110deg); } 70%, 100% { transform: translateY(0) rotate(191deg); } }
+@media (prefers-reduced-motion: reduce) { .boot-ld .r, .boot-ld .b { animation: none; } }
 body.between, body.bsg { --bg: #000; --raise: #0d0f14; --raise-2: #151821; --line: #232734; --line-2: #313748; --text: #f1f3f8; --muted: #a7aec0; --faint: #6c7489;
   --accent: #2f7bff; --accent-ink: #fff; --display: var(--ui); background: #000; }
 body.between .brand-crow, body.bsg .brand-crow { width: 42px; height: 42px; }
