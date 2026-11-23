@@ -8,7 +8,6 @@
  *   - rolls on the server with crypto randomness
  *   - BeatLeader checks on the server (no relay needed here)
  *   - the day turns over by itself at the cutoff, and open maps get re-checked every 15 minutes
- *   - the host can post the results image to the game channel through a Discord webhook
  *   - hosts can get push notifications when someone is waiting to get in or asks for a run approval
  *
  * The rules are the exact same engine the page uses (docs/js/engine.js).
@@ -98,10 +97,14 @@ function clans(env) {
 // The game page link for a clan, so notifications and Discord posts open the right game.
 // Which songs a clan's board uses: the theme's own map set, else the clan's, else the original.
 function mapSetFor(clan, themeId) { const t = C.themes[themeId] || {}; return (C.mapSets[t.mapSet] && t.mapSet) || (clan && clan.maps) || ''; }
-function pageFor(env, clan, hash) {
+// src tags the link for GoatCounter: 'discord' for bot posts, 'push' for notifications.
+function pageFor(env, clan, hash, src) {
   const base = env.GAME_PAGE || '';
   if (!base) return '';
-  return base + (clans(env).length > 1 && clan ? (base.includes('?') ? '&' : '?') + 'clan=' + encodeURIComponent(clan.id) : '') + (hash || '');
+  const q = [];
+  if (clans(env).length > 1 && clan) q.push('clan=' + encodeURIComponent(clan.id));
+  if (src) q.push('utm_source=' + src + (src === 'discord' ? '&utm_medium=bot' : ''));
+  return base + (q.length ? (base.includes('?') ? '&' : '?') + q.join('&') : '') + (hash || '');
 }
 function rng() { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] / 4294967296; }
 
@@ -234,18 +237,6 @@ export default {
           await Promise.all(others.map((c) => gameStub(env, c).pushOp({ ...user, clan: c, isHost: hosts(env, c).includes(user.id) }, op, body).catch(() => null)));
         }
         return json(env, req, r, r.error ? 400 : 200);
-      }
-      if (url.pathname === '/api/host/results' && req.method === 'POST') {
-        if (!user || !user.isHost) return json(env, req, { error: 'Only the host can post results.' }, 403);
-        const hook = env[user.clan.webhook];
-        if (!hook) return json(env, req, { error: 'No Discord webhook is set up for ' + user.clan.name + ' yet.' }, 400);
-        const form = await req.formData();
-        const out = new FormData();
-        out.append('payload_json', JSON.stringify({ content: String(form.get('text') || ''), allowed_mentions: { parse: [] } }));
-        out.append('files[0]', form.get('file'), 'results.png');
-        const r = await fetch(hook, { method: 'POST', body: out });
-        if (!r.ok) return json(env, req, { error: 'Discord did not accept the post (' + r.status + ').' }, 502);
-        return json(env, req, { ok: true });
       }
       return json(env, req, { error: 'Not found' }, 404);
     } catch (e) {
@@ -419,7 +410,7 @@ export class Game extends DurableObject {
     const all = clans(this.env);
     return all.find((c) => c.id === this.meta.clanId) || all.find((c) => c.game === 'main') || all[0];
   }
-  page(hash) { return pageFor(this.env, this.clan(), hash); }
+  page(hash, src) { return pageFor(this.env, this.clan(), hash, src); }
   webhook() { return this.env[this.clan().webhook] || ''; }
   // Which automatic Discord posts this game makes. The host switches each one in Host tools; until
   // then the clan's announce setting decides ("1" turns everything on, or a list like "start,end").
@@ -543,14 +534,14 @@ export class Game extends DurableObject {
   gameCard() {
     const s = this.state, t = C.themes[s.themeId] || {}, base = this.env.GAME_PAGE || '';
     const pic = t.thumb || (t.artHero && t.artHero.src) || 'img/icon.png', hex = String((t.palette || {}).accent || '#f2a33a').replace('#', '');
-    return { title: s.title, url: this.page(), description: t.tagline || 'Roll the d4 once a day and play the map on the space you land on.', color: parseInt(hex, 16) || 0xf2a33a, thumbnail: { url: base.replace(/\/?$/, '/') + pic } };
+    return { title: s.title, url: this.page('', 'discord'), description: t.tagline || (E.isAcc(s) ? 'Finish an AccSaber daily mission, roll the d4 and race the clan to the finish.' : 'Roll the d4 once a day and play the map on the space you land on.'), color: parseInt(hex, 16) || 0xf2a33a, thumbnail: { url: base.replace(/\/?$/, '/') + pic } };
   }
   // ---- Discord post pieces ----
   theme() { return C.themes[this.state.themeId] || {}; }
   card(title, extra) {
     const t = this.theme(), base = (this.env.GAME_PAGE || '').replace(/\/?$/, '/');
     const hex = String((t.palette || {}).accent || '#f2a33a').replace('#', '');
-    return { title, url: this.page(), color: parseInt(hex, 16) || 0xf2a33a, thumbnail: { url: base + (t.thumb || (t.artHero && t.artHero.src) || 'img/icon.png') }, ...extra };
+    return { title, url: this.page('', 'discord'), color: parseInt(hex, 16) || 0xf2a33a, thumbnail: { url: base + (t.thumb || (t.artHero && t.artHero.src) || 'img/icon.png') }, ...extra };
   }
   mapCount() {
     const s = this.state, maps = new Set();
@@ -657,7 +648,7 @@ export class Game extends DurableObject {
     }
     return { clears, missions, best };
   }
-  // Game moments for the channel,  // Game moments for the channel, read from the event log so nothing posts twice. The first run
+  // Game moments for the channel, read from the event log so nothing posts twice. The first run
   // after an update only notes where the log is. Moments are capped per game day so a busy day
   // can't flood the channel; escapes, the game start, end and countdowns don't count toward the cap.
   async discordFeed() {
@@ -1102,7 +1093,7 @@ export class Game extends DurableObject {
           break;
         }
         case 'signups': if (s.status !== 'signup') return { error: 'The game has already started.' }; if (a.closed) s.signupsClosed = true; else delete s.signupsClosed; s.seq++; break;
-        case 'clearRoute': { const p = s.players[a.pid]; p.route = null; p.pos = -1; p.tasks = []; break; }
+        case 'clearRoute': { const p = s.players[a.pid]; if (!p) return { error: 'That player is no longer in the game.' }; p.route = null; p.pos = -1; p.tasks = []; break; }
         case 'settings': {
           // AccSaber mode is locked in once the game starts: the rules can't switch mid-game.
           if (a.patch && 'accsaber' in a.patch && s.status === 'running' && !!a.patch.accsaber !== !!s.settings.accsaber) return { error: "AccSaber mode can't change while the game is running. Set it before the start or for the next game." };
@@ -1407,14 +1398,14 @@ export class Game extends DurableObject {
   }
   async notifyHosts(msg, only) {
     const hostIds = hosts(this.env, this.clan());
-    return this.pushTo((this.meta.push || []).filter((x) => (only ? only(x) : hostIds.includes(x.uid))), { ...msg, url: this.page('#host') });
+    return this.pushTo((this.meta.push || []).filter((x) => (only ? only(x) : hostIds.includes(x.uid))), { ...msg, url: this.page('#host', 'push') });
   }
   async pushTo(subs, msg) {
     const keys = this.pushKeys();
     if (!keys || !subs.length) return { sent: 0, failed: 0 };
     // Every theme shows its own character on the notification (docs/img/push/<theme>.png); a game with no theme keeps the logo.
     const tid = this.state && this.state.themeId, th = C.themes[tid] || {};
-    const payload = { title: msg.title, body: msg.body || '', tag: (this.clan().id + '-') + (msg.tag || 'chester'), url: msg.url || this.page(), icon: C.themes[tid] ? 'img/push/' + tid + '.png' : '' };
+    const payload = { title: msg.title, body: msg.body || '', tag: (this.clan().id + '-') + (msg.tag || 'chester'), url: msg.url || this.page('', 'push'), icon: C.themes[tid] ? 'img/push/' + tid + '.png' : '' };
     const gone = new Set(); let sent = 0, failed = 0;
     await Promise.all(subs.map(async (sub) => {
       try {

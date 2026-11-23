@@ -689,6 +689,7 @@
   function replayEmbedOK() { return window.matchMedia('(min-width: 900px) and (hover: hover) and (pointer: fine)').matches; }
   function replayChip(url, evId) {
     var on = dockEv === evId;
+    url = String(url).replace(/^https:\/\/replay\.beatleader\.xyz\//, 'https://replay.beatleader.com/');   // .xyz is gone (Nov 2026)
     return ' <a class="rp-chip" href="' + esc(url) + '" target="_blank" rel="noopener" data-replay="' + esc(url) + '" data-rpev="' + evId + '"' + (on ? ' aria-pressed="true"' : '') + ' title="Watch the replay">' + RP_ICON + '<span>' + (on ? 'Watching' : 'Replay') + '</span></a>';
   }
   function openReplay(a) {
@@ -2223,7 +2224,7 @@
     [/^$/, 'Opened the link directly', 'Typed or pasted it, a bookmark, or an app that hides where the click came from (the Discord app on PC and phone usually does)', 'g:direct'],
     [/(^|\.)beatsabergames\.com$/, 'Beat Saber Games', 'The game itself, like moving between its own pages', 'b:'],
     [/discord(app)?\.(com|gg)$|com\.discord|^discord$/, 'Discord', 'A link in a Discord post or message. Can include people coming back from the Discord sign-in page', 'd:discord.com'],
-    [/^bio\.beatleader\.|(^|\.)beatleader\.(com|xyz|net|pro)$|^beatleader$/, 'BeatLeader', 'A link on BeatLeader, like a profile bio', 'd:beatleader.xyz'],
+    [/^bio\.beatleader\.|(^|\.)beatleader\.(com|xyz|net|pro)$|^beatleader$/, 'BeatLeader', 'A link on BeatLeader, like a profile bio', 'd:beatleader.com'],
     [/(^|\.)beatsaver\.com$/, 'BeatSaver', 'A link on a BeatSaver map or profile page', 'd:beatsaver.com'],
     [/(^|\.)accsaber\.com$/, 'AccSaber', 'A link on AccSaber', 'd:accsaber.com'],
     [/(^|\.)github\.com$|^github$/, 'GitHub', 'The game\'s GitHub page or README', 'd:github.com'],

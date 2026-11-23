@@ -350,11 +350,6 @@
     return this._fetch('/api/act', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: name, args: a || {} }) })
       .then(function (r) { self._apply(r); self._emit({ action: name, result: r.result }); return r.result; });
   };
-  // Results image goes to the Discord channel through the Worker's webhook.
-  LiveStore.prototype.postResults = function (blob, text) {
-    var fd = new FormData(); fd.append('file', blob, 'results.png'); fd.append('text', text || '');
-    return this._fetch('/api/host/results', { method: 'POST', body: fd });
-  };
   function json(r) {
     return r.json().catch(function () { return {}; }).then(function (j) {
       if (!r.ok) { var e = new Error(j.error || ('Request failed (' + r.status + ')')); e.code = j.code; e.status = r.status; throw e; }
