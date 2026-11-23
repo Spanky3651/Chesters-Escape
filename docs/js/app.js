@@ -460,8 +460,11 @@
     if (!p.finished) {
       html += '<div class="roll-box"><div id="dieSlot"></div><div class="roll-copy">';
       var wkRoll = E.isAcc(s) && can.ok && !(p.extraRoll && p.rolledDay === s.day) && !(p.rolledDay !== s.day && E.accDaily(s, p));
-      if (can.ok) html += '<b>' + (wkRoll ? 'Weekly bonus roll' : p.extraRoll && p.rolledDay === s.day ? 'Bonus roll' : 'Ready to roll') + '</b><p>Roll the d4 and move that many spaces.' + (E.isAcc(s) && p.accBonus > (wkRoll ? 1 : 0) ? ' You also have ' + (p.accBonus - (wkRoll ? 1 : 0) > 1 ? (p.accBonus - (wkRoll ? 1 : 0)) + ' weekly bonus rolls' : 'a weekly bonus roll') + ' saved.' : '') + '</p><button type="button" class="btn" id="rollBtn">Roll the d4</button>' +
-        (wkRoll ? lifelineHtml(s, p, true) : '');
+      var wkRolled = wkRoll && p.rolledDay === s.day;   // already rolled today: only the saved bonus is left
+      if (can.ok) html += '<b>' + (wkRoll ? 'Weekly bonus roll' : p.extraRoll && p.rolledDay === s.day ? 'Bonus roll' : 'Ready to roll') + '</b><p>' +
+        (wkRolled ? 'You rolled today. Your weekly bonus roll is saved until you use it, so roll it now or keep it for another day.' : wkRoll ? 'No daily mission yet today. Roll your saved weekly bonus now, or finish a daily mission and keep it.' : 'Roll the d4 and move that many spaces.') +
+        (E.isAcc(s) && p.accBonus > (wkRoll ? 1 : 0) ? ' You also have ' + (p.accBonus - (wkRoll ? 1 : 0) > 1 ? (p.accBonus - (wkRoll ? 1 : 0)) + ' weekly bonus rolls' : 'a weekly bonus roll') + ' saved.' : '') + '</p><button type="button" class="btn" id="rollBtn">' + (wkRoll ? 'Roll the weekly bonus' : 'Roll the d4') + '</button>' +
+        (wkRoll && !wkRolled ? '<div class="acc-row"><button type="button" class="btn ghost" id="accCheck">Check my missions</button><a class="btn ghost acc-open" href="https://accsaber.com/" target="_blank" rel="noopener">' + ACC_MARK + 'Open AccSaber</a></div>' + lifelineHtml(s, p, true) : '');
       else if (can.code === 'mission' || can.code === 'paused') html += '<b>' + esc(rollTitle(can)) + '</b><p>' + esc(rollWhy(can, p)) + '</p><div class="acc-row"><button type="button" class="btn" id="accCheck">' + (can.code === 'paused' ? 'Check again' : 'Check my missions') + '</button>' +
         '<a class="btn ghost acc-open" href="https://accsaber.com/" target="_blank" rel="noopener">' + ACC_MARK + 'Open AccSaber</a></div>' +
         (can.code === 'mission' ? lifelineHtml(s, p, false) : '');
@@ -863,9 +866,13 @@
     if (s.status === 'finished') return E.remaining(s, p) + ' spaces to go at the end';
     if (p.tasks.length) return 'Playing ' + p.tasks.map(function (t) { var m = songFor(t.bsr[0]); return m ? m.name : '!bsr ' + t.bsr[0]; }).join(', ');
     if (p.skippedDay === s.day) return 'Sitting out today';
-    var c = E.canRoll(s, p.id);
-    if (c.ok) return 'Ready to roll' + (p.pos >= 0 ? ', ' + E.remaining(s, p) + ' to go' : '');
+    var c = E.canRoll(s, p.id), togo = p.pos >= 0 ? ', ' + E.remaining(s, p) + ' to go' : '';
+    // Third person: this line shows under other players' names too.
+    if (c.ok && c.bonus) return (p.rolledDay === s.day ? 'Rolled today' : 'Waiting on a daily mission') + ', weekly bonus saved' + togo;
+    if (c.ok) return 'Ready to roll' + togo;
     if (c.code === 'rolled') return 'Rolled today, ' + E.remaining(s, p) + ' to go';
+    if (c.code === 'mission') return 'Waiting on a daily mission' + togo;
+    if (c.code === 'paused') return 'Paused, not in the clan on AccSaber';
     return c.reason;
   }
 
@@ -884,7 +891,10 @@
         (claimed ? '<button type="button" class="btn small ghost" id="mGo">Details</button>' : '<button type="button" class="btn small" id="mVerify">Check BeatLeader</button>');
     } else {
       var c = E.canRoll(s, p.id);
-      if (c.ok) html = ava + '<span class="mb-txt"><b>Ready to roll</b><span>' + E.remaining(s, p) + ' spaces to go</span></span><button type="button" class="btn small" id="mRoll">Roll the d4</button>';
+      // Only the saved weekly bonus is left: don't make the main button spend it.
+      if (c.ok && c.bonus) html = p.rolledDay === s.day ? ava + '<span class="mb-txt"><b>Rolled for today</b><span>Weekly bonus roll saved</span></span><button type="button" class="btn small ghost" id="mGo">Details</button>'
+        : ava + '<span class="mb-txt"><b>Do a daily mission</b><span>Or use your weekly bonus</span></span><button type="button" class="btn small" id="mAcc">Check missions</button>';
+      else if (c.ok) html = ava + '<span class="mb-txt"><b>Ready to roll</b><span>' + E.remaining(s, p) + ' spaces to go</span></span><button type="button" class="btn small" id="mRoll">Roll the d4</button>';
       else if (c.code === 'mission') html = ava + '<span class="mb-txt"><b>Do a daily mission</b><span>Then check here</span></span><button type="button" class="btn small" id="mAcc">Check missions</button>';
       else if (c.code === 'paused') html = ava + '<span class="mb-txt"><b>Paused</b><span>Rejoin the clan on AccSaber</span></span><button type="button" class="btn small" id="mAcc">Check again</button>';
       else html = ava + '<span class="mb-txt"><b>' + esc(rollTitle(c)) + '</b><span>' + esc(c.code === 'rolled' ? (p.skip ? 'Next turn lost. Roll again on day ' + nextRollDay(s, p) : store.mode === 'demo' ? 'Next roll tomorrow' : 'Next roll after the cutoff') : c.reason) + '</span></span><button type="button" class="btn small ghost" id="mGo">Details</button>';
@@ -1166,12 +1176,13 @@
     if (typeof store === 'undefined' || !store) return;
     var s = st(), p = me();
     if (store.mode !== 'live' || !s || !p || !E.isAcc(s) || animating || Date.now() - accBackAt < 60000) return;
-    var code = E.canRoll(s, p.id).code;
+    var cr = E.canRoll(s, p.id), code = cr.bonus && p.rolledDay !== s.day ? 'mission' : cr.code;
     if (code !== 'mission' && code !== 'paused') return;
     accBackAt = Date.now();
     store.act('verify').then(function (r) {
       var a = r && r.acc; renderAll();
-      if (a && a.canRoll) { sfx.good(); toast(a.daily ? 'Daily mission found. Roll the d4!' : 'You have a weekly bonus roll. Roll the d4!', 'good'); }
+      if (a && a.daily && p.rolledDay !== s.day) { sfx.good(); toast('Daily mission found. Roll the d4!', 'good'); }
+      else if (a && a.canRoll && code === 'paused') { sfx.good(); toast('You\'re back in the clan. Roll the d4!', 'good'); }
     }).catch(function () {});
   }
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') accOnReturn(); });
@@ -1184,8 +1195,9 @@
       var a = r && r.acc;
       renderAll();
       if (a && a.paused) toast('You\'re still not in the clan on AccSaber. AccSaber can take up to 10 minutes to update.', '');
-      else if (a && a.canRoll) { sfx.good(); toast(a.daily ? 'Daily mission found. Roll the d4!' : 'You have a weekly bonus roll. Roll the d4!', 'good'); }
-      else toast('No daily mission yet. AccSaber can take up to 10 minutes to show one.', '');
+      else if (a && a.daily) { sfx.good(); toast('Daily mission found. Roll the d4!', 'good'); }
+      else if (a && a.canRoll && !a.bonus) { sfx.good(); toast('You can roll. Roll the d4!', 'good'); }
+      else toast('No daily mission yet. AccSaber can take up to 10 minutes to show one.' + (a && a.bonus ? ' Your weekly bonus roll is still saved.' : ''), '');
     }).catch(function (e) { renderAll(); fail(e); });
   }
   function celebrateClear(cleared) {
@@ -1755,7 +1767,8 @@
     var p = me(), next = '';
     if (p && s.status === 'running') {
       var c = E.canRoll(s, p.id);
-      next = p.finished ? '' : c.ok ? 'Your roll is ready.' : p.tasks.length ? 'Next up: play <b>!bsr ' + esc(p.tasks[0].bsr[0]) + '</b>.' : '';
+      next = p.finished ? '' : c.ok && !c.bonus ? 'Your roll is ready.' : p.tasks.length ? 'Next up: play <b>!bsr ' + esc(p.tasks[0].bsr[0]) + '</b>.' :
+        E.isAcc(s) && (c.code === 'mission' || (c.bonus && p.rolledDay !== s.day)) ? 'Next up: finish an AccSaber daily mission' + (c.bonus ? ', or use your saved weekly bonus roll.' : '.') : c.code === 'paused' ? 'Rejoin the clan on AccSaber to unpause your rolls.' : '';
     }
     var days = s.day > prev.day ? ' The game went from day ' + prev.day + ' to day ' + s.day + '.' : '';
     var moved = evs.filter(function (e) { return e.t === 'roll' && e.pid !== store.me && s.players[e.pid]; });
@@ -2686,8 +2699,10 @@
     p.tasks.forEach(function (t) { tags.push('<span class="hp-tag map">🎵 ' + hpSong(t.bsr[0]) + (t.bonus ? ' · bonus' : t.card ? ' · card' : '') + '</span>'); });
     if (p.claims.length) tags.push('<span class="hp-tag map">📨 Run sent to you</span>');
     if (p.route && !p.finished && !p.tasks.length) {
-      if (E.canRoll(s, pid).ok) tags.push('<span class="hp-tag">🎲 Can roll</span>');
+      var hc = E.canRoll(s, pid);
+      if (hc.ok && !hc.bonus) tags.push('<span class="hp-tag">🎲 Can roll</span>');
       else if (p.rolledDay === s.day) tags.push('<span class="hp-tag ok">✓ Rolled today</span>');
+      if (p.accBonus > 0) tags.push('<span class="hp-tag">🎁 Weekly bonus saved</span>');
     }
     if (p.skip && !p.finished) tags.push('<span class="hp-tag warn">💤 Loses ' + p.skip + ' turn' + (p.skip > 1 ? 's' : '') + '</span>');
     if (p.shield && !p.finished) tags.push('<span class="hp-tag ok">🛡️ Protected</span>');

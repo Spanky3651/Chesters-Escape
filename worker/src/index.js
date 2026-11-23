@@ -960,7 +960,7 @@ export class Game extends DurableObject {
     await this.ctx.storage.put('state', this.state);
     await this.ctx.storage.put('meta', this.meta);
     const s = this.state;
-    let next = !s ? null : s.status === 'signup' ? Math.min(s.startsAt || Infinity, (s.hidden && s.hidden.until) || Infinity) : s.status === 'running' ? Math.min(this.meta.nextCutoff || Infinity, s.endsAt || Infinity) : null;
+    let next = !s ? null : s.status === 'signup' ? Math.min(s.startsAt && !(E.isHidden(s) && this.meta.hiddenStartWarned === s.startsAt) ? s.startsAt : Infinity, (s.hidden && s.hidden.until) || Infinity) : s.status === 'running' ? Math.min(this.meta.nextCutoff || Infinity, s.endsAt || Infinity) : null;
     // wake up for the day-before, one-hour and last-day posts too
     const f = this.meta.feed || {}, soon = [s && s.status === 'signup' && s.startsAt && !f.day ? s.startsAt - DAY : 0, s && s.status === 'signup' && s.startsAt && !f.hour ? s.startsAt - HOUR : 0, s && s.status === 'running' && s.endsAt && !f.lastcall ? s.endsAt - DAY : 0].filter((x) => x > Date.now());
     if (soon.length) next = Math.min(next || Infinity, ...soon);
@@ -974,6 +974,7 @@ export class Game extends DurableObject {
   async whoAmI(user) {
     this.useClan(user);
     const s = this.game(); const pid = this.pidFor(user);
+    await this.catchUp();
     const status = this.accessFor(user);
     if (status === 'pending') {
       // Put them on the host's waiting list (once).
@@ -1000,6 +1001,7 @@ export class Game extends DurableObject {
   async getState(user, since) {
     this.useClan(user);
     const s = this.game(); const pid = this.pidFor(user);
+    await this.catchUp();
     // Anyone signed in can watch. Only approved players can join and play (checked in act()).
     if (!user) return { error: 'Sign in with Discord to see the game.', code: 'no-access', access: 'signin' };
     const canPlay = this.canUse(user);
@@ -1021,6 +1023,7 @@ export class Game extends DurableObject {
   async act(user, action, a) {
     this.useClan(user);
     const s = this.game(); const pid = this.pidFor(user);
+    await this.catchUp();
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
     const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove', 'hostPlays', 'invisible', 'hide', 'hallPics'];
     if (hostOnly.includes(action) && !user.isHost) return { error: 'Only the host can do that.', status: 403 };
@@ -1050,6 +1053,7 @@ export class Game extends DurableObject {
           if (taken) return { error: 'That BeatLeader profile is already in the game.' };
           const isNew = !s.players[pid];
           E.addPlayer(s, { id: pid, discordId: user.id, name: bl.name || user.name, avatar: bl.avatar || user.avatar, blId: bl.id });
+          if (want) s.players[pid].accOk = true;   // passed the AccSaber game's checks
           result = { pid };
           // Hosts hear about each new sign-up (not their own, and not someone just relinking a profile).
           if (isNew && !user.isHost) {
@@ -1077,7 +1081,7 @@ export class Game extends DurableObject {
           break;
         }
         // host
-        case 'advance': if (s.status !== 'running') return { error: 'The game has not started yet.' }; E.advanceDay(s); this.meta.nextCutoff = E.nextCutoff(s.settings); result = { day: s.day }; break;
+        case 'advance': if (s.status !== 'running') return { error: 'The game has not started yet.' }; if (E.isAcc(s)) await this.accRefresh({ force: true }).catch(() => false); E.advanceDay(s); this.meta.nextCutoff = E.nextCutoff(s.settings); result = { day: s.day }; break;
         case 'approve': result = E.completeTask(s, a.pid, a.task, { by: 'host' }); break;
         case 'reject': E.rejectClaim(s, a.pid, a.task); break;
         case 'setpos': E.setPosition(s, a.pid, Number(a.pos), { apply: !!a.apply }); break;
@@ -1106,6 +1110,7 @@ export class Game extends DurableObject {
           if (a.patch && 'accsaber' in a.patch) {
             if (s.settings.accsaber) Object.assign(s.settings, { timeZone: 'UTC', cutoffHour: 4, cutoffMinute: 0 });
             else Object.assign(s.settings, { timeZone: E.DEFAULTS.timeZone, cutoffHour: E.DEFAULTS.cutoffHour, cutoffMinute: E.DEFAULTS.cutoffMinute });
+            if (s.settings.accsaber) await this.accVet();   // whoever signed up before it was on gets the checks now
           }
           this.meta.nextCutoff = E.nextCutoff(s.settings); result = s.settings; break;
         }
@@ -1136,6 +1141,7 @@ export class Game extends DurableObject {
           keep.forEach((p) => E.addPlayer(this.state, { id: p.id, discordId: p.discordId, name: p.name, avatar: p.avatar, blId: p.blId }));
           this.meta.nextCutoff = startsAt || a.signup || a.hide ? null : E.nextCutoff(this.state.settings);
           if (this.meta.feed) this.meta.feed.game = null;   // a new game: its sign-up post can go out
+          await this.accVet();   // carried-over players get the AccSaber game's join checks
           break;
         }
         // Wipe a game that's over: a fresh sign-up board with nobody on it and an empty thread.
@@ -1158,6 +1164,7 @@ export class Game extends DurableObject {
           if (a.startsAt == null) { s.startsAt = null; s.seq++; break; }
           const at = Number(a.startsAt);
           if (!(at > Date.now() + 60000)) return { error: 'Pick a start time in the future.' };
+          if (E.isHidden(s) && (!s.hidden.until || s.hidden.until >= at)) return { error: s.hidden.until ? 'The start has to come after the reveal time.' : 'The board is hidden with no reveal time. Set a reveal time before the start first, or the game would start with nobody signed up.' };
           s.startsAt = at; s.seq++; break;
         }
         case 'setEnd': {
@@ -1174,9 +1181,10 @@ export class Game extends DurableObject {
           break;
         }
         case 'startNow': {
+          if (s.status !== 'signup') return { error: 'The game has already started.' };
+          if (E.isAcc(s)) await this.accRefresh({ force: true }).catch(() => false);   // day 1 counts from here
           if (!E.startGame(s, Date.now())) return { error: 'The game has already started.' };
           this.meta.nextCutoff = E.nextCutoff(s.settings);
-          if (E.isAcc(s)) { this.accAt = 0; await this.accRefresh({ force: true, rebase: true }); }
           await this.announceStart();
           break;
         }
@@ -1487,6 +1495,33 @@ export class Game extends DurableObject {
     const u = await r.json().catch(() => null);
     return u ? { clan: u.clan && u.clan.slug ? String(u.clan.slug) : null } : undefined;
   }
+  // AccSaber game with a clan: players who got in without the join checks (carried over from the last game,
+  // or signed up before AccSaber mode was turned on) are checked before the start. Anyone who fails is taken
+  // off the sign-up list and can join again once it's fixed; the host hears who. If BeatLeader or AccSaber
+  // doesn't answer, that player is tried again on the next pass.
+  async accVet() {
+    const s = this.state, want = this.accClanWant();
+    if (!want || s.status !== 'signup') return;
+    const out = [];
+    for (const pid of s.order.filter((id) => !s.players[id].accOk)) {
+      const p = s.players[pid];
+      if (!p.blId || !p.discordId) continue;
+      if (!this.take(2)) break;
+      let why;
+      try {
+        const bl = await this.blPlayer(p.blId);
+        if (bl.discord !== String(p.discordId)) why = 'Discord not linked on BeatLeader';
+        else {
+          const au = await this.accUser(bl.id);
+          if (au === undefined) continue;
+          why = !au ? 'no AccSaber profile' : au.clan !== want ? 'not in the ' + this.clan().accClanName + ' on AccSaber' : '';
+        }
+      } catch { continue; }
+      if (why) { out.push(p.name + ' (' + why + ')'); E.removePlayer(s, pid); } else p.accOk = true;
+      s.seq++; this.dirty = true;
+    }
+    if (out.length) await this.notifyHosts({ title: (out.length === 1 ? 'A sign-up was' : out.length + ' sign-ups were') + ' taken off', body: 'They didn\'t pass the AccSaber game\'s join checks: ' + out.join(', ') + '. They can join again once that\'s fixed.', tag: 'acc-vet' });
+  }
   async accScan(ids) {
     const api = this.env.ACC_API || 'https://api.accsaber.com', counts = {}, known = { d: true, w: true };
     for (const pool of ['daily', 'weekly']) {
@@ -1529,7 +1564,15 @@ export class Game extends DurableObject {
       const u = await this.accUser(id);
       if (u) (counts[id] = counts[id] || {}).c = u.clan;
     }
-    if (E.accUpdate(s, counts, now, known, !!opts.rebase && known.d, want)) this.dirty = true;
+    // Nobody in the game shows up in the clan: AccSaber probably renamed it (or the setting is wrong), so
+    // don't pause everyone. The host hears about it once.
+    let clanWant = want;
+    const seen = ids.filter((x) => counts[x] && counts[x].c !== undefined);
+    if (want && seen.length >= 3 && !seen.some((x) => counts[x].c === want)) {
+      clanWant = '';
+      if (!this.meta.clanWarned) { this.meta.clanWarned = Date.now(); await this.notifyHosts({ title: 'Clan check is off', body: 'Nobody in the game shows up in the ' + this.clan().accClanName + ' on AccSaber, so nobody was paused. The clan may have a new name on AccSaber.', tag: 'clan-off' }); }
+    } else if (this.meta.clanWarned) delete this.meta.clanWarned;
+    if (E.accUpdate(s, counts, opts.at || now, known, !!opts.rebase && known.d, clanWant)) this.dirty = true;
     return known.d;
   }
   async check(pid) {
@@ -1606,6 +1649,59 @@ export class Game extends DurableObject {
     await this.sendOrKeep(`🏁 **${md(s.title)} is over!** Congrats to everyone who played.`, true, this.card('Final results', { fields }), 'end');
   }
 
+  // Time-based changes that are due: the end, the reveal, the start and the day's turn. The alarm runs
+  // these, and so does every page load and action, so a roll a second after the end or the reset
+  // can't slip in before the alarm fires. One at a time: a second caller waits for the first.
+  due(s, now) {
+    if (!s) return false;
+    if (s.status === 'running' && s.endsAt && now >= s.endsAt - 1000) return true;
+    if (E.isHidden(s) && s.hidden.until && now >= s.hidden.until - 1000) return true;
+    if (s.status === 'signup' && s.startsAt && now >= s.startsAt - 1000 && !(E.isHidden(s) && this.meta.hiddenStartWarned === s.startsAt)) return true;
+    return s.status === 'running' && !!this.meta.nextCutoff && now >= this.meta.nextCutoff - 1000;
+  }
+  catchUp(now = Date.now()) {
+    if (this.turning) return this.turning;
+    if (!this.due(this.state, now)) return null;
+    // Saved right away, so a post that went out is never sent again after a restart.
+    this.turning = this.turn(now).then(() => { this.dirty = false; return this.save(); }).finally(() => { this.turning = null; });
+    return this.turning;
+  }
+  async turn(now) {
+    const s = this.state;
+    if (s.status === 'running' && s.endsAt && now >= s.endsAt - 1000) {
+      E.endGame(s, now); this.recordHall(); this.dirty = true;
+      await this.announceEnd();
+      return;
+    }
+    // Reveal time: the board shows and sign-ups open (the sign-up post goes out from discordFeed).
+    if (E.isHidden(s) && s.hidden.until && now >= s.hidden.until - 1000) { E.reveal(s); this.dirty = true; this.later = true; }
+    if (s.status === 'signup' && s.startsAt && now >= s.startsAt - 1000) {
+      // Still hidden at the start (no reveal time, or it was cleared): don't start a game nobody could
+      // sign up for. Tell the host once; it starts as soon as they reveal it.
+      if (E.isHidden(s)) {
+        if (this.meta.hiddenStartWarned !== s.startsAt) {
+          this.meta.hiddenStartWarned = s.startsAt; this.dirty = true;
+          await this.notifyHosts({ title: 'The game didn\'t start', body: 'It is still hidden, so nobody could sign up. Reveal it in Host tools and it starts right away.', tag: 'hidden-start' });
+        }
+        return;
+      }
+      // AccSaber mode: the last mission counts before the start, so day 1 starts from them.
+      if (E.isAcc(s)) await this.accRefresh({ force: true, at: s.startsAt - 1000 }).catch(() => false);
+      if (!E.startGame(s, now)) return;
+      this.meta.nextCutoff = E.nextCutoff(s.settings, now + 1000); this.dirty = true;
+      await this.announceStart();
+    } else if (s.status === 'running' && this.meta.nextCutoff && now >= this.meta.nextCutoff - 1000) {
+      // AccSaber mode: the day's last read, credited to the day that's ending, so a mission finished
+      // late (and not seen yet because nobody had the page open) still counts for that day and week.
+      // AccSaber's list lags about 10 minutes, so a mission in the last minutes counts for the new day.
+      const cut = this.meta.nextCutoff;
+      if (E.isAcc(s)) await this.accRefresh({ force: true, at: cut - 1000 }).catch(() => false);
+      if (s.status !== 'running' || this.meta.nextCutoff !== cut) return;
+      E.advanceDay(s);
+      this.meta.nextCutoff = E.nextCutoff(s.settings, now + 1000); this.dirty = true;
+    }
+  }
+
   async alarm() {
     this.budget = Number(this.env.OUT_BUDGET) || 45; this.later = false;
     try { await this.alarmRun(); } finally { this.budget = null; }
@@ -1614,30 +1710,12 @@ export class Game extends DurableObject {
     const s = this.game();
     const now = Date.now();
     await this.sweepVisits(now);
-    if (s.status === 'running' && s.endsAt && now >= s.endsAt - 1000) { E.endGame(s, now); this.recordHall(); await this.announceEnd(); }
-    // Reveal time: the board shows and sign-ups open (the sign-up post goes out from discordFeed below).
-    if (E.isHidden(s) && s.hidden.until && now >= s.hidden.until - 1000) E.reveal(s);
-    if (s.status === 'signup' && s.startsAt && now >= s.startsAt - 1000) {
-      E.startGame(s, now);
-      this.meta.nextCutoff = E.nextCutoff(s.settings, now + 1000);
-      if (E.isAcc(s)) this.meta.accRebase = now;
-      await this.announceStart();
-    } else if (s.status === 'running' && this.meta.nextCutoff && now >= this.meta.nextCutoff - 1000) {
-      if (E.isAcc(s)) this.meta.accRebase = this.meta.nextCutoff;
-      E.advanceDay(s);
-      this.meta.nextCutoff = E.nextCutoff(s.settings, now + 1000);
-    }
-    // AccSaber mode: read everyone's mission counts right after the reset so today starts from them.
-    // Missed by more than 5 minutes: today starts from the last counts seen (a little generous).
-    if (this.meta.accRebase) {
-      if (now - this.meta.accRebase > 5 * 60000 || !E.isAcc(s)) delete this.meta.accRebase;
-      else if (this.budget == null || this.budget >= 15) {
-        this.accAt = 0;
-        const t0 = this.meta.accRebase;
-        if (await this.accRefresh({ force: true, rebase: true }).catch(() => false)) delete this.meta.accRebase;
-        else if (this.meta.accRebase === t0) this.later = true;
-      } else this.later = true;
-    }
+    if (this.meta.accRebase) delete this.meta.accRebase;   // the old after-the-reset read, replaced by the day's last read in turn()
+    await this.catchUp(now);
+    // AccSaber mode: keep everyone's mission counts fresh even when nobody has the page open, so the
+    // reminders, the thread and the day's last read work from current counts.
+    if (E.isAcc(s) && (s.status === 'running' || s.status === 'signup') && (this.budget == null || this.budget >= 20)) await this.accRefresh().catch(() => false);
+    if (s.status === 'signup' && (this.budget == null || this.budget >= 20)) await this.accVet().catch(() => {});
     // A day cut short (the November 2026 clock change): bonus rolls for whoever missed it, once.
     if (s.status === 'running' && E.makeUpShortDay(s, 1) != null) this.dirty = true;
     // A new map list for a running game: swap it in even if nobody has opened the page yet.

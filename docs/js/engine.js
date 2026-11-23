@@ -307,7 +307,10 @@
     if (p.skippedDay === s.day) return { ok: false, code: 'skip', reason: 'You lose this turn.' };
     if (p.paused) return { ok: false, code: 'paused', reason: 'You left the clan on AccSaber, so your rolls are paused. Rejoin it, then check again.' };
     if (isAcc(s)) {
-      if ((p.rolledDay === s.day && p.extraRoll) || (p.rolledDay !== s.day && accDaily(s, p)) || p.accBonus > 0) return { ok: true };
+      if ((p.rolledDay === s.day && p.extraRoll) || (p.rolledDay !== s.day && accDaily(s, p))) return { ok: true };
+      // Only the saved weekly bonus allows a roll right now: ok, but marked, so reminders and the
+      // status line don't call the player "ready to roll" when they can only spend the bonus.
+      if (p.accBonus > 0) return { ok: true, bonus: true };
       if (p.rolledDay === s.day) return { ok: false, code: 'rolled', reason: 'You already rolled today.' };
       return { ok: false, code: 'mission', reason: 'Finish an AccSaber daily mission to unlock today\'s roll.' };
     }
@@ -618,7 +621,21 @@
     if (s.status !== 'signup') return false;
     s.status = 'running'; s.day = 1; s.startedAt = at || now();
     delete s.signupsClosed; delete s.hidden;   // joining always reopens once the game is running
+    // AccSaber mode: day 1 counts from the mission totals read just before the start, so missions
+    // done during sign-ups don't count as day 1's. Weekly totals keep the week's start, so a weekly
+    // done earlier in the same AccSaber week still earns week 1's bonus roll.
+    if (isAcc(s)) accNewDay(s);
     emit(s, null, { t: 'begin' });
+    // A weekly mission already done this AccSaber week (before the start) earns week 1's bonus now.
+    if (isAcc(s)) {
+      var wk = accWeek(s.startedAt);
+      s.order.forEach(function (pid) {
+        var p = s.players[pid], a = p && p.acc;
+        if (!a || p.finished || a.wk !== wk || !(a.wcur > a.wbase) || a.wGot === wk) return;
+        a.wGot = wk; p.accBonus = (p.accBonus || 0) + 1;
+        emit(s, p, { t: 'weekly' });
+      });
+    }
     return true;
   }
 
@@ -684,6 +701,8 @@
     var open = p.tasks.filter(function (t) { return !p.claims.some(function (c) { return c.task === t.id; }); });
     if (open.length) return { title: 'Your map is still open', body: 'Play !bsr ' + open[0].bsr.join(' or ') + ' to unlock your next roll.' };
     var cr = canRoll(s, pid);
+    // A saved weekly bonus is kept until used, so it never needs a reminder of its own.
+    if (cr.ok && cr.bonus) { if (p.rolledDay === s.day) return null; cr = { ok: false, code: 'mission' }; }
     if (cr.ok) return { title: 'Your roll is waiting', body: 'You haven\'t rolled today. The day turns over at the cutoff.' };
     if (cr.code === 'mission') return { title: 'Your roll is waiting', body: 'Finish an AccSaber daily mission to unlock today\'s roll' + (lifeLeft(p) > 0 ? ', or use a lifeline if your dailies are too hard.' : '.') };
     return null;
