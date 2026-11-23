@@ -21,7 +21,7 @@ Copy the closest existing theme and change it. Chester themes have no `family` (
 3. **Discord picture**: `thumb` (a square image in `docs/img/themes/`), or `artHero` for Taco themes. Without one, posts show the graveyard Chester.
 4. **Board look** in `docs/js/render.js`, `LOOKS.<look>` (sky, fence, decorations, tile colors). Skip if it reuses another look.
 5. **Colors** in `docs/css/game.css`: a `body[data-theme="<look>"]` block (page colors and the title color). Skip if it reuses another look.
-6. **Taco themes with `artHero`**: a notification icon at `docs/img/push/<id>.png`.
+6. **Every theme**: a notification icon at `docs/img/push/<id>.png` (192x192, the theme's character).
 7. **Map set** (Taco games): add it to `MAP_SETS` and set `mapSet`.
 
 ## Things that follow on their own

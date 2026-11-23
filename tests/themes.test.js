@@ -48,7 +48,7 @@ for (const [id, t] of Object.entries(C.themes)) {
   if (pic) need(file(pic), id, 'Discord picture not found: ' + pic);
   else if (look !== 'cemetery' && !NO_PICTURE_YET.includes(id)) need(false, id, 'no Discord picture: add thumb (posts would show the graveyard Chester)');
   for (const k of ['art', 'shot']) if (t[k]) need(file(t[k]), id, k + ' not found: ' + t[k]);
-  if (t.artHero) need(file('img/push/' + id + '.png'), id, 'no notification icon img/push/' + id + '.png');
+  need(file('img/push/' + id + '.png'), id, 'no notification icon img/push/' + id + '.png');
   if (t.mapSet) need(C.mapSets[t.mapSet], id, 'map set "' + t.mapSet + '" not found');
 }
 // Within a family (Chester or Taco), every theme names the same events, so a designer board can switch

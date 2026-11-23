@@ -1394,9 +1394,9 @@ export class Game extends DurableObject {
   async pushTo(subs, msg) {
     const keys = this.pushKeys();
     if (!keys || !subs.length) return { sent: 0, failed: 0 };
-    // Taco themes show their own taco on the notification; everything else keeps the game icon.
+    // Every theme shows its own character on the notification (docs/img/push/<theme>.png); a game with no theme keeps the logo.
     const tid = this.state && this.state.themeId, th = C.themes[tid] || {};
-    const payload = { title: msg.title, body: msg.body || '', tag: (this.clan().id + '-') + (msg.tag || 'chester'), url: msg.url || this.page(), icon: th.artHero ? 'img/push/' + tid + '.png' : '' };
+    const payload = { title: msg.title, body: msg.body || '', tag: (this.clan().id + '-') + (msg.tag || 'chester'), url: msg.url || this.page(), icon: C.themes[tid] ? 'img/push/' + tid + '.png' : '' };
     const gone = new Set(); let sent = 0, failed = 0;
     await Promise.all(subs.map(async (sub) => {
       try {
