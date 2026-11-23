@@ -372,8 +372,19 @@ export class Game extends DurableObject {
       this.meta = (await ctx.storage.get('meta')) || {};
       this.visits = (await ctx.storage.get('visits')) || [];
       this.undoList = (await ctx.storage.get('undoList')) || [];
-      // Player pictures saved with BeatLeader's old .xyz address (dead since Nov 2026) move to .com.
       const was = JSON.stringify([this.state, this.meta, this.visits]);
+      // Hall of fame rows from before pictures were kept there get them from the finished game,
+      // either the current one or the copy saved for undo when the host cleared it.
+      if ((this.meta.hall || []).some((g) => (g.all || []).some((r) => !r.avatar))) {
+        const games = this.state ? [this.state] : [];
+        for (const u of this.undoList) { try { const raw = await ctx.storage.get('undo:' + u.id); if (raw) games.push(JSON.parse(raw)); } catch (e) {} }
+        for (const g of this.meta.hall) {
+          const src = games.find((x) => x && x.id === g.id && x.players);
+          if (!src) continue;
+          for (const r of g.all || []) if (!r.avatar && src.players[r.pid] && src.players[r.pid].avatar) r.avatar = src.players[r.pid].avatar;
+        }
+      }
+      // Player pictures saved with BeatLeader's old .xyz address (dead since Nov 2026) move to .com.
       blFix(this.state); blFix(this.meta); blFix(this.visits);
       if (JSON.stringify([this.state, this.meta, this.visits]) !== was) {
         if (this.state) await ctx.storage.put('state', this.state);

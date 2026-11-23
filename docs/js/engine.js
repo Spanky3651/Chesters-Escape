@@ -867,7 +867,7 @@
     return {
       id: s.id, title: s.title, themeId: s.themeId, startedAt: s.startedAt || null, endedAt: s.endedAt || now(), days: s.day, players: fin.length,
       top: fin.slice(0, 3).map(function (r) { return { pid: r.pid, name: who(r.pid).name || 'Player', avatar: who(r.pid).avatar || '', place: r.place, escaped: !!r.escaped, day: r.day || null, left: r.left || 0 }; }),
-      all: fin.map(function (r) { return { pid: r.pid, name: who(r.pid).name || 'Player', place: r.place, escaped: !!r.escaped }; })
+      all: fin.map(function (r) { return { pid: r.pid, name: who(r.pid).name || 'Player', avatar: who(r.pid).avatar || '', place: r.place, escaped: !!r.escaped }; })
     };
   }
   function addToHall(hall, s) {
@@ -883,7 +883,7 @@
     (hall || []).forEach(function (g) {
       (g.all || []).forEach(function (r) {
         var t = by[r.pid] = by[r.pid] || { pid: r.pid, name: r.name, games: 0, wins: 0, podiums: 0, escapes: 0, best: Infinity };
-        t.name = r.name; t.games++; if (r.place === 1) t.wins++; if (r.place <= 3) t.podiums++; if (r.escaped) t.escapes++; if (r.place < t.best) t.best = r.place;
+        t.name = r.name; if (r.avatar) t.avatar = r.avatar; t.games++; if (r.place === 1) t.wins++; if (r.place <= 3) t.podiums++; if (r.escaped) t.escapes++; if (r.place < t.best) t.best = r.place;
       });
     });
     return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.wins - a.wins || b.podiums - a.podiums || b.escapes - a.escapes || b.games - a.games || a.best - b.best || String(a.name).localeCompare(String(b.name)); });   // ties: the better finish first

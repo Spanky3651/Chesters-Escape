@@ -1446,7 +1446,7 @@
     var html = !hall.length ? '<p class="lede">No game has finished yet. The first winner goes up here.</p>' :
       spot(hall[0]) + (hall.length > 1 ? '<h3 class="hw-h">Earlier games</h3><div class="hf-games">' + hall.slice(1).map(older).join('') + '</div>' : '') +
       '<h3 class="hw-h">All time</h3><table class="hf-table"><thead><tr><th>Player</th><th>Wins</th><th>Podiums</th><th>Escapes</th><th>Games</th></tr></thead><tbody>' +
-      totals.map(function (t, i) { return '<tr class="' + (i < 3 ? 'hf-t' + (i + 1) : '') + (t.pid === store.me ? ' me' : '') + '"><td><span class="hf-who"><span class="hf-rank' + (i < 3 ? ' g' + (i + 1) : '') + '">' + (i + 1) + '</span><span>' + esc(t.name) + '</span></span></td><td>' + t.wins + '</td><td>' + t.podiums + '</td><td>' + t.escapes + '</td><td>' + t.games + '</td></tr>'; }).join('') + '</tbody></table>';
+      totals.map(function (t, i) { return '<tr class="' + (i < 3 ? 'hf-t' + (i + 1) : '') + (t.pid === store.me ? ' me' : '') + '"><td><span class="hf-who"><span class="hf-rank' + (i < 3 ? ' g' + (i + 1) : '') + '">' + (i + 1) + '</span>' + ava(t, 'hf-tava') + '<span>' + esc(t.name) + '</span></span></td><td>' + t.wins + '</td><td>' + t.podiums + '</td><td>' + t.escapes + '</td><td>' + t.games + '</td></tr>'; }).join('') + '</tbody></table>';
     modal('🏆 Hall of fame', html, null, { cls: 'hall', focusClose: true });
   }
   function openBadges(pid) {

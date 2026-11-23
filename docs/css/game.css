@@ -1014,6 +1014,7 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .hf-rank.g1, .hf-rank.g2, .hf-rank.g3 { color: #2a1a0a; }
 .hf-who { display: flex; align-items: center; }
 .hf-who .hf-rank { flex: none; }
+.hf-tava { flex: none; width: 28px; height: 28px; border-radius: 50%; object-fit: cover; margin-right: 10px; display: inline-grid; place-items: center; background: #1a1d18; border: 1.5px solid var(--line-2); font: 700 11px var(--ui); color: #fff; }
 .hf-who > span:last-child { min-width: 0; overflow-wrap: break-word; }
 .hf-rank.g1 { background: #f2c046; } .hf-rank.g2 { background: #cfd6df; } .hf-rank.g3 { background: #d08a4e; }
 .hf-table tr.hf-t1 td { background: rgba(242,192,70,.08); } .hf-table tr.hf-t2 td { background: rgba(207,214,223,.05); } .hf-table tr.hf-t3 td { background: rgba(208,138,78,.06); }
