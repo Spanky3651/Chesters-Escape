@@ -281,8 +281,7 @@
     history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash);
     return c;
   }
-  // The next page shows the dice loader right away and lets it finish a full roll (see holdBoot in app.js).
-  function switchClan(id) { saveClan(id); try { sessionStorage.setItem('cg.switching', '1'); } catch (e) {} location.reload(); }
+  function switchClan(id) { saveClan(id); location.reload(); }
 
   function LiveStore(api, cfg) {
     var ev = listeners();
