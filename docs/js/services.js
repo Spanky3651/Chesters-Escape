@@ -1,12 +1,12 @@
 /*
  * Chester's Escape - BeatSaver and BeatLeader lookups (browser).
- * BeatLeader sends no CORS headers, so its calls go through MSploit's relay
- * Worker (the same one Playlist Studio uses). BeatSaver allows browser calls.
+ * BeatLeader sends no CORS headers, so its calls go through the game server when signed in,
+ * else MSploit's relay Worker (the same one Playlist Studio uses). BeatSaver allows browser calls.
  */
 (function (root) {
   'use strict';
   var RELAY = 'https://playlist-replay.msploit.workers.dev/?url=';
-  var BL = 'https://api.beatleader.xyz';
+  var BL = 'https://api.beatleader.com';
   var BS = 'https://api.beatsaver.com';
   var mem = {};
 
@@ -15,7 +15,19 @@
     return fetch(url, { signal: timeout(ms || 12000) }).then(function (r) { if (!r.ok) { var e = new Error('HTTP ' + r.status); e.status = r.status; throw e; } return r.json(); });
   }
   function viaRelay(url, ms) { return getJson(RELAY + encodeURIComponent(url), ms); }
-  function blGet(path) { return viaRelay(BL + path).catch(function (e) { if (e.status === 404) throw e; return getJson(BL + path, 8000); }); }
+  // The game server's BeatLeader lookup (signed-in players), or null when there is none.
+  function viaGame(path) {
+    var api = (root.CGConfig && root.CGConfig.api) || '', t = '';
+    try { t = localStorage.getItem('cg.token') || ''; } catch (e) {}
+    if (!api || !t) return null;
+    return fetch(api.replace(/\/+$/, '') + '/api/bl?p=' + encodeURIComponent(path), { headers: { authorization: 'Bearer ' + t }, signal: timeout(12000) })
+      .then(function (r) { if (!r.ok) { var e = new Error('HTTP ' + r.status); e.status = r.status; throw e; } return r.json(); });
+  }
+  function blGet(path) {
+    var relay = function () { return viaRelay(BL + path).catch(function (e) { if (e.status === 404) throw e; return getJson(BL + path, 8000); }); };
+    var g = viaGame(path);
+    return g ? g.catch(function (e) { if (e.status === 404) throw e; return relay(); }) : relay();
+  }
 
   function cacheGet(k) { try { var v = JSON.parse(localStorage.getItem(k) || 'null'); return v; } catch (e) { return null; } }
   function cacheSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }

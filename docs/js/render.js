@@ -689,6 +689,8 @@
     return { x: sp.x, y: sp.y, id: id };
   }
 
+  // BeatLeader moved off beatleader.xyz (Nov 2026): old picture links point at the new host.
+  function pic(u) { return String(u || '').replace(/^https:\/\/(cdn\.assets|api)\.beatleader\.xyz\//, 'https://$1.beatleader.com/'); }
   function initials(name) { return String(name || '?').replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join('').toUpperCase() || '?'; }
 
   // Lay out all tokens, grouping players on the same space into a small cluster.
@@ -760,7 +762,7 @@
       inner += '<circle r="' + (r + 3) + '" fill="' + col + '"/>';
       inner += '<circle r="' + r + '" fill="#1a1d18"/>';
       inner += '<text y="' + (r * .36) + '" text-anchor="middle" font-family="Atkinson Hyperlegible, Arial, sans-serif" font-weight="700" font-size="' + (r * .9) + '" fill="#fff">' + esc(initials(p.name)) + '</text>';
-      if (p.avatar) inner += '<image href="' + esc(p.avatar) + '" x="' + (-r) + '" y="' + (-r) + '" width="' + (2 * r) + '" height="' + (2 * r) + '" clip-path="url(#' + clipId + ')" preserveAspectRatio="xMidYMid slice" onerror="this.remove()"/>';
+      if (p.avatar) inner += '<image href="' + esc(pic(p.avatar)) + '" x="' + (-r) + '" y="' + (-r) + '" width="' + (2 * r) + '" height="' + (2 * r) + '" clip-path="url(#' + clipId + ')" preserveAspectRatio="xMidYMid slice" onerror="this.remove()"/>';
       if (me) inner += '<circle r="' + (r + 6.5) + '" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4 4" class="me-ring"/>';
       if (p.finished) inner += '<text y="' + (-r - 6) + '" text-anchor="middle" font-size="' + (r * .9) + '">\uD83C\uDF89</text>';
       if (opts.online && opts.online[pid]) inner += '<circle class="on-dot" cx="' + (r * .74).toFixed(1) + '" cy="' + (r * .74).toFixed(1) + '" r="' + (r * .27).toFixed(1) + '"/>';
@@ -791,6 +793,6 @@
 
   root.CGRender = {
     board: board, placeTokens: placeTokens, layoutTokens: layoutTokens, tokenXY: tokenXY,
-    playerColor: playerColor, initials: initials, chester: chester, taco: taco, hero: hero, dieIcon: function () { return DIE_ICON; }, setFavicon: setFavicon, cardArt: cardArt, isImg: isImg, faviconSvg: faviconSvg, hatFor: hatFor, label: label, esc: esc
+    playerColor: playerColor, initials: initials, pic: pic, chester: chester, taco: taco, hero: hero, dieIcon: function () { return DIE_ICON; }, setFavicon: setFavicon, cardArt: cardArt, isImg: isImg, faviconSvg: faviconSvg, hatFor: hatFor, label: label, esc: esc
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

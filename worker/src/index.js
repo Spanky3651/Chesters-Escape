@@ -192,6 +192,7 @@ export default {
 
       const user = await userFrom(env, req, url);
       if (url.pathname === '/api/icon' && req.method === 'GET') return await siteIcon(url);
+      if (url.pathname === '/api/bl' && req.method === 'GET') { if (!user) return json(env, req, { error: 'Sign in first.' }, 401); return await blProxy(env, req, url); }
       if (url.pathname === '/api/config') {
         if (!user) return json(env, req, { live: true, access: 'signin', clans: [] });
         const r = await gameStub(env, user.clan).whoAmI(user);
@@ -303,6 +304,30 @@ async function gcStats(env) {
 // this needs no sign-in. Each one is fetched once (site icons from Google's icon service, flags from the flag-icons
 // package) and kept in the Cloudflare cache for a week. Only plain host names, short https page addresses or two-letter
 // country codes are accepted, and only images are passed on.
+// BeatLeader moved off beatleader.xyz (Nov 2026). Links saved before that (player pictures) get the new host.
+const BL_API = 'https://api.beatleader.com';
+function blFix(v) {
+  if (typeof v === 'string') return v.replace(/^https:\/\/(cdn\.assets|api)\.beatleader\.xyz\//, 'https://$1.beatleader.com/');
+  if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) v[i] = blFix(v[i]); return v; }
+  if (v && typeof v === 'object') { for (const k of Object.keys(v)) v[k] = blFix(v[k]); return v; }
+  return v;
+}
+// BeatLeader reads for the game page (it sends no CORS headers). Signed-in players only, and only
+// the lookups the page makes: a player, their recent scores, a map's leaderboards, one score.
+const BL_PATHS = [/^\/player\/[A-Za-z0-9_-]{1,40}$/, /^\/player\/[A-Za-z0-9_-]{1,40}\/scores$/, /^\/leaderboards\/hash\/[0-9A-Fa-f]{40}$/,
+  /^\/leaderboard\/[A-Za-z0-9_-]{1,60}$/, /^\/score\/[A-Za-z0-9_-]{1,40}\/[0-9A-Fa-f]{40}\/[A-Za-z]{1,12}\/[A-Za-z0-9]{1,24}$/];
+const BL_QUERY = ['sortBy', 'order', 'count', 'page', 'stats'];
+async function blProxy(env, req, url) {
+  const path = String(url.searchParams.get('p') || '');
+  const [pth, qs] = path.split('?');
+  if (!BL_PATHS.some((r) => r.test(pth))) return json(env, req, { error: 'Not a BeatLeader lookup the game makes.' }, 400);
+  const q = new URLSearchParams(qs || ''), out = new URLSearchParams();
+  for (const k of BL_QUERY) { const v = q.get(k); if (v != null && /^[A-Za-z0-9]{1,12}$/.test(v)) out.set(k, v); }
+  const target = (env.BL_API || BL_API) + pth + (String(out) ? '?' + out : '');
+  let r = null; try { r = await fetch(target, { headers: { 'user-agent': 'ChestersEscape' } }); } catch (e) {}
+  if (!r) return json(env, req, { error: "Couldn't reach BeatLeader." }, 502);
+  return new Response(await r.text(), { status: r.status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', ...cors(env, req) } });
+}
 const ICON_FLAGS = 'https://cdn.jsdelivr.net/npm/flag-icons@7.5.0/flags/4x3/';
 async function siteIcon(url) {
   const d = String(url.searchParams.get('d') || '').toLowerCase(), u = String(url.searchParams.get('u') || ''), f = String(url.searchParams.get('f') || '').toLowerCase();
@@ -347,6 +372,14 @@ export class Game extends DurableObject {
       this.meta = (await ctx.storage.get('meta')) || {};
       this.visits = (await ctx.storage.get('visits')) || [];
       this.undoList = (await ctx.storage.get('undoList')) || [];
+      // Player pictures saved with BeatLeader's old .xyz address (dead since Nov 2026) move to .com.
+      const was = JSON.stringify([this.state, this.meta, this.visits]);
+      blFix(this.state); blFix(this.meta); blFix(this.visits);
+      if (JSON.stringify([this.state, this.meta, this.visits]) !== was) {
+        if (this.state) await ctx.storage.put('state', this.state);
+        await ctx.storage.put('meta', this.meta);
+        await ctx.storage.put('visits', this.visits);
+      }
       // A game that ended before the hall of fame existed still gets its place in it.
       if (this.state && this.state.status === 'finished') this.recordHall();
     });
@@ -1142,7 +1175,7 @@ export class Game extends DurableObject {
           if (top.post !== s.seq && !this.clearUndoable(top)) return { error: 'Players have done things since then, so undoing it would wipe their moves too.' };
           const raw = await this.ctx.storage.get('undo:' + top.id);
           if (!raw) return { error: 'That change can no longer be undone.' };
-          const old = JSON.parse(raw);
+          const old = blFix(JSON.parse(raw));
           old.seq = Math.max(old.seq || 0, s.seq) + 1;   // keep counting up so pages and event ids stay in order
           this.state = old; this.meta.nextCutoff = top.cut;
           this.undoList.pop(); await this.ctx.storage.delete('undo:' + top.id);
@@ -1399,7 +1432,7 @@ export class Game extends DurableObject {
   async blPlayer(input) {
     const id = String(input || '').match(/[A-Za-z0-9_-]+$/);
     if (!id) throw new Error('Enter your BeatLeader profile link or ID.');
-    const r = await fetch((this.env.BL_API || 'https://api.beatleader.xyz') + '/player/' + id[0], { headers: { 'user-agent': 'ChestersEscape' } });
+    const r = await fetch((this.env.BL_API || BL_API) + '/player/' + id[0], { headers: { 'user-agent': 'ChestersEscape' } });
     if (!r.ok) throw new Error('No BeatLeader player found for that ID.');
     const p = await r.json();
     const dc = (p.socials || []).find((x) => x.service === 'Discord');
@@ -1475,7 +1508,7 @@ export class Game extends DurableObject {
     for (const k of keys) hashes[String(k).toLowerCase()] = await this.bs(String(k).toLowerCase());
     if (Object.values(hashes).some((h) => !h) && this.budget != null && this.later) { this.cutShort = true; return []; }
     if (!this.take(1)) { this.cutShort = true; return []; }
-    const r = await fetch((this.env.BL_API || 'https://api.beatleader.xyz') + '/player/' + encodeURIComponent(p.blId) + '/scores?sortBy=date&order=desc&count=50', { headers: { 'user-agent': 'ChestersEscape' } });
+    const r = await fetch((this.env.BL_API || BL_API) + '/player/' + encodeURIComponent(p.blId) + '/scores?sortBy=date&order=desc&count=50', { headers: { 'user-agent': 'ChestersEscape' } });
     if (!r.ok) return [];
     const j = await r.json();
     const scores = (j.data || []).map((x) => {

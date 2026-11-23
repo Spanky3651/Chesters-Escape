@@ -64,7 +64,7 @@
   }
   function avatarHtml(p, cls) {
     var col = R.playerColor(st(), p.id) || '#8a8f98';
-    if (p.avatar) return '<img class="' + cls + '" style="--c:' + col + '" src="' + esc(p.avatar) + '" alt="" onerror="if(this.parentNode)this.outerHTML=\'<span class=&quot;' + cls + '&quot; style=&quot;--c:' + col + '&quot;>' + esc(R.initials(p.name)) + '</span>\'">';
+    if (p.avatar) return '<img class="' + cls + '" style="--c:' + col + '" src="' + esc(R.pic(p.avatar)) + '" alt="" onerror="if(this.parentNode)this.outerHTML=\'<span class=&quot;' + cls + '&quot; style=&quot;--c:' + col + '&quot;>' + esc(R.initials(p.name)) + '</span>\'">';
     return '<span class="' + cls + '" style="--c:' + col + '">' + esc(R.initials(p.name)) + '</span>';
   }
   function copy(text) {
@@ -1412,7 +1412,7 @@
     var hall = (store.hall || []).slice().reverse(), totals = E.hallTotals(store.hall || []).slice(0, 10);
     track('hall-of-fame');
     var MC = ['#f2c046', '#cfd6df', '#d08a4e'], ORD = ['1st', '2nd', '3rd'], medal = ['🥇', '🥈', '🥉'];
-    var ava = function (t, cls) { return t.avatar ? '<img class="' + cls + '" src="' + esc(t.avatar) + '" alt="" onerror="this.outerHTML=\'<span class=&quot;' + cls + '&quot;>' + esc(R.initials(t.name)) + '</span>\'">' : '<span class="' + cls + '">' + esc(R.initials(t.name)) + '</span>'; };
+    var ava = function (t, cls) { return t.avatar ? '<img class="' + cls + '" src="' + esc(R.pic(t.avatar)) + '" alt="" onerror="this.outerHTML=\'<span class=&quot;' + cls + '&quot;>' + esc(R.initials(t.name)) + '</span>\'">' : '<span class="' + cls + '">' + esc(R.initials(t.name)) + '</span>'; };
     var when = function (ts) { return ts ? new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : ''; };
     var rm = function (g) { return store.isHost ? '<button type="button" class="btn small link hf-rm" data-hallrm="' + esc(g.id) + '">Remove</button>' : ''; };
     var did = function (t) { return t.escaped ? 'Escaped day ' + t.day : t.left + ' to go'; };
@@ -1464,7 +1464,7 @@
   // ---- share a moment ----------------------------------------------------------------------------
   function shareSpec(ev) {
     var s = st(), t = theme(), p = s.players[ev.pid] || {}, sp = ev.space ? s.board.spaces[ev.space] : null, kind = sp && sp.kind && t.kinds[sp.kind];
-    var o = { theme: t, player: { name: p.name || '', avatar: p.avatar || '', color: R.playerColor(s, ev.pid) }, foot: 'Day ' + ev.day + (p.route ? ' \u00b7 ' + s.board.routeInfo[p.route].name : ''), badges: (X.badgesFor(s)[ev.pid] || []).map(function (b) { return b.icon; }) };
+    var o = { theme: t, player: { name: p.name || '', avatar: R.pic(p.avatar), color: R.playerColor(s, ev.pid) }, foot: 'Day ' + ev.day + (p.route ? ' \u00b7 ' + s.board.routeInfo[p.route].name : ''), badges: (X.badgesFor(s)[ev.pid] || []).map(function (b) { return b.icon; }) };
     var pr = ev.proof || {};
     if (ev.t === 'cleared') {
       var gr = X.grade(pr.acc); o.kicker = pr.firstAcc != null ? 'New personal best' : 'Map cleared'; o.headline = pr.acc ? (pr.acc * 100).toFixed(2) + '%' : 'Cleared'; o.grade = gr ? gr.g : null;
