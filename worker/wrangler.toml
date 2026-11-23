@@ -13,7 +13,7 @@ new_sqlite_classes = ["Game"]
 
 [vars]
 # The game page. Sign-in sends players back here.
-GAME_PAGE = "https://spanky3651.github.io/Chesters-Escape/"
+GAME_PAGE = "https://beatsabergames.com/"
 # Pages allowed to call this server (comma separated).
 ALLOWED_ORIGINS = "https://spanky3651.github.io,https://beatsabergames.com,https://www.beatsabergames.com"
 # Discord user IDs that get the host tools (comma separated).

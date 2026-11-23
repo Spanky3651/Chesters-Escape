@@ -1,15 +1,18 @@
-# Chester's Escape
+<p align="center">
+  <a href="https://beatsabergames.com/?utm_source=github&amp;utm_campaign=readme"><img src="docs/img/readme/banner.png" alt="Beat Saber Games: board games for Beat Saber clans" width="720"></a>
+</p>
 
-A Beat Saber board game. Roll a d4 once a day, move your token, and play the map on the space you land on. BeatLeader confirms the clear, so there are no replays to post and nobody moves tokens by hand.
+<p align="center"><b><a href="https://beatsabergames.com/?utm_source=github&amp;utm_campaign=readme">Play at beatsabergames.com</a></b></p>
 
-**Play it here: [spanky3651.github.io/Chesters-Escape](https://spanky3651.github.io/Chesters-Escape/?utm_source=github&utm_campaign=readme)**
+Board games for Beat Saber clans. Roll a d4 once a day, move your token, and play the map on the space you land on. BeatLeader confirms the clear, so there are no replays to post and nobody moves tokens by hand.
 
-[![Chester's Escape game board](docs/img/screenshot.jpg)](https://spanky3651.github.io/Chesters-Escape/?utm_source=github&utm_campaign=readme)
+[![A Taco's Thanksgiving game in progress](docs/img/screenshot.jpg)](https://beatsabergames.com/?utm_source=github&utm_campaign=readme)
 
 ## How to play
 
 - Pick the **longer route** (more spaces, safer) or the **riskier route** (fewer spaces, more ways to get sent back). You can't switch later.
-- A new game can open for sign-ups early. Join and pick your route, and the page counts down to the first roll.
+- Between games the board stays hidden. The next theme, board and maps are revealed when sign-ups open.
+- Join and pick your route while sign-ups are open, and the page counts down to the first roll.
 - Roll once a day. The day turns over at 12:59 AM Eastern.
 - **Map spaces:** play that map. Any difficulty, any modifiers. The game finds your score on BeatLeader and unlocks your next roll.
 - **Blocker spaces:** you stop until you play their map.
@@ -25,13 +28,25 @@ Turn on roll reminders on your phone and the game nudges you in the evening if y
 
 If you played a map and it doesn't show up (for example a replay that wasn't a new personal best), tap **I played it** and the host can approve it.
 
+## A new theme every game
+
+| <img src="docs/img/readme/board-taco-christmas.jpg" alt="Taco's Christmas board" width="200"> | <img src="docs/img/readme/board-cemetery.jpg" alt="Chester's Escape board" width="200"> | <img src="docs/img/readme/board-taco-halloween.jpg" alt="Taco's Halloween board" width="200"> | <img src="docs/img/readme/board-taco-summer.jpg" alt="Taco's Summer board" width="200"> |
+| :---: | :---: | :---: | :---: |
+| Taco's Christmas | Chester's Escape | Taco's Halloween | Taco's Summer |
+
+Themes swap the board art, event names and card text, so the same game can run as a Halloween, Thanksgiving, Christmas or summer game.
+
 ## One game per clan
 
 Each clan Discord server gets its own game, with its own board, players and theme. Sign in with Discord and you land in your clan's game. If you're in more than one of the clan servers, you pick a game the first time and can switch any time with the server icons at the top of the page. A clan can also bring its own songs: the Beaters board plays hummingbird's 50 picks, spread so both routes get the same average song length and density.
 
+A game can also run in AccSaber mode, where finishing an AccSaber daily mission unlocks your roll instead of a map.
+
+**Running a Beat Saber clan?** [Message MSploit on Discord](https://discord.com/users/909550896571113492) about setting up a game for your server.
+
 ## Board designer
 
-`designer.html` lays out a board on top of your own art: upload the image, click each square in order, and set what it does (map, blocker, card drop, move, lose a turn, back to start, or a current that carries you elsewhere). Themes swap the art, event names and card text, so the same board can run as a Halloween, Thanksgiving or Christmas game. A theme can also bring its own board art, like the taco boards for Halloween, Thanksgiving, Christmas, New Year, Valentine's Day, Easter and summer.
+`designer.html` lays out a board on top of your own art: upload the image, click each square in order, and set what it does (map, blocker, card drop, move, lose a turn, back to start, or a current that carries you elsewhere). A theme can bring its own board art, like the taco boards for Halloween, Thanksgiving, Christmas, New Year, Valentine's Day, Easter and summer.
 
 ## Card editor
 

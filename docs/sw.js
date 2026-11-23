@@ -1,11 +1,11 @@
-// Chester's Escape service worker. It only shows host notifications; it does not cache the site.
+// Beat Saber Games service worker. It only shows host notifications; it does not cache the site.
 self.addEventListener('install', function () { self.skipWaiting(); });
 self.addEventListener('activate', function (e) { e.waitUntil(self.clients.claim()); });
 
 self.addEventListener('push', function (e) {
   var d = {};
   try { d = e.data ? e.data.json() : {}; } catch (x) { d = { title: e.data ? e.data.text() : '' }; }
-  e.waitUntil(self.registration.showNotification(d.title || "Chester's Escape", {
+  e.waitUntil(self.registration.showNotification(d.title || 'Beat Saber Games', {
     body: d.body || '',
     tag: d.tag || 'chester',
     renotify: true,

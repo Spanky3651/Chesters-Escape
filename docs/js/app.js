@@ -2176,6 +2176,7 @@
     var k = src.slice(0, 2), v = src.slice(2);
     if (k === 'g:') return '<span class="gic gl"><svg viewBox="0 0 24 24" aria-hidden="true">' + (GC_GLYPH[v] || GC_GLYPH.unknown) + '</svg></span>';
     if (k === 's:') return '<span class="gic st">' + STUDIO_LOGO + '</span>';
+    if (k === 'b:') return '<span class="gic st"><span class="studio-logo" aria-hidden="true"><svg viewBox="0 0 64 64">' + BSG_LOGO.replace(/bsgTile/g, 'bsgTileGc') + '</svg></span></span>';
     var url = k === 'f:' ? GC_ICON + '?f=' + encodeURIComponent(v) : k === 'u:' ? GC_ICON + '?u=' + encodeURIComponent(v) : GC_ICON + '?d=' + encodeURIComponent(v);
     return '<span class="gic' + (k === 'f:' ? ' flag' : '') + '"><img src="' + esc(url) + '" alt="" loading="lazy" decoding="async" data-l="' + l + '"></span>';
   }
@@ -2185,6 +2186,7 @@
   // "github") and real sites ("discord.com") land on the same row.
   var GC_SRC = [
     [/^$/, 'Opened the link directly', 'Typed or pasted it, a bookmark, or an app that hides where the click came from (the Discord app on PC and phone usually does)', 'g:direct'],
+    [/(^|\.)beatsabergames\.com$/, 'Beat Saber Games', 'The game itself, like moving between its own pages', 'b:'],
     [/discord(app)?\.(com|gg)$|com\.discord|^discord$/, 'Discord', 'A link in a Discord post or message. Can include people coming back from the Discord sign-in page', 'd:discord.com'],
     [/^bio\.beatleader\.|(^|\.)beatleader\.(com|xyz|net|pro)$|^beatleader$/, 'BeatLeader', 'A link on BeatLeader, like a profile bio', 'd:beatleader.xyz'],
     [/(^|\.)beatsaver\.com$/, 'BeatSaver', 'A link on a BeatSaver map or profile page', 'd:beatsaver.com'],
@@ -2210,6 +2212,7 @@
     var raw = String(r.name || ''), full = raw.replace(/^[a-z-]+:\/\//i, '').toLowerCase(), host = full.replace(/\/.*$/, ''), path = full.slice(host.length);
     if (/^spanky3651\.github\.io$/.test(host)) {
       var repo = (path.split('/')[1] || '').replace(/[?#].*$/, ''), m = GC_REPO[repo];
+      if (repo === 'chesters-escape') return { label: 'Beat Saber Games', note: 'The game itself, at its old GitHub address', icon: 'b:' };
       return m ? { label: m[0], note: 'Clicked through from your ' + m[0], icon: m[1] } : { label: 'Your GitHub pages', note: 'Clicked through from one of your other pages', icon: 'd:github.com' };
     }
     if (/^(playlist-studio|studio-sync)$/.test(host)) return { label: GC_REPO[host][0], note: 'Clicked through from your ' + GC_REPO[host][0], icon: 's:' };
@@ -3095,12 +3098,12 @@
     var BASE = 'https://chesters-escape.goatcounter.com/counter/TOTAL';
     function showText(n) {
       var t = String(n).replace(/\D/g, ''); if (t) n = Number(t).toLocaleString('en-US');   // GoatCounter sends "1 137" with a thin space; show 1,137
-      box.title = n + " total visits to Chester's Escape";
+      box.title = n + ' total visits to Beat Saber Games';
       box.innerHTML = '<span class="fc-dot">&#9670;</span><span class="fc-n">' + esc(String(n)) + '</span> visits';
       box.hidden = false;
     }
     function showImg() {
-      var img = new Image(); img.className = 'fc-img'; img.alt = 'total visits'; img.title = "Total visits to Chester's Escape";
+      var img = new Image(); img.className = 'fc-img'; img.alt = 'total visits'; img.title = 'Total visits to Beat Saber Games';
       img.onload = function () { box.innerHTML = '<span class="fc-dot">&#9670;</span>'; box.appendChild(img); box.hidden = false; };
       img.onerror = function () {};
       img.src = BASE + '.svg?no_branding=1';
@@ -3136,32 +3139,40 @@
   function renderGate(g) {
     if (window.CGSkipOwner && g.user) window.CGSkipOwner(g.user.id);
     if (g.kind === 'between') return renderBetween(g);
-    // The game picker stays neutral; each game's own theme shows once you pick it.
-    // Before a game is picked, the page is neutral: a d4, a plain font and no game name.
+    // Before a game is picked the page is Beat Saber Games: the logo, the wordmark and a plain font.
+    // Each game's own theme shows once you pick it.
     var t = g.kind !== 'choose' && g.theme && C.themes[g.theme] || null;
-    var die = R.dieIcon().replace('<svg ', '<svg class="gate-die" aria-hidden="true" ');
-    if (!t) { document.body.classList.add('neutral'); $('gameTitle').textContent = "Beat Saber Board Game"; document.title = "Beat Saber Board Game"; }
+    var logo = '<svg class="gate-logo" viewBox="0 0 64 64" aria-hidden="true">' + BSG_LOGO.replace(/bsgTile/g, 'bsgTileBig') + '</svg>';
+    if (!t) { document.body.classList.add('neutral', 'bsg'); $('gameTitle').innerHTML = BSG_WORDMARK; document.title = 'Beat Saber Games'; }
     track('gate-' + g.kind);
     document.addEventListener('click', function (e) { if (e.target.closest('a[href*="/auth/login"]')) track('sign-in'); });
     document.body.classList.add('gated');
     if (t) { document.body.setAttribute('data-theme', t.look || t.id); $('gameTitle').textContent = t.title; document.title = t.title; }
     R.setFavicon(t);
     if (t) $('brandCrow').innerHTML = R.hero(0, 0, 1, t);
-    else { $('brandCrow').setAttribute('viewBox', '0 0 100 100'); $('brandCrow').innerHTML = R.dieIcon().replace(/^<svg[^>]*>|<\/svg>$/g, ''); }
+    else { $('brandCrow').setAttribute('viewBox', '0 0 64 64'); $('brandCrow').innerHTML = BSG_LOGO; }
     if (g.kind !== 'choose') renderClanSwitch(g);
     var msg = {
       closed: ['Coming soon', "The game isn't open yet. Watch your clan Discord for the start."],
       down: ["Can't reach the game", 'The game server is not answering right now. Try again in a minute.'],
       signin: ['Private game', "Sign in with Discord to see your clan's game."],
       pending: ["You're on the list", 'Thanks' + (g.user ? ', ' + g.user.name : '') + '. The host has your request and will let you in. Check back soon.'],
-      choose: ['Pick your game', "You're in more than one clan server, so there's a game for each. You can switch any time with the icons at the top of the page."]
+      choose: ['Pick your game', "You're in more than one clan server, so there's a game for each. You can switch any time with the icons at the top of the page."],
+      noclan: ['No game for your clan yet', "You're signed in, but none of your Discord servers has a game here yet. If you run a Beat Saber clan, message MSploit about a game for your server."]
     }[g.kind];
-    var html = '<section class="gate-card">' + (t ? '<svg class="gate-crow" viewBox="-36 -42 72 80" aria-hidden="true">' + R.hero(0, 0, 1, t) + '</svg>' : die) +
-      '<h2>' + esc(msg[0]) + '</h2><p>' + esc(msg[1]) + '</p>' + (t && g.startsAt && g.startsAt > Date.now() ? countdownHtml(g.startsAt, theme0(t)) : '') + '<div class="row" style="justify-content:center">';
-    if (g.kind === 'signin') html += '<a class="btn" href="' + esc(g.loginUrl()) + '">Sign in with Discord</a>';
+    var more = '<p class="gate-more">Running a Beat Saber clan? <a href="' + CLAN_DM + '" target="_blank" rel="noopener">Message MSploit</a> about a game for your server.</p>';
+    var html = '<section class="gate-card' + (t ? '' : ' bsg-card') + '">' + (t ? '<svg class="gate-crow" viewBox="-36 -42 72 80" aria-hidden="true">' + R.hero(0, 0, 1, t) + '</svg>' : logo);
+    // Signed out: what the site is, then Discord sign-in.
+    if (g.kind === 'signin' && !t) html += '<h2>' + BSG_WORDMARK + '</h2><p class="gate-tag">Board games for Beat Saber clans</p>' +
+      '<p>Roll once a day, play the map you land on, and race your clan to the finish. Sign in with Discord to see your clan\'s game.</p><div class="row" style="justify-content:center">';
+    else html += '<h2>' + esc(msg[0]) + '</h2><p>' + esc(msg[1]) + '</p>' + (t && g.startsAt && g.startsAt > Date.now() ? countdownHtml(g.startsAt, theme0(t)) : '') + '<div class="row" style="justify-content:center">';
+    if (g.kind === 'signin') html += '<a class="btn discord" href="' + esc(g.loginUrl()) + '">' + DISCORD_ICON + 'Sign in with Discord</a>';
+    if (g.kind === 'noclan') html += '<a class="btn discord" href="' + CLAN_DM + '" target="_blank" rel="noopener">' + DISCORD_ICON + 'Message MSploit</a><a class="btn ghost" href="' + esc(g.loginUrl()) + '">Check again</a>';
     if (g.kind === 'pending') html += '<button type="button" class="btn ghost" id="gateRetry">Check again</button><button type="button" class="btn link" id="gateOut">Sign out</button>';
     if (g.kind === 'down') html += '<button type="button" class="btn ghost" id="gateRetry">Try again</button>';
     html += '</div>';
+    if (g.kind === 'signin' && !t) html += more;
+    if (g.kind === 'noclan') html += '<p class="gate-more">Just joined your clan\'s server? Check again to sign in once more.</p>';
     if (g.kind === 'choose') html += '<div class="clan-picks">' + g.clans.map(function (c) { return '<button type="button" class="clan-pick" data-clan="' + esc(c.id) + '">' + clanIcon(c, 'clan-big') + '<span>' + esc(c.name) + '</span></button>'; }).join('') + '</div>';
     html += '</section>';
     document.querySelector('main.layout').outerHTML = '<main class="gate">' + html + '</main>';
@@ -3174,6 +3185,8 @@
   // While the host keeps the next game hidden, players get a Beat Saber Games page: a board of "?"
   // note blocks, a countdown to the reveal and how the game works. The server sends nothing about the game.
   var BSG_LOGO = '<defs><radialGradient id="bsgTile" cx=".3" cy=".25" r=".9"><stop offset="0" stop-color="#12151d"/><stop offset="1" stop-color="#000"/></radialGradient></defs><rect width="64" height="64" rx="12" fill="url(#bsgTile)"/><g transform="rotate(-9 22 34)"><rect x="8" y="20" width="27" height="27" rx="6" fill="#ff2740"/><path d="M13.5 26.5 L30.5 26.5 L22 34.5 Z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></g><g transform="rotate(11 42 31)"><rect x="29" y="17" width="27" height="27" rx="6" fill="#2f7bff" stroke="#08090c" stroke-width="2.6"/><circle cx="36.5" cy="24.5" r="2.4" fill="#fff"/><circle cx="48.5" cy="24.5" r="2.4" fill="#fff"/><circle cx="36.5" cy="36.5" r="2.4" fill="#fff"/><circle cx="48.5" cy="36.5" r="2.4" fill="#fff"/></g>';
+  var CLAN_DM = 'https://discord.com/users/909550896571113492';
+  var DISCORD_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.3 5.3A17 17 0 0 0 15 4l-.5 1a15 15 0 0 0-5 0L9 4a17 17 0 0 0-4.3 1.3C2 9.3 1.3 13.2 1.6 17a17 17 0 0 0 5.2 2.6l1.1-1.8-1.8-.9.4-.3a12 12 0 0 0 11 0l.4.3-1.8.9 1.1 1.8a17 17 0 0 0 5.2-2.6c.4-4.4-.7-8.3-3.1-11.7zM8.5 14.7c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1zm7 0c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1z"/></svg>';
   var BSG_WORDMARK = '<span class="bsg-b">Beat</span> <span class="bsg-s">Saber</span> <span class="bsg-g">Games</span>';
   var BT_FLAG = '<svg viewBox="0 0 40 40"><rect x="8" y="5" width="3" height="31" rx="1.5" fill="#cfd6e4"/><path d="M11 7h22v16H11z" fill="#f4f6fb"/><path d="M11 7h5.5v4H11zM22 7h5.5v4H22zM16.5 11H22v4h-5.5zM27.5 11H33v4h-5.5zM11 15h5.5v4H11zM22 15h5.5v4H22zM16.5 19H22v4h-5.5zM27.5 19H33v4h-5.5z" fill="#1b2030"/></svg>';
   function renderBetween(g) {
@@ -3211,7 +3224,7 @@
 
   // Footer links to the other tools say which game the click came from (GoatCounter reads utm_campaign).
   function toolLinks(s) {
-    var camp = s.kind === 'choose' ? 'picker' : s.clan || (s.mode === 'demo' ? 'demo' : s.kind === 'signin' ? 'signed-out' : 'site');
+    var camp = s.kind === 'choose' ? 'picker' : s.clan || (s.mode === 'demo' ? 'demo' : s.kind === 'signin' ? 'signed-out' : s.kind === 'noclan' ? 'no-clan' : 'site');
     Array.prototype.forEach.call(document.querySelectorAll('#footTools a[data-tool]'), function (a) {
       try { var u = new URL(a.href); u.searchParams.set('utm_campaign', camp); a.href = u.toString(); } catch (e) {}
       a.addEventListener('click', function () { track('tool-' + a.dataset.tool + '-' + camp); });

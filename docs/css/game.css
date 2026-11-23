@@ -1243,10 +1243,10 @@ body .msp-av { background: var(--raise-2); color: var(--text); }
 .near-exit b { color: var(--accent); }
 
 /* ---- Between games: the next board is a secret (players only, while the host hides the next game) ---- */
-body.between { --bg: #000; --raise: #0d0f14; --raise-2: #151821; --line: #232734; --line-2: #313748; --text: #f1f3f8; --muted: #a7aec0; --faint: #6c7489;
+body.between, body.bsg { --bg: #000; --raise: #0d0f14; --raise-2: #151821; --line: #232734; --line-2: #313748; --text: #f1f3f8; --muted: #a7aec0; --faint: #6c7489;
   --accent: #2f7bff; --accent-ink: #fff; --display: var(--ui); background: #000; }
-body.between .brand-crow { width: 42px; height: 42px; }
-body.between .brand h1 { font: 700 30px/1 var(--ui); letter-spacing: -.01em; }
+body.between .brand-crow, body.bsg .brand-crow { width: 42px; height: 42px; }
+body.between .brand h1, body.bsg .brand h1 { font: 700 30px/1 var(--ui); letter-spacing: -.01em; }
 .bsg-b { color: #ff2740; } .bsg-s { color: #2f7bff; } .bsg-g { color: #fff; }
 .between-main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 22px; padding: 20px 22px 8px; max-width: 1280px; margin: 0 auto; align-items: start; }
 .bt-board { position: relative; overflow: hidden; padding: 26px 22px 22px; background: radial-gradient(ellipse at 50% 0%, rgba(47,123,255,.16), transparent 60%), radial-gradient(ellipse at 50% 100%, rgba(255,39,64,.12), transparent 60%), var(--raise); }
@@ -1274,8 +1274,20 @@ body.between .brand h1 { font: 700 30px/1 var(--ui); letter-spacing: -.01em; }
   .between-main { grid-template-columns: minmax(0, 1fr); padding: 14px 10px 6px; gap: 14px; }
   .bt-board { padding: 18px 12px 16px; }
   .bt-cap h2 { font-size: 24px; }
-  body.between .brand h1 { font-size: 24px; }
-  body.between .brand-crow { width: 34px; height: 34px; }
+  body.between .brand h1, body.bsg .brand h1 { font-size: 24px; }
+  body.between .brand-crow, body.bsg .brand-crow { width: 34px; height: 34px; }
 }
 /* Phones: the clan switcher keeps the right edge, in the Between games row (no Rules or Maps here to push it over) */
 @media (max-width: 640px) { body.between .topnav { margin-left: auto; width: auto; } }
+
+/* Beat Saber Games gate pages (signed out, no game for your clan, game picker) */
+.gate-logo { width: 104px; height: 104px; display: block; margin: 0 auto 8px; border-radius: 22px; box-shadow: 0 14px 34px -14px rgba(47,123,255,.45), 0 0 0 1px rgba(255,255,255,.08); }
+body.bsg .gate-card { background: var(--raise); border-color: var(--line); }
+.bsg-card h2 { font: 700 40px/1.05 var(--ui); letter-spacing: -.01em; text-wrap: balance; }
+.gate-card p.gate-tag { color: var(--text); font-weight: 700; font-size: 18px; margin-bottom: 10px; }
+.btn.discord { background: #5865f2; color: #fff; }
+.btn.discord svg { width: 22px; height: 22px; flex: none; }
+.gate-card p.gate-more { font-size: 14px; color: var(--faint); margin: 20px auto 0; }
+.gate-more a { color: var(--muted); text-decoration: underline; }
+.gate-more a:hover { color: var(--text); }
+@media (max-width: 640px) { .bsg-card h2 { font-size: 32px; } .gate-logo { width: 88px; height: 88px; } }

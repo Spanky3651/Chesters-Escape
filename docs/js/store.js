@@ -383,6 +383,7 @@
     var api = (root.CGConfig && root.CGConfig.api) || '';
     if (isLocal() && (!api || q.get('demo') === '1')) return Promise.resolve(new DemoStore());
     if (!api) return Promise.resolve(new Gate('closed'));
+    if (/^#noclan$/.test(location.hash)) { history.replaceState(null, '', location.pathname + location.search); return Promise.resolve(new Gate('noclan', api)); }
     takeTokenFromHash();
     var t = token(), want = takeClanFromUrl() || savedClan();
     return fetch(api.replace(/\/+$/, '') + withClan('/api/config', want), { headers: t ? { authorization: 'Bearer ' + t } : {} })

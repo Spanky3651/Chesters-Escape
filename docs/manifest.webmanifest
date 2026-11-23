@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "Beat Saber Games",
+  "short_name": "Beat Saber Games",
+  "description": "Board games for Beat Saber clans. Roll once a day, play the map you land on, and race your clan to the finish.",
+  "start_url": "./?utm_source=pwa&utm_campaign=installed",
+  "scope": "./",
+  "display": "standalone",
+  "launch_handler": { "client_mode": ["focus-existing", "auto"] },
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "img/app/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "img/app/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "img/app/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "img/app/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -180,12 +180,14 @@
   }
   function setFavicon(theme) {
     if (typeof document === 'undefined') return;
-    var href = 'data:image/svg+xml,' + encodeURIComponent(theme ? faviconSvg(theme) : DIE_ICON);
+    var href = 'data:image/svg+xml,' + encodeURIComponent(theme ? faviconSvg(theme) : BSG_ICON);
     var link = document.querySelector('link[rel="icon"]');
     if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
     if (link.getAttribute('href') !== href) { link.type = 'image/svg+xml'; link.href = href; }
   }
-  // The shared icon (sign-in, game picker): an orange d4 showing a 4.
+  // The shared icon (sign-in, game picker, between games): the Beat Saber Games logo.
+  var BSG_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><radialGradient id="f" cx=".3" cy=".25" r=".9"><stop offset="0" stop-color="#12151d"/><stop offset="1" stop-color="#000"/></radialGradient></defs><rect width="64" height="64" rx="12" fill="url(#f)"/><g transform="rotate(-9 22 34)"><rect x="8" y="20" width="27" height="27" rx="6" fill="#ff2740"/><path d="M13.5 26.5 L30.5 26.5 L22 34.5 Z" fill="#ffffff" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/></g><g transform="rotate(11 42 31)"><rect x="29" y="17" width="27" height="27" rx="6" fill="#2f7bff" stroke="#08090c" stroke-width="2.6"/><circle cx="36.5" cy="24.5" r="2.4" fill="#ffffff"/><circle cx="48.5" cy="24.5" r="2.4" fill="#ffffff"/><circle cx="36.5" cy="36.5" r="2.4" fill="#ffffff"/><circle cx="48.5" cy="36.5" r="2.4" fill="#ffffff"/></g></svg>';
+  // The orange d4 showing a 4 (How it works, the roll).
   var DIE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M50 6 L94 84 Q96 90 90 90 L10 90 Q4 90 6 84 Z" fill="#9a4a12"/><path d="M50 6 L50 90 L10 90 Q4 90 6 84 Z" fill="#e8822a"/><path d="M50 6 L94 84 Q96 90 90 90 L50 90 Z" fill="#ffb347"/><text x="50" y="80" text-anchor="middle" font-family="Arial Black,Arial" font-weight="900" font-size="40" fill="#1a0f00">4</text></svg>';
 
   // The theme's main character: Chester, or Taco on the Beaters themes.

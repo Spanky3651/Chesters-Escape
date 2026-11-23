@@ -160,7 +160,8 @@ async function authCallback(env, req, url) {
     if (!c.guild || g) member.push(c.id);
     if (g && g.icon) icons[c.id] = `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=96`;
   }
-  if (!member.length) return new Response('This game is for members of the clan Discord servers.', { status: 403 });
+  // In none of the clan servers: back to the game page, which says their clan has no game yet.
+  if (!member.length) return Response.redirect(st.r.replace(/#.*$/, '') + '#noclan', 302);
   // No picture of their own: Discord's default one for that account, so nobody shows as bare initials.
   let dflt = ''; try { dflt = `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(me.id) >> 22n) % 6n)}.png`; } catch (e) {}
   const avatar = me.avatar ? `https://cdn.discordapp.com/avatars/${me.id}/${me.avatar}.png?size=128` : dflt;
@@ -187,7 +188,7 @@ export default {
         const member = url.searchParams.has('clans') ? list(url.searchParams.get('clans')) : clans(env).map((c) => c.id);
         return json(env, req, { token: await sign(env, { id, name, avatar: '', clans: member, icons: {}, exp: Date.now() + 86400000 }) });
       }
-      if (!url.pathname.startsWith('/api/')) return new Response("Chester's Escape game server. The game itself is on the game page.", { status: 200 });
+      if (!url.pathname.startsWith('/api/')) return new Response('Beat Saber Games game server. The game itself is at https://beatsabergames.com', { status: 200 });
 
       const user = await userFrom(env, req, url);
       if (url.pathname === '/api/icon' && req.method === 'GET') return await siteIcon(url);
@@ -1324,7 +1325,7 @@ export class Game extends DurableObject {
   // --- push notifications for hosts ---
   pushKeys() {
     const pub = String(this.env.VAPID_PUBLIC_KEY || '').trim(), priv = String(this.env.VAPID_PRIVATE_KEY || '').trim();
-    return pub && priv ? { publicKey: pub, privateKey: priv, subject: this.env.GAME_PAGE || 'https://spanky3651.github.io/Chesters-Escape/' } : null;
+    return pub && priv ? { publicKey: pub, privateKey: priv, subject: this.env.GAME_PAGE || 'https://beatsabergames.com/' } : null;
   }
   async notifyHosts(msg, only) {
     const hostIds = hosts(this.env, this.clan());
