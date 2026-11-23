@@ -8,12 +8,12 @@ await import(R + '/docs/js/content.js'); await import(R + '/docs/js/engine.js');
 const { Game } = await import(R + '/worker/src/index.js');
 const E = globalThis.CGEngine, C = globalThis.CGContent;
 // fake AccSaber: counts per pool
-let BLDISC = { bl1: '1', bl2: '2' };
+let BLDISC = { bl1: '1', bl2: '2' }, BLCLAN = {};
 let ACC = { daily: {}, weekly: {} }, accUp = true, clock = Date.UTC(2026, 10, 30, 20);
 const realNow = Date.now; Date.now = () => clock;
 globalThis.fetch = async (url) => {
   url = String(url);
-  if (url.includes('/player/')) { const id = url.split('/player/')[1]; return { ok: true, status: 200, json: async () => ({ id, name: 'N' + id, socials: BLDISC[id] ? [{ service: 'Discord', userId: BLDISC[id] }] : [] }) }; }
+  if (url.includes('/player/')) { const id = url.split('/player/')[1]; return { ok: true, status: 200, json: async () => ({ id, name: 'N' + id, socials: BLDISC[id] ? [{ service: 'Discord', userId: BLDISC[id] }] : [], clans: (BLCLAN[id] || []).map((c) => ({ id: c, tag: c === 85 ? 'GENX' : 'X' })) }) }; }
   if (!url.includes('accsaber')) return { ok: false, status: 500, text: async () => '', json: async () => ({}) };
   if (!accUp) return { ok: false, status: 503, text: async () => '' };
   if (url.includes('/v1/users/')) return { ok: true, status: 200, json: async () => ({ clan: { slug: 'genx-clan' } }) };
@@ -25,7 +25,7 @@ function mk() {
   const store = new Map(); let alarm = null;
   const ctx = { storage: { get: async (k) => store.get(k), put: async (k, v) => store.set(k, v), getAlarm: async () => alarm, setAlarm: async (t) => { alarm = t; }, delete: async (k) => store.delete(k) }, blockConcurrencyWhile: (f) => f() };
   const g = new Game(ctx, { ACC_API: 'https://api.accsaber.com' });
-  g.clan = () => ({ accClan: 'genx-clan', accClanName: 'GenX Clan', id: 'genx' });
+  g.clan = () => ({ accClan: 'genx-clan', accClanName: 'GenX Clan', blClan: '85', blClanName: 'GENX', id: 'genx' });
   g.useClan = () => {}; g.notifyHosts = async (m) => { (g.hostMsgs = g.hostMsgs || []).push(m); };
   g.announceStart = async () => {}; g.announceEnd = async () => {}; g.discordFeed = async () => {}; g.visit = async () => {}; g.chatLink = async () => null;
   g.ctxAlarm = () => alarm;
@@ -138,9 +138,29 @@ const ok = (name) => console.log('ok  ' + name);
   BLDISC = { bl1: '1' };                          // player 2 never linked Discord on BeatLeader
   const r = await g.act({ id: 'h', isHost: true }, 'newGame', { signup: true });
   assert(!r || !r.error, r && r.error);
-  assert(g.state.players.d1 && g.state.players.d1.accOk, 'player 1 passes');
+  assert(g.state.players.d1 && g.state.players.d1.checked === 'acc', 'player 1 passes');
   assert(!g.state.players.d2, 'player 2 is taken off');
   assert((g.hostMsgs || []).some((m) => /taken off/.test(m.title)));
   ok('carried-over players get the join checks');
+}
+// GenX map game: GENX on BeatLeader and Discord linked, no AccSaber check
+{
+  clock = Date.UTC(2026, 11, 12, 20);
+  const g = await setup({});
+  g.state.settings.accsaber = false;
+  g.state.order.slice().forEach((pid) => E.removePlayer(g.state, pid));
+  BLDISC = { bl3: '3', bl4: '4', bl5: '9' }; BLCLAN = { bl3: [85], bl4: [12], bl5: [85] };
+  let r = await g.act(U('4'), 'join', { blId: 'bl4' });
+  assert(r && /GENX/.test(r.error), 'not in GENX: refused');
+  r = await g.act(U('5'), 'join', { blId: 'bl5' });
+  assert(r && /Link this Discord/.test(r.error), 'Discord not linked: refused');
+  r = await g.act(U('3'), 'join', { blId: 'bl3' });
+  assert(!r.error, r.error);
+  assert.strictEqual(g.state.players.d3.checked, 'bl');
+  // a sign-up that skipped the checks gets them; switching to AccSaber mode re-checks for the AccSaber clan
+  E.addPlayer(g.state, { id: 'd4', discordId: '4', name: 'P4', blId: 'bl4' });
+  await g.accVet();
+  assert(!g.state.players.d4, 'unchecked sign-up outside GENX is taken off');
+  ok('GenX map game checks GENX on BeatLeader and the Discord link');
 }
 console.log('worker timing tests passed');

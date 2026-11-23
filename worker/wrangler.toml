@@ -37,6 +37,8 @@ ANNOUNCE_DAYS = "0"
 #   hosts    optional extra host Discord IDs for this clan only (comma separated)
 #   accClan  AccSaber mode only: sign-up needs this AccSaber clan (its slug) and the player's Discord linked on
 #            BeatLeader; a player who leaves the clan is paused until they rejoin. accClanName is how it's shown
+#   blClan   map games only (AccSaber mode off): sign-up needs this BeatLeader clan (its number) and the player's
+#            Discord linked on BeatLeader. blClanName is its tag, as shown
 [vars.CLANS.genx]
 name = "GenX"
 order = 1
@@ -46,6 +48,8 @@ theme = "cemetery"
 webhook = "DISCORD_WEBHOOK_URL"
 accClan = "genx-clan"
 accClanName = "GenX Clan"
+blClan = "85"
+blClanName = "GENX"
 
 [vars.CLANS.beaters]
 name = "Beaters"

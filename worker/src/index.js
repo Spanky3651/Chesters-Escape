@@ -91,7 +91,8 @@ function clans(env) {
     hosts: list(x.hosts), webhook: String(x.webhook || 'DISCORD_WEBHOOK_URL'),
     announce: String(x.announce != null ? x.announce : env.ANNOUNCE_DAYS || '0'), icon: String(x.icon || ''),
     maps: C.mapSets[x.maps] ? String(x.maps) : '',
-    accClan: String(x.accClan || ''), accClanName: String(x.accClanName || x.accClan || '')
+    accClan: String(x.accClan || ''), accClanName: String(x.accClanName || x.accClan || ''),
+    blClan: String(x.blClan || ''), blClanName: String(x.blClanName || x.blClan || '')
   }));
 }
 // The game page link for a clan, so notifications and Discord posts open the right game.
@@ -1033,7 +1034,12 @@ export class Game extends DurableObject {
           const bl = await this.blPlayer(a.blId);
           // AccSaber game with a clan: the BeatLeader profile must carry this Discord account, and its AccSaber
           // profile must be in the clan.
-          const want = this.accClanWant();
+          const want = this.accClanWant(), blWant = this.blClanWant();
+          // Map game with a BeatLeader clan: the profile must carry this Discord account and be in the clan.
+          if (blWant) {
+            if (bl.discord !== String(user.id)) return { error: 'Link this Discord account on your BeatLeader profile first (beatleader.com, Settings, Socials), then sign up.' };
+            if (!bl.clans.includes(blWant)) return { error: 'This game is for ' + this.clan().blClanName + ' on BeatLeader. Add ' + this.clan().blClanName + ' as one of your clans on beatleader.com, then sign up.' };
+          }
           if (want) {
             if (bl.discord !== String(user.id)) return { error: 'Link this Discord account on your BeatLeader profile first (beatleader.com, Settings, Socials), then sign up.' };
             const au = await this.accUser(bl.id);
@@ -1045,7 +1051,7 @@ export class Game extends DurableObject {
           if (taken) return { error: 'That BeatLeader profile is already in the game.' };
           const isNew = !s.players[pid];
           E.addPlayer(s, { id: pid, discordId: user.id, name: bl.name || user.name, avatar: bl.avatar || user.avatar, blId: bl.id });
-          if (want) s.players[pid].accOk = true;   // passed the AccSaber game's checks
+          if (this.joinRule()) s.players[pid].checked = this.joinRule();   // which game's join checks they passed
           result = { pid };
           // Hosts hear about each new sign-up (not their own, and not someone just relinking a profile).
           if (isNew && !user.isHost) {
@@ -1103,7 +1109,7 @@ export class Game extends DurableObject {
           if (a.patch && 'accsaber' in a.patch) {
             if (s.settings.accsaber) Object.assign(s.settings, { timeZone: 'UTC', cutoffHour: 4, cutoffMinute: 0 });
             else Object.assign(s.settings, { timeZone: E.DEFAULTS.timeZone, cutoffHour: E.DEFAULTS.cutoffHour, cutoffMinute: E.DEFAULTS.cutoffMinute });
-            if (s.settings.accsaber) await this.accVet();   // whoever signed up before it was on gets the checks now
+            await this.accVet();   // switching AccSaber mode changes the join checks: whoever hasn't passed this game's gets them now
           }
           this.meta.nextCutoff = E.nextCutoff(s.settings); result = s.settings; break;
         }
@@ -1134,7 +1140,7 @@ export class Game extends DurableObject {
           keep.forEach((p) => E.addPlayer(this.state, { id: p.id, discordId: p.discordId, name: p.name, avatar: p.avatar, blId: p.blId }));
           this.meta.nextCutoff = startsAt || a.signup || a.hide ? null : E.nextCutoff(this.state.settings);
           if (this.meta.feed) this.meta.feed.game = null;   // a new game: its sign-up post can go out
-          await this.accVet();   // carried-over players get the AccSaber game's join checks
+          await this.accVet();   // carried-over players get this game's join checks
           break;
         }
         // Wipe a game that's over: a fresh sign-up board with nobody on it and an empty thread.
@@ -1472,7 +1478,7 @@ export class Game extends DurableObject {
     if (!r.ok) throw new Error('No BeatLeader player found for that ID.');
     const p = await r.json();
     const dc = (p.socials || []).find((x) => x.service === 'Discord');
-    return { id: String(p.id), name: p.name, avatar: p.avatar || '', discord: dc ? String(dc.userId || '') : '' };
+    return { id: String(p.id), name: p.name, avatar: p.avatar || '', discord: dc ? String(dc.userId || '') : '', clans: (p.clans || []).map((c) => String(c.id)) };
   }
   // AccSaber mode: mission counts from AccSaber's public "Most missions done" leaderboards (daily and
   // weekly). There's no per-player lookup, so the pages are read until every player is found. Each
@@ -1480,6 +1486,10 @@ export class Game extends DurableObject {
   // AccSaber itself refreshes the list about every 10.
   // AccSaber mode with a clan set for this server (wrangler.toml accClan): the clan players must be in.
   accClanWant() { const c = this.clan(); return E.isAcc(this.state) && c.accClan ? c.accClan : ''; }
+  // A map game with a BeatLeader clan set for this server (wrangler.toml blClan): players must be in it.
+  blClanWant() { const c = this.clan(); return !E.isAcc(this.state) && c.blClan ? c.blClan : ''; }
+  // Which join checks this game has: 'acc' (AccSaber clan), 'bl' (BeatLeader clan) or '' (none).
+  joinRule() { return this.accClanWant() ? 'acc' : this.blClanWant() ? 'bl' : ''; }
   // One player's AccSaber profile: { clan: slug or null }, null with no profile, undefined if AccSaber didn't answer.
   async accUser(id) {
     const r = await fetch((this.env.ACC_API || 'https://api.accsaber.com') + '/v1/users/' + encodeURIComponent(id), { headers: { 'user-agent': 'ChestersEscape' } }).catch(() => null);
@@ -1488,15 +1498,16 @@ export class Game extends DurableObject {
     const u = await r.json().catch(() => null);
     return u ? { clan: u.clan && u.clan.slug ? String(u.clan.slug) : null } : undefined;
   }
-  // AccSaber game with a clan: players who got in without the join checks (carried over from the last game,
-  // or signed up before AccSaber mode was turned on) are checked before the start. Anyone who fails is taken
-  // off the sign-up list and can join again once it's fixed; the host hears who. If BeatLeader or AccSaber
-  // doesn't answer, that player is tried again on the next pass.
+  // A game with join checks (an AccSaber clan, or a BeatLeader clan for map games): players who got in without
+  // this game's checks (carried over from the last game, or signed up before AccSaber mode was switched) are
+  // checked before the start. Anyone who fails is taken off the sign-up list and can join again once it's
+  // fixed; the host hears who. If BeatLeader or AccSaber doesn't answer, that player is tried again next pass.
   async accVet() {
-    const s = this.state, want = this.accClanWant();
-    if (!want || s.status !== 'signup') return;
+    const s = this.state, rule = this.joinRule(), want = this.accClanWant(), blWant = this.blClanWant();
+    if (!rule || s.status !== 'signup') return;
     const out = [];
-    for (const pid of s.order.filter((id) => !s.players[id].accOk)) {
+    const passed = (p) => p.checked === rule || (rule === 'acc' && p.accOk);   // accOk: AccSaber checks, before 'checked'
+    for (const pid of s.order.filter((id) => !passed(s.players[id]))) {
       const p = s.players[pid];
       if (!p.blId || !p.discordId) continue;
       if (!this.take(2)) break;
@@ -1504,16 +1515,17 @@ export class Game extends DurableObject {
       try {
         const bl = await this.blPlayer(p.blId);
         if (bl.discord !== String(p.discordId)) why = 'Discord not linked on BeatLeader';
+        else if (rule === 'bl') why = bl.clans.includes(blWant) ? '' : 'not in ' + this.clan().blClanName + ' on BeatLeader';
         else {
           const au = await this.accUser(bl.id);
           if (au === undefined) continue;
           why = !au ? 'no AccSaber profile' : au.clan !== want ? 'not in the ' + this.clan().accClanName + ' on AccSaber' : '';
         }
       } catch { continue; }
-      if (why) { out.push(p.name + ' (' + why + ')'); E.removePlayer(s, pid); } else p.accOk = true;
+      if (why) { out.push(p.name + ' (' + why + ')'); E.removePlayer(s, pid); } else p.checked = rule;
       s.seq++; this.dirty = true;
     }
-    if (out.length) await this.notifyHosts({ title: (out.length === 1 ? 'A sign-up was' : out.length + ' sign-ups were') + ' taken off', body: 'They didn\'t pass the AccSaber game\'s join checks: ' + out.join(', ') + '. They can join again once that\'s fixed.', tag: 'acc-vet' });
+    if (out.length) await this.notifyHosts({ title: (out.length === 1 ? 'A sign-up was' : out.length + ' sign-ups were') + ' taken off', body: 'They didn\'t pass this game\'s join checks: ' + out.join(', ') + '. They can join again once that\'s fixed.', tag: 'acc-vet' });
   }
   async accScan(ids) {
     const api = this.env.ACC_API || 'https://api.accsaber.com', counts = {}, known = { d: true, w: true };
