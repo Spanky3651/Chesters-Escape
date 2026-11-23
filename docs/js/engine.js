@@ -847,6 +847,8 @@
       case 'lost-turn': t.turnsLost++; break;
       case 'pass': t.passed += (e.over || []).length; break;
       case 'shield-used': t.flags.shield = 1; break;
+      case 'mission': t.missions = (t.missions || 0) + 1; t.days[e.day] = 1; break;
+      case 'weekly': t.weeklies = (t.weeklies || 0) + 1; break;
       case 'cleared':
         t.clears++; t.days[e.day] = 1;
         if (e.proof && e.proof.acc) {

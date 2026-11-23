@@ -1356,8 +1356,8 @@
   function playerStats(s, pid) {
     var p = s.players[pid], r = E.routeOf(s, p), last = Math.max(0, r.length - 1), t = E.tallyOf(s, pid), pos = t ? t.pos : -1;
     // start from the running totals for moments already trimmed from the log
-    var o = t ? { rolls: t.rolls, total: t.total, clears: t.clears, accs: [], accSum: t.accSum, accN: t.accN, best: t.best, lost: t.lost, gained: t.gained, cards: t.cards, turnsLost: t.turnsLost, passed: t.passed, passedBy: t.passedBy }
-      : { rolls: 0, total: 0, clears: 0, accs: [], accSum: 0, accN: 0, best: null, lost: 0, gained: 0, cards: 0, turnsLost: 0, passed: 0, passedBy: 0 };
+    var o = t ? { missions: t.missions || 0, weeklies: t.weeklies || 0, rolls: t.rolls, total: t.total, clears: t.clears, accs: [], accSum: t.accSum, accN: t.accN, best: t.best, lost: t.lost, gained: t.gained, cards: t.cards, turnsLost: t.turnsLost, passed: t.passed, passedBy: t.passedBy }
+      : { missions: 0, weeklies: 0, rolls: 0, total: 0, clears: 0, accs: [], accSum: 0, accN: 0, best: null, lost: 0, gained: 0, cards: 0, turnsLost: 0, passed: 0, passedBy: 0 };
     s.events.forEach(function (e) {
       if (e.t === 'pass' && (e.over || []).indexOf(pid) >= 0) o.passedBy++;
       if (e.pid !== pid) return;
@@ -1371,6 +1371,8 @@
         case 'card': o.cards++; break;
         case 'lost-turn': o.turnsLost++; break;
         case 'pass': o.passed += (e.over || []).length; break;
+        case 'mission': o.missions++; break;
+        case 'weekly': o.weeklies++; break;
         case 'cleared':
           o.clears++;
           if (e.proof && e.proof.acc) { o.accs.push(e.proof.acc); if (!o.best || e.proof.acc > o.best.acc) o.best = { acc: e.proof.acc, key: (e.bsr || [])[0], diff: e.proof.diff || '' }; }
@@ -1394,9 +1396,13 @@
       '<div class="pc-head" style="--c:' + R.playerColor(s, pid) + '">' + avatarHtml(p, 'pc-ava') + '<div><div class="pc-place">' + (rank && p.route ? ordinal(rank.place) + ' place' : 'Signed up') + '</div>' +
       '<div class="pc-where">' + esc(where) + (p.route ? ' · ' + esc(s.board.routeInfo[p.route].name) : '') + '</div></div></div>' +
       '<div class="pc-grid">' +
-      tile(o.clears, 'Maps cleared') +
-      tile(o.accCount ? (o.avgAcc * 100).toFixed(2) + '%' : '–', 'Average accuracy') +
-      tile(o.best ? (o.best.acc * 100).toFixed(2) + '%' : '–', 'Best clear', o.best ? esc((song && song.name) || ('!bsr ' + o.best.key)) + (o.best.diff ? ' · ' + esc(o.best.diff) : '') : '') +
+      (E.isAcc(s)
+        ? tile(o.missions, 'Daily missions', 'finished') +
+          tile(E.lifeLeft(p) + ' of ' + E.LIFELINES, 'Lifelines left', 'both dailies in one day earns one back') +
+          tile(o.weeklies, 'Weekly bonus rolls', 'earned')
+        : tile(o.clears, 'Maps cleared') +
+          tile(o.accCount ? (o.avgAcc * 100).toFixed(2) + '%' : '–', 'Average accuracy') +
+          tile(o.best ? (o.best.acc * 100).toFixed(2) + '%' : '–', 'Highest accuracy', o.best ? esc((song && song.name) || ('!bsr ' + o.best.key)) + (o.best.diff ? ' · ' + esc(o.best.diff) : '') : '')) +
       tile(o.rolls ? o.avgRoll.toFixed(2) : '–', 'Average roll', esc(luck) + (o.rolls ? ' \u00b7 ' + o.rolls + ' roll' + (o.rolls === 1 ? '' : 's') + ', 2.50 is average' : '')) +
       tile(o.lost, 'Spaces lost', 'to setbacks') +
       tile(o.gained, 'Spaces gained', 'from boosts and shortcuts') +
@@ -1455,12 +1461,12 @@
     var s = st(), p = s.players[pid], have = {}, list = X.badgesFor(s)[pid] || [];
     list.forEach(function (b) { have[b.id] = 1; });
     track('badges');
-    var rows = X.BADGES.slice().sort(function (a, b) { return (have[b.id] || 0) - (have[a.id] || 0); }).map(function (b) {
+    var rows = X.badgeList(s).slice().sort(function (a, b) { return (have[b.id] || 0) - (have[a.id] || 0); }).map(function (b) {
       var holders = s.order.filter(function (q) { return (X.badgesFor(s)[q] || []).some(function (x) { return x.id === b.id; }); }).map(function (q) { return s.players[q].name; });
       return '<li class="bg-row' + (have[b.id] ? ' got' : '') + '"><span class="bg-ic" aria-hidden="true">' + b.icon + '</span><span><b>' + esc(b.name) + '</b>' + (have[b.id] ? ' <span class="bg-got">Earned</span>' : '') +
         '<span class="bg-desc">' + esc(b.desc) + '</span>' + (holders.length ? '<span class="bg-who">' + esc(holders.length > 4 ? holders.slice(0, 4).join(', ') + ' and ' + (holders.length - 4) + ' more' : holders.join(', ')) + '</span>' : '') + '</span></li>';
     }).join('');
-    modal(p ? (p.id === store.me ? 'Your badges' : p.name + '\'s badges') : 'Badges', '<p class="lede">' + (p ? list.length + ' of ' + X.BADGES.length + ' earned. ' : '') + 'Badges come from what happens on the board and in your scores. They don\'t change the rules.</p><ul class="bg-list">' + rows + '</ul>');
+    modal(p ? (p.id === store.me ? 'Your badges' : p.name + '\'s badges') : 'Badges', '<p class="lede">' + (p ? list.length + ' of ' + X.badgeList(s).length + ' earned. ' : '') + 'Badges come from what happens on the board and in your scores. They don\'t change the rules.</p><ul class="bg-list">' + rows + '</ul>');
   }
 
   // ---- share a moment ----------------------------------------------------------------------------
@@ -2073,12 +2079,14 @@
   function blWrap(p, inner) { return p && p.blId ? '<a class="srow" href="https://beatleader.com/u/' + encodeURIComponent(p.blId) + '" target="_blank" rel="noopener" title="' + esc(p.name) + ' on BeatLeader">' + inner + '</a>' : '<div class="srow">' + inner + '</div>'; }
   // Everything the game state alone can tell.
   function statsFromState(s) {
-    var T = (s.tally && s.tally.p) || {}, ev = s.events, o = { clears: 0, rolls: 0, accSum: 0, accN: 0, per: {}, maps: {} };
-    Object.keys(T).forEach(function (pid) { var t = T[pid], q = o.per[pid] = o.per[pid] || { n: 0, aS: 0, aN: 0 }; o.clears += t.clears; o.rolls += t.rolls; o.accSum += t.accSum; o.accN += t.accN; q.n += t.clears; q.aS += t.accSum; q.aN += t.accN; });
+    var T = (s.tally && s.tally.p) || {}, ev = s.events, o = { clears: 0, missions: 0, weeklies: 0, rolls: 0, accSum: 0, accN: 0, per: {}, maps: {} };
+    Object.keys(T).forEach(function (pid) { var t = T[pid], q = o.per[pid] = o.per[pid] || { n: 0, m: 0, aS: 0, aN: 0 }; o.missions += t.missions || 0; o.weeklies += t.weeklies || 0; q.m += t.missions || 0; o.clears += t.clears; o.rolls += t.rolls; o.accSum += t.accSum; o.accN += t.accN; q.n += t.clears; q.aS += t.accSum; q.aN += t.accN; });
     ev.forEach(function (e) {
       if (e.t === 'roll') o.rolls++;
+      if (e.t === 'weekly') o.weeklies++;
+      if (e.t === 'mission') { o.missions++; (o.per[e.pid] = o.per[e.pid] || { n: 0, m: 0, aS: 0, aN: 0 }).m++; }
       if (e.t !== 'cleared') return;
-      var q = o.per[e.pid] = o.per[e.pid] || { n: 0, aS: 0, aN: 0 }; o.clears++; q.n++;
+      var q = o.per[e.pid] = o.per[e.pid] || { n: 0, m: 0, aS: 0, aN: 0 }; o.clears++; q.n++;
       if (e.proof && e.proof.acc) {
         o.accSum += e.proof.acc; o.accN++; q.aS += e.proof.acc; q.aN++;
         var k = (e.bsr || [])[0]; if (k) { var m = o.maps[k] = o.maps[k] || { n: 0, sum: 0, best: 0 }; m.n++; m.sum += e.proof.acc; m.best = Math.max(m.best, e.proof.acc); }
@@ -2095,15 +2103,19 @@
     var claims = ids.reduce(function (a, pid) { return a + s.players[pid].claims.length; }, 0), onMap = ids.reduce(function (a, pid) { return a + s.players[pid].tasks.length; }, 0);
     // The same cards at every stage, so the layout never changes; before the start they say what's coming.
     var routed = ids.filter(function (pid) { return s.players[pid].route; }).length;
+    var acc = E.isAcc(s), missionToday = racing.filter(function (pid) { return E.accDaily(s, s.players[pid]); }).length;
     var rolledToday = racing.filter(function (pid) { return s.players[pid].rolledDay === day; }).length, clearsToday = signup ? 0 : ev(s, day);
     var escaped = ids.filter(function (pid) { return s.players[pid].finished; }).length, spots = Math.max(0, 3 - escaped);
     html += sCard('Players', ids.length, signup ? routed + ' picked a route' : over ? 'Game over' : racing.length + ' still racing', 'hero') +
       (signup ? sCard('Starts', s.startsAt ? '<span data-countdown="' + s.startsAt + '">' + fmtLeft(s.startsAt - Date.now()) + '</span>' : '-', s.startsAt ? esc(startWhen(s.startsAt)) : 'No start time yet')
         : over ? sCard('Rolls', o.rolls, 'over ' + day + ' days') : sCard('Rolled today', rolledToday + '<small> / ' + racing.length + '</small>', racing.length ? Math.round(rolledToday / racing.length * 100) + '% of racers' : '')) +
-      sCard('Maps cleared', o.clears, signup ? 'Counts from the first roll' : over ? o.rolls + ' rolls' : clearsToday + ' today') +
-      sCard('Average accuracy', o.accN ? (o.accSum / o.accN * 100).toFixed(2) + '%' : '-', o.accN ? 'across ' + o.accN + ' clears' : 'No clears yet') +
+      (acc ? sCard('Daily missions', o.missions, signup ? 'Counts from the first day' : over ? o.rolls + ' rolls' : clearsToday + ' today') +
+        sCard('Weekly bonus rolls', o.weeklies, signup ? 'Counts from the first day' : 'earned so far')
+      : sCard('Maps cleared', o.clears, signup ? 'Counts from the first roll' : over ? o.rolls + ' rolls' : clearsToday + ' today') +
+        sCard('Average accuracy', o.accN ? (o.accSum / o.accN * 100).toFixed(2) + '%' : '-', o.accN ? 'across ' + o.accN + ' clears' : 'No clears yet')) +
       sCard('Made it out', escaped, spots ? spots + ' podium spot' + (spots === 1 ? '' : 's') + (escaped ? ' left' : ' open') : 'Podium is full', 'gold') +
-      sCard('On a map', onMap, signup ? 'Maps come with the first rolls' : claims ? claims + ' run' + (claims === 1 ? '' : 's') + ' for you to approve' : 'Nothing to approve');
+      (acc ? sCard('Mission done today', signup ? '-' : missionToday + '<small> / ' + racing.length + '</small>', signup ? 'Counts from the first day' : over ? 'Game over' : (racing.length - missionToday) + ' still need one')
+        : sCard('On a map', onMap, signup ? 'Maps come with the first rolls' : claims ? claims + ' run' + (claims === 1 ? '' : 's') + ' for you to approve' : 'Nothing to approve'));
     html += sCard('Notifications on', on == null ? '…' : on + '<small> / ' + ids.length + '</small>', on == null ? '' : d.notify.devices + ' device' + (d.notify.devices === 1 ? '' : 's') + ' signed up') +
       sCard('Signed in, not in', lurk == null ? '…' : lurk, lurk == null ? '' : 'Never joined the game');
     html += '</div></section>';
@@ -2117,7 +2129,7 @@
         return blWrap(x.p, avatarHtml(x.p, 'vis-ava') + '<span class="sn2"><b>' + esc(x.p.name) + '</b><em>' + (r ? r.left + ' to go · ' : '') + esc(s.board.routeInfo[x.p.route].name) + '</em></span><span class="sidle">' + (x.never ? 'Never rolled' : x.idle + ' days') + '</span>');
       }).join('') + (statsMore.slip ? '' : sMore('slip', slip.length, 6)) : '<p class="why">' + (signup ? 'Everyone has picked a route. Players who stop rolling show up here once the game starts.' : 'Everyone still racing rolled today or yesterday.') + '</p>') + '</div></section>';
       // Funnel
-      var steps = [['Signed up', ids.length], ['Picked a route', ids.filter(function (pid) { return s.players[pid].route; }).length], ['Rolled at least once', ids.filter(function (pid) { return s.players[pid].rolls > 0 || (s.tally && s.tally.p && s.tally.p[pid] && s.tally.p[pid].rolls); }).length], ['Cleared a map', ids.filter(function (pid) { return o.per[pid] && o.per[pid].n; }).length], ['Made it out', ids.filter(function (pid) { return s.players[pid].finished; }).length]];
+      var steps = [['Signed up', ids.length], ['Picked a route', ids.filter(function (pid) { return s.players[pid].route; }).length], ['Rolled at least once', ids.filter(function (pid) { return s.players[pid].rolls > 0 || (s.tally && s.tally.p && s.tally.p[pid] && s.tally.p[pid].rolls); }).length], [E.isAcc(s) ? 'Finished a mission' : 'Cleared a map', ids.filter(function (pid) { return o.per[pid] && (E.isAcc(s) ? o.per[pid].m : o.per[pid].n); }).length], ['Made it out', ids.filter(function (pid) { return s.players[pid].finished; }).length]];
       P.funnel = '<section class="hsec"><h3>From sign-up to the ' + esc(theme().goal || 'exit') + '</h3><div class="sbox">' + steps.map(function (x, i) { return sBar(x[0], x[1], steps[0][1], i === steps.length - 1 ? 'g' : '', '<b>' + x[1] + '</b> <small>' + (steps[0][1] ? Math.round(x[1] / steps[0][1] * 100) : 0) + '%</small>'); }).join('') + '</div></section>';
     }
     // Routes
@@ -2143,10 +2155,10 @@
       // Everyone, in standings order, then anyone without a route.
       var allRows = rank.concat(over ? [] : ids.filter(function (pid) { return !s.players[pid].route; }).map(function (pid) { return { pid: pid, noroute: true }; }));
       var rows = allRows.slice(0, statsMore.all ? 999 : 10);
-      P.all = '<section class="hsec"><h3>Everyone <small>tap one for BeatLeader</small></h3><div class="sbox ptab"><div class="pth"><span>#</span><span>Player</span><span>Maps</span><span>Acc</span><span>Rolled</span></div>' + rows.map(function (r) {
-        var p = s.players[r.pid], q = o.per[r.pid] || { n: 0, aN: 0 }, gap = day - (p.rolledDay || 0);
+      P.all = '<section class="hsec"><h3>Everyone <small>tap one for BeatLeader</small></h3><div class="sbox ptab"><div class="pth"><span>#</span><span>Player</span><span>' + (acc ? 'Missions' : 'Maps') + '</span><span>' + (acc ? 'Lifelines' : 'Acc') + '</span><span>Rolled</span></div>' + rows.map(function (r) {
+        var p = s.players[r.pid], q = o.per[r.pid] || { n: 0, m: 0, aN: 0 }, gap = day - (p.rolledDay || 0);
         var last = r.noroute ? 'No route' : signup ? 'Not yet' : r.escaped ? 'Out d' + r.day : !p.rolledDay ? 'Never' : gap === 0 ? 'Today' : gap + (gap === 1 ? ' day' : ' days');
-        var inner = '<span>' + (r.noroute || signup ? '–' : r.escaped && r.place <= 3 ? ['🥇', '🥈', '🥉'][r.place - 1] : r.place) + '</span><span class="pnm">' + avatarHtml(p, 'vis-ava') + '<b>' + esc(p.name) + '</b></span><span>' + q.n + '</span><span>' + (q.aN ? (q.aS / q.aN * 100).toFixed(1) + '%' : '-') + '</span><span class="' + (r.noroute || (!signup && !r.escaped && !over && gap >= 2) ? 'cold' : '') + '">' + last + '</span>';
+        var inner = '<span>' + (r.noroute || signup ? '–' : r.escaped && r.place <= 3 ? ['🥇', '🥈', '🥉'][r.place - 1] : r.place) + '</span><span class="pnm">' + avatarHtml(p, 'vis-ava') + '<b>' + esc(p.name) + '</b></span><span>' + (acc ? q.m || 0 : q.n) + '</span><span>' + (acc ? E.lifeLeft(p) : q.aN ? (q.aS / q.aN * 100).toFixed(1) + '%' : '-') + '</span><span class="' + (r.noroute || (!signup && !r.escaped && !over && gap >= 2) ? 'cold' : '') + '">' + last + '</span>';
         return p.blId ? '<a class="ptr" href="https://beatleader.com/u/' + encodeURIComponent(p.blId) + '" target="_blank" rel="noopener">' + inner + '</a>' : '<div class="ptr">' + inner + '</div>';
       }).join('') + (allRows.length ? '' : wait('Nobody has signed up yet.')) + (statsMore.all ? '' : sMore('all', allRows.length, 10)) + '</div></section>';
     }
@@ -2155,10 +2167,10 @@
     html += grp('Who to nudge', 'players to message in Discord') + (P.slip || '') + '<div id="statsNudge">' + loading + '</div>' +
       grp('The race') + (P.all || '') + (P.routes || '') + (P.funnel || '') +
       grp('Activity') + '<div id="statsActivity">' + loading + '</div>' +
-      grp('Maps') + (P.hard || '') + (P.most || '') + (P.rx || '') +
+      (acc ? '' : grp('Maps') + (P.hard || '') + (P.most || '')) + (P.rx || '') +
       grp('Visitors', 'from GoatCounter') + '<div id="statsGC">' + loading + '</div>';
     return html;
-    function ev(s, d) { return s.events.filter(function (e) { return e.t === 'cleared' && e.day === d; }).length; }
+    function ev(s, d) { var t = E.isAcc(s) ? 'mission' : 'cleared'; return s.events.filter(function (e) { return e.t === t && e.day === d; }).length; }
   }
   // ---- GoatCounter in the Stats tab: plain names, a line on what each one means, and small icons ----
   // Site icons and flags come from the game server's /api/icon (cached there for a week).
@@ -2270,12 +2282,12 @@
   // The parts that come from the server: days, hours, notifications, the not-joined list and GoatCounter.
   function drawStatsLive() {
     var box = $('statsActivity'), d = statsData, s = st(); if (!box || !d) return;
-    var html = '', days = d.daily.days || {}, keys = Object.keys(days).map(Number).sort(function (a, b) { return a - b; });
-    if (s.status === 'signup' || !keys.length) html += '<section class="hsec"><h3>Each day <small>rolls and clears</small></h3><div class="sbox"><p class="why">' + (s.status === 'signup' ? 'Fills in day by day once rolling starts' + (s.startsAt ? ', ' + esc(startWhen(s.startsAt)) : '') + '.' : 'Nobody has rolled yet.') + '</p></div></section>';
+    var html = '', days = d.daily.days || {}, keys = Object.keys(days).map(Number).sort(function (a, b) { return a - b; }), cl = E.isAcc(s) ? 'missions' : 'clears';
+    if (s.status === 'signup' || !keys.length) html += '<section class="hsec"><h3>Each day <small>rolls and ' + cl + '</small></h3><div class="sbox"><p class="why">' + (s.status === 'signup' ? 'Fills in day by day once rolling starts' + (s.startsAt ? ', ' + esc(startWhen(s.startsAt)) : '') + '.' : 'Nobody has rolled yet.') + '</p></div></section>';
     else {
       var all = []; for (var i = 1; i <= Math.max(s.day, keys[keys.length - 1]); i++) all.push([i, (days[i] || [0, 0])[0], (days[i] || [0, 0])[1]]);
       var mx = Math.max.apply(null, all.map(function (x) { return Math.max(x[1], x[2]); })) || 1;
-      html += '<section class="hsec"><h3>Each day <small>rolls and clears</small></h3><div class="sbox"><div class="dchart">' + all.map(function (x) { return '<div class="dc" title="Day ' + x[0] + ': ' + x[1] + ' rolls, ' + x[2] + ' clears"><div class="dbars"><i class="r" style="height:' + x[1] / mx * 100 + '%"></i><i class="c" style="height:' + x[2] / mx * 100 + '%"></i></div><span>' + x[0] + '</span></div>'; }).join('') + '</div><div class="leg"><span><i class="r"></i>Rolls</span><span><i class="c"></i>Clears</span>' + (s.status === 'running' ? '<span class="lsub">Day ' + s.day + ' is today</span>' : '') + '</div></div></section>';
+      html += '<section class="hsec"><h3>Each day <small>rolls and ' + cl + '</small></h3><div class="sbox"><div class="dchart">' + all.map(function (x) { return '<div class="dc" title="Day ' + x[0] + ': ' + x[1] + ' rolls, ' + x[2] + ' ' + cl + '"><div class="dbars"><i class="r" style="height:' + x[1] / mx * 100 + '%"></i><i class="c" style="height:' + x[2] / mx * 100 + '%"></i></div><span>' + x[0] + '</span></div>'; }).join('') + '</div><div class="leg"><span><i class="r"></i>Rolls</span><span><i class="c"></i>Clears</span>' + (s.status === 'running' ? '<span class="lsub">Day ' + s.day + ' is today</span>' : '') + '</div></div></section>';
     }
     var hrs = d.daily.hours || [], tot = hrs.reduce(function (a, b) { return a + b; }, 0);
     if (!tot) html += '<section class="hsec"><h3>When people play <small>rolls by hour, your time</small></h3><div class="sbox"><p class="why">Shows the busiest hour once people start rolling, so you know when posts and reminders land best.</p></div></section>';
@@ -2518,7 +2530,7 @@
         (!ud.ok ? '<div class="rc-note"><span aria-hidden="true">🔒</span><span>Undo is off because players have moved since your last change. Undoing now would wipe their moves.</span></div>'
           : '<div class="rc-note"><span aria-hidden="true">↩️</span><span>Undo takes back the newest change. Discord posts that already went out stay posted.</span></div>') + '</section>';
     }
-    if (running) T.today += '<section class="hsec"><h3>Day ' + s.day + '</h3><p>' + (demo ? 'Starting the next day lets every bot clear maps and roll.' : 'The day turns over by itself at ' + esc(cutoffLabel(s)) + '. Start the next day is only for fixing a missed rollover.') + '</p><div class="row">' +
+    if (running) T.today += '<section class="hsec"><h3>Day ' + s.day + '</h3><p>' + (demo ? 'Starting the next day lets every bot ' + (E.isAcc(s) ? 'finish a mission' : 'clear maps') + ' and roll.' : 'The day turns over by itself at ' + esc(cutoffLabel(s)) + '. Start the next day is only for fixing a missed rollover.') + '</p><div class="row">' +
       '<button type="button" class="btn small ghost" data-h="advance">Start the next day</button>' + (demo ? '<button type="button" class="btn small ghost" data-h="simulate">Skip ahead 3 days</button>' : '') + '</div></section>';
     else if (signup) T.today += '<section class="hsec"><h3>Waiting to start</h3><p>' + (s.startsAt ? 'The first roll unlocks <b>' + esc(startWhen(s.startsAt)) + '</b>, in <span data-countdown="' + s.startsAt + '">' + fmtLeft(s.startsAt - Date.now()) + '</span>. ' : 'No start time is set yet. ') +
       (E.signupsOpen(s) ? 'Sign-ups are open' : 'Sign-ups are closed') + ', ' + s.order.length + ' signed up.</p><p class="why">The start time and sign-ups are in the Game tab.</p></section>';
@@ -2613,7 +2625,7 @@
       var el = document.querySelector('[' + sel + '="' + cssq(pid) + '"]'); if (!el) return;
       if (el.type === 'checkbox') el.checked = held[k]; else el.value = held[k]; el.dataset.touched = '1';
     });
-    if (openPlayer) hostDest(openPlayer);
+    if (hostOpen) hostDest(hostOpen);
     fillHostSongs();
     fillClaims();
     filterPlayers();
@@ -2626,7 +2638,7 @@
   }
   // Players tab search and filter chips: hide players whose name doesn't match or who aren't in the
   // picked group, and say how many are left.
-  var playerQuery = '', playerFilter = 'all', openPlayer = null;
+  var playerQuery = '', playerFilter = 'all', hostOpen = null;
   function filterPlayers() {
     var q = playerQuery.trim().toLowerCase(), rows = document.querySelectorAll('#hostBody [data-pname]'), shown = 0;
     Array.prototype.forEach.call(rows, function (r) {
@@ -2666,7 +2678,7 @@
     }).join('') + '</div>';
   }
   function hostPlayerCard(s, pid) {
-    var p = s.players[pid], r = p.route ? E.routeOf(s, p) : [], sp = p.route && p.pos >= 0 ? s.board.spaces[r[p.pos]] : null, open = openPlayer === pid;
+    var p = s.players[pid], r = p.route ? E.routeOf(s, p) : [], sp = p.route && p.pos >= 0 ? s.board.spaces[r[p.pos]] : null, open = hostOpen === pid;
     var here = hpSpaceLabel(s, sp, r), tags = [];
     var where = p.finished ? '🎉 Escaped, ' + ordinal(p.finished.place) : !p.route ? '🧭 Hasn\'t picked a route' : here.icon + ' ' + (sp ? 'Space ' + (p.pos + 1) + ' of ' + r.length + ' · ' : '') + here.text;
     p.tasks.forEach(function (t) { tags.push('<span class="hp-tag map">🎵 ' + hpSong(t.bsr[0]) + (t.bonus ? ' · bonus' : t.card ? ' · card' : '') + '</span>'); });
@@ -2835,7 +2847,7 @@
       case 'simulate': run('simulate', { days: 3 }, 'Skipped ahead 3 days.'); break;
       case 'tab': showHostTab(btn.dataset.tab); break;
       case 'undo': { var u0 = store.undoInfo().list[0]; if (u0 && confirm('Undo "' + u0.label + '"?')) run('undo', {}, 'Undone: ' + u0.label + '.'); break; }
-      case 'ptoggle': openPlayer = openPlayer === pid ? null : pid; renderHost(); if (openPlayer) { var oc = document.querySelector('#hostBody .hp-card.open'); if (oc && oc.scrollIntoView) oc.scrollIntoView({ block: 'nearest' }); } break;
+      case 'ptoggle': hostOpen = hostOpen === pid ? null : pid; renderHost(); if (hostOpen) { var oc = document.querySelector('#hostBody .hp-card.open'); if (oc && oc.scrollIntoView) oc.scrollIntoView({ block: 'nearest' }); } break;
       case 'aptab': apTab[btn.dataset.ap] = btn.dataset.d; redrawClaim(btn.dataset.ap); break;
       case 'pfilter': playerFilter = btn.dataset.f || 'all'; track('host-filter-' + playerFilter); filterPlayers(); break;
       case 'pstep': {

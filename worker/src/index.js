@@ -1340,7 +1340,7 @@ export class Game extends DurableObject {
     if (!t || t.game !== s.id) t = this.meta.daily = { game: s.id, mark: 0, days: {}, hours: Array(24).fill(0) };
     for (const e of s.events) {
       if (e.id <= t.mark) continue;
-      if (e.t !== 'roll' && e.t !== 'cleared') continue;
+      if (e.t !== 'roll' && e.t !== 'cleared' && e.t !== 'mission') continue;   // a mission counts as the day's clear in AccSaber games
       const d = t.days[e.day] || (t.days[e.day] = [0, 0]);
       if (e.t === 'roll') { d[0]++; t.hours[new Date(e.at || Date.now()).getUTCHours()]++; } else d[1]++;
     }
@@ -1435,7 +1435,7 @@ export class Game extends DurableObject {
     }
     if (op === 'test') {
       const ep = String(body && body.endpoint || '');
-      const r = await this.pushTo((this.meta.push || []).filter((x) => x.uid === user.id && (!ep || x.endpoint === ep)), { title: 'Notifications are on', body: user.isHost ? 'This device will hear when someone signs up, is waiting to get in or has a run to approve.' : 'This device will remind you when your roll or map is waiting.', tag: 'test' });
+      const r = await this.pushTo((this.meta.push || []).filter((x) => x.uid === user.id && (!ep || x.endpoint === ep)), { title: 'Notifications are on', body: user.isHost ? 'This device will hear when someone signs up, is waiting to get in or has a run to approve.' : 'This device will remind you when your roll or ' + (E.isAcc(this.state) ? 'daily mission' : 'map') + ' is waiting.', tag: 'test' });
       await this.save();
       if (r.sent) return { ok: true, sent: r.sent };
       return { error: r.failed ? 'The push did not go through. Turn notifications off and on again on this device.' : 'Turn on notifications on this device first.' };
@@ -1594,7 +1594,7 @@ export class Game extends DurableObject {
     fields.push({ name: '📊 By the numbers', value: `${plural(s.final.length, 'player')} · ${done} · ${out} made it to the ${goal}`, inline: false });
     if (tot.best && s.players[tot.best.pid]) {
       const song = tot.best.key ? await this.songName(tot.best.key) : '';
-      fields.push({ name: '✨ Best clear', value: `**${md(s.players[tot.best.pid].name)}**, ${song ? md(song) : 'a map'}` + (tot.best.diff ? ` (${tot.best.diff})` : '') + ` at ${(tot.best.acc * 100).toFixed(2)}%`, inline: false });
+      fields.push({ name: '✨ Highest accuracy', value: `**${md(s.players[tot.best.pid].name)}**, ${song ? md(song) : 'a map'}` + (tot.best.diff ? ` (${tot.best.diff})` : '') + ` at ${(tot.best.acc * 100).toFixed(2)}%`, inline: false });
     }
     await this.sendOrKeep(`🏁 **${md(s.title)} is over!** Congrats to everyone who played.`, true, this.card('Final results', { fields }), 'end');
   }

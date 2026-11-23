@@ -204,6 +204,12 @@
     { id: 'crowd', icon: '📣', name: 'Crowd Favorite', desc: 'Got 10 reactions on your moments' }
   ];
   var BADGE_BY = {}; BADGES.forEach(function (b) { BADGE_BY[b.id] = b; });
+  // AccSaber games have no maps: Golden Run can't happen there, and On Fire counts daily missions.
+  var ACC_BADGE = { streak: 'Finished a daily mission 3 days in a row' };
+  function badgeList(s) {
+    if (!E.isAcc(s)) return BADGES;
+    return BADGES.filter(function (b) { return b.id !== 'golden'; }).map(function (b) { return ACC_BADGE[b.id] ? Object.assign({}, b, { desc: ACC_BADGE[b.id] }) : b; });
+  }
   var badgeCache = { key: '', val: null };
   function badgesFor(s) {
     var key = s.id + '|' + s.seq + '|' + s.events.length;
@@ -227,12 +233,13 @@
         (clearDays[e.pid] = clearDays[e.pid] || {})[e.day] = 1;
         if (e.proof && e.proof.acc >= 0.95) give(e.pid, 'golden');
       }
+      if (e.t === 'mission') (clearDays[e.pid] = clearDays[e.pid] || {})[e.day] = 1;
       if (e.t === 'roll') { runs[e.pid] = e.n === 4 ? (runs[e.pid] || 0) + 1 : 0; if (runs[e.pid] >= 3) give(e.pid, 'fours'); }
       if (e.t === 'shield-used') give(e.pid, 'shield');
       if (e.t === 'start') sent[e.pid] = 1;
       if (e.t === 'warp' && p.route && b.routes[p.route]) { var r = b.routes[p.route]; if (r.indexOf(e.to) > r.indexOf(e.space)) give(e.pid, 'current'); }
     });
-    // On Fire: a cleared map on three game days in a row.
+    // On Fire: a cleared map (or an AccSaber daily mission) on three game days in a row.
     Object.keys(clearDays).forEach(function (pid) {
       var d = clearDays[pid];
       if (Object.keys(d).some(function (k) { k = Number(k); return d[k + 1] && d[k + 2]; })) give(pid, 'streak');
@@ -266,7 +273,8 @@
       rank.forEach(function (r) { if (wasLast[r.pid] && (r.escaped || r.place <= half)) give(r.pid, 'comeback'); });
     }
     var val = {};
-    Object.keys(out).forEach(function (pid) { val[pid] = BADGES.filter(function (x) { return out[pid][x.id]; }); });
+    var all = badgeList(s);
+    Object.keys(out).forEach(function (pid) { val[pid] = all.filter(function (x) { return out[pid][x.id]; }); });
     badgeCache = { key: key, val: val };
     return val;
   }
@@ -355,7 +363,7 @@
           g.restore();
         }
       }
-      g.fillStyle = 'rgba(255,255,255,.55)'; g.font = '700 20px ' + ui; g.textAlign = 'right'; g.fillText('Beat Saber Board Game', 1150, 590); g.textAlign = 'left';
+      g.fillStyle = 'rgba(255,255,255,.55)'; g.font = '700 20px ' + ui; g.textAlign = 'right'; g.fillText('beatsabergames.com', 1150, 590); g.textAlign = 'left';
       return new Promise(function (res, rej) { c.toBlob(function (b) { b ? res(b) : rej(new Error('Could not draw the picture.')); }, 'image/png'); });
     });
   }
@@ -392,7 +400,7 @@
       if (lead && lead.pid !== meId && s.players[lead.pid]) out.push(s.players[lead.pid].name + ' is out in front. Rude.');
       out.push('Day ' + s.day + '. Still ' + (taco ? 'crunchy' : 'flapping') + '.');
     }
-    if (h < 5) out.push('It is ' + ((h % 12) || 12) + ':' + ('0' + d.getMinutes()).slice(-2) + ' AM. Go to bed. After one more map.');
+    if (h < 5) out.push('It is ' + ((h % 12) || 12) + ':' + ('0' + d.getMinutes()).slice(-2) + ' AM. Go to bed. After one more ' + (E.isAcc(s) ? 'mission' : 'map') + '.');
     else if (h < 9) out.push('Early session? Warm up those wrists.');
     return out;
   }
@@ -584,5 +592,5 @@
     return out;
   }
 
-  root.CGFx = { STUCK_SPOTS: Object.keys(STUCK).concat('mud'), rxIcon: rxIcon, rxLabel: rxLabel, rxOrder: rxOrder, rxCounts: rxCounts, Camera: Camera, fx: fx, grade: grade, BADGES: BADGES, BADGE_BY: BADGE_BY, badgesFor: badgesFor, flair: flair, rivals: rivals, shareCard: shareCard, eggLine: eggLine, eggContext: eggContext, DIZZY: DIZZY, LEGEND: LEGEND, still: still };
+  root.CGFx = { STUCK_SPOTS: Object.keys(STUCK).concat('mud'), rxIcon: rxIcon, rxLabel: rxLabel, rxOrder: rxOrder, rxCounts: rxCounts, Camera: Camera, fx: fx, grade: grade, badgeList: badgeList, BADGES: BADGES, BADGE_BY: BADGE_BY, badgesFor: badgesFor, flair: flair, rivals: rivals, shareCard: shareCard, eggLine: eggLine, eggContext: eggContext, DIZZY: DIZZY, LEGEND: LEGEND, still: still };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

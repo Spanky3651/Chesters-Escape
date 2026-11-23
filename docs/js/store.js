@@ -50,7 +50,7 @@
       return { id: id, title: title, themeId: theme, startedAt: t - (ago + days) * day, endedAt: t - ago * day, days: days, players: all.length,
         top: all.slice(0, 3).map(function (r, i) { return { pid: r.pid, name: r.name, avatar: who(r.pid).avatar || '', place: r.place, escaped: r.escaped, day: r.escaped ? days - 1 + i : null, left: r.escaped ? 0 : 6 }; }), all: all };
     };
-    var title = function (id) { return (C.themes[id] || {}).title || "Chester's Escape"; };
+    var title = function (id) { return (C.themes[id] || {}).title || 'Beat Saber Games'; };
     return [game('demo-old-1', title('cemetery'), 'cemetery', 40, 12, ['nyx', 'hummingbird', 'moth', 'wisp', 'gravel']),
       game('demo-old-2', title('christmas'), 'christmas', 12, 10, ['hummingbird', 'msploit', 'nyx', 'bramble', 'pumpkin', 'moth'])];
   }
