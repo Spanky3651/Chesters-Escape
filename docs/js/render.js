@@ -659,9 +659,10 @@
 
   // Snow sitting on the title in a board's own art. A double tap on the title, or a shake of the phone, knocks it off
   // and it builds back up. The art is the host's own picture, so each board's spot is listed here by its title
-  // (letters only): tap is the title's box, floor is where the snow lands, clumps are [x, y, rx, ry] along the letter tops.
+  // (letters only): tap is the title's box, floor is where the snow lands, clumps are [x, y, rx, ry] on the painted snow
+  // above the letters (kept off the letters themselves).
   var LOGO_SNOW = {
-    chesterssnowyaccscape: { tap: [50, 16, 301, 130], floor: 150, clumps: [[81, 49, 11, 4], [108, 40, 10, 4], [135, 37, 11, 4], [166, 36, 11, 4], [195, 38, 10, 4], [224, 40, 11, 4], [253, 37, 10, 4], [280, 39, 9, 4], [303, 45, 8, 3.5]] }
+    chesterssnowyaccscape: { tap: [50, 16, 301, 130], floor: 150, clumps: [[88, 33, 9, 3.5], [106, 32, 9, 3.5], [131, 34, 9, 3.5], [158, 37, 10, 3.5], [185, 37, 10, 3.5], [210, 36, 9, 3.5], [233, 37, 9, 3.5], [254, 38, 8, 3.5]] }
   };
   function logoSnow(b, title) { return b.logoSnow || LOGO_SNOW[String(title || b.title || '').toLowerCase().replace(/[^a-z]/g, '')] || null; }
   function logoSnowSvg(L) {

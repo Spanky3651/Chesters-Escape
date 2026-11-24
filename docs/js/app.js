@@ -1664,7 +1664,7 @@
   }
   function eggAnim(el, cls, ms) { ['egg-go', 'egg-spin', 'egg-hide'].forEach(function (c) { el.classList.remove(c); }); void el.getBBox(); el.classList.add(cls); setTimeout(function () { el.classList.remove(cls); }, ms); }
   // Snow on the board's title art falls off and builds back up (render.js LOGO_SNOW). A double tap does it,
-  // and so does shaking the phone. iPhones ask once for motion access, so that ask rides on the first double tap.
+  // and so does shaking the phone on Android. iPhones are left out: they would have to ask for motion access first.
   var snowBusy = false;
   function snowOff(el) {
     if (snowBusy || !el || !el.isConnected) return;
@@ -1717,18 +1717,13 @@
       var el = svgEl && svgEl.querySelector('.logo-snow'); if (el) snowOff(el);
     });
   }
-  function shakeAsk() {
-    var D = window.DeviceMotionEvent; if (!D || shakeOn) return;
-    if (typeof D.requestPermission !== 'function') { shakeStart(); return; }
-    D.requestPermission().then(function (r) { if (r === 'granted') { try { localStorage.setItem('cg.shake', '1'); } catch (e) {} shakeStart(); } }, function () {});
-  }
   function doEgg(el) {
     var kind = el.getAttribute('data-egg'), t = Date.now();
     if (kind === 'hero' && heroHiding) return;
     // once the hero is talking, single taps keep the conversation going for a while
     var warm = kind === 'hero' && heroCombo && t - heroLast < 20000;
     eggTaps = t - eggAt < 1400 && eggTaps ? eggTaps + 1 : 1; eggAt = t;
-    if (kind === 'logo') { if (eggTaps < 2) return; eggTaps = 0; snowOff(el); shakeAsk(); return; }
+    if (kind === 'logo') { if (eggTaps < 2) return; eggTaps = 0; snowOff(el); return; }
     if (!warm && eggTaps < (kind === 'hero' ? 3 : 1)) return;
     eggTaps = 0; eggSeen[kind] = (eggSeen[kind] || 0) + 1;
     var bb = el.getBBox(), xy = { x: bb.x + bb.width / 2, y: bb.y + bb.height * .3 };
@@ -3449,11 +3444,9 @@
     return store.load();
   }).then(function () {
     bind();
-    // Shaking the phone knocks the snow off the title art. Android listens right away; an iPhone that allowed motion
-    // before asks again on the first touch (no prompt the second time), and otherwise waits for a double tap on the title.
-    var D = window.DeviceMotionEvent, iosAsk = D && typeof D.requestPermission === 'function';
-    if (D && !iosAsk) shakeStart();
-    else if (iosAsk && (function () { try { return localStorage.getItem('cg.shake'); } catch (e) { return null; } })()) document.addEventListener('touchend', function once() { document.removeEventListener('touchend', once); shakeAsk(); });
+    // Shaking the phone knocks the snow off the title art, on Android only (iPhones need a motion permission prompt).
+    var D = window.DeviceMotionEvent;
+    if (D && typeof D.requestPermission !== 'function') shakeStart();
     if (store.mode === 'live') track(store.canPlay ? (store.me ? 'visit-player' : 'visit-not-joined') : 'visit-waiting-list');
     // Re-send this device's notification subscription once per visit so every clan has a working copy.
     if (store.mode === 'live' && store.vapidKey && pushSupported() && Notification.permission === 'granted') currentSub().then(refreshZone);
