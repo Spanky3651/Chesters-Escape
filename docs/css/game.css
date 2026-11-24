@@ -305,7 +305,7 @@ body[data-theme="thanksgiving"] .chip.long { border-color: #4a6a2a; color: #c8e3
 /* ---- me panel ---- */
 .me { position: relative; }
 .me.has-skull .me-row { padding-right: 40px; }   /* room for the host skull */
-.me-skull { position: absolute; top: 8px; right: 8px; }
+.me > .host-btn.me-skull { position: absolute; top: 10px; right: 10px; }   /* beats the later .host-btn { position: relative } */
 .me-row { display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 12px; align-items: center; }
 .me-ava { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 3px solid var(--c, var(--accent)); background: var(--raise-2); display: grid; place-items: center; font-weight: 700; }
 .me-name { font: 700 24px/1.1 var(--display); overflow-wrap: anywhere; }   /* a long name wraps instead of running off the card */
