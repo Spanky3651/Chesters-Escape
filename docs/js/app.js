@@ -1317,7 +1317,7 @@
     markRevealed(evs);
     return evs.reduce(function (ch, e) { return ch.then(function () { return showScore(e); }); }, Promise.resolve());
   }
-  // Every so often two tokens sharing a space get into a scuffle. Never while anything else is
+  // Every so often two tokens sharing a space get into a scuffle (never once they've finished). Never while anything else is
   // happening on the board, and never for reduced motion. ?scuffle=1 speeds it up for testing.
   var scuffleFast = /[?&]scuffle=1\b/.test(location.search);
   function scuffleSoon() { setTimeout(scuffle, scuffleFast ? 2600 : 10000 + Math.random() * 10000); }
@@ -1330,7 +1330,7 @@
     var s = st(); if (!s || !s.order) return;
     var pos = R.layoutTokens(s, null, store.me), groups = {}, where = {};
     s.order.forEach(function (pid) {
-      var p = s.players[pid], L = pos[pid]; if (!p || !p.route || !L || L.n < 2 || L.hidden) return;   // tucked into a pile: not visible
+      var p = s.players[pid], L = pos[pid]; if (!p || !p.route || p.finished || !L || L.n < 2 || L.hidden) return;   // finished players are done fighting; tucked into a pile: not visible
       var xy = R.tokenXY(s, p), key = Math.round(xy.x) + ',' + Math.round(xy.y);
       (groups[key] = groups[key] || []).push(pid); where[pid] = key;
     });
