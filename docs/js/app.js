@@ -77,7 +77,7 @@
     var s = st(), t = theme();
     var key = s.themeId + '|' + s.board.id + '|' + (s.board.background ? s.board.background.length : 0) + '|' + Object.keys(s.board.spaces).length;
     if (force || key !== builtKey) {
-      $('boardWrap').innerHTML = R.board(s.board, t, { focusable: true, acc: E.isAcc(s) });
+      $('boardWrap').innerHTML = R.board(s.board, t, { focusable: true, acc: E.isAcc(s), title: s.title });
       svgEl = $('boardWrap').querySelector('svg');
       cam = new X.Camera(svgEl);
       builtKey = key;
@@ -1646,12 +1646,72 @@
     return X.eggLine('hero', t, heroDeck.pop());
   }
   function eggAnim(el, cls, ms) { ['egg-go', 'egg-spin', 'egg-hide'].forEach(function (c) { el.classList.remove(c); }); void el.getBBox(); el.classList.add(cls); setTimeout(function () { el.classList.remove(cls); }, ms); }
+  // Snow on the board's title art falls off and builds back up (render.js LOGO_SNOW). A double tap does it,
+  // and so does shaking the phone. iPhones ask once for motion access, so that ask rides on the first double tap.
+  var snowBusy = false;
+  function snowOff(el) {
+    if (snowBusy || !el || !el.isConnected) return;
+    snowBusy = true; track('egg-logo');
+    var NS = 'http://www.w3.org/2000/svg', floor = +el.getAttribute('data-floor') || 150, pw = el.querySelector('.ls-powder'), parts = [], t0 = performance.now();
+    var cl = [].slice.call(el.querySelectorAll('.ls-clump')), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    cl.forEach(function (g, i) { g._d = i * 55 + Math.random() * 80; g._vx = (Math.random() - .5) * 1.2; g._rot = (Math.random() - .5) * 50; g._p = 0; });
+    blip(300, .35, 'sine', .04, 140);
+    function puff(x) {
+      for (var k = 0; k < 7; k++) { var c = document.createElementNS(NS, 'circle'); c.setAttribute('r', (2 + Math.random() * 3).toFixed(1)); c.setAttribute('fill', '#fff'); pw.appendChild(c); parts.push({ el: c, x: x, y: floor, vx: (Math.random() - .5) * 3, vy: -Math.random() * 2.5, life: 0 }); }
+    }
+    function frame(now) {
+      var t = now - t0, alive = false;
+      cl.forEach(function (g) {
+        var x = +g.getAttribute('data-x'), y = +g.getAttribute('data-y'), tt = t - g._d;
+        if (calm) { tt = t; if (tt < 3400) { alive = true; g.style.opacity = tt < 400 ? 1 - tt / 400 : tt < 2400 ? 0 : (tt - 2400) / 1000; } else g.style.opacity = ''; return; }
+        if (tt < 0) { alive = true; g.setAttribute('transform', 'translate(' + (Math.sin(t / 30) * 1.5).toFixed(1) + ',0)'); return; }
+        if (tt < 1300) {
+          alive = true;
+          var sec = tt / 1000, dy = sec * sec * 520, dx = g._vx * tt / 10;
+          g.setAttribute('transform', 'translate(' + dx.toFixed(1) + ',' + dy.toFixed(1) + ') rotate(' + (g._rot * sec).toFixed(1) + ' ' + x + ' ' + y + ')');
+          g.style.opacity = Math.max(0, 1 - tt / 1300).toFixed(2);
+          if (!g._p && y + dy > floor) { g._p = 1; puff(x + dx); }
+        } else if (tt < 4300) { alive = true; g.removeAttribute('transform'); g.style.opacity = 0; }
+        else if (tt < 5300) { alive = true; var k = (tt - 4300) / 1000; g.style.opacity = k.toFixed(2); g.setAttribute('transform', 'translate(0,' + ((1 - k) * -6).toFixed(1) + ')'); }
+        else { g.style.opacity = ''; g.removeAttribute('transform'); }
+      });
+      parts.forEach(function (p) {
+        p.life += 16; p.vy += .12; p.x += p.vx; p.y += p.vy;
+        p.el.setAttribute('cx', p.x.toFixed(1)); p.el.setAttribute('cy', p.y.toFixed(1)); p.el.setAttribute('opacity', Math.max(0, 1 - p.life / 700).toFixed(2));
+        if (p.life < 700) alive = true;
+      });
+      if (alive && el.isConnected) requestAnimationFrame(frame); else { pw.innerHTML = ''; snowBusy = false; }
+    }
+    requestAnimationFrame(frame);
+  }
+  // A shake is three hard jolts inside about two thirds of a second; then it rests a few seconds.
+  var shakeOn = false;
+  function shakeStart() {
+    if (shakeOn || !window.DeviceMotionEvent) return;
+    shakeOn = true;
+    var hits = 0, hitAt = 0, lastShake = 0;
+    window.addEventListener('devicemotion', function (e) {
+      var a = e.accelerationIncludingGravity; if (!a || a.x == null) return;
+      var m = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z), n = Date.now();
+      if (m < 24 || n - hitAt < 120) return;
+      hits = n - hitAt < 700 ? hits + 1 : 1; hitAt = n;
+      if (hits < 3 || n - lastShake < 4000 || document.hidden) return;
+      hits = 0; lastShake = n;
+      var el = svgEl && svgEl.querySelector('.logo-snow'); if (el) snowOff(el);
+    });
+  }
+  function shakeAsk() {
+    var D = window.DeviceMotionEvent; if (!D || shakeOn) return;
+    if (typeof D.requestPermission !== 'function') { shakeStart(); return; }
+    D.requestPermission().then(function (r) { if (r === 'granted') { try { localStorage.setItem('cg.shake', '1'); } catch (e) {} shakeStart(); } }, function () {});
+  }
   function doEgg(el) {
     var kind = el.getAttribute('data-egg'), t = Date.now();
     if (kind === 'hero' && heroHiding) return;
     // once the hero is talking, single taps keep the conversation going for a while
     var warm = kind === 'hero' && heroCombo && t - heroLast < 20000;
     eggTaps = t - eggAt < 1400 && eggTaps ? eggTaps + 1 : 1; eggAt = t;
+    if (kind === 'logo') { if (eggTaps < 2) return; eggTaps = 0; snowOff(el); shakeAsk(); return; }
     if (!warm && eggTaps < (kind === 'hero' ? 3 : 1)) return;
     eggTaps = 0; eggSeen[kind] = (eggSeen[kind] || 0) + 1;
     var bb = el.getBBox(), xy = { x: bb.x + bb.width / 2, y: bb.y + bb.height * .3 };
@@ -3372,6 +3432,11 @@
     return store.load();
   }).then(function () {
     bind();
+    // Shaking the phone knocks the snow off the title art. Android listens right away; an iPhone that allowed motion
+    // before asks again on the first touch (no prompt the second time), and otherwise waits for a double tap on the title.
+    var D = window.DeviceMotionEvent, iosAsk = D && typeof D.requestPermission === 'function';
+    if (D && !iosAsk) shakeStart();
+    else if (iosAsk && (function () { try { return localStorage.getItem('cg.shake'); } catch (e) { return null; } })()) document.addEventListener('touchend', function once() { document.removeEventListener('touchend', once); shakeAsk(); });
     if (store.mode === 'live') track(store.canPlay ? (store.me ? 'visit-player' : 'visit-not-joined') : 'visit-waiting-list');
     // Re-send this device's notification subscription once per visit so every clan has a working copy.
     if (store.mode === 'live' && store.vapidKey && pushSupported() && Notification.permission === 'granted') currentSub().then(refreshZone);

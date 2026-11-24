@@ -657,11 +657,31 @@
       '</defs>';
   }
 
+  // Snow sitting on the title in a board's own art. A double tap on the title, or a shake of the phone, knocks it off
+  // and it builds back up. The art is the host's own picture, so each board's spot is listed here by its title
+  // (letters only): tap is the title's box, floor is where the snow lands, clumps are [x, y, rx, ry] along the letter tops.
+  var LOGO_SNOW = {
+    chesterssnowyaccscape: { tap: [50, 16, 301, 130], floor: 150, clumps: [[81, 49, 11, 4], [108, 40, 10, 4], [135, 37, 11, 4], [166, 36, 11, 4], [195, 38, 10, 4], [224, 40, 11, 4], [253, 37, 10, 4], [280, 39, 9, 4], [303, 45, 8, 3.5]] }
+  };
+  function logoSnow(b, title) { return b.logoSnow || LOGO_SNOW[String(title || b.title || '').toLowerCase().replace(/[^a-z]/g, '')] || null; }
+  function logoSnowSvg(L) {
+    var f = function (n) { return (+n).toFixed(1); }, o = '<g class="egg logo-snow" data-egg="logo" data-floor="' + L.floor + '">';
+    o += '<filter id="lsSoft" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="1.1"/></filter>';
+    o += '<rect x="' + L.tap[0] + '" y="' + L.tap[1] + '" width="' + L.tap[2] + '" height="' + L.tap[3] + '" rx="20" fill="#fff" fill-opacity="0"/>';
+    o += '<g filter="url(#lsSoft)" opacity=".92">';
+    L.clumps.forEach(function (c) {
+      o += '<g class="ls-clump" data-x="' + c[0] + '" data-y="' + c[1] + '"><ellipse cx="' + c[0] + '" cy="' + c[1] + '" rx="' + c[2] + '" ry="' + c[3] + '" fill="#f6fbff" stroke="#b9cde3" stroke-width="1.5"/>' +
+        '<ellipse cx="' + f(c[0] - 4) + '" cy="' + f(c[1] - 1.5) + '" rx="' + f(c[2] * .45) + '" ry="' + f(c[3] * .4) + '" fill="#fff"/></g>';
+    });
+    return o + '</g><g class="ls-powder"></g></g>';
+  }
   function board(b, theme, opts) {
     opts = opts || {};
     var o = '<svg class="board-svg" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + esc(theme.title) + ' game board">';
     o += defs(theme);
     o += '<g class="bg">' + background(b, theme) + '</g>';
+    var ls = b.background && !opts.still && logoSnow(b, opts.title);
+    if (ls) o += logoSnowSvg(ls);
     // Theme art (the taco boards) already has its own title and scenery.
     var art = b.background || theme.art;
     if (!art) o += '<g class="decor">' + decor(b, theme) + fence(look(theme)) + '</g>';
