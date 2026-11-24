@@ -277,7 +277,7 @@
     $('gameTitle').innerHTML = titleHtml(s.title || t.title, t);   // a designer board's own name wins (C.gameTitle)
     $('brandCrow').innerHTML = R.hero(0, 0, 1, t);
     $('dayNum').textContent = s.status === 'finished' ? 'Game over' : E.isHidden(s) ? 'Hidden from players' : s.status === 'signup' ? (E.signupsOpen(s) ? 'Sign-ups open' : 'Sign-ups closed') : 'Day ' + s.day;
-    $('hostBtn').hidden = !store.isHost || adminCard();
+    $('hostBtn').hidden = !store.isHost || adminCard() || !!me();   // a host who is playing has the skull in their own card
     $('playlistBtn').hidden = E.isAcc(s);   // AccSaber mode has no maps
     $('accBtn').hidden = !E.isAcc(s);       // ...and links to the missions instead
     var ab = $('accBtn'), slug = store.accClanSlug;   // the clan's missions tab when the game has an AccSaber clan
@@ -419,7 +419,10 @@
     if (rv && rv.tied.length) stats.push('<span class="stat rival">\uD83E\uDD1D Neck and neck with <b>' + esc(s.players[rv.tied[0]].name) + '</b>' + (rv.tied.length > 1 ? ' +' + (rv.tied.length - 1) : '') + '</span>');
     if (rv && rv.behind) stats.push('<span class="stat rival">\uD83D\uDC40 <b>' + esc(s.players[rv.behind.pid].name) + '</b> is ' + rv.behind.n + ' behind</span>');
     var bl = X.badgesFor(s)[p.id] || [];
-    el.innerHTML = '<div class="me-row">' + avatarHtml(p, 'me-ava') + '<div><div class="me-name">' + esc(p.name) + '</div><div class="me-sub">' + esc(route) +
+    var hostTodoN = store.isHost ? hostTodo().total : 0;
+    el.classList.toggle('has-skull', !!store.isHost);
+    el.innerHTML = (store.isHost ? '<button type="button" class="nav-btn icon host-btn me-skull' + (hostTodoN ? ' todo' : '') + '" id="meTools" title="Host tools" aria-label="' + (hostTodoN ? 'Host tools, ' + hostTodoN + ' waiting on you' : 'Host tools') + '">' + SKULL + (hostTodoN ? '<span class="nav-badge" aria-hidden="true">' + hostTodoN + '</span>' : '') + '</button>' : '') +
+      '<div class="me-row">' + avatarHtml(p, 'me-ava') + '<div><div class="me-name">' + esc(p.name) + '</div><div class="me-sub">' + esc(route) +
       (p.blId ? ' &middot; <a href="https://beatleader.com/u/' + encodeURIComponent(p.blId) + '" target="_blank" rel="noopener">BeatLeader</a>' : '') + '</div></div></div>' +
       (stats.length ? '<div class="me-stats">' + stats.join('') + '</div>' : '') +
       '<div class="me-badges">' + bl.map(function (b) { return '<button type="button" class="badge" data-badges="' + esc(p.id) + '" title="' + esc(b.desc) + '"><i aria-hidden="true">' + b.icon + '</i>' + esc(b.name) + '</button>'; }).join('') + '</div>';
@@ -3136,7 +3139,7 @@
       if (e.target.closest('#joinBtn')) { openJoin(false); return; }
       if (e.target.closest('a[href*="/auth/login"]')) track('sign-in');
       if (e.target.closest('#logoutBtn')) { track('sign-out'); store.logout(); return; }
-      if (e.target.closest('#meTools')) { openHost(); return; }
+      if (e.target.closest('#meTools')) { var sk = $('meTools'); if (sk && sk.classList.contains('me-skull')) { sk.classList.remove('laugh'); void sk.offsetWidth; sk.classList.add('laugh'); } openHost(); return; }
       if (e.target.closest('#meHost')) { openHost('today'); jumpToVisits(); return; }
       if (e.target.closest('#meStats')) { openStats(); return; }
       if (e.target.closest('#checkAgain')) { location.reload(); return; }
