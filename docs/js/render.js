@@ -400,7 +400,7 @@
     var pal = theme.palette, L = look(theme), o = '';
     var art = board.background || theme.art;
     if (art) {
-      o += '<image href="' + esc(art) + '" x="0" y="0" width="1000" height="1000" preserveAspectRatio="xMidYMid slice"/>';
+      o += '<image' + (board.background ? ' id="bgArt"' : '') + ' href="' + esc(art) + '" x="0" y="0" width="1000" height="1000" preserveAspectRatio="xMidYMid slice"/>';
       var hh = !board.background && theme.artHero;
       if (hh) {
         // The art's hero on its own layer so it can peek and wiggle (CSS), clipped at the hill line.
@@ -661,10 +661,61 @@
   // and it builds back up. The art is the host's own picture, so each board's spot is listed here by its title
   // (letters only): tap is the title's box, floor is where the snow lands, clumps are [x, y, rx, ry] on the painted snow
   // above the letters (kept off the letters themselves).
-  var LOGO_SNOW = {
-    chesterssnowyaccscape: { tap: [50, 16, 301, 130], floor: 150, clumps: [[88, 33, 9, 3.5], [106, 32, 9, 3.5], [131, 34, 9, 3.5], [158, 37, 10, 3.5], [185, 37, 10, 3.5], [210, 36, 9, 3.5], [233, 37, 9, 3.5], [254, 38, 8, 3.5]] }
+  // The same boards can also get a quiet bit of life (BOARD_FX): lantern halos that breathe, candles that flicker,
+  // windows that warm up, castle windows, chimney smoke, river glints, the water rippling under the ice (masked to
+  // the river by a picture in img/boards), snow dropping off branches and bubbles from an ice hole. All [x, y] are board units.
+  var BOARD_FX = {
+    chesterssnowyaccscape: {
+      logo: { tap: [50, 16, 301, 130], floor: 150, clumps: [[88, 33, 9, 3.5], [106, 32, 9, 3.5], [131, 34, 9, 3.5], [158, 37, 10, 3.5], [185, 37, 10, 3.5], [210, 36, 9, 3.5], [233, 37, 9, 3.5], [254, 38, 8, 3.5]] },
+      lanterns: [[68, 214, 68], [116, 281, 73], [204, 269, 68], [95, 373, 68], [158, 369, 55], [915, 93, 78], [844, 305, 64], [750, 639, 73], [605, 818, 68], [176, 951, 68]],
+      candles: [[159, 441, 32], [185, 455, 32], [70, 605, 36]],
+      windows: [[82, 509, 50], [63, 553, 41], [124, 560, 46]],
+      castle: [[576, 84], [579, 107], [593, 108], [605, 114], [613, 116], [624, 124]],
+      glints: [[812, 612], [778, 690], [726, 760], [703, 827], [846, 654], [750, 913], [657, 887]],
+      smoke: [118, 453],
+      river: { mask: 'img/boards/snowy-accscape-river.png?v=20261124', box: [589, 571, 411, 429], path: 'M1009 612 C942 609 869 626 797 659 S703 742 672 804 S641 908 657 985' },
+      hole: [691, 900],
+      branches: [[190, 239], [387, 280], [620, 233], [288, 638], [444, 700], [641, 410]]
+    }
   };
-  function logoSnow(b, title) { return b.logoSnow || LOGO_SNOW[String(title || b.title || '').toLowerCase().replace(/[^a-z]/g, '')] || null; }
+  function boardFx(b, title) { return BOARD_FX[String(title || b.title || '').toLowerCase().replace(/[^a-z]/g, '')] || null; }
+  function logoSnow(b, title) { var f = boardFx(b, title); return b.logoSnow || (f && f.logo) || null; }
+  // Durations and delays vary per light so nothing pulses in step.
+  function fxTime(i, lo, hi) { var v = Math.abs(Math.sin(i * 12.9898 + lo * 78.233) * 43758.5453) % 1; return (lo + v * (hi - lo)).toFixed(2); }
+  function boardFxSvg(F) {
+    var o = '<g class="bfx" aria-hidden="true"><defs>' +
+      '<radialGradient id="bfxGlow"><stop offset="0" stop-color="#ffd27a" stop-opacity=".9"/><stop offset=".35" stop-color="#ff9a3c" stop-opacity=".45"/><stop offset="1" stop-color="#ff7a1a" stop-opacity="0"/></radialGradient>' +
+      '<radialGradient id="bfxGlow2"><stop offset="0" stop-color="#ffe2a0" stop-opacity=".8"/><stop offset="1" stop-color="#ffb04a" stop-opacity="0"/></radialGradient>' +
+      '<filter id="bfxSmoke" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="3.5"/></filter>' +
+      '<filter id="bfxBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>';
+    var R = F.river, i;
+    if (R) {
+      o += '<filter id="bfxWater" filterUnits="userSpaceOnUse" x="' + R.box[0] + '" y="' + R.box[1] + '" width="' + R.box[2] + '" height="' + R.box[3] + '">' +
+        '<feTurbulence type="fractalNoise" baseFrequency="0.010 0.032" numOctaves="2" seed="4" result="n"><animate attributeName="baseFrequency" dur="16s" values="0.010 0.032;0.013 0.026;0.009 0.036;0.010 0.032" repeatCount="indefinite"/></feTurbulence>' +
+        '<feDisplacementMap in="SourceGraphic" in2="n" scale="7" xChannelSelector="R" yChannelSelector="G"/></filter>' +
+        '<mask id="bfxRiver" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="1000"><image href="' + esc(R.mask) + '" width="1000" height="1000"/></mask>' +
+        '<path id="bfxFlow" d="' + R.path + '"/>';
+    }
+    o += '</defs>';
+    if (R) {
+      o += '<g class="bfx-water" mask="url(#bfxRiver)"><use href="#bgArt" filter="url(#bfxWater)"/>';
+      for (i = 0; i < 4; i++) o += '<ellipse rx="34" ry="7" fill="#e9f6ff" opacity=".22" filter="url(#bfxBlur)"><animateMotion dur="15s" begin="-' + (i * 3.75) + 's" repeatCount="indefinite" rotate="auto"><mpath href="#bfxFlow"/></animateMotion></ellipse>';
+      o += '</g>';
+    }
+    var glow = function (list, cls, grad, lo, hi) {
+      return (list || []).map(function (l, j) { return '<circle class="' + cls + '" cx="' + l[0] + '" cy="' + l[1] + '" r="' + l[2] + '" fill="url(#' + grad + ')" style="animation-duration:' + fxTime(j, lo, hi) + 's;animation-delay:-' + fxTime(j + 7, 0, 4) + 's;transform-origin:' + l[0] + 'px ' + l[1] + 'px"/>'; }).join('');
+    };
+    o += glow(F.lanterns, 'bfx-lan', 'bfxGlow', 2.6, 4.2) + glow(F.candles, 'bfx-can', 'bfxGlow', .9, 1.6) + glow(F.windows, 'bfx-win', 'bfxGlow2', 5, 8);
+    o += glow((F.castle || []).map(function (c) { return [c[0], c[1], 9]; }), 'bfx-castle', 'bfxGlow2', 5, 11);
+    if (F.smoke) for (i = 0; i < 3; i++) o += '<circle class="bfx-smoke" cx="' + F.smoke[0] + '" cy="' + F.smoke[1] + '" r="7" fill="#e6eef7" filter="url(#bfxSmoke)" style="animation-delay:-' + (i * 2.4).toFixed(1) + 's"/>';
+    (F.glints || []).forEach(function (g, j) {
+      var x = g[0], y = g[1];
+      o += '<path class="bfx-glint" d="M' + x + ' ' + (y - 7) + 'L' + (x + 1.6) + ' ' + (y - 1.6) + ' ' + (x + 7) + ' ' + y + ' ' + (x + 1.6) + ' ' + (y + 1.6) + ' ' + x + ' ' + (y + 7) + ' ' + (x - 1.6) + ' ' + (y + 1.6) + ' ' + (x - 7) + ' ' + y + ' ' + (x - 1.6) + ' ' + (y - 1.6) + 'Z" fill="#fff" style="animation-delay:-' + fxTime(j + 3, 0, 9) + 's;transform-origin:' + x + 'px ' + y + 'px"/>';
+    });
+    // Snow off the branches and the ice hole's bubbles are dropped in here by app.js now and then.
+    o += '<g class="bfx-drops" data-branches="' + esc(JSON.stringify(F.branches || [])) + '" data-hole="' + esc(JSON.stringify(F.hole || null)) + '"></g>';
+    return o + '</g>';
+  }
   function logoSnowSvg(L) {
     var f = function (n) { return (+n).toFixed(1); }, o = '<g class="egg logo-snow" data-egg="logo" data-floor="' + L.floor + '">';
     o += '<filter id="lsSoft" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="1.1"/></filter>';
@@ -681,6 +732,8 @@
     var o = '<svg class="board-svg" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + esc(theme.title) + ' game board">';
     o += defs(theme);
     o += '<g class="bg">' + background(b, theme) + '</g>';
+    var bf = b.background && !opts.still && boardFx(b, opts.title);
+    if (bf) o += boardFxSvg(bf);
     var ls = b.background && !opts.still && logoSnow(b, opts.title);
     if (ls) o += logoSnowSvg(ls);
     // Theme art (the taco boards) already has its own title and scenery.

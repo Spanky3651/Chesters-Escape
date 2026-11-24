@@ -1701,6 +1701,43 @@
     }
     requestAnimationFrame(frame);
   }
+  // Board life (render.js BOARD_FX): now and then a puff of snow drops off a branch, and bubbles rise from the ice hole.
+  var fxLoop = false;
+  function boardFxStart() {
+    if (fxLoop) return; fxLoop = true;
+    var NS = 'http://www.w3.org/2000/svg';
+    function drops() { var g = svgEl && svgEl.querySelector('.bfx-drops'); return g && !document.hidden && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ? g : null; }
+    function run(g, parts, ms) {
+      var t0 = performance.now();
+      (function f(n) { var k = Math.min((n - t0) / ms, 1); parts.forEach(function (p) { p(k); }); if (k < 1 && g.isConnected) requestAnimationFrame(f); else g.querySelectorAll('.bfx-bit').forEach(function (e) { if (e._t0 === t0) e.remove(); }); })(t0);
+      return t0;
+    }
+    function bit(g, attrs) { var c = document.createElementNS(NS, 'circle'); c.setAttribute('class', 'bfx-bit'); for (var k in attrs) c.setAttribute(k, attrs[k]); g.appendChild(c); return c; }
+    (function branch() {
+      var g = drops(), spots = g && JSON.parse(g.getAttribute('data-branches') || '[]');
+      if (spots && spots.length) {
+        var s = spots[Math.floor(Math.random() * spots.length)], parts = [], made = [];
+        for (var i = 0; i < 7; i++) (function () {
+          var x = s[0] + (Math.random() - .5) * 16, y = s[1] + (Math.random() - .5) * 6, vx = (Math.random() - .5) * 10, d = 30 + Math.random() * 25;
+          var c = bit(g, { r: (1 + Math.random() * 1.8).toFixed(1), fill: '#fff' }); made.push(c);
+          parts.push(function (k) { c.setAttribute('cx', (x + vx * k).toFixed(1)); c.setAttribute('cy', (y + d * k * k).toFixed(1)); c.setAttribute('opacity', (k < .15 ? k / .15 : 1 - (k - .15) / .85).toFixed(2)); });
+        })();
+        var t = run(g, parts, 1300); made.forEach(function (c) { c._t0 = t; });
+      }
+      setTimeout(branch, 3500 + Math.random() * 3000);
+    })();
+    (function bubbles() {
+      setTimeout(function () {
+        var g = drops(), hole = g && JSON.parse(g.getAttribute('data-hole') || 'null');
+        if (hole) for (var i = 0, n = 2 + Math.floor(Math.random() * 2); i < n; i++) setTimeout(function () {
+          if (!g.isConnected) return;
+          var x = hole[0] + (Math.random() - .5) * 16, c = bit(g, { r: (1.4 + Math.random() * 1.2).toFixed(1), fill: 'none', stroke: '#f2fbff', 'stroke-width': 1 });
+          c._t0 = run(g, [function (k) { c.setAttribute('cx', (x + Math.sin(k * 9) * 2).toFixed(1)); c.setAttribute('cy', (hole[1] - 20 * k).toFixed(1)); c.setAttribute('opacity', (k < .2 ? k / .2 : 1 - (k - .2) / .8).toFixed(2)); }], 1600);
+        }, i * 350);
+        bubbles();
+      }, 5000 + Math.random() * 3500);
+    })();
+  }
   // A shake is three hard jolts inside about two thirds of a second; then it rests a few seconds.
   var shakeOn = false;
   function shakeStart() {
@@ -3447,6 +3484,7 @@
     // Shaking the phone knocks the snow off the title art, on Android only (iPhones need a motion permission prompt).
     var D = window.DeviceMotionEvent;
     if (D && typeof D.requestPermission !== 'function') shakeStart();
+    boardFxStart();
     if (store.mode === 'live') track(store.canPlay ? (store.me ? 'visit-player' : 'visit-not-joined') : 'visit-waiting-list');
     // Re-send this device's notification subscription once per visit so every clan has a working copy.
     if (store.mode === 'live' && store.vapidKey && pushSupported() && Notification.permission === 'granted') currentSub().then(refreshZone);
