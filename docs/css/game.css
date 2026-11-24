@@ -506,6 +506,7 @@ body[data-theme="thanksgiving"] .cback { background: repeating-linear-gradient(9
 .foot-count .fc-n { color: #cfe0ff; font-weight: 700; text-shadow: 0 0 8px rgba(30,107,255,.45); margin: 0 4px; }
 .foot-count .fc-dot { color: #ff2740; margin-right: 4px; }
 .foot-count .fc-img { height: 15px; vertical-align: middle; filter: invert(1) brightness(1.5); opacity: .9; }
+.foot-about { max-width: 640px; margin: 0; text-align: center; font-size: 14px; line-height: 1.6; color: var(--muted); }   /* what the site is, in plain text, for new visitors and search engines */
 .foot-meta { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
 .foot-updated { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 12.5px; color: var(--faint); letter-spacing: .3px; white-space: nowrap; }
 .foot-count:not([hidden]) + .foot-updated::before { content: '\00b7'; margin-right: 10px; color: var(--faint); }
