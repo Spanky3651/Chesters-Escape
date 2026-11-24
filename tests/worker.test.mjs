@@ -154,7 +154,7 @@ const ok = (name) => console.log('ok  ' + name);
   let r = await g.act(U('4'), 'join', { blId: 'bl4' });
   assert(r && /GENX/.test(r.error), 'not in GENX: refused');
   r = await g.act(U('5'), 'join', { blId: 'bl5' });
-  assert(r && /Link this Discord/.test(r.error), 'Discord not linked: refused');
+  assert(r && /different Discord/.test(r.error), 'linked to a different Discord: refused');
   r = await g.act(U('3'), 'join', { blId: 'bl3' });
   assert(!r.error, r.error);
   assert.strictEqual(g.state.players.d3.checked, 'bl');
@@ -210,5 +210,58 @@ const ok = (name) => console.log('ok  ' + name);
   await b.blClanSweep(); await b.accVet();
   assert(!b.state.players.d1.paused && b.state.players.d1, 'Beaters: no clan checks');
   ok('AccSaber and Beaters games are untouched');
+}
+// No Discord on BeatLeader: ask the host instead, who lets them in; the clan check still runs
+{
+  clock = Date.UTC(2026, 11, 18, 20); accUp = true;
+  const g = await setup({});
+  g.state.order.slice().forEach((pid) => E.removePlayer(g.state, pid));
+  BLDISC = { bl6: '9', bl8: '8' }; BLCLAN = {};
+  let r = await g.act(U('7'), 'join', { blId: 'bl7' });
+  assert(r && r.code === 'no-link' && /Link this Discord/.test(r.error), 'no Discord on BeatLeader: no-link code');
+  r = await g.act(U('7'), 'join', { blId: 'bl6' });
+  assert(r && r.error && r.code !== 'no-link' && /different Discord/.test(r.error), 'profile linked to someone else: no offer to ask');
+  r = await g.act(U('7'), 'askJoin', { blId: 'bl6' });
+  assert(r && /different Discord/.test(r.error), 'cannot ask with a profile linked to someone else');
+  r = await g.act(U('7'), 'askJoin', { blId: 'bl7' });
+  assert(!r.error && r.asked === true, r.error);
+  assert.strictEqual(g.joinAsks().length, 1);
+  assert(!g.state.players.d7, 'not on the board yet');
+  assert((g.hostMsgs || []).some((m) => /asked to join/.test(m.title)), 'host hears about it');
+  r = await g.act(U('7'), 'approveJoin', { id: '7' });
+  assert(r && /Only the host/.test(r.error), 'only the host approves');
+  const st = await g.getState({ id: 'h', isHost: true });
+  assert.strictEqual(st.joinAsks.length, 1, 'host sees the request');
+  r = await g.act({ id: 'h', isHost: true }, 'approveJoin', { id: '7' });
+  assert(!r.error, r.error);
+  const p7 = g.state.players.d7;
+  assert(p7 && p7.manual && p7.checked === 'acc' && p7.blId === 'bl7', 'let in by the host');
+  assert.strictEqual(g.joinAsks().length, 0, 'request cleared');
+  // the next game carries them over without dropping them for the missing link
+  g.state.status = 'finished';
+  r = await g.act({ id: 'h', isHost: true }, 'newGame', { signup: true });
+  assert(!r || !r.error, r && r.error);
+  assert(g.state.players.d7 && g.state.players.d7.manual, 'host-approved player survives the carry-over check');
+  // a decline clears the request; old requests don't follow into a new game
+  r = await g.act(U('5'), 'askJoin', { blId: 'bl5' });
+  assert(!r.error, r.error);
+  r = await g.act({ id: 'h', isHost: true }, 'declineJoin', { id: '5' });
+  assert.strictEqual(g.joinAsks().length, 0, 'declined');
+  ok('players without Discord on BeatLeader can ask the host, who lets them in');
+}
+// asking still needs the clan: map game without GENX is refused
+{
+  clock = Date.UTC(2026, 11, 19, 20);
+  const g = await setup({});
+  g.state.settings.accsaber = false;
+  BLDISC = {}; BLCLAN = { bl9: [12] };
+  const r = await g.act(U('9'), 'askJoin', { blId: 'bl9' });
+  assert(r && /GENX/.test(r.error), 'clan check runs on asks');
+  const b = await setup({});
+  b.clan = () => ({ id: 'beaters' });
+  b.state.settings.accsaber = false;
+  const r2 = await b.act(U('9'), 'askJoin', { blId: 'bl9' });
+  assert(r2 && /no join checks/.test(r2.error), 'Beaters has nothing to ask for');
+  ok('asking to join still needs the clan');
 }
 console.log('worker timing tests passed');

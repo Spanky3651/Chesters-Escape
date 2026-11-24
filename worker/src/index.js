@@ -1009,7 +1009,8 @@ export class Game extends DurableObject {
     const out = { state: E.publicState(s), me, canPlay, isHost: !!user.isHost, user: { id: user.id, name: user.name, avatar: user.avatar }, online: this.onlineNow(), hall: this.meta.hall || [], admins: this.admins(), chat };
     out.accClan = this.accClanWant() ? this.clan().accClanName : '';
     out.accClanSlug = this.accClanWant();   // the Missions button opens this clan's missions tab
-    if (user && user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); out.hostOut = this.hostOut(user); out.invisible = this.invisible(user); }
+    out.asked = this.joinAsks().some((x) => x.id === String(user.id));
+    if (user && user.isHost) { out.joinAsks = this.joinAsks(); out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); out.hostOut = this.hostOut(user); out.invisible = this.invisible(user); }
     return out;
   }
 
@@ -1018,10 +1019,10 @@ export class Game extends DurableObject {
     const s = this.game(); const pid = this.pidFor(user);
     await this.catchUp();
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
-    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'unpause', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove', 'hostPlays', 'invisible', 'hide', 'hallPics'];
+    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'unpause', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove', 'hostPlays', 'invisible', 'hide', 'hallPics', 'approveJoin', 'declineJoin'];
     if (hostOnly.includes(action) && !user.isHost) return { error: 'Only the host can do that.', status: 403 };
     if (E.isHidden(s) && !user.isHost) return { error: 'The next game is still a secret. Watch your clan Discord for the reveal.', code: 'hidden' };
-    if (s.status === 'finished' && ['join', 'route', 'roll', 'verify', 'claim'].includes(action)) return { error: 'The game is over.' };
+    if (s.status === 'finished' && ['join', 'askJoin', 'route', 'roll', 'verify', 'claim'].includes(action)) return { error: 'The game is over.' };
     const wasRunning = s.status === 'running';
     // Host changes keep a snapshot so the host can take the last few back.
     const snap = user.isHost && E.UNDOABLE.includes(action) ? { state: JSON.stringify(s), cut: this.meta.nextCutoff == null ? null : this.meta.nextCutoff, pre: s.seq, label: E.hostLabel(s, action, a) } : null;
@@ -1032,27 +1033,15 @@ export class Game extends DurableObject {
           if (user.isHost && this.hostOut(user)) return { error: "You're hosting this game, not playing. Switch that off in Host tools to join." };
           if (!E.signupsOpen(s)) return { error: 'Sign-ups are closed until the game starts.' };
           const bl = await this.blPlayer(a.blId);
-          // AccSaber game with a clan: the BeatLeader profile must carry this Discord account, and its AccSaber
-          // profile must be in the clan.
-          const want = this.accClanWant(), blWant = this.blClanWant();
-          // Map game with a BeatLeader clan: the profile must carry this Discord account and be in the clan.
-          if (blWant) {
-            if (bl.discord !== String(user.id)) return { error: 'Link this Discord account on your BeatLeader profile first (beatleader.com, Settings, Socials), then sign up.' };
-            if (!bl.clans.includes(blWant)) return { error: 'This game is for ' + this.clan().blClanName + ' on BeatLeader. Add ' + this.clan().blClanName + ' as one of your clans on beatleader.com, then sign up.' };
-          }
-          if (want) {
-            if (bl.discord !== String(user.id)) return { error: 'Link this Discord account on your BeatLeader profile first (beatleader.com, Settings, Socials), then sign up.' };
-            const au = await this.accUser(bl.id);
-            if (au === undefined) return { error: "AccSaber didn't answer. Try again in a minute." };
-            if (!au) return { error: 'There is no AccSaber profile for that BeatLeader account yet. Set one up on accsaber.com, then sign up.' };
-            if (au.clan !== want) return { error: 'This game is for the ' + this.clan().accClanName + ' on AccSaber. Join the clan on accsaber.com, then sign up.' };
-          }
+          // A game with join checks: the BeatLeader profile must carry this Discord account, and pass the clan check.
+          if (this.joinRule()) { const bad = this.linkErr(bl, user) || await this.clanErr(bl); if (bad) return bad; }
           const taken = s.order.find((id) => id !== pid && s.players[id].blId === bl.id);
           if (taken) return { error: 'That BeatLeader profile is already in the game.' };
           const isNew = !s.players[pid];
           E.addPlayer(s, { id: pid, discordId: user.id, name: bl.name || user.name, avatar: bl.avatar || user.avatar, blId: bl.id });
           if (this.joinRule()) s.players[pid].checked = this.joinRule();   // which game's join checks they passed
           result = { pid };
+          if (this.meta.joinAsks) this.meta.joinAsks = this.meta.joinAsks.filter((x) => x.id !== String(user.id));   // linked after all
           // Hosts hear about each new sign-up (not their own, and not someone just relinking a profile).
           if (isNew && !user.isHost) {
             const n = s.order.length, who = s.players[pid].name;
@@ -1060,6 +1049,39 @@ export class Game extends DurableObject {
           }
           break;
         }
+        // No Discord on their BeatLeader profile and they'd rather not add it: the host checks it's them and lets them in.
+        // The clan check still runs. A profile linked to a different Discord account can't ask.
+        case 'askJoin': {
+          if (!this.joinRule()) return { error: 'This game has no join checks, so you can just join.' };
+          if (!E.signupsOpen(s)) return { error: 'Sign-ups are closed until the game starts.' };
+          if (s.players[pid]) return { error: "You're already in this game." };
+          const bl = await this.blPlayer(a.blId);
+          if (bl.discord === String(user.id)) return { error: 'Your Discord is linked on BeatLeader now, so you can just join.' };
+          if (bl.discord) return { error: "That BeatLeader profile is linked to a different Discord account, so the host can't let you in with it." };
+          const bad = await this.clanErr(bl); if (bad) return bad;
+          if (s.order.some((id) => s.players[id].blId === bl.id)) return { error: 'That BeatLeader profile is already in the game.' };
+          const asks = (this.meta.joinAsks || []).filter((x) => x.id !== String(user.id) && x.game === s.id);
+          asks.push({ id: String(user.id), name: String(user.name || '').slice(0, 60), avatar: user.avatar || '', blId: bl.id, blName: String(bl.name || '').slice(0, 60), game: s.id, at: Date.now() });
+          this.meta.joinAsks = asks.slice(-50); s.seq++;
+          await this.notifyHosts({ title: (user.name || 'Someone') + ' asked to join', body: (bl.name || 'Their BeatLeader profile') + " has no Discord linked on BeatLeader. Check it's them in Host tools.", tag: 'ask-' + user.id });
+          result = { asked: true };
+          break;
+        }
+        case 'approveJoin': {
+          const id = String(a.id || ''), w = this.joinAsks().find((x) => x.id === id), dpid = 'd' + id;
+          if (!w) return { error: 'That request is gone.' };
+          if (!E.signupsOpen(s)) return { error: 'Sign-ups are closed until the game starts.' };
+          if (s.players[dpid]) return { error: "They're already in the game. Decline the request to clear it." };
+          if (s.order.some((x) => s.players[x].blId === w.blId)) return { error: 'That BeatLeader profile is already in the game.' };
+          const bl = await this.blPlayer(w.blId);
+          if (bl.discord && bl.discord !== id) return { error: 'That BeatLeader profile is linked to a different Discord account now.' };
+          const bad = await this.clanErr(bl); if (bad) return bad;
+          E.addPlayer(s, { id: dpid, discordId: id, name: bl.name || w.name, avatar: bl.avatar || w.avatar, blId: bl.id });
+          s.players[dpid].checked = this.joinRule(); s.players[dpid].manual = true;   // let in by the host without the Discord link
+          this.meta.joinAsks = this.meta.joinAsks.filter((x) => x.id !== id); s.seq++;
+          break;
+        }
+        case 'declineJoin': { this.meta.joinAsks = (this.meta.joinAsks || []).filter((x) => x.id !== String(a.id)); s.seq++; break; }
         case 'route': result = this.mine(s, pid) && E.chooseRoute(s, pid, a.route); break;
         case 'react': result = E.react(s, pid, a.id, a.emoji, s.players[pid] ? null : { name: user.name, avatar: user.avatar }); break;
         case 'roll': {
@@ -1140,7 +1162,7 @@ export class Game extends DurableObject {
           if (revealAt && startsAt && revealAt >= startsAt) return { error: 'The reveal has to come before the start time.' };
           this.state = E.createGame({ board, cards: C.cardsFor(themeId), themeId, title: C.gameTitle(themeId, board), settings: s.settings, rng, status: startsAt || a.signup || a.hide ? 'signup' : 'running', startsAt, endsAt });
           if (a.hide) E.hide(this.state, true, revealAt);
-          keep.forEach((p) => E.addPlayer(this.state, { id: p.id, discordId: p.discordId, name: p.name, avatar: p.avatar, blId: p.blId }));
+          keep.forEach((p) => { E.addPlayer(this.state, { id: p.id, discordId: p.discordId, name: p.name, avatar: p.avatar, blId: p.blId }); if (p.manual) this.state.players[p.id].manual = true; });
           this.meta.nextCutoff = startsAt || a.signup || a.hide ? null : E.nextCutoff(this.state.settings);
           if (this.meta.feed) this.meta.feed.game = null;   // a new game: its sign-up post can go out
           await this.accVet();   // carried-over players get this game's join checks
@@ -1259,8 +1281,8 @@ export class Game extends DurableObject {
     if (snap) await this.pushUndo(snap, user);
     await this.save();
     if (this.state.players[pid] && !this.invisible(user)) this.seen(pid);
-    const out = { result, state: E.publicState(this.state), me: this.state.players[pid] ? pid : null, canPlay: true, online: this.onlineNow(), hall: this.meta.hall || [], admins: this.admins() };
-    if (user.isHost) { out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); out.hostOut = this.hostOut(user); out.invisible = this.invisible(user); }
+    const out = { result, state: E.publicState(this.state), me: this.state.players[pid] ? pid : null, canPlay: true, online: this.onlineNow(), hall: this.meta.hall || [], admins: this.admins(), asked: this.joinAsks().some((x) => x.id === String(user.id)) };
+    if (user.isHost) { out.joinAsks = this.joinAsks(); out.access = this.access(); out.discord = this.discordInfo(); out.undo = this.undoInfo(); out.hostOut = this.hostOut(user); out.invisible = this.invisible(user); }
     return out;
   }
   // Who has the game open right now. Open pages check in every 20 seconds while visible, so
@@ -1516,6 +1538,27 @@ export class Game extends DurableObject {
   }
   // Which join checks this game has: 'acc' (AccSaber clan), 'bl' (BeatLeader clan) or '' (none).
   joinRule() { return this.accClanWant() ? 'acc' : this.blClanWant() ? 'bl' : ''; }
+  // The join check's Discord half: the BeatLeader profile must carry this Discord account. null when it does.
+  // A profile with no Discord on it gets code 'no-link', so the page can offer to ask the host instead.
+  linkErr(bl, user) {
+    if (bl.discord === String(user.id)) return null;
+    if (!bl.discord) return { error: 'Link this Discord account on your BeatLeader profile first (beatleader.com, Settings, Socials), then sign up.', code: 'no-link' };
+    return { error: 'That BeatLeader profile is linked to a different Discord account. Sign in with that one, or link this one on BeatLeader.' };
+  }
+  // The join check's clan half: the AccSaber clan in AccSaber games, the BeatLeader clan in map games. null when it passes.
+  async clanErr(bl) {
+    const want = this.accClanWant(), blWant = this.blClanWant();
+    if (blWant && !bl.clans.includes(blWant)) return { error: 'This game is for ' + this.clan().blClanName + ' on BeatLeader. Add ' + this.clan().blClanName + ' as one of your clans on beatleader.com, then sign up.' };
+    if (want) {
+      const au = await this.accUser(bl.id);
+      if (au === undefined) return { error: "AccSaber didn't answer. Try again in a minute." };
+      if (!au) return { error: 'There is no AccSaber profile for that BeatLeader account yet. Set one up on accsaber.com, then sign up.' };
+      if (au.clan !== want) return { error: 'This game is for the ' + this.clan().accClanName + ' on AccSaber. Join the clan on accsaber.com, then sign up.' };
+    }
+    return null;
+  }
+  // People asking to join this game without the Discord link, waiting on the host.
+  joinAsks() { const id = this.state && this.state.id; return (this.meta.joinAsks || []).filter((x) => x.game === id); }
   // One player's AccSaber profile: { clan: slug or null }, null with no profile, undefined if AccSaber didn't answer.
   async accUser(id) {
     const r = await fetch((this.env.ACC_API || 'https://api.accsaber.com') + '/v1/users/' + encodeURIComponent(id), { headers: { 'user-agent': 'ChestersEscape' } }).catch(() => null);
@@ -1540,7 +1583,7 @@ export class Game extends DurableObject {
       let why;
       try {
         const bl = await this.blPlayer(p.blId);
-        if (bl.discord !== String(p.discordId)) why = 'Discord not linked on BeatLeader';
+        if (bl.discord !== String(p.discordId) && !(p.manual && !bl.discord)) why = 'Discord not linked on BeatLeader';
         else if (rule === 'bl') why = bl.clans.includes(blWant) ? '' : 'not in ' + this.clan().blClanName + ' on BeatLeader';
         else {
           const au = await this.accUser(bl.id);

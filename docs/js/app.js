@@ -179,7 +179,7 @@
   function hostTodo() {
     var s = st(), claims = 0;
     s.order.forEach(function (pid) { claims += s.players[pid].claims.length; });
-    var pending = store.access && store.access.pending ? store.access.pending.length : 0;
+    var pending = (store.access && store.access.pending ? store.access.pending.length : 0) + (store.mode === 'live' && store.joinAsks ? store.joinAsks.length : 0);
     return { claims: claims, pending: pending, total: claims + pending };
   }
   // ---- clan games ------------------------------------------------------------------------------
@@ -399,7 +399,9 @@
       } else if (store.mode === 'live' && !store.user) {
         el.innerHTML = '<h2>Join the escape</h2><p class="lede">Sign in with Discord so the game knows which token is yours. You only do this once.</p><a class="btn" href="' + esc(store.loginUrl()) + '">Sign in with Discord</a>';
       } else {
-        el.innerHTML = '<h2>Join the escape</h2><p class="lede">Link your BeatLeader profile. ' + (E.isAcc(s) ? 'The game uses it to find your AccSaber missions.' : 'The game checks it to see when you have played your map.') + '</p><button type="button" class="btn" id="joinBtn">Join the game</button>' +
+        el.innerHTML = store.mode === 'live' && store.asked ? '<h2>Waiting for the host</h2><p class="lede">You asked to join without linking Discord on BeatLeader. Once the host checks it\'s you, your token goes on the board.</p><button type="button" class="btn ghost" id="joinBtn">Join with BeatLeader instead</button>' +
+          (store.user ? '<p class="why">Signed in as ' + esc(store.user.name) + '. <button type="button" class="btn link" id="logoutBtn">Sign out</button></p>' : '') :
+          '<h2>Join the escape</h2><p class="lede">Link your BeatLeader profile. ' + (E.isAcc(s) ? 'The game uses it to find your AccSaber missions.' : 'The game checks it to see when you have played your map.') + '</p><button type="button" class="btn" id="joinBtn">Join the game</button>' +
           (store.mode === 'live' && store.user ? '<p class="why">Signed in as ' + esc(store.user.name) + '. <button type="button" class="btn link" id="logoutBtn">Sign out</button></p>' : '');
       }
       return;
@@ -1940,7 +1942,8 @@
       : '<p class="lede">Paste your BeatLeader profile link or ID. Your name and avatar come from it, and the game watches it for your map clears.</p>') +
       '<div class="field"><label for="blInput">BeatLeader profile</label><input type="text" id="blInput" placeholder="https://beatleader.com/u/..." autocomplete="off"><span class="hint">ScoreSaber and Steam IDs work too if they are linked on BeatLeader.</span></div>' +
       '<p class="err" id="joinErr" hidden></p><div class="row"><button type="button" class="btn" id="joinGo">' + (linkOnly ? 'Link profile' : 'Join the game') + '</button>' +
-      (demo && !linkOnly ? '<button type="button" class="btn ghost" id="joinDemo">Just play as MSploit</button>' : '') + '</div>',
+      (demo && !linkOnly ? '<button type="button" class="btn ghost" id="joinDemo">Just play as MSploit</button>' : '') + '</div>' +
+      '<div class="join-ask" id="joinAsk" hidden><p class="why">Rather not link Discord on BeatLeader? The host can check it\'s you and let you in.</p><div class="row"><button type="button" class="btn ghost" id="joinAskGo">Ask the host instead</button></div></div>',
       function (body) {
         var go = body.querySelector('#joinGo'), input = body.querySelector('#blInput');
         function submit() {
@@ -1955,8 +1958,20 @@
           go2.then(function () { track('join'); closeModal(); toast('Welcome to the escape.', 'good'); }, function (e) {
             go.disabled = false; go.textContent = linkOnly ? 'Link profile' : 'Join the game';
             var er = body.querySelector('#joinErr'); er.hidden = false; er.textContent = e.message;
+            body.querySelector('#joinAsk').hidden = !(e.code === 'no-link' && store.mode === 'live' && !linkOnly);
           });
         }
+        // No Discord on their BeatLeader profile: ask the host to check it's them instead.
+        var ask = body.querySelector('#joinAskGo');
+        ask.addEventListener('click', function () {
+          ask.disabled = true; ask.textContent = 'Asking';
+          store.act('askJoin', { blId: S.parsePlayer(input.value) }).then(function () {
+            track('join-ask'); closeModal(); renderAll(); toast('Asked. Once the host checks it\'s you, you\'re in.', 'good');
+          }, function (e) {
+            ask.disabled = false; ask.textContent = 'Ask the host instead';
+            var er = body.querySelector('#joinErr'); er.hidden = false; er.textContent = e.message;
+          });
+        });
         go.addEventListener('click', submit);
         input.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
         var dj = body.querySelector('#joinDemo');
@@ -2588,7 +2603,7 @@
     var signup = s.status === 'signup', running = s.status === 'running', over = s.status === 'finished';
     var claims = [];
     s.order.forEach(function (pid) { s.players[pid].claims.forEach(function (c) { claims.push({ p: s.players[pid], c: c }); }); });
-    var ac = !demo && store.access ? store.access : null, waiting = ac ? ac.pending : [], todo = claims.length + waiting.length;
+    var ac = !demo && store.access ? store.access : null, waiting = ac ? ac.pending : [], asks = !demo && store.joinAsks ? store.joinAsks : [], todo = claims.length + waiting.length + asks.length;
 
     // ---- Today: day to day. What needs the host, recent changes, the current day, and who's been on.
     // Setting up a game (start, sign-ups, end, the next game) lives on the Game tab. ----
@@ -2598,6 +2613,10 @@
     if (waiting.length) T.today += '<h4 class="hsub">Waiting to get in</h4>' + waiting.map(function (w) {
       return '<div class="claim row" style="justify-content:space-between"><span><b>' + esc(w.name) + '</b> <span class="why">' + esc(w.id) + '</span></span><span class="row">' +
         '<button type="button" class="btn small good" data-h="letin" data-id="' + esc(w.id) + '">Let in</button><button type="button" class="btn small ghost" data-h="dismiss" data-id="' + esc(w.id) + '">Dismiss</button></span></div>';
+    }).join('');
+    if (asks.length) T.today += '<h4 class="hsub">Asked to join without the Discord link</h4><p class="why">Their BeatLeader profile has no Discord linked, so the game can\'t tell it\'s them. Check the profile belongs to that person before you let them in. The clan check already passed.</p>' + asks.map(function (w) {
+      return '<div class="claim row" style="justify-content:space-between"><span><b>' + esc(w.name) + '</b> <span class="why">as <a href="https://beatleader.com/u/' + encodeURIComponent(w.blId) + '" target="_blank" rel="noopener">' + esc(w.blName || w.blId) + '</a> on BeatLeader</span></span><span class="row">' +
+        '<button type="button" class="btn small good" data-h="approvejoin" data-id="' + esc(w.id) + '">Let in</button><button type="button" class="btn small ghost" data-h="declinejoin" data-id="' + esc(w.id) + '">Decline</button></span></div>';
     }).join('');
     T.today += '</section>';
     T.today += '<section class="hsec"><div class="thread-head"><h3>Visits</h3><button type="button" class="icon-btn refresh-btn" data-h="visits-refresh" aria-label="Refresh" title="Refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20.5V16h-4.5"/></svg></button></div><p>When signed-in people opened the game and when they left. Coming back within 10 minutes counts as the same visit, so a visit ends 10 minutes after they close it, switch away or lock their phone. The last two weeks are kept.</p><div id="visitBox"><p class="why">Loading</p></div></section>';
@@ -3001,6 +3020,8 @@
       case 'startnow': if (confirm(E.isAcc(st()) ? 'Start the game now? Day 1 starts right away: everyone rolls once they finish a daily mission.' : 'Start the game now? Everyone can roll right away.')) run('startNow', {}, 'The game has started.'); break;
       case 'letin': run('letIn', { id: btn.dataset.id }, 'Let in.'); break;
       case 'dismiss': run('dismiss', { id: btn.dataset.id }); break;
+      case 'approvejoin': run('approveJoin', { id: btn.dataset.id }, 'Let in. Their token is on the board.'); break;
+      case 'declinejoin': if (confirm('Decline their request? They can still join by linking Discord on BeatLeader.')) run('declineJoin', { id: btn.dataset.id }); break;
       case 'unallow': if (confirm('Remove their access? They will see the invite-only screen.')) run('removeAccess', { id: btn.dataset.id }); break;
       case 'loadboard': {
         var b = designerBoard(), probs = E.checkBoard(b), cur = st();

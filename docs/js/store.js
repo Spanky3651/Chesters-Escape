@@ -325,6 +325,8 @@
     if (r.isHost !== undefined) this.isHost = r.isHost;
     if (r.user !== undefined) this.user = r.user;
     if (r.access !== undefined) this.access = r.access;
+    if (r.joinAsks !== undefined) this.joinAsks = r.joinAsks || [];
+    if (r.asked !== undefined) this.asked = !!r.asked;
     if (r.discord !== undefined) this.discord = r.discord;
     if (r.chat !== undefined) this.chat = r.chat;
     if (r.accClan !== undefined) this.accClan = r.accClan;
