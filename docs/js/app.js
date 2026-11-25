@@ -2213,7 +2213,7 @@
     if ($('hostDrawer').hidden) openHost('stats'); else showHostTab('stats');
     track('stats-open');
   }
-  function openHost(tab) { if (typeof tab === 'string') hostTab = tab; else if (hostTodo().total) hostTab = 'today'; $('hostDrawer').hidden = false; $('scrim').hidden = false; visitsAt = 0; renderHost(); $('hostX').focus(); }
+  function openHost(tab) { if (typeof tab === 'string') hostTab = tab; else if (hostTodo().total) hostTab = 'today'; $('hostDrawer').hidden = false; $('scrim').hidden = false; visitsAt = 0; signinAt = 0; renderHost(); $('hostX').focus(); }
   // ---- visit log (host only) ----
   var visitsData = null, visitsAt = 0, visitsAll = false, visitsBusy = false;
   function fillVisits(force) {
@@ -2235,6 +2235,30 @@
     if (d < 30) return n(d, 'day');
     if (d < 365) return n(Math.floor(d / 30), 'month');
     return n(Math.floor(d / 365), 'year');
+  }
+  // ---- sign-in problems log (host only): who couldn't sign in or join, when (Eastern), and why ----
+  var signinData = null, signinAt = 0, signinBusy = false;
+  function fillSignins(force) {
+    var box = $('signinBox'); if (!box) return;
+    if (signinData && !force && Date.now() - signinAt < 30000) { drawSignins(box); return; }
+    if (signinData) drawSignins(box);
+    if (signinBusy || !store.signins) return;
+    signinBusy = true;
+    store.signins().then(function (r) { signinBusy = false; if (r && r.log) { signinData = r; signinAt = Date.now(); } var b = $('signinBox'); if (b) drawSignins(b); }, function () { signinBusy = false; var b = $('signinBox'); if (b && !signinData) b.innerHTML = '<p class="why">Couldn\'t load the sign-in problems right now.</p>'; });
+  }
+  function etStamp(t) { return new Date(t).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' ET'; }
+  function drawSignins(box) {
+    var list = (signinData && signinData.log) || [];
+    if (!list.length) { box.innerHTML = '<p class="why">No sign-in problems logged.</p>'; return; }
+    var html = '<ol class="sign-list">' + list.map(function (e) {
+      return '<li class="sign-row"><div class="sign-top"><b class="sign-name">' + esc(e.name || 'Unknown player') + '</b>' + (e.id ? '<span class="sign-id">Discord ' + esc(e.id) + '</span>' : '') +
+        '<span class="vis-tag">' + esc(e.game || 'Sign-in step') + '</span><span class="sign-time">' + esc(etStamp(e.at)) + '</span></div>' +
+        '<div class="sign-why">' + esc(e.why || '') + (e.n > 1 ? ' <span class="sign-n">Happened ' + e.n + ' times in a row.</span>' : '') + '</div>' +
+        (e.fix ? '<div class="sign-fix"><b>To fix:</b> ' + esc(e.fix) + '</div>' : '') +
+        '<div class="sign-code">Error code <code>' + esc(e.code) + '</code>' + (e.bl ? ' · BeatLeader <a href="https://beatleader.com/u/' + encodeURIComponent(e.bl) + '" target="_blank" rel="noopener">' + esc(e.bl) + '</a>' : '') + '</div></li>';
+    }).join('') + '</ol><div class="row"><button type="button" class="btn small ghost" data-h="signins-clear">Clear log</button></div>' +
+      '<p class="snote">The newest ' + ((signinData && signinData.max) || 100) + ' are kept.</p>';
+    box.innerHTML = html;
   }
   function drawVisits(box) {
     var list = (visitsData && visitsData.visits) || [], s = st();
@@ -2731,6 +2755,7 @@
         '<button type="button" class="btn small good" data-h="approvejoin" data-id="' + esc(w.id) + '">Let in</button><button type="button" class="btn small ghost" data-h="declinejoin" data-id="' + esc(w.id) + '">Decline</button></span></div>';
     }).join('');
     T.today += '</section>';
+    T.today += '<section class="hsec"><div class="thread-head"><h3>Sign-in problems</h3><button type="button" class="icon-btn refresh-btn" data-h="signins-refresh" aria-label="Refresh" title="Refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20.5V16h-4.5"/></svg></button></div><p>Players who could not sign in or join, with why and what they can do about it. You also get a notification for each one (the same player and reason only once every 10 minutes). Times are Eastern.</p><div id="signinBox"><p class="why">Loading</p></div></section>';
     T.today += '<section class="hsec"><div class="thread-head"><h3>Visits</h3><button type="button" class="icon-btn refresh-btn" data-h="visits-refresh" aria-label="Refresh" title="Refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20.5V16h-4.5"/></svg></button></div><p>When signed-in people opened the game and when they left. Coming back within 10 minutes counts as the same visit, so a visit ends 10 minutes after they close it, switch away or lock their phone. The last two weeks are kept.</p><div id="visitBox"><p class="why">Loading</p></div></section>';
     var ud = store.undoInfo ? store.undoInfo() : null;
     if (ud && ud.list.length) {
@@ -2846,6 +2871,7 @@
     filterPlayers();
     if (typing && $('pSearch')) { $('pSearch').focus(); try { $('pSearch').setSelectionRange(typing[0], typing[1]); } catch (e) {} }
     fillVisits();
+    fillSignins();
     Object.keys(keep).forEach(function (id) { var el = $(id); if (el) { el.value = keep[id]; el.dataset.touched = '1'; } });
     ['newStart', 'startEdit', 'newEnd', 'endEdit', 'newTheme'].forEach(function (id) { var el = $(id); if (el) el.addEventListener(id === 'newTheme' ? 'change' : 'input', function () { el.dataset.touched = '1'; }); });
     fillPush();
@@ -3120,6 +3146,8 @@
       case 'clearend': run('setEnd', { endsAt: null }, 'End time cleared.'); break;
       case 'visits-refresh': btn.classList.remove('spin'); void btn.offsetWidth; btn.classList.add('spin'); setTimeout(function () { btn.classList.remove('spin'); }, 700); fillVisits(true); break;
       case 'visits-more': visitsAll = true; fillVisits(); break;
+      case 'signins-refresh': btn.classList.remove('spin'); void btn.offsetWidth; btn.classList.add('spin'); setTimeout(function () { btn.classList.remove('spin'); }, 700); fillSignins(true); break;
+      case 'signins-clear': if (confirm('Clear the whole sign-in problems log?')) { signinData = null; run('clearSignins', {}, 'Sign-in log cleared.').then(function () { fillSignins(true); }); } break;
       case 'stats-refresh': btn.classList.remove('spin'); void btn.offsetWidth; btn.classList.add('spin'); setTimeout(function () { btn.classList.remove('spin'); }, 700); fillStats(true); break;
       case 'stats-more': statsMore[btn.dataset.k] = true; renderStats(); break;
       case 'clearplayers': if (confirm('Take all ' + st().order.length + ' sign-ups off the board? They can join again whenever sign-ups are open.')) run('clearPlayers', {}, 'Sign-ups cleared.'); break;

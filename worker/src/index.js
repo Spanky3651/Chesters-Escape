@@ -33,6 +33,48 @@ function sec(ms) { return Math.round(ms / 1000); }
 function plural(k, w) { return k + ' ' + w + (k === 1 ? '' : 's'); }
 function ordinal(n) { const v = n % 100; return n + (v >= 11 && v <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'); }
 const VISIT_GAP = 10 * 60 * 1000;   // a return within this long continues the same visit
+const SIGNIN_LOG_MAX = 100, SIGNIN_ALERT_GAP = 10 * 60 * 1000;   // sign-in problems kept per game; one alert per player and reason in this window
+function coded(msg, code) { const e = new Error(msg); e.code = code; return e; }
+
+// ---------------------------------------------------------------------------
+// Sign-in problems, in plain words, for the host's push and the Host tools log. Every place sign-in can fail has a code:
+//   the Discord step:  discord-error, discord-token, discord-profile, discord-servers, no-clan-server, server-error
+//   the join checks:   no-access, signups-closed, game-over, bl-input, bl-notfound, bl-down, no-link, other-discord,
+//                      bl-clan, acc-down, acc-no-profile, acc-clan, profile-taken
+// what: a short phrase for the push. why: what went wrong. fix: what the player does about it ('' when only the host can help).
+function signinText(code, x = {}) {
+  const bl = x.blClan || 'the clan', acc = x.accClan || 'the clan', err = x.err ? ' (' + x.err + ')' : '';
+  switch (code) {
+    case 'discord-error': return { what: 'Discord stopped the sign-in' + err, why: 'Discord sent the player back with an error before the sign-in finished' + err + '.', fix: 'Try signing in again. If it keeps happening to different people, check the Discord app settings.' };
+    case 'discord-token': return { what: 'Discord would not finish the sign-in' + err, why: 'Discord refused to trade the sign-in code for access' + err + '. This usually means the Discord page was reloaded or sat too long, so the code was already used. If it happens to everyone, the Discord app secret or redirect address is wrong.', fix: 'Go back to the game and press Sign in with Discord again, without reloading the Discord page.' };
+    case 'discord-profile': return { what: 'Discord did not share the account', why: 'The sign-in worked but Discord did not return the account name and id.', fix: 'Try again in a minute.' };
+    case 'discord-servers': return { what: 'Could not read their Discord servers', why: 'Discord would not list the servers the player is in, so the game could not tell which clan they belong to. They were shown the "No game for your clan yet" page.', fix: 'Try signing in again in a minute.' };
+    case 'no-clan-server': return { what: 'Not in a clan Discord server', why: 'The player signed in but is in none of the Discord servers that have a game here.', fix: "Join the clan's Discord server, then press Check again on the site." };
+    case 'server-error': return { what: 'Sign-in hit a server error' + err, why: 'Something unexpected went wrong on the game server during sign-in' + err + '.', fix: 'Try again. If it keeps happening, look at the game server logs.' };
+    case 'no-access': return { what: 'Tried to join but is not allowed in yet', why: 'Who can play is set to invite-only and the host has not let this player in.', fix: '' };
+    case 'signups-closed': return { what: 'Tried to join after sign-ups closed', why: 'Sign-ups are closed until the game starts.', fix: 'If they should still get in, the host can open sign-ups again in the Game tab.' };
+    case 'game-over': return { what: 'Tried to join a finished game', why: 'The game is over, so nobody can join it.', fix: 'They can join the next game when its sign-ups open.' };
+    case 'bl-input': return { what: 'No BeatLeader profile entered', why: 'The BeatLeader profile link or ID was empty or could not be read.', fix: 'Paste the link from their BeatLeader profile page (beatleader.com/u/...).' };
+    case 'bl-notfound': return { what: 'BeatLeader profile not found', why: 'BeatLeader has no player with the profile link or ID they entered.', fix: 'Check the link or ID. It is the number at the end of their beatleader.com/u/ address.' };
+    case 'bl-down': return { what: 'BeatLeader did not answer', why: 'BeatLeader could not be reached when they tried to join.', fix: 'Try again in a minute.' };
+    case 'no-link': return { what: 'No Discord linked on BeatLeader', why: "Their BeatLeader profile has no Discord account linked, so the game can't tell the profile is theirs.", fix: 'Link Discord on BeatLeader (beatleader.com, Settings, Socials) and join again. Or they can press Ask the host instead, and you let them in from Needs you.' };
+    case 'other-discord': return { what: 'BeatLeader is linked to a different Discord', why: 'Their BeatLeader profile is linked to a different Discord account than the one they signed in with.', fix: 'Sign in with the Discord account that is linked on BeatLeader, or link this one instead. The host cannot let them in with this profile.' };
+    case 'bl-clan': return { what: 'Not in ' + bl + ' on BeatLeader', why: 'This game needs the ' + bl + ' clan on BeatLeader and their profile does not have it.', fix: 'Add ' + bl + ' as one of their clans on beatleader.com, then join again.' };
+    case 'acc-down': return { what: 'AccSaber did not answer', why: 'AccSaber could not be reached for the clan check.', fix: 'Try again in a minute.' };
+    case 'acc-no-profile': return { what: 'No AccSaber profile', why: 'AccSaber has no profile for their BeatLeader account yet.', fix: 'Set up their profile on accsaber.com, then join again.' };
+    case 'acc-clan': return { what: 'Not in the ' + acc + ' on AccSaber', why: 'This game needs the ' + acc + ' on AccSaber and their AccSaber profile is in a different clan or none.', fix: 'Join the clan on accsaber.com, then join again.' };
+    case 'profile-taken': return { what: 'BeatLeader profile already in the game', why: 'That BeatLeader profile is already signed up under another Discord account.', fix: 'Sign in with the Discord account that signed up with it. If it is a second account of theirs, remove the old sign-up in the Players tab.' };
+    default: return { what: 'Could not sign in', why: 'The game server turned them away.', fix: '' };
+  }
+}
+// Errors worth showing the host: plain letters and punctuation only, short, and never the OAuth code or a secret.
+function plainErr(v, max, hide) {
+  let t = String(v == null ? '' : v);
+  for (const h of [].concat(hide || [])) if (h) t = t.split(String(h)).join('(hidden)');
+  return t.replace(/[^A-Za-z0-9 _.,:;()'-]/g, '').slice(0, max || 80).trim();
+}
+// Join errors worth logging for the host: the ones the player can fix, or the host may want to know about.
+const SIGNIN_JOIN_CODES = new Set(['no-access', 'signups-closed', 'game-over', 'bl-input', 'bl-notfound', 'bl-down', 'no-link', 'other-discord', 'bl-clan', 'acc-down', 'acc-no-profile', 'acc-clan', 'profile-taken']);
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -132,7 +174,9 @@ async function authLogin(env, req, url) {
   let retOrigin = '';
   try { retOrigin = new URL(ret).origin; } catch { /* bad url */ }
   if (!origins(env).includes(retOrigin)) return new Response('That return address is not allowed.', { status: 400 });
-  const state = await sign(env, { r: ret, n: crypto.randomUUID(), exp: Date.now() + 10 * 60 * 1000 });
+  // The game the page was on (if it said), so a sign-in problem can be filed under the right game.
+  const want = url.searchParams.get('clan') || '';
+  const state = await sign(env, { r: ret, n: crypto.randomUUID(), c: clans(env).some((c) => c.id === want) ? want : '', exp: Date.now() + 10 * 60 * 1000 });
   const q = new URLSearchParams({
     client_id: env.DISCORD_CLIENT_ID, response_type: 'code', redirect_uri: url.origin + '/auth/callback',
     scope: clans(env).some((c) => c.guild) ? 'identify guilds' : 'identify', state, prompt: 'none'
@@ -140,42 +184,88 @@ async function authLogin(env, req, url) {
   return Response.redirect('https://discord.com/oauth2/authorize?' + q, 302);
 }
 
-async function authCallback(env, req, url) {
+// Tell the hosts about a sign-in that failed before any game was involved (the Discord step, or being in no clan server).
+// The page says which game the player was heading for when it knows; otherwise every game's log gets it and a host who
+// is on more than one game is pushed once. Never throws: a problem with the log must not break sign-in.
+function reportSignin(env, ctx, e) {
+  const run = async () => {
+    try {
+      const all = clans(env), hint = all.find((c) => c.id === e.clan), already = [];
+      for (const c of hint ? [hint] : all) {
+        try {
+          const r = await gameStub(env, c).signinFail({ ...e, clan: c.id, anyGame: !hint, already });
+          if (r && Array.isArray(r.pushed)) already.push(...r.pushed);
+        } catch { /* one game's log failing must not stop the others */ }
+      }
+    } catch { /* never break sign-in */ }
+  };
+  if (ctx && ctx.waitUntil) { ctx.waitUntil(run()); return Promise.resolve(); }
+  return run();
+}
+
+async function authCallback(env, req, url, ctx) {
   const st = await verify(env, url.searchParams.get('state') || '');
+  // A sign-in link we can't verify is not logged: anyone can send one, so it can't be told from random traffic.
   if (!st) return new Response('Sign-in expired. Go back to the game and try again.', { status: 400 });
   const code = url.searchParams.get('code');
-  if (!code) return Response.redirect(st.r, 302);
-  const tok = await fetch('https://discord.com/api/oauth2/token', {
-    method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: env.DISCORD_CLIENT_ID, client_secret: env.DISCORD_CLIENT_SECRET, grant_type: 'authorization_code', code, redirect_uri: url.origin + '/auth/callback' })
-  }).then((r) => r.json());
-  if (!tok.access_token) return new Response('Discord sign-in failed. Go back to the game and try again.', { status: 400 });
-  const auth = { authorization: 'Bearer ' + tok.access_token };
-  const me = await fetch('https://discord.com/api/users/@me', { headers: auth }).then((r) => r.json());
-  // Which clan servers they are in, plus each server's icon for the game switcher.
-  const all = clans(env), member = [], icons = {};
-  let guilds = [];
-  if (all.some((c) => c.guild)) {
-    guilds = await fetch('https://discord.com/api/users/@me/guilds', { headers: auth }).then((r) => r.json());
-    if (!Array.isArray(guilds)) guilds = [];
+  const who = {};   // what we know about the player so far (never the code or a token)
+  const fail = (c, extra) => reportSignin(env, ctx, { ...who, code: c, clan: st.c || '', ...extra });
+  if (!code) {
+    // Cancelling on Discord's page is the player's choice, not a failure. Any other error from Discord is.
+    const de = plainErr(url.searchParams.get('error'), 40);
+    if (de && de !== 'access_denied') await fail('discord-error', { err: de });
+    return Response.redirect(st.r, 302);
   }
-  for (const c of all) {
-    const g = c.guild && guilds.find((x) => x.id === c.guild);
-    if (!c.guild || g) member.push(c.id);
-    if (g && g.icon) icons[c.id] = `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=96`;
+  try {
+    let tok = null;
+    try {
+      tok = await fetch('https://discord.com/api/oauth2/token', {
+        method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ client_id: env.DISCORD_CLIENT_ID, client_secret: env.DISCORD_CLIENT_SECRET, grant_type: 'authorization_code', code, redirect_uri: url.origin + '/auth/callback' })
+      }).then((r) => r.json());
+    } catch { tok = null; }
+    if (!tok || !tok.access_token) {
+      await fail('discord-token', { err: plainErr(tok && tok.error, 40) });
+      return new Response('Discord sign-in failed. Go back to the game and try again.', { status: 400 });
+    }
+    const auth = { authorization: 'Bearer ' + tok.access_token };
+    const me = await fetch('https://discord.com/api/users/@me', { headers: auth }).then((r) => r.json()).catch(() => null);
+    if (!me || !me.id) {
+      await fail('discord-profile');
+      return new Response('Discord sign-in failed. Go back to the game and try again.', { status: 400 });
+    }
+    who.id = String(me.id); who.name = String(me.global_name || me.username || '').slice(0, 60);
+    // Which clan servers they are in, plus each server's icon for the game switcher.
+    const all = clans(env), member = [], icons = {};
+    let guilds = [], guildsFailed = false;
+    if (all.some((c) => c.guild)) {
+      guilds = await fetch('https://discord.com/api/users/@me/guilds', { headers: auth }).then((r) => r.json());
+      if (!Array.isArray(guilds)) { guilds = []; guildsFailed = true; }
+    }
+    for (const c of all) {
+      const g = c.guild && guilds.find((x) => x.id === c.guild);
+      if (!c.guild || g) member.push(c.id);
+      if (g && g.icon) icons[c.id] = `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=96`;
+    }
+    // In none of the clan servers: back to the game page, which says their clan has no game yet.
+    if (!member.length) {
+      await fail(guildsFailed ? 'discord-servers' : 'no-clan-server');
+      return Response.redirect(st.r.replace(/#.*$/, '') + '#noclan', 302);
+    }
+    // No picture of their own: Discord's default one for that account, so nobody shows as bare initials.
+    let dflt = ''; try { dflt = `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(me.id) >> 22n) % 6n)}.png`; } catch (e) {}
+    const avatar = me.avatar ? `https://cdn.discordapp.com/avatars/${me.id}/${me.avatar}.png?size=128` : dflt;
+    const session = await sign(env, { id: me.id, name: me.global_name || me.username, avatar, clans: member, icons, exp: Date.now() + 60 * 24 * 3600 * 1000 });
+    return Response.redirect(st.r + '#token=' + encodeURIComponent(session), 302);
+  } catch (e) {
+    await fail('server-error', { err: plainErr(e && e.message, 120, [code, env.DISCORD_CLIENT_SECRET]) });
+    throw e;
   }
-  // In none of the clan servers: back to the game page, which says their clan has no game yet.
-  if (!member.length) return Response.redirect(st.r.replace(/#.*$/, '') + '#noclan', 302);
-  // No picture of their own: Discord's default one for that account, so nobody shows as bare initials.
-  let dflt = ''; try { dflt = `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(me.id) >> 22n) % 6n)}.png`; } catch (e) {}
-  const avatar = me.avatar ? `https://cdn.discordapp.com/avatars/${me.id}/${me.avatar}.png?size=128` : dflt;
-  const session = await sign(env, { id: me.id, name: me.global_name || me.username, avatar, clans: member, icons, exp: Date.now() + 60 * 24 * 3600 * 1000 });
-  return Response.redirect(st.r + '#token=' + encodeURIComponent(session), 302);
 }
 
 // ---------------------------------------------------------------------------
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url);
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors(env, req) });
     try {
@@ -185,7 +275,7 @@ export default {
         if (missing.length) return new Response('Sign-in is not set up yet. Missing secret: ' + missing.join(', ') + '\nSet it with: npx wrangler secret put ' + missing[0], { status: 500 });
       }
       if (url.pathname === '/auth/login') return await authLogin(env, req, url);
-      if (url.pathname === '/auth/callback') return await authCallback(env, req, url);
+      if (url.pathname === '/auth/callback') return await authCallback(env, req, url, ctx);
       if (url.pathname === '/dev/login' && env.DEV_LOGIN === '1') {
         // Local testing only: wrangler dev --var DEV_LOGIN:1
         const id = url.searchParams.get('id') || 'dev'; const name = url.searchParams.get('name') || 'Dev player';
@@ -222,6 +312,10 @@ export default {
       if (url.pathname === '/api/host/visits' && req.method === 'GET') {
         if (!user || !user.isHost) return json(env, req, { error: 'Only the host can see this.' }, 403);
         return json(env, req, await gameStub(env, user.clan).visitLog(user));
+      }
+      if (url.pathname === '/api/host/signins' && req.method === 'GET') {
+        if (!user || !user.isHost) return json(env, req, { error: 'Only the host can see this.' }, 403);
+        return json(env, req, await gameStub(env, user.clan).signinLog(user));
       }
       if (url.pathname.startsWith('/api/push/') && req.method === 'POST') {
         if (!user) return json(env, req, { error: 'Sign in with Discord first.' }, 401);
@@ -1014,15 +1108,28 @@ export class Game extends DurableObject {
     return out;
   }
 
+  // Every action goes through here so a join that gets turned away is logged for the host (Host tools, Today, Sign-in problems).
   async act(user, action, a) {
+    const r = await this.actRun(user, action, a);
+    if (r && r.error && (action === 'join' || action === 'askJoin') && SIGNIN_JOIN_CODES.has(r.code)) {
+      try {
+        const typed = String((a && a.blId) || '').match(/[A-Za-z0-9_-]+$/);
+        // The invite-only case already sent the host a "waiting to get in" push, so it is logged without a second one.
+        await this.logSignin({ id: user.id, name: user.name, code: r.code, bl: typed ? typed[0].slice(0, 40) : '' }, { quiet: r.code === 'no-access' });
+      } catch { /* the log never breaks a join */ }
+    }
+    return r;
+  }
+
+  async actRun(user, action, a) {
     this.useClan(user);
     const s = this.game(); const pid = this.pidFor(user);
     await this.catchUp();
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
-    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'unpause', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove', 'hostPlays', 'invisible', 'hide', 'hallPics', 'approveJoin', 'declineJoin'];
+    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'unpause', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove', 'hostPlays', 'invisible', 'hide', 'hallPics', 'approveJoin', 'declineJoin', 'clearSignins'];
     if (hostOnly.includes(action) && !user.isHost) return { error: 'Only the host can do that.', status: 403 };
     if (E.isHidden(s) && !user.isHost) return { error: 'The next game is still a secret. Watch your clan Discord for the reveal.', code: 'hidden' };
-    if (s.status === 'finished' && ['join', 'askJoin', 'route', 'roll', 'verify', 'claim'].includes(action)) return { error: 'The game is over.' };
+    if (s.status === 'finished' && ['join', 'askJoin', 'route', 'roll', 'verify', 'claim'].includes(action)) return { error: 'The game is over.', code: 'game-over' };
     const wasRunning = s.status === 'running';
     // Host changes keep a snapshot so the host can take the last few back.
     const snap = user.isHost && E.UNDOABLE.includes(action) ? { state: JSON.stringify(s), cut: this.meta.nextCutoff == null ? null : this.meta.nextCutoff, pre: s.seq, label: E.hostLabel(s, action, a) } : null;
@@ -1031,12 +1138,12 @@ export class Game extends DurableObject {
       switch (action) {
         case 'join': {
           if (user.isHost && this.hostOut(user)) return { error: "You're hosting this game, not playing. Switch that off in Host tools to join." };
-          if (!E.signupsOpen(s)) return { error: 'Sign-ups are closed until the game starts.' };
+          if (!E.signupsOpen(s)) return { error: 'Sign-ups are closed until the game starts.', code: 'signups-closed' };
           const bl = await this.blPlayer(a.blId);
           // A game with join checks: the BeatLeader profile must carry this Discord account, and pass the clan check.
           if (this.joinRule()) { const bad = this.linkErr(bl, user) || await this.clanErr(bl); if (bad) return bad; }
           const taken = s.order.find((id) => id !== pid && s.players[id].blId === bl.id);
-          if (taken) return { error: 'That BeatLeader profile is already in the game.' };
+          if (taken) return { error: 'That BeatLeader profile is already in the game.', code: 'profile-taken' };
           const isNew = !s.players[pid];
           E.addPlayer(s, { id: pid, discordId: user.id, name: bl.name || user.name, avatar: bl.avatar || user.avatar, blId: bl.id });
           if (this.joinRule()) s.players[pid].checked = this.joinRule();   // which game's join checks they passed
@@ -1053,13 +1160,13 @@ export class Game extends DurableObject {
         // The clan check still runs. A profile linked to a different Discord account can't ask.
         case 'askJoin': {
           if (!this.joinRule()) return { error: 'This game has no join checks, so you can just join.' };
-          if (!E.signupsOpen(s)) return { error: 'Sign-ups are closed until the game starts.' };
+          if (!E.signupsOpen(s)) return { error: 'Sign-ups are closed until the game starts.', code: 'signups-closed' };
           if (s.players[pid]) return { error: "You're already in this game." };
           const bl = await this.blPlayer(a.blId);
           if (bl.discord === String(user.id)) return { error: 'Your Discord is linked on BeatLeader now, so you can just join.' };
-          if (bl.discord) return { error: "That BeatLeader profile is linked to a different Discord account, so the host can't let you in with it." };
+          if (bl.discord) return { error: "That BeatLeader profile is linked to a different Discord account, so the host can't let you in with it.", code: 'other-discord' };
           const bad = await this.clanErr(bl); if (bad) return bad;
-          if (s.order.some((id) => s.players[id].blId === bl.id)) return { error: 'That BeatLeader profile is already in the game.' };
+          if (s.order.some((id) => s.players[id].blId === bl.id)) return { error: 'That BeatLeader profile is already in the game.', code: 'profile-taken' };
           const asks = (this.meta.joinAsks || []).filter((x) => x.id !== String(user.id) && x.game === s.id);
           asks.push({ id: String(user.id), name: String(user.name || '').slice(0, 60), avatar: user.avatar || '', blId: bl.id, blName: String(bl.name || '').slice(0, 60), game: s.id, at: Date.now() });
           this.meta.joinAsks = asks.slice(-50); s.seq++;
@@ -1070,7 +1177,7 @@ export class Game extends DurableObject {
         case 'approveJoin': {
           const id = String(a.id || ''), w = this.joinAsks().find((x) => x.id === id), dpid = 'd' + id;
           if (!w) return { error: 'That request is gone.' };
-          if (!E.signupsOpen(s)) return { error: 'Sign-ups are closed until the game starts.' };
+          if (!E.signupsOpen(s)) return { error: 'Sign-ups are closed until the game starts.', code: 'signups-closed' };
           if (s.players[dpid]) return { error: "They're already in the game. Decline the request to clear it." };
           if (s.order.some((x) => s.players[x].blId === w.blId)) return { error: 'That BeatLeader profile is already in the game.' };
           const bl = await this.blPlayer(w.blId);
@@ -1081,6 +1188,7 @@ export class Game extends DurableObject {
           this.meta.joinAsks = this.meta.joinAsks.filter((x) => x.id !== id); s.seq++;
           break;
         }
+        case 'clearSignins': this.meta.signinLog = []; break;
         case 'declineJoin': { this.meta.joinAsks = (this.meta.joinAsks || []).filter((x) => x.id !== String(a.id)); s.seq++; break; }
         case 'route': result = this.mine(s, pid) && E.chooseRoute(s, pid, a.route); break;
         case 'react': result = E.react(s, pid, a.id, a.emoji, s.players[pid] ? null : { name: user.name, avatar: user.avatar }); break;
@@ -1422,6 +1530,48 @@ export class Game extends DurableObject {
     return { now, daily: { days: d.days || {}, hours: d.hours || [] }, notify, lurkers, gc };
   }
 
+  // --- sign-in problems for the host ---
+  // One log entry per failure, newest first, the last SIGNIN_LOG_MAX kept. Only plain facts go in: the player's Discord name and
+  // id, the game, the error code and the reason. Never a token or the OAuth code.
+  // The host gets a push, but a player retrying the same thing inside SIGNIN_ALERT_GAP is only pushed for the first one.
+  // A failure with no player attached (Discord never said who) that repeats in that window is counted on its entry.
+  // opts.quiet: log only (the host already heard another way). opts.save: false when the caller saves afterwards.
+  async logSignin(e, opts = {}) {
+    const now = Date.now(), clan = this.clan();
+    const t = signinText(e.code, { blClan: clan.blClanName, accClan: clan.accClanName, err: e.err });
+    const entry = { at: now, id: e.id ? String(e.id).slice(0, 30) : '', name: String(e.name || '').slice(0, 60), game: e.anyGame ? '' : String(clan.name || ''), code: String(e.code || 'unknown'), why: (e.vet ? 'Taken off the sign-up list at the check before the start. ' : '') + t.why, fix: t.fix };
+    if (e.bl) entry.bl = String(e.bl).slice(0, 40);
+    const log = this.meta.signinLog = Array.isArray(this.meta.signinLog) ? this.meta.signinLog : [];
+    const same = !entry.id && log.find((x) => !x.id && x.code === entry.code && x.game === entry.game && now - x.at < SIGNIN_ALERT_GAP);
+    if (same) { same.n = (same.n || 1) + 1; same.at = now; log.splice(log.indexOf(same), 1); log.unshift(same); } else log.unshift(entry);
+    if (log.length > SIGNIN_LOG_MAX) log.length = SIGNIN_LOG_MAX;
+    let pushed = [];
+    const seen = this.meta.signinSeen = this.meta.signinSeen || {};
+    for (const k of Object.keys(seen)) if (now - seen[k] >= SIGNIN_ALERT_GAP) delete seen[k];
+    const key = (entry.id || 'anon') + '|' + entry.code + '|' + entry.game;
+    if (!opts.quiet && !seen[key]) {
+      seen[key] = now;
+      const hostIds = hosts(this.env, clan), skip = new Set(e.already || []);
+      const mine = (x) => hostIds.includes(x.uid) && !skip.has(x.uid);
+      pushed = [...new Set((this.meta.push || []).filter(mine).map((x) => x.uid))];
+      const who = entry.name || (entry.id ? 'Discord ' + entry.id : 'Someone');
+      await this.notifyHosts({ title: who + " couldn't sign in", body: t.what + (entry.game ? ' (' + entry.game + ').' : '.'), tag: 'signin-' + (entry.id || 'anon') + '-' + entry.code }, mine);
+    }
+    if (opts.save !== false) await this.save();
+    return { pushed };
+  }
+  // The Worker's way in for a failure before any game was involved (see reportSignin).
+  async signinFail(e) {
+    this.useClan({ clan: { id: String(e.clan || '') } });
+    this.game();
+    return this.logSignin(e);
+  }
+  async signinLog(user) {
+    if (!user || !user.isHost) return { error: 'Only the host can see this.' };
+    this.useClan(user);
+    return { now: Date.now(), max: SIGNIN_LOG_MAX, log: Array.isArray(this.meta.signinLog) ? this.meta.signinLog : [] };
+  }
+
   // --- push notifications for hosts ---
   pushKeys() {
     const pub = String(this.env.VAPID_PUBLIC_KEY || '').trim(), priv = String(this.env.VAPID_PRIVATE_KEY || '').trim();
@@ -1498,9 +1648,10 @@ export class Game extends DurableObject {
   }
   async blPlayer(input) {
     const id = String(input || '').match(/[A-Za-z0-9_-]+$/);
-    if (!id) throw new Error('Enter your BeatLeader profile link or ID.');
-    const r = await fetch((this.env.BL_API || BL_API) + '/player/' + id[0], { headers: { 'user-agent': 'ChestersEscape' } });
-    if (!r.ok) throw new Error('No BeatLeader player found for that ID.');
+    if (!id) throw coded('Enter your BeatLeader profile link or ID.', 'bl-input');
+    const r = await fetch((this.env.BL_API || BL_API) + '/player/' + id[0], { headers: { 'user-agent': 'ChestersEscape' } }).catch(() => null);
+    if (!r || r.status === 429 || r.status >= 500) throw coded("BeatLeader didn't answer. Try again in a minute.", 'bl-down');
+    if (!r.ok) throw coded('No BeatLeader player found for that ID.', 'bl-notfound');
     const p = await r.json();
     const dc = (p.socials || []).find((x) => x.service === 'Discord');
     return { id: String(p.id), name: p.name, avatar: p.avatar || '', discord: dc ? String(dc.userId || '') : '', clans: (p.clans || []).map((c) => String(c.id)) };
@@ -1543,17 +1694,17 @@ export class Game extends DurableObject {
   linkErr(bl, user) {
     if (bl.discord === String(user.id)) return null;
     if (!bl.discord) return { error: 'Link this Discord account on your BeatLeader profile first (beatleader.com, Settings, Socials), then sign up.', code: 'no-link' };
-    return { error: 'That BeatLeader profile is linked to a different Discord account. Sign in with that one, or link this one on BeatLeader.' };
+    return { error: 'That BeatLeader profile is linked to a different Discord account. Sign in with that one, or link this one on BeatLeader.', code: 'other-discord' };
   }
   // The join check's clan half: the AccSaber clan in AccSaber games, the BeatLeader clan in map games. null when it passes.
   async clanErr(bl) {
     const want = this.accClanWant(), blWant = this.blClanWant();
-    if (blWant && !bl.clans.includes(blWant)) return { error: 'This game is for ' + this.clan().blClanName + ' on BeatLeader. Add ' + this.clan().blClanName + ' as one of your clans on beatleader.com, then sign up.' };
+    if (blWant && !bl.clans.includes(blWant)) return { error: 'This game is for ' + this.clan().blClanName + ' on BeatLeader. Add ' + this.clan().blClanName + ' as one of your clans on beatleader.com, then sign up.', code: 'bl-clan' };
     if (want) {
       const au = await this.accUser(bl.id);
-      if (au === undefined) return { error: "AccSaber didn't answer. Try again in a minute." };
-      if (!au) return { error: 'There is no AccSaber profile for that BeatLeader account yet. Set one up on accsaber.com, then sign up.' };
-      if (au.clan !== want) return { error: 'This game is for the ' + this.clan().accClanName + ' on AccSaber. Join the clan on accsaber.com, then sign up.' };
+      if (au === undefined) return { error: "AccSaber didn't answer. Try again in a minute.", code: 'acc-down' };
+      if (!au) return { error: 'There is no AccSaber profile for that BeatLeader account yet. Set one up on accsaber.com, then sign up.', code: 'acc-no-profile' };
+      if (au.clan !== want) return { error: 'This game is for the ' + this.clan().accClanName + ' on AccSaber. Join the clan on accsaber.com, then sign up.', code: 'acc-clan' };
     }
     return null;
   }
@@ -1580,18 +1731,23 @@ export class Game extends DurableObject {
       const p = s.players[pid];
       if (!p.blId || !p.discordId) continue;
       if (!this.take(2)) break;
-      let why;
+      let why, wcode;
       try {
         const bl = await this.blPlayer(p.blId);
-        if (bl.discord !== String(p.discordId) && !(p.manual && !bl.discord)) why = 'Discord not linked on BeatLeader';
-        else if (rule === 'bl') why = bl.clans.includes(blWant) ? '' : 'not in ' + this.clan().blClanName + ' on BeatLeader';
+        if (bl.discord !== String(p.discordId) && !(p.manual && !bl.discord)) { why = 'Discord not linked on BeatLeader'; wcode = bl.discord ? 'other-discord' : 'no-link'; }
+        else if (rule === 'bl') { why = bl.clans.includes(blWant) ? '' : 'not in ' + this.clan().blClanName + ' on BeatLeader'; wcode = 'bl-clan'; }
         else {
           const au = await this.accUser(bl.id);
           if (au === undefined) continue;
           why = !au ? 'no AccSaber profile' : au.clan !== want ? 'not in the ' + this.clan().accClanName + ' on AccSaber' : '';
+          wcode = !au ? 'acc-no-profile' : 'acc-clan';
         }
       } catch { continue; }
-      if (why) { out.push(p.name + ' (' + why + ')'); E.removePlayer(s, pid); } else p.checked = rule;
+      if (why) {
+        out.push(p.name + ' (' + why + ')'); E.removePlayer(s, pid);
+        // Also in the sign-in log with the fix; no second push, the "taken off" one below covers it.
+        await this.logSignin({ id: p.discordId, name: p.name, code: wcode, bl: p.blId, vet: true }, { quiet: true, save: false }).catch(() => null);
+      } else p.checked = rule;
       s.seq++; this.dirty = true;
     }
     if (out.length) await this.notifyHosts({ title: (out.length === 1 ? 'A sign-up was' : out.length + ' sign-ups were') + ' taken off', body: 'They didn\'t pass this game\'s join checks: ' + out.join(', ') + '. They can join again once that\'s fixed.', tag: 'acc-vet' });

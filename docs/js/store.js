@@ -111,6 +111,17 @@
     return Promise.resolve({ now: now, visits: out });
   };
 
+  // Host tools' sign-in problems log, made up for the demo (clearing it empties the sample).
+  DemoStore.prototype.signins = function () {
+    var now = Date.now(), m = 60000;
+    if (this.signinsCleared) return Promise.resolve({ now: now, max: 100, log: [] });
+    return Promise.resolve({ now: now, max: 100, log: [
+      { at: now - 8 * m, id: '100000000000000001', name: 'Sample Player', game: 'GenX', code: 'no-link', bl: '1234567', why: "Their BeatLeader profile has no Discord account linked, so the game can't tell the profile is theirs.", fix: 'Link Discord on BeatLeader (beatleader.com, Settings, Socials) and join again. Or they can press Ask the host instead, and you let them in from Needs you.' },
+      { at: now - 95 * m, id: '100000000000000002', name: 'Another Player', game: 'GenX', code: 'bl-clan', bl: '7654321', why: 'This game needs the GENX clan on BeatLeader and their profile does not have it.', fix: 'Add GENX as one of their clans on beatleader.com, then join again.' },
+      { at: now - 26 * 60 * m, id: '', name: '', game: '', code: 'discord-token', n: 3, why: 'Discord refused to trade the sign-in code for access (invalid_grant). This usually means the Discord page was reloaded or sat too long, so the code was already used.', fix: 'Go back to the game and press Sign in with Discord again, without reloading the Discord page.' }
+    ] });
+  };
+
   // Host tools' Stats tab, made up for the demo from the bots: the daily tally from the thread,
   // a few people with notifications on, one person who only looked, and sample GoatCounter numbers.
   DemoStore.prototype.hostStats = function () {
@@ -172,6 +183,7 @@
           return Promise.resolve(done({ pid: id }));
         }
         case 'playAs': self.me = a.pid; return Promise.resolve(done({}));
+        case 'clearSignins': self.signinsCleared = true; return Promise.resolve(done({}));
         case 'react': if (!s.players[me]) return Promise.reject(new Error('Join the game to react.')); return Promise.resolve(done(E.react(s, me, a.id, a.emoji)));
         case 'route': return Promise.resolve(done(E.chooseRoute(s, me, a.route)));
         case 'roll': return Promise.resolve(done(E.roll(s, me, { rng: rng, lifeline: !!(a && a.lifeline) })));
@@ -302,6 +314,7 @@
   }
   LiveStore.prototype.undoInfo = function () { return this.undo || { ok: false, list: [] }; };
   LiveStore.prototype.visits = function () { return this._fetch('/api/host/visits'); };
+  LiveStore.prototype.signins = function () { return this._fetch('/api/host/signins'); };
   LiveStore.prototype.hostStats = function (fresh) { return this._fetch('/api/host/stats' + (fresh ? '?fresh=1' : '')); };
   LiveStore.prototype._fetch = function (path, opts) {
     opts = opts || {};
@@ -313,7 +326,8 @@
   LiveStore.prototype.post = function (path, data) {
     return this._fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data || {}) });
   };
-  LiveStore.prototype.loginUrl = function () { return this.api + '/auth/login?return=' + encodeURIComponent(location.origin + location.pathname); };
+  // The game the page is on goes along, so a sign-in problem is filed under it in Host tools.
+  LiveStore.prototype.loginUrl = function () { var c = this.clan || savedClan(); return this.api + '/auth/login?return=' + encodeURIComponent(location.origin + location.pathname) + (c ? '&clan=' + encodeURIComponent(c) : ''); };
   LiveStore.prototype.logout = function () { setToken(''); location.reload(); };
   LiveStore.prototype.load = function () {
     var self = this;
