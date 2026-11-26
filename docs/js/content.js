@@ -313,6 +313,7 @@
       hat: "santa",
       look: "christmas",
       art: "img/themes/taco-christmas.jpg?v=20261020",   // Hummingbird's board art, title included
+      mapSet: 'taco-christmas',   // Taco's Christmas playlist, 50 maps
       artHero: {"src": "img/themes/taco-christmas-taco.png?v=20261020", "x": 74.96, "y": 66.99, "w": 146.73, "h": 114.04, "move": "hill", "clip": "M47.0,35.1 L248.0,35.1 L248.0,190.0 L244.8,189.0 L241.6,187.9 L238.4,187.0 L235.2,186.0 L232.1,185.1 L228.9,184.2 L225.7,183.4 L222.5,182.5 L219.3,181.7 L216.1,181.0 L212.9,180.2 L209.7,179.5 L206.5,178.8 L203.3,178.2 L200.2,177.6 L197.0,177.0 L193.8,176.5 L190.6,175.9 L187.4,175.4 L184.2,175.0 L181.0,174.5 L177.8,174.1 L174.6,173.8 L171.5,173.4 L168.3,173.1 L165.1,172.8 L161.9,172.6 L158.7,172.4 L155.5,172.2 L152.3,172.0 L149.1,171.9 L145.9,171.8 L142.7,171.7 L139.6,171.7 L136.4,171.7 L133.2,171.7 L130.0,171.8 L126.8,171.9 L123.6,172.0 L120.4,172.1 L117.2,172.3 L114.0,172.5 L110.8,172.7 L107.7,173.0 L104.5,173.3 L101.3,173.6 L98.1,174.0 L94.9,174.4 L91.7,174.8 L88.5,175.2 L85.3,175.7 L82.1,176.2 L78.9,176.8 L75.8,177.3 L72.6,177.9 L69.4,178.6 L66.2,179.2 L63.0,179.9 L59.8,180.7 L56.6,181.4 L53.4,182.2 L50.2,183.0 L47.0,183.9 Z"},
       banner: ["#d7263d", "#fff"],
       palette: {"ground": "#e9f1f7", "ground2": "#c9dbe8", "stone": "#ffffff", "stoneDark": "#9db4c6", "ink": "#24384a", "accent": "#d7263d", "good": "#2fb35a", "bad": "#3a6ea5", "water": "#a9d6f0"},
@@ -896,6 +897,67 @@
         s2: ['4e0fd']   // ASTRO+NYAUT (yabje, oegoe & wangyufy, 2:26)
       },
       bonusMaps: ['44505', '4af06', '54872', '54b7b', '4d21f', '54dd6', '547a7']
+    },
+    // Taco's Christmas maps for the Beaters board (Nov 26, 2026): hummingbird's 50 picks. Spread for fairness:
+    // both routes get the same average song length and density, every d4 roll reaches a similar mix, and no
+    // mapper repeats back to back. hummingbird asked for the Christmas songs to be spaced out, so each route
+    // gets one about every 5 or 6 maps and no two sit close together on the board. The 7 lightest songs are
+    // the bonus maps. Some songs have fewer than 3 difficulties (her call): none of those are bonus maps,
+    // blockers, the last shared map or in the first few spaces of a route.
+    'taco-christmas': {
+      title: "Taco's Christmas",
+      author: 'hummingbird',
+      authorUrl: 'https://beatleader.com/u/76561198786758592',
+      authorBl: '76561198786758592',
+      authorAvatar: 'https://cdn.assets.beatleader.com/76561198786758592R27.png',
+      credit: 'hummingbird picked every song on this board. The spaces were then balanced so both routes play fair, with the Christmas songs spread out.',
+      playlist: 'playlists/taco-christmas.bplist?v=20261126a',   // the finished playlist players download
+      spaces: {
+        L1: ['426af'],   // Winter Bloom (Jonas_0_0, 3:01)
+        L2: ['37f80'],   // Jingle Bells (nitronik.exe & Phoenix, 2:20) Christmas
+        L3: ['36a4e'],   // Insane (Cush, 2:42)
+        L5: ['48b41'],   // I want you to (Danny, Lalahti, Jonas, 3:03)
+        L6: ['37737'],   // LALALALA (Bellus, 3:04)
+        L8: ['5287c'],   // Space Unicorn (Dark_Waffle, Sofie, 1:44)
+        L9: ['2f330'],   // Inside (Cush, 1:58)
+        L10: ['4262d'],   // Awatenbou No Christmas (Ken_Monogatari, 3:37) Christmas
+        L11: ['363ee'],   // Galileo (eurnkung, Jonas_0_0, 3:10)
+        L13: ['4ea31'],   // NOT THE ONE (Dark_Waffle, 2:17)
+        L14: ['4a900'],   // Episode X (nitronik.exe, TaylorGaming, 3:22)
+        L16: ['3a847'],   // Drama (eurnkung, minsiii, 3:36)
+        L17: ['53be2'],   // Disconnected Again (Simbo, 2:55)
+        L18: ['4d161'],   // Carol Of The Bells (TheGeriatricJedi, 2:51) Christmas
+        L19: ['41a10'],   // Drip (minsiii, 3:01)
+        L20: ['492a5'],   // Super Mario Bros. 3 - Athletic Theme (Tonkie & Rashed, 2:15)
+        L22: ['4b68f'],   // Snowblind (TheGeriatricJedi, 3:51)
+        L24: ['42690'],   // Holy Knight (Cush & THMX, 2:15)
+        L25: ['5007d'],   // Glide (Tonkie, ImChloe & Sonoluminn, ImChloe, 3:19)
+        L26: ['4d06a'],   // Naughty or Nice (Jonas, 2:55) Christmas
+        L27: ['48189'],   // jellyous (3ggcake, Danny, 2:44)
+        L28: ['4f1de'],   // Perfect Idol (Slayx & Cush, 2:00)
+        L30: ['4be71'],   // Gaja (Barnotek, ImChloe, 3:02)
+        L31: ['46921'],   // Lethal Woman (Miljon & Taranchola, 2:08)
+        L32: ['32c94'],   // GOT THE THRILLS (Lalahti, 2:55)
+        L33: ['427ee'],   // Night Of Fire (Loloppe, 5:06) Christmas
+        L35: ['3ae06'],   // Good Lookin' (Cush, 2:49)
+        L36: ['41760'],   // Igloo (Jonas_0_0, 2:13)
+        L38: ['4af07'],   // Rhymes of Vales (Cush, 4:04)
+        R1: ['3ae05'],   // Kitai (Cush, 3:17)
+        R3: ['38139'],   // Jingle Bell Rock (Jonas_0_0, 2:12) Christmas
+        R5: ['4c979'],   // strangers once again (Dark_Waffle, Pashankie, Tonkie, grizlor, steeak, 3:19)
+        R7: ['36712'],   // ドーナドーナのうた (Game size) (wangyufy, 1:43)
+        R9: ['5077a'],   // LOOK AT ME (Danny, 2:41)
+        R10: ['3e107'],   // Rockstar (Jonas_0_0, Lalahti, 2:18)
+        R12: ['4ca39'],   // Dick In A Box (TheGeriatricJedi, 2:42) Christmas
+        R13: ['38c7b'],   // UNTOUCHABLE (Jonas_0_0, 3:16)
+        R15: ['557e1'],   // Never Forget You (TheGeriatricJedi, JammuB, 3:35)
+        R16: ['3bc39'],   // Like OOH-AHH (Lalahti, Jonas_0_0, fatahkent, Danny, 3:37)
+        R19: ['5270e'],   // L!!!!ght (Cush, 3:11)
+        R21: ['37ade'],   // It Was A… (Masked Christmas) (Bellus, 3:01) Christmas
+        R22: ['398c6'],   // Bling-Bang-Bang-Born (Cush, 2:48)
+        s2: ['35adc']   // Blah Blah Blah (minsiii, Jonas_0_0, 3:07)
+      },
+      bonusMaps: ['42b69', '41fcf', '5178c', '36242', '36f01', '3530b', '3c376']
     }
   }; /*MAPSETS*/
 
