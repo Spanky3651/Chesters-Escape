@@ -560,14 +560,14 @@
   function spaceSvg(sp, theme, opts) {
     var pal = theme.palette, L = look(theme), k = sp.kind && theme.kinds[sp.kind];
     var s = 58, h = s / 2, o = '';
-    var cls = 'sp sp-' + sp.type + (opts.selected === sp.id ? ' sel' : '');
+    var cls = 'sp sp-' + sp.type + (opts.selected === sp.id ? ' sel' : '') + (opts.artSpaces || opts.designer ? '' : ' tile');
     o += '<g class="' + cls + '" data-id="' + esc(sp.id) + '" transform="translate(' + sp.x + ',' + sp.y + ')" tabindex="' + (opts.focusable ? 0 : -1) + '" role="button" aria-label="' + esc(label(sp, theme, opts.acc)) + '">';
     if (opts.artSpaces) {
       // The background art already shows this space; draw only a hit area (visible in the designer).
       o += '<rect class="face ghost" x="' + (-h) + '" y="' + (-h) + '" width="' + s + '" height="' + s + '" rx="5" fill="' + (opts.designer ? 'rgba(242,163,58,.18)' : 'transparent') + '" stroke="' + (opts.designer ? '#f2a33a' : 'transparent') + '" stroke-width="2"/>';
       return o + '</g>';
     }
-    o += '<rect x="' + (-h + 2) + '" y="' + (-h + 3) + '" width="' + s + '" height="' + s + '" rx="5" fill="#000" opacity=".35"/>';
+    o += '<rect class="sh" x="' + (-h + 2) + '" y="' + (-h + 3) + '" width="' + s + '" height="' + s + '" rx="5" fill="#000" opacity=".35"/>';
     var fill = 'url(#gStone)', stroke = pal.stoneDark, txt = pal.ink;
     if (sp.type === 'card') { fill = L.card; }
     if (sp.type === 'task') { fill = L.task[0]; stroke = L.task[1]; txt = '#fff'; }

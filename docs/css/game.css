@@ -251,11 +251,19 @@ input::placeholder { color: var(--faint); }
 .side { display: flex; flex-direction: column; gap: 14px; min-width: 0; position: sticky; top: 12px; }
 .panel { border: 1px solid var(--line); border-radius: var(--r); background: var(--raise); padding: 16px; }
 .panel h2 { margin: 0 0 10px; font: 700 22px/1.1 var(--display); letter-spacing: .3px; }
+.side .panel, .bt-side .panel { border-top: 3px solid var(--accent); }   /* the theme's accent ties the side column to the board */
 
 /* board interactions */
 .board-svg .sp { cursor: pointer; }
 .board-svg .sp .face { transition: filter .15s; }
 .board-svg .sp:hover .face, .board-svg .sp:focus .face { filter: brightness(1.15); }
+/* drawn spaces lift off their shadow like a tile (mouse and keyboard only, so a tap doesn't leave one raised) */
+.board-svg .sp.tile > :not(.sh) { transition: transform .16s cubic-bezier(.3,.7,.4,1.4), filter .15s; }
+.board-svg .sp.tile .sh { transition: opacity .16s; }
+.board-svg .sp.tile:focus-visible > :not(.sh) { transform: translateY(-3px); }
+.board-svg .sp.tile:focus-visible .sh { opacity: .55; }
+@media (hover: hover) { .board-svg .sp.tile:hover > :not(.sh) { transform: translateY(-3px); } .board-svg .sp.tile:hover .sh { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .board-svg .sp.tile > :not(.sh), .board-svg .sp.tile .sh { transition: none; } }
 .board-svg .sp:focus { outline: none; }
 .board-svg .sp:focus-visible .face { stroke: #fff; stroke-width: 3; }
 .board-svg .sp.mine .face { stroke: #fff; stroke-width: 3.5; }
@@ -293,6 +301,14 @@ input::placeholder { color: var(--faint); }
 .st .bar { height: 5px; border-radius: 3px; background: var(--raise-2); margin-top: 5px; overflow: hidden; }
 .st .bar i { display: block; height: 100%; background: var(--c, var(--accent)); border-radius: 3px; }
 .st.done .place { color: var(--good); }
+/* podium: gold, silver and bronze for the top three, with a medal ring outside the player's color */
+.st { --medal: transparent; }
+.st.p1 { --medal: var(--gold); border-color: color-mix(in srgb, var(--gold) 45%, var(--line)); }
+.st.p2 { --medal: #c9ced6; }
+.st.p3 { --medal: #d08a4e; }
+.st.p1 .place, .st.p2 .place, .st.p3 .place { color: var(--medal); }
+.st.p1 .ava, .st.p2 .ava, .st.p3 .ava { box-shadow: 0 0 0 2px var(--medal); }
+.st.p1.me { border-color: var(--accent); }
 .chip { display: inline-block; font-size: 12.5px; line-height: 1; padding: 4px 7px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--muted); vertical-align: middle; }
 .chip.risk { border-color: #6b3b3b; color: #ffb0a6; }
 .chip.long { border-color: #3d5a2a; color: #b9e3a3; }
