@@ -484,3 +484,4 @@ assert.strictEqual(cardsSeen.size, 20);
 }
 console.log('all engine tests passed');
 require('./themes.test.js');
+require('./playbook.test.js');

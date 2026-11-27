@@ -497,4 +497,74 @@ const logs = (w) => JSON.stringify(Object.values(w.games).map((g) => [g.meta.sig
   assert.strictEqual((await get('4')).status, 403);
   ok('only the host can read the sign-in log');
 }
+// ---------------------------------------------------------------------------
+// Discord posts and roll reminders in every theme and mode (the playbook's wording checks): no other family's
+// character, no maps in AccSaber games, the goal reads after "the", the theme's own picture, and reminders name the game.
+{
+  const DAY = 86400000;
+  const GENX = { id: 'genx', name: 'GenX', accClan: 'genx-clan', accClanName: 'GenX Clan', blClan: '85', blClanName: 'GENX', webhook: 'W' };
+  const BEATERS = { id: 'beaters', name: 'Beaters', webhook: 'W' };
+  const runs = [];
+  for (const [tid, t] of Object.entries(C.themes)) {
+    if (t.family === 'taco') runs.push([tid, BEATERS, false]);   // Beaters games have no AccSaber mode
+    else runs.push([tid, GENX, false], [tid, GENX, true]);
+  }
+  const problems = [];
+  for (const [tid, clan, acc] of runs) {
+    const t = C.themes[tid], where = tid + (acc ? ' (AccSaber)' : ' (maps)');
+    const store = new Map();
+    const ctx = { storage: { get: async (k) => store.get(k), put: async (k, v) => store.set(k, v), getAlarm: async () => null, setAlarm: async () => {}, delete: async (k) => store.delete(k) }, blockConcurrencyWhile: (f) => f() };
+    const g = new Game(ctx, { GAME_PAGE: 'https://beatsabergames.com/', ACC_API: 'https://api.accsaber.com' });
+    await new Promise((r) => setTimeout(r, 5));
+    const posts = [], pushes = [];
+    g.clan = () => clan; g.useClan = () => {}; g.notifyHosts = async () => {};
+    g.announcing = () => true;
+    g.discordPost = async (content, link, card, kind) => { posts.push({ kind, content, card: card || null }); return { ok: true, status: 200 }; };
+    g.pushTo = async (subs, msg) => { pushes.push(msg); return { sent: subs.length, failed: 0 }; };
+    clock = Date.UTC(2026, 11, 7, 12);
+    const board = C.boardFor(t.mapSet);
+    g.state = E.createGame({ board, cards: C.cardsFor(tid), themeId: tid, title: C.gameTitle(tid, board), status: 'signup', startsAt: clock + 2 * DAY, endsAt: clock + 20 * DAY,
+      settings: acc ? { accsaber: true, timeZone: 'UTC', cutoffHour: 4, cutoffMinute: 0, exactFinish: true } : { exactFinish: true } });
+    g.meta = { access: { mode: 'open', allowed: [], pending: [] }, push: [{ uid: '2', endpoint: 'https://push.example/2', tz: 'UTC' }] };
+    const s = g.state, daily = (pid) => { if (acc) s.players[pid].acc = { d: s.day, base: 0, cur: 1 }; };
+    ['1', '2', '3'].forEach((id) => { E.addPlayer(s, { id: 'd' + id, discordId: id, name: 'P' + id, blId: 'bl' + id }); E.chooseRoute(s, 'd' + id, id === '2' ? 'riskier' : 'longer'); });
+    await g.discordFeed();   // the first run only notes where the log is
+    for (const p of [g.signupsPost(), g.dayPost(), g.hourPost()]) posts.push({ kind: 'countdown', content: p.text, card: p.card });
+    clock = s.startsAt; E.startGame(s, clock); g.meta.nextCutoff = E.nextCutoff(s.settings, clock);
+    await g.announceStart();
+    // Two players one step from the goal (the race post), one gets out (escape), the other waits at the gate.
+    const last = E.exitIndex(s, s.players.d1);
+    E.setPosition(s, 'd1', last - 1); E.setPosition(s, 'd3', last - 1);
+    await g.discordFeed();
+    daily('d1'); daily('d3');
+    E.roll(s, 'd1', { forced: 1 }); E.roll(s, 'd3', { forced: 1 });
+    // A setback: back to the start from the riskier route.
+    const r2 = s.board.routes.riskier, back = r2.findIndex((id) => s.board.spaces[id].type === 'start');
+    if (back >= 0) E.setPosition(s, 'd2', back, { apply: true });
+    await g.discordFeed();
+    // The roll reminder for the player still to roll.
+    clock = E.reminderTime(g.meta.nextCutoff, E.remindHour(s), 'UTC') + 1000;
+    await g.remind(clock);
+    E.advanceDay(s); await g.discordFeed();   // the day's recap
+    const lc = g.lastCallPost(); posts.push({ kind: 'lastcall', content: lc.text, card: lc.card });
+    E.endGame(s, clock); await g.announceEnd();
+    const kinds = new Set(posts.map((p) => p.kind));
+    for (const k of ['countdown', 'start', 'race', 'escape', 'moments', 'recap', 'lastcall', 'end']) if (!kinds.has(k)) problems.push(where + ': no ' + k + ' post was made, so its wording went unchecked');
+    const text = JSON.stringify(posts);
+    if (t.family === 'taco' && /\b(Chester|Hazel)\b|💀/.test(text)) problems.push(where + ': a post shows Chester wording or the cemetery skull: ' + text.match(/.{0,60}(\b(Chester|Hazel)\b|💀).{0,40}/)[0]);
+    if (t.family !== 'taco' && /\bTaco\b|🌮/.test(text)) problems.push(where + ': a post shows Taco wording: ' + text.match(/.{0,60}(\bTaco\b|🌮).{0,40}/)[0]);
+    if (acc && /\bmaps?\b|!bsr|BeatSaver/i.test(text)) problems.push(where + ': an AccSaber post mentions maps: ' + text.match(/.{0,60}(\bmaps?\b|!bsr|BeatSaver).{0,40}/i)[0]);
+    if (!acc && !/\bmaps?\b/i.test(text)) problems.push(where + ': a map game\'s posts never mention maps (the AccSaber check proves nothing)');
+    if (!text.includes('made it to the ' + t.goal + '!')) problems.push(where + ': the escape post does not say "made it to the ' + t.goal + '!"');
+    const odd = text.match(/\bthe (the|a|an) \w+|\bthe [A-Z]\w*'s \w+/);
+    if (odd) problems.push(where + ': a post reads "' + odd[0] + '" (goal always follows "the")');
+    const pic = t.thumb || (t.artHero && t.artHero.src) || 'img/icon.png';
+    for (const p of posts) for (const c of [].concat(p.card || [])) if (c.thumbnail && !c.thumbnail.url.endsWith(pic)) problems.push(where + ': a ' + p.kind + ' card shows ' + c.thumbnail.url + ' instead of the theme picture ' + pic);
+    if (!pushes.length) problems.push(where + ': no roll reminder went out');
+    for (const m of pushes) if (!m.title.includes(s.title)) problems.push(where + ': reminder "' + m.title + '" does not name the game');
+    if (acc) for (const m of pushes) if (/\bmaps?\b|!bsr/i.test(m.title + ' ' + m.body)) problems.push(where + ': an AccSaber reminder mentions maps');
+  }
+  assert.deepStrictEqual(problems, [], 'Post wording (see the playbook):\n  ' + problems.join('\n  '));
+  ok('Discord posts and reminders in every theme and mode use their own words and pictures');
+}
 console.log('worker timing tests passed');
