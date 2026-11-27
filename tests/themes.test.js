@@ -13,6 +13,9 @@ const file = (u) => fs.existsSync(path.join(root, 'docs', String(u).split('?')[0
 
 // Themes that still show the Beat Saber Games logo on their Discord posts. Give them a thumb before a game uses them.
 const NO_PICTURE_YET = ['christmas', 'thanksgiving'];
+// Taco themes whose Discord picture is still the hero cut out of the board art (artHero): small, clipped by the
+// scenery and fringed with the background, so it looks rough on Discord. Give them a proper thumb before a game uses them.
+const CUTOUT_PICTURE_YET = ['taco-halloween', 'taco-thanksgiving', 'taco-newyear', 'taco-valentine', 'taco-easter', 'taco-summer'];
 
 const looksBlock = render.slice(render.indexOf('var LOOKS = {'));
 const boardKinds = new Set(Object.values(C.boards['chester-escape']().spaces).map((s) => s.kind).filter(Boolean));
@@ -83,6 +86,36 @@ function imgSize(u) {
   }
   return { type: '?' };
 }
+// A PNG whose corners are opaque light-grey and white squares: a 'transparent' picture with the checkerboard
+// saved into it. Reads 8-bit, non-interlaced RGB or RGBA PNGs; anything else is left alone. Returns a reason or ''.
+function fakeTransparency(u) {
+  const f = path.join(root, 'docs', String(u).split('?')[0]);
+  if (!fs.existsSync(f)) return '';
+  const b = fs.readFileSync(f);
+  if (b.slice(1, 4).toString() !== 'PNG') return '';
+  const w = b.readUInt32BE(16), h = b.readUInt32BE(20), depth = b[24], ct = b[25], inter = b[28];
+  if (depth !== 8 || (ct !== 2 && ct !== 6) || inter) return '';
+  const chunks = []; for (let i = 8; i < b.length;) { const n = b.readUInt32BE(i), ty = b.slice(i + 4, i + 8).toString(); if (ty === 'IDAT') chunks.push(b.slice(i + 8, i + 8 + n)); i += 12 + n; }
+  const raw = require('zlib').inflateSync(Buffer.concat(chunks)), bpp = ct === 6 ? 4 : 3, stride = w * bpp, px = Buffer.alloc(h * stride);
+  for (let y = 0; y < h; y++) {
+    const ft = raw[y * (stride + 1)], src = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1)), row = px.subarray(y * stride, (y + 1) * stride), up = y ? px.subarray((y - 1) * stride, y * stride) : null;
+    for (let x = 0; x < stride; x++) {
+      const a = x >= bpp ? row[x - bpp] : 0, c = up ? up[x] : 0, d = up && x >= bpp ? up[x - bpp] : 0;
+      let v = src[x];
+      if (ft === 1) v += a; else if (ft === 2) v += c; else if (ft === 3) v += (a + c) >> 1;
+      else if (ft === 4) { const p = a + c - d, pa = Math.abs(p - a), pb = Math.abs(p - c), pc = Math.abs(p - d); v += pa <= pb && pa <= pc ? a : pb <= pc ? c : d; }
+      row[x] = v & 255;
+    }
+  }
+  const at = (x, y) => { const o = y * stride + x * bpp; return [px[o], px[o + 1], px[o + 2], bpp === 4 ? px[o + 3] : 255]; };
+  const n = Math.min(24, w, h), shades = new Set();
+  for (const [cx, cy] of [[0, 0], [w - n, 0], [0, h - n], [w - n, h - n]]) for (let y = cy; y < cy + n; y++) for (let x = cx; x < cx + n; x++) {
+    const [r, g, bl, al] = at(x, y);
+    if (al < 250 || Math.max(r, g, bl) - Math.min(r, g, bl) > 6 || Math.min(r, g, bl) < 200) return '';
+    shades.add(Math.round(Math.min(r, g, bl) / 6));
+  }
+  return shades.size >= 2 ? 'opaque grey and white squares in the corners' : '';
+}
 // Every piece of text in a theme (and its cards), with where it sits. Picture paths and colors are skipped.
 function texts(o, at, out) {
   if (typeof o === 'string') { if (!/^(img\/|#[0-9a-f]{3,8}$|M[\d.])/i.test(o)) out.push([at, o]); }
@@ -144,6 +177,14 @@ for (const [id, t] of Object.entries(C.themes)) {
     const z = imgSize(u);
     if (z) need(z.w && z.w === z.h, id, k + ' ' + u + ' should be square (it is ' + z.w + 'x' + z.h + ')');
   }
+  // The Discord picture has to be made for Discord: a thumb of at least 256x256, with real transparency if it's a
+  // cutout (a checkerboard saved into the pixels shows up as a grey box on Discord).
+  if (t.thumb) {
+    const z = imgSize(t.thumb);
+    if (z && z.w) need(z.w >= 256, id, 'thumb ' + t.thumb + ' is ' + z.w + 'px; Discord pictures need at least 256x256');
+    const fake = fakeTransparency(t.thumb);
+    need(!fake, id, 'thumb ' + t.thumb + ' has a checkerboard saved into its pixels (' + fake + '); cut it out to real transparency');
+  } else if (t.artHero && t.artHero.src) need(CUTOUT_PICTURE_YET.includes(id), id, 'Discord picture is the board cutout (artHero); add a thumb made for Discord, at least 256x256');
   const pics = [t.thumb, t.shot, t.art, t.artHero && t.artHero.src].concat((t.deck || []).map((c) => c.full)).filter(Boolean);
   for (const u of pics) need(/\?v=\w+/.test(u), id, u + ' needs a ?v= stamp, so a new picture isn\'t hidden behind the old one in caches');
   // The picker and Discord tell themes apart by name and title.
@@ -155,6 +196,7 @@ for (const id of NO_PICTURE_YET) {
   const t = C.themes[id] || {};
   need(C.themes[id] && !t.thumb && !(t.artHero && t.artHero.src), id, 'take it off NO_PICTURE_YET in this test: it has a Discord picture now (or is gone)');
 }
+for (const id of CUTOUT_PICTURE_YET) need(C.themes[id] && !C.themes[id].thumb, id, 'take it off CUTOUT_PICTURE_YET in this test: it has a thumb now (or is gone)');
 // A notification icon with no theme is left over from a renamed or removed theme.
 for (const f of fs.readdirSync(path.join(root, 'docs/img/push'))) if (/\.png$/.test(f)) need(C.themes[f.replace(/\.png$/, '')], f, 'notification icon with no theme of that id');
 assert.deepStrictEqual(problems, [], 'Theme problems (see THEMES.md and the playbook):\n  ' + problems.join('\n  '));
