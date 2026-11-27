@@ -1549,7 +1549,27 @@
       spot(hall[0]) + (hall.length > 1 ? '<h3 class="hw-h">Earlier games</h3><div class="hf-games">' + hall.slice(1).map(older).join('') + '</div>' : '') +
       '<h3 class="hw-h">All time</h3><table class="hf-table"><thead><tr><th>Player</th><th>Wins</th><th>Podiums</th><th>Escapes</th><th>Games</th></tr></thead><tbody>' +
       totals.map(function (t, i) { return '<tr class="' + (i < 3 ? 'hf-t' + (i + 1) : '') + (t.pid === store.me ? ' me' : '') + '"><td><span class="hf-who"><span class="hf-rank' + (i < 3 ? ' g' + (i + 1) : '') + '">' + (i + 1) + '</span>' + ava(t, 'hf-tava') + '<span>' + esc(t.name) + '</span></span></td><td>' + t.wins + '</td><td>' + t.podiums + '</td><td>' + t.escapes + '</td><td>' + t.games + '</td></tr>'; }).join('') + '</tbody></table>';
-    modal('🏆 Hall of fame', html, null, { cls: 'hall', focusClose: true });
+    modal('🏆 Hall of fame', html, hallBurst, { cls: 'hall', focusClose: true });
+  }
+  // The spotlight's confetti bursts out from behind the winner when the hall opens, then settles where
+  // it sits. Each piece ends on its own angle (a whole number of turns), so nothing jumps at the end.
+  function hallBurst(body) {
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var spot = body.querySelector('.hf-spot'), win = body.querySelector('.hf-c1 .hf-sa');
+    if (!spot || !spot.animate) return;
+    var box = spot.getBoundingClientRect(), w = box.width, h = box.height, wb = win ? win.getBoundingClientRect() : null;
+    var cx = wb ? wb.left + wb.width / 2 - box.left : w / 2, cy = wb ? wb.top + wb.height / 2 - box.top : h * 0.33;
+    Array.prototype.forEach.call(spot.querySelectorAll('.hf-conf rect'), function (el, i) {
+      var rot = parseFloat((el.style.transform.match(/-?[\d.]+/) || [0])[0]) || 0;
+      var x = parseFloat(el.getAttribute('x')) / 100 * w, y = parseFloat(el.getAttribute('y')) / 100 * h;
+      el.animate([
+        { transform: 'translate(' + (cx - x) + 'px,' + (cy - y) + 'px) rotate(' + rot + 'deg) scale(.2)', opacity: 0 },
+        { opacity: 1, offset: 0.12 },
+        { transform: 'translate(0,0) rotate(' + (rot + 720) + 'deg) scale(1)', offset: 0.7 },
+        { transform: 'translate(0,-3px) rotate(' + (rot + 740) + 'deg) scale(1)', offset: 0.85 },
+        { transform: 'translate(0,0) rotate(' + (rot + 720) + 'deg) scale(1)' }
+      ], { duration: 1600, delay: (i % 8) * 30, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
+    });
   }
   function openBadges(pid) {
     var s = st(), p = s.players[pid], have = {}, list = X.badgesFor(s)[pid] || [];
