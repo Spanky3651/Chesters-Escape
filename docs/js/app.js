@@ -645,7 +645,7 @@
       case 'mission': return { html: 'Finished an AccSaber daily mission. Today\'s roll is unlocked', cls: 'good' };
       case 'paused': return { html: 'Left the clan on ' + (e.on === 'bl' ? 'BeatLeader' : 'AccSaber') + '. Rolls are paused until they rejoin', cls: 'bad' };
       case 'unpaused': return { html: 'Back in the clan on ' + (e.on === 'bl' ? 'BeatLeader' : 'AccSaber') + '. Rolls are on again', cls: 'good' };
-      case 'weekly': return { html: 'Finished an AccSaber weekly mission. <b>Bonus roll</b> earned', cls: 'good' };
+      case 'weekly': return { html: e.host ? 'The host added this week\'s <b>bonus roll</b>' : 'Finished an AccSaber weekly mission. <b>Bonus roll</b> earned', cls: 'good' };
       case 'land': {
         // Only Safe gets a line: every other space logs what it does, and Safe does nothing, so without this the roll looks like it went nowhere.
         if (sp && sp.type === 'blank') { var kB = sp.kind && t.kinds[sp.kind]; return { html: (kB ? '<b>' + esc(kB.title) + '</b> ' : '') + esc(C.spaceEffectText(sp)), icon: kB ? kB.icon : '\u2714\uFE0F' }; }
@@ -675,8 +675,8 @@
       case 'shield': return { html: 'Protected from the next setback', cls: 'good' };
       case 'shield-used': return { html: 'Protection used up. The setback missed', cls: 'good' };
       case 'again': return { html: 'Gets another roll today', cls: 'good' };
-      case 'overshoot': return { html: 'Needs exactly ' + e.need + ' to escape' };
-      case 'gate-closed': return { html: 'Reached the ' + esc(t.goal) + ', but someone already escaped today. Waits at the gate and walks out on the next roll.', cls: 'bad' };
+      case 'overshoot': return { html: (e.held ? 'Stopped at the gate. ' : '') + 'Needs exactly ' + e.need + ' to escape' };
+      case 'gate-closed': return { html: 'Reached the ' + esc(t.goal) + ', but someone already escaped today. Waits at the gate' + (s.settings.exactFinish ? ' and needs exactly a 1 to walk out.' : ' and walks out on the next roll.'), cls: 'bad' };
       case 'host-move': return { html: 'The host moved this token' };
       case 'host-reset': return { html: 'The host reset this token' };
       case 'rest': {
@@ -1095,7 +1095,7 @@
       chain = chain.then(function () {
         switch (e.t) {
           case 'roll': { var to = Math.min(e.from + e.n, last); return walk(p.id, p, e.from, to).then(function () { pos = to; }); }
-          case 'overshoot': toast('You need exactly ' + e.need + ' to reach the exit.'); return;
+          case 'overshoot': toast(e.held ? 'Stopped at the gate. Only the exact roll gets you out, so you need a ' + e.need + '.' : 'You need exactly ' + e.need + ' to reach the exit.'); return;
           case 'move':
             if (e.n > 0) { sfx.good(); FX.pop(svgEl, here(), '+' + e.n, 'good'); FX.burst(svgEl, here(), '#ffd34d'); tokFx(p.id, 'boost', 300 * (e.to - e.from) + 600); return wait(450).then(function () { return walk(p.id, p, e.from, e.to, col); }).then(function () { pos = e.to; }); }
             sfx.bad(); tokFx(p.id, 'shake', 520); FX.flash(svgEl, here(), '#ff5a6e'); FX.pop(svgEl, here(), '\u2212' + (-e.n), 'bad');
@@ -2011,8 +2011,8 @@
       tip('🎵', 'Every roll ends with a map. Stop on a space without one and you get a bonus map.' + (breaks.length ? ' ' + breaks.join(' and ') + (breaks.length > 1 ? ' spaces are the only breaks.' : ' is the only break.') : ''))) +
       tip('🔗', acc ? 'Moved by a card or event? Whatever you land on that way (back to start, lose a turn, move spaces, cards) is skipped.' : 'Moved by a card or event? Play the space if it\'s a map. Anything else you land on that way (back to start, lose a turn, move spaces, cards) is skipped.') +
       tip('🏁', 'First to the ' + esc(t.goal) + ' wins. Everyone else plays on for their place.') +
-      (s.settings.exactFinish ? tip('🎯', 'You need the exact roll to reach the ' + esc(t.goal) + '. Roll higher and you stay where you are.') : '') +
-      (s.settings.oneFinishPerDay !== false ? tip('🚪', 'The podium escapes one a day: if someone got out today, you wait at the gate until your next roll. Once the top 3 are out, anyone can escape any day.') : '') +
+      (s.settings.exactFinish ? tip('🎯', 'You need the exact roll to reach the ' + esc(t.goal) + '. Roll higher and you stay where you are. A card or event that would take you there stops you at the gate instead.') : '') +
+      (s.settings.oneFinishPerDay !== false ? tip('🚪', 'The podium escapes one a day: if someone got out today, you wait at the gate' + (s.settings.exactFinish ? ' and need exactly a 1 to walk out' : ' until your next roll') + '. Once the top 3 are out, anyone can escape any day.') : '') +
       (s.endsAt && s.status !== 'finished' ? tip('⏳', 'The game ends <b>' + esc(startWhen(s.endsAt)) + '</b>. Not out by then? You\'re placed by how close you got, fewest spaces left first. Players tied on spaces share a place.') : '') + '</ul>';
     var extras = '<ul class="hw-tips">' +
       tip('<span class="hw-rx">' + RX_ICON + '</span>', 'Tap the smiley in the game thread to react to other players. Press and hold a reaction to see who sent it.') +
@@ -2961,6 +2961,10 @@
     if (!p.finished) html += '<div class="hp-act"><h5>Give a card</h5><div class="hp-give"><select data-cardpick="' + esc(pid) + '" aria-label="Card for ' + esc(p.name) + '"><option value="">Pick a card…</option>' +
       s.cards.map(function (c) { return '<option value="' + c.id + '">' + esc((c.art ? c.art + ' ' : '') + c.title) + '</option>'; }).join('') + '</select>' +
       '<button type="button" class="btn small ghost" data-h="givecard" data-pid="' + esc(pid) + '">Give</button></div></div>';
+    if (E.isAcc(s) && s.status === 'running' && !p.finished) {
+      var gotWk = p.acc && p.acc.wGot === E.accWeek(Date.now());
+      html += '<div class="hp-act"><h5>Weekly bonus</h5><div class="hp-danger"><p>' + (gotWk ? 'They already have this week\'s bonus roll.' : 'Did a weekly mission the game missed, like one done before their first mission check? Give them this week\'s bonus roll. A weekly the game sees later this week won\'t add another.') + '</p><button type="button" class="btn small" data-h="giveweekly" data-pid="' + esc(pid) + '"' + (gotWk ? ' disabled' : '') + '>Give this week\'s bonus</button></div></div>';
+    }
     if (p.paused && !p.finished) html += '<div class="hp-act"><h5>Paused</h5><div class="hp-danger"><p>' + (p.paused === 'bl' ? 'BeatLeader' : 'AccSaber') + ' doesn\'t show them in the clan, so their rolls are paused. Let them play anyway if that\'s wrong. The clan check leaves them alone after that.</p><button type="button" class="btn small" data-h="unpause" data-pid="' + esc(pid) + '">Let them play</button></div></div>';
     html += '<div class="hp-act"><h5>Start over</h5><div class="hp-danger"><p>Back to the start with no open maps. Their clears stay.</p><button type="button" class="btn small danger" data-h="reset" data-pid="' + esc(pid) + '">Reset</button></div></div>';
     return html + '</div>';
@@ -3122,6 +3126,7 @@
       case 'reject': if (confirm('Reject ' + st().players[pid].name + '\'s run? They keep the map and can play it again or send a new run.')) run('reject', { pid: pid, task: btn.dataset.task }, 'Run rejected.'); break;
       case 'clearmap': { var p = st().players[pid], tid = btn.dataset.task || (p.tasks[0] && p.tasks[0].id); if (!tid) break; if (!confirm('Mark ' + p.name + '\'s map as cleared? They can roll again.')) break; run('approve', { pid: pid, task: tid }, 'Map cleared for ' + p.name + '.'); break; }
       case 'unpause': run('unpause', { pid: pid }, st().players[pid].name + ' can roll again.'); break;
+      case 'giveweekly': if (confirm('Give ' + st().players[pid].name + ' this week\'s bonus roll?')) run('giveWeekly', { pid: pid }, st().players[pid].name + ' has this week\'s bonus roll.'); break;
       case 'reset': if (confirm('Send ' + st().players[pid].name + ' back to the start and clear their maps?')) run('resetPlayer', { pid: pid }); break;
       case 'newgame': {
         var ns = readStart('newStart'); if (ns === false) break;
@@ -3551,7 +3556,8 @@
     }
     setInterval(tickClock, 30000);
     setInterval(tickCountdowns, 1000);
-    var seen = false; try { seen = localStorage.getItem('cg.seenHow') === '1'; localStorage.setItem('cg.seenHow', '1'); } catch (e) {}
+    // AccSaber games play differently, so their How to play has its own seen flag and shows once even to returning players.
+    var howKey = 'cg.seenHow' + (st() && E.isAcc(st()) ? '.acc' : ''), seen = false; try { seen = localStorage.getItem(howKey) === '1'; localStorage.setItem(howKey, '1'); } catch (e) {}
     var prevSeen = readSeen(), pend = pendingReveals();
     var rest = function () {
       if (maybeFinale()) return;

@@ -305,7 +305,7 @@
       name: "Taco's Christmas",
       title: "Taco's Christmas",
       tagline: "Help Taco get to Santa's house.",
-      goal: "North Pole",
+      goal: "door of Santa's house",   // always reads after "the", like "made it to the door of Santa's house"
       stuck: "snowdrift",   // the Stuck! reaction drawing: this theme's back-to-start spot
       font: "'Mountains of Christmas', Georgia, serif",
       fontQuery: "Mountains+of+Christmas:wght@700",
@@ -512,6 +512,7 @@
     t.id = 'snowy'; t.look = 'snowy'; t.hat = 'beanie';
     t.favBg = '#cfe6fb';   // icy blue behind Chester in the browser tab, instead of the usual orange
     t.thumb = 'img/themes/snowy-thumb.jpg?v=20261112';   // the picture on its Discord posts
+    t.shot = 'img/boards/snowy-accscape.jpg?v=20261127a';   // LumberJack's board, for the day-before Discord post
     t.name = "Chester's Snowy Escape"; t.title = "Chester's Snowy Escape";
     t.tagline = 'Help Chester find his way home to his cabin before the snow gets any deeper.';
     t.goal = 'cabin';

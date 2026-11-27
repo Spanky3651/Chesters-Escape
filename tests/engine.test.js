@@ -432,5 +432,55 @@ assert.strictEqual(cardsSeen.size, 20);
   assert.strictEqual(E.hide(s, true), false, 'a running game cannot be hidden');
   console.log('hidden board ok');
 }
+// Exact roll: a card or space that would reach or pass the exit stops you at the gate; only a roll gets you out
+{
+  const mover = C.cardsFor('cemetery').find((c) => c.effects.length === 1 && c.effects[0].type === 'move' && c.effects[0].n >= 2);
+  const jumper = C.cardsFor('cemetery').find((c) => c.effects.some((fx) => fx.type === 'toNext'));
+  assert(mover, 'a card that moves 2 or more');
+  const s = newGame('cemetery'); s.settings.exactFinish = true;
+  E.addPlayer(s, { id: 'x', name: 'x' }); E.chooseRoute(s, 'x', 'longer');
+  const last = E.exitIndex(s, s.players.x);
+  E.setPosition(s, 'x', last - 2);
+  E.hostCard(s, 'x', mover.id);
+  assert(!s.players.x.finished, 'a card does not carry you out with exact roll on');
+  assert.strictEqual(s.players.x.pos, last - 1, 'it stops at the gate');
+  assert(s.events.some((e) => e.t === 'overshoot' && e.held && e.need === 1 && e.pid === 'x'), 'the thread says you need a 1');
+  if (jumper) {
+    const before = s.players.x.pos, n = s.events.length;
+    E.hostCard(s, 'x', jumper.id);
+    assert.strictEqual(s.players.x.pos, before, 'at the gate a jump card has nowhere to go');
+    assert(!s.players.x.finished);
+    assert(!s.events.slice(n).some((e) => e.t === 'land'), 'no space is applied again');
+  }
+  s.players.x.tasks.slice().forEach((t) => E.completeTask(s, 'x', t.id, { by: 'test' }));
+  E.advanceDay(s); E.roll(s, 'x', { forced: 1 });
+  assert(s.players.x.finished, 'the exact roll still gets you out');
+  // exact roll off: the same card still finishes you
+  const o = newGame('cemetery'); o.settings.exactFinish = false;
+  E.addPlayer(o, { id: 'y', name: 'y' }); E.chooseRoute(o, 'y', 'longer');
+  E.setPosition(o, 'y', E.exitIndex(o, o.players.y) - 2);
+  E.hostCard(o, 'y', mover.id);
+  assert(o.players.y.finished, 'with exact roll off a card can finish you');
+  console.log('exact roll with cards ok');
+}
+// The host gives a player this week's AccSaber bonus roll, once per week
+{
+  const settings = { accsaber: true, timeZone: 'UTC', cutoffHour: 4, cutoffMinute: 0 };
+  const s = E.createGame({ board: C.boardFor(), cards: C.cardsFor('snowy'), themeId: 'snowy', settings, rng: seeded(21) });
+  E.addPlayer(s, { id: 'a', name: 'a', blId: '1' }); E.chooseRoute(s, 'a', 'longer');
+  const all = { d: true, w: true }, t = Date.now();
+  E.accUpdate(s, { 1: { d: 5, w: 3 } }, t, all, true);
+  assert.strictEqual(s.players.a.accBonus || 0, 0, 'a weekly done before the first read is missed');
+  assert.strictEqual(E.giveWeekly(s, 'a'), null);
+  assert.strictEqual(s.players.a.accBonus, 1, 'the host gives the bonus roll');
+  assert(s.events.some((e) => e.t === 'weekly' && e.host));
+  assert(E.giveWeekly(s, 'a'), 'only once a week');
+  E.accUpdate(s, { 1: { d: 5, w: 4 } }, t + 60000, all);
+  assert.strictEqual(s.players.a.accBonus, 1, 'a weekly seen later this week does not add a second');
+  const m = newGame('cemetery'); E.addPlayer(m, { id: 'b', name: 'b' });
+  assert(E.giveWeekly(m, 'b'), 'map games have no weekly bonus');
+  assert(E.UNDOABLE.includes('giveWeekly'));
+  console.log('host weekly bonus ok');
+}
 console.log('all engine tests passed');
 require('./themes.test.js');

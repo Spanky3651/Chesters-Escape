@@ -682,7 +682,7 @@ export class Game extends DurableObject {
       fields.push({ name: (t.family === 'taco' ? '🌮' : '🎟️') + ` Signed up (${n})`, value: names || 'Nobody yet. Be the first!', inline: false });
     } else {
       const r = this.routeSplit().routes.map((x) => x.name.replace(/ route$/i, '')).join(' or ');
-      const need = this.accClanWant() ? ` You need to be in the ${this.clan().accClanName} on AccSaber, with this Discord linked on BeatLeader.` : '';
+      const need = this.accClanWant() ? ` You need to be in the ${this.clan().accClanName} on AccSaber, with this Discord linked on BeatLeader. Rather not link it? The join screen lets you ask the host instead.` : '';
       fields.push({ name: '📝 How to join', value: `Open the game, sign in with Discord, paste your BeatLeader profile and pick the ${r} route.` + need, inline: false });
     }
     const card = this.card('Join ' + s.title, {
@@ -803,7 +803,7 @@ export class Game extends DurableObject {
       } else if (e.t === 'gate-closed') {
         const first = s.finishOrder.find((pid) => s.players[pid] && s.players[pid].finished && s.players[pid].finished.day === e.day);
         const when = this.meta.nextCutoff ? `<t:${sec(this.meta.nextCutoff)}:R>` : 'tomorrow';
-        ok = queue('gate', e.day, `🚪 **${name(e.pid)}** reached the ${goal}, but ${first ? `**${name(first)}**` : 'someone'} already got out today. ${name(e.pid)} waits one space short and can roll for it again ${when}${E.isAcc(s) ? ' after a daily mission' : ''}.`);
+        ok = queue('gate', e.day, `🚪 **${name(e.pid)}** reached the ${goal}, but ${first ? `**${name(first)}**` : 'someone'} already got out today. ${name(e.pid)} waits one space short and can roll for it again ${when}${E.isAcc(s) ? ' after a daily mission' : ''}${s.settings.exactFinish ? ', needing exactly a 1' : ''}.`);
       }
       else if (e.t === 'start') ok = queue('setback', e.day, hit(e.pid, 'is sent back to the start').replace(/ and is now [^.]*/, ''), { key: 'start:' + art + what, art, what, pid: e.pid });
       else if (e.t === 'move' && e.n <= -SETBACK) ok = queue('setback', e.day, hit(e.pid, `goes back ${-e.n} spaces`, e.to));
@@ -1126,7 +1126,7 @@ export class Game extends DurableObject {
     const s = this.game(); const pid = this.pidFor(user);
     await this.catchUp();
     if (!this.canUse(user)) return { error: 'This game is invite-only right now.', code: 'no-access' };
-    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'unpause', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove', 'hostPlays', 'invisible', 'hide', 'hallPics', 'approveJoin', 'declineJoin', 'clearSignins'];
+    const hostOnly = ['advance', 'approve', 'reject', 'setpos', 'card', 'unpause', 'giveWeekly', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'clearGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'accessMode', 'letIn', 'dismiss', 'removeAccess', 'discordPosts', 'discordTest', 'undo', 'hallRemove', 'hostPlays', 'invisible', 'hide', 'hallPics', 'approveJoin', 'declineJoin', 'clearSignins'];
     if (hostOnly.includes(action) && !user.isHost) return { error: 'Only the host can do that.', status: 403 };
     if (E.isHidden(s) && !user.isHost) return { error: 'The next game is still a secret. Watch your clan Discord for the reveal.', code: 'hidden' };
     if (s.status === 'finished' && ['join', 'askJoin', 'route', 'roll', 'verify', 'claim'].includes(action)) return { error: 'The game is over.', code: 'game-over' };
@@ -1219,6 +1219,7 @@ export class Game extends DurableObject {
         case 'card': E.hostCard(s, a.pid, a.card); break;
         case 'resetPlayer': E.resetPlayer(s, a.pid); break;
         case 'unpause': if (!E.unpause(s, a.pid)) return { error: 'No such player.' }; break;
+        case 'giveWeekly': { const gw = E.giveWeekly(s, a.pid); if (gw) return { error: gw }; break; }
         case 'removePlayer': E.removePlayer(s, a.pid); break;
         case 'clearPlayers': if (!E.clearPlayers(s)) return { error: 'You can only clear sign-ups before the game starts.' }; break;
         case 'hide': {
@@ -1867,7 +1868,7 @@ export class Game extends DurableObject {
     for (const sub of now2) { done[sub.endpoint] = s.day; (byUid[sub.uid] = byUid[sub.uid] || []).push(sub); }
     for (const uid of Object.keys(byUid)) {
       const msg = E.reminderFor(s, 'd' + uid);
-      if (msg) await this.pushTo(byUid[uid], { ...msg, tag: 'remind-' + s.day });
+      if (msg) await this.pushTo(byUid[uid], { ...msg, title: `${msg.title} in ${s.title}`, tag: 'remind-' + s.day });
     }
     const live = new Set((this.meta.push || []).map((x) => x.endpoint));
     for (const k of Object.keys(done)) if (!live.has(k)) delete done[k];

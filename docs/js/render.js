@@ -577,7 +577,10 @@
     o += '<rect class="face" x="' + (-h) + '" y="' + (-h) + '" width="' + s + '" height="' + s + '" rx="5" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + (sp.type === 'map' || sp.type === 'card' ? 1.5 : 2.5) + '"/>';
     if (sp.type === 'map' || sp.type === 'card') o += '<rect x="' + (-h + 3) + '" y="' + (-h + 3) + '" width="' + (s - 6) + '" height="' + (s - 6) + '" rx="3" fill="none" stroke="#fff" stroke-opacity=".22"/>';
     var f = 'Atkinson Hyperlegible, Arial, sans-serif';
-    if (sp.type === 'map') {
+    if (sp.type === 'map' && opts.acc) {
+      // AccSaber games have no maps: a map space just ends the turn, so it reads like a Blank space.
+      o += t(0, -6, '\u2714', 21, txt, 'serif', 400) + t(0, 15, 'Turn over', 9.4, txt, f, 700);
+    } else if (sp.type === 'map') {
       if (sp.bsr.length > 1) {
         o += t(0, -14, '!bsr', 10, txt, f, 700, .75) + t(0, -1, sp.bsr[0], 12.5, txt, f, 700) + t(0, 10, 'or', 9, txt, f, 700, .7) + t(0, 22, sp.bsr[1], 12.5, txt, f, 700);
       } else {
@@ -592,7 +595,8 @@
     } else {
       o += t(0, sp.type === 'task' ? -10 : -6, k ? k.icon : sp.type === 'blank' ? '\u2714' : '?', sp.type === 'task' ? 19 : 21, txt, 'serif', 400);
       var short = shortLabel(sp, theme);
-      if (sp.type === 'task') o += t(0, 9, short, 8.6, '#f2c46b', f, 700) + t(0, 21, '!bsr ' + sp.bsr[0], 9.6, '#fff', f, 700);
+      if (sp.type === 'task' && opts.acc) o += t(0, 15, 'Turn over', 8.6, '#f2c46b', f, 700);
+      else if (sp.type === 'task') o += t(0, 9, short, 8.6, '#f2c46b', f, 700) + t(0, 21, '!bsr ' + sp.bsr[0], 9.6, '#fff', f, 700);
       else o += t(0, 15, short, 9.4, txt, f, 700);
     }
     o += '</g>';

@@ -218,6 +218,20 @@ const ok = (name) => console.log('ok  ' + name);
   assert(!b.state.players.d1.paused && b.state.players.d1, 'Beaters: no clan checks');
   ok('AccSaber and Beaters games are untouched');
 }
+// The host gives a missed weekly bonus roll; players can't, and it's once per AccSaber week
+{
+  clock = Date.UTC(2026, 11, 16, 20);
+  const g = await setup({});
+  E.startGame(g.state, clock);
+  let r = await g.act(U('1'), 'giveWeekly', { pid: 'd1' });
+  assert(r && r.error, 'only the host gives a bonus roll');
+  r = await g.act({ id: 'h', isHost: true }, 'giveWeekly', { pid: 'd1' });
+  assert(!r.error, r.error);
+  assert.strictEqual(g.state.players.d1.accBonus, 1);
+  r = await g.act({ id: 'h', isHost: true }, 'giveWeekly', { pid: 'd1' });
+  assert(r && /already/.test(r.error), 'once a week');
+  ok('host gives a missed weekly bonus roll once a week');
+}
 // No Discord on BeatLeader: ask the host instead, who lets them in; the clan check still runs
 {
   clock = Date.UTC(2026, 11, 18, 20); accUp = true;

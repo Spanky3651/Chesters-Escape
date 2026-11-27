@@ -120,6 +120,22 @@
     s.seq++;
     return true;
   }
+  // The host hands out this AccSaber week's bonus roll, for a player whose weekly mission the game
+  // missed (done before their first mission read, say). It counts as the week's bonus, so a weekly
+  // the game sees later this week doesn't add a second one. Returns an error string or null.
+  function giveWeekly(s, pid) {
+    var p = s.players[pid];
+    if (!p) return 'No such player.';
+    if (!isAcc(s)) return 'Only AccSaber games have weekly bonus rolls.';
+    if (s.status !== 'running') return 'The game has not started yet.';
+    if (p.finished) return p.name + ' has already finished.';
+    var a = p.acc || (p.acc = {}), wk = accWeek(now());
+    if (a.wGot === wk) return p.name + ' already got this week\'s bonus roll.';
+    a.wGot = wk; p.accBonus = (p.accBonus || 0) + 1;
+    emit(s, p, { t: 'weekly', host: true });
+    s.seq++;
+    return null;
+  }
   // At the day's turn: today's count starts where yesterday's ended (the worker reads it again
   // right after the reset to make it exact).
   function accNewDay(s) {
@@ -318,7 +334,7 @@
     var p = s.players[pid];
     if (!p) return { ok: false, code: 'no-player', reason: 'Join the game first.' };
     if (s.status !== 'running') return { ok: false, code: 'not-running', reason: s.status === 'signup' ? 'The game has not started yet.' : 'The game is over.' };
-    if (p.finished) return { ok: false, code: 'finished', reason: 'You escaped! Chester is safe.' };
+    if (p.finished) return { ok: false, code: 'finished', reason: 'You already made it out.' };
     if (!p.route) return { ok: false, code: 'no-route', reason: 'Pick your route first.' };
     if (p.tasks.length) return { ok: false, code: 'task', reason: p.tasks.length > 1 ? 'Play your ' + p.tasks.length + ' maps first.' : 'Play your map first.' };
     if (p.skippedDay === s.day) return { ok: false, code: 'skip', reason: 'You lose this turn.' };
@@ -449,9 +465,17 @@
     if (n < 0 && useShield(s, p, src)) return;
     var last = exitIndex(s, p);
     var to = Math.max(-1, Math.min(last, p.pos + n));
-    emit(s, p, Object.assign({ t: 'move', n: n, from: p.pos, to: to }, src));
-    walk(s, p, to, ctx);
-    land(s, p, 'effect', ctx);
+    // Exact roll on: only a roll can take you out. A card or space that would reach or pass the
+    // exit stops you at the gate (one space short), and you still need the exact roll from there.
+    var held = s.settings.exactFinish && n > 0 && to >= last;
+    if (held) to = Math.max(p.pos, last - 1);
+    var moved = to !== p.pos;
+    if (moved) {
+      emit(s, p, Object.assign({ t: 'move', n: held ? to - p.pos : n, from: p.pos, to: to }, src));
+      walk(s, p, to, ctx);
+    }
+    if (held) emit(s, p, Object.assign({ t: 'overshoot', need: last - p.pos, held: true }, src));
+    if (moved) land(s, p, 'effect', ctx);
   }
 
   function applySkip(s, p, turns, src) {
@@ -935,7 +959,7 @@
 
   // ---- host undo -------------------------------------------------------------------
   // Host changes that can be taken back, and how each reads in the undo list.
-  var UNDOABLE = ['advance', 'approve', 'reject', 'setpos', 'card', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'clearGame', 'hide'];
+  var UNDOABLE = ['advance', 'approve', 'reject', 'setpos', 'card', 'giveWeekly', 'resetPlayer', 'removePlayer', 'clearPlayers', 'signups', 'clearRoute', 'settings', 'theme', 'newGame', 'schedule', 'startNow', 'setEnd', 'endNow', 'clearGame', 'hide'];
   function hostLabel(s, action, a) {
     a = a || {};
     var nm = (s.players[a.pid] || {}).name || 'a player', card = a.card ? (s.cards || []).filter(function (c) { return c.id === a.card; })[0] : null;
@@ -945,6 +969,7 @@
       case 'reject': return 'Rejected ' + nm + '’s run';
       case 'setpos': return 'Moved ' + nm + ' to space ' + (Number(a.pos) + 1);
       case 'card': return 'Gave ' + nm + (card ? ' “' + card.title + '”' : ' a card');
+      case 'giveWeekly': return 'Gave ' + nm + ' this week’s bonus roll';
       case 'resetPlayer': return 'Reset ' + nm;
       case 'removePlayer': return 'Removed ' + nm;
       case 'clearPlayers': return 'Cleared all sign-ups';
@@ -1021,7 +1046,7 @@
   var E = {
     VERSION: VERSION, makeUpShortDay: makeUpShortDay, swapMaps: swapMaps, DEFAULTS: DEFAULTS,
     createGame: createGame, swapCards: swapCards, sameCards: sameCards, addPlayer: addPlayer, removePlayer: removePlayer, clearPlayers: clearPlayers, react: react, reactor: reactor, REACTIONS: REACTIONS, LEGACY_REACTIONS: LEGACY_REACTIONS, signupsOpen: signupsOpen, isHidden: isHidden, hide: hide, reveal: reveal, chooseRoute: chooseRoute,
-    canRoll: canRoll, canLifeline: canLifeline, lifeLeft: lifeLeft, LIFELINES: LIFELINES, roll: roll, advanceDay: advanceDay, unpause: unpause, blClanSeen: blClanSeen, isAcc: isAcc, accWeek: accWeek, accDaily: accDaily, accUpdate: accUpdate,
+    canRoll: canRoll, canLifeline: canLifeline, lifeLeft: lifeLeft, LIFELINES: LIFELINES, roll: roll, advanceDay: advanceDay, unpause: unpause, giveWeekly: giveWeekly, blClanSeen: blClanSeen, isAcc: isAcc, accWeek: accWeek, accDaily: accDaily, accUpdate: accUpdate,
     completeTask: completeTask, claimTask: claimTask, rejectClaim: rejectClaim, matchScores: matchScores, improveClears: improveClears,
     setPosition: setPosition, hostCard: hostCard, resetPlayer: resetPlayer,
     routeOf: routeOf, spaceAt: spaceAt, progress: progress, remaining: remaining, exitIndex: exitIndex,
