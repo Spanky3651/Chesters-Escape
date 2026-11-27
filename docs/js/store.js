@@ -57,7 +57,7 @@
 
   DemoStore.prototype.fresh = function (themeId, board, withHistory, startsAt, endsAt) {
     var b = board || C.boardFor((C.themes[themeId] || {}).mapSet);
-    var s = E.createGame({ board: b, cards: C.cardsFor(themeId), themeId: themeId, title: C.themes[themeId].title, status: startsAt ? 'signup' : 'running', startsAt: startsAt || null, endsAt: endsAt || null });
+    var s = E.createGame({ board: b, cards: C.cardsFor(themeId), themeId: themeId, title: C.gameTitle(themeId, b), status: startsAt ? 'signup' : 'running', startsAt: startsAt || null, endsAt: endsAt || null });
     DEMO_PLAYERS.forEach(function (p) { E.addPlayer(s, p); });
     // bots pick routes; you pick yours in the app
     var picks = { hummingbird: 'riskier', wisp: 'longer', pumpkin: 'riskier', moth: 'longer', bramble: 'longer', nyx: 'riskier', gravel: 'longer' };

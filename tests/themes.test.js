@@ -11,7 +11,7 @@ const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
 const css = read('docs/css/game.css'), render = read('docs/js/render.js'), index = read('docs/index.html'), fxSrc = read('docs/js/fx.js');
 const file = (u) => fs.existsSync(path.join(root, 'docs', String(u).split('?')[0]));
 
-// Themes that still show the graveyard Chester on their Discord posts. Give them a thumb before a game uses them.
+// Themes that still show the Beat Saber Games logo on their Discord posts. Give them a thumb before a game uses them.
 const NO_PICTURE_YET = ['christmas', 'thanksgiving'];
 
 const looksBlock = render.slice(render.indexOf('var LOOKS = {'));
@@ -43,10 +43,10 @@ for (const [id, t] of Object.entries(C.themes)) {
   // Chester's hat and any custom hero must exist in render.js
   if (t.hat && t.hat !== 'none') need(render.includes("hat === '" + t.hat + "'"), id, 'hat "' + t.hat + '" is not drawn in render.js');
   if (t.hero) need(render.includes("hero === '" + t.hero + "'"), id, 'hero "' + t.hero + '" is not drawn in render.js');
-  // pictures: Discord posts use thumb, else the hero art; the graveyard icon is only right for the cemetery
+  // pictures: Discord posts use thumb, else the hero art; without either the logo stands in, which is only right for the cemetery
   const pic = t.thumb || (t.artHero && t.artHero.src);
   if (pic) need(file(pic), id, 'Discord picture not found: ' + pic);
-  else if (look !== 'cemetery' && !NO_PICTURE_YET.includes(id)) need(false, id, 'no Discord picture: add thumb (posts would show the graveyard Chester)');
+  else if (look !== 'cemetery' && !NO_PICTURE_YET.includes(id)) need(false, id, 'no Discord picture: add thumb (posts would show the Beat Saber Games logo)');
   for (const k of ['art', 'shot']) if (t[k]) need(file(t[k]), id, k + ' not found: ' + t[k]);
   need(file('img/push/' + id + '.png'), id, 'no notification icon img/push/' + id + '.png');
   if (t.mapSet) need(C.mapSets[t.mapSet], id, 'map set "' + t.mapSet + '" not found');
@@ -150,7 +150,7 @@ for (const [id, t] of Object.entries(C.themes)) {
   need(!seenName[t.name], id, 'name "' + t.name + '" is also used by ' + seenName[t.name]); seenName[t.name] = id;
   need(!seenTitle[t.title], id, 'title "' + t.title + '" is also used by ' + seenTitle[t.title]); seenTitle[t.title] = id;
 }
-// The graveyard-picture list only holds themes that still need a picture.
+// The no-picture list only holds themes that still need a picture.
 for (const id of NO_PICTURE_YET) {
   const t = C.themes[id] || {};
   need(C.themes[id] && !t.thumb && !(t.artHero && t.artHero.src), id, 'take it off NO_PICTURE_YET in this test: it has a Discord picture now (or is gone)');
@@ -158,5 +158,5 @@ for (const id of NO_PICTURE_YET) {
 // A notification icon with no theme is left over from a renamed or removed theme.
 for (const f of fs.readdirSync(path.join(root, 'docs/img/push'))) if (/\.png$/.test(f)) need(C.themes[f.replace(/\.png$/, '')], f, 'notification icon with no theme of that id');
 assert.deepStrictEqual(problems, [], 'Theme problems (see THEMES.md and the playbook):\n  ' + problems.join('\n  '));
-if (NO_PICTURE_YET.length) console.log('themes ok (still on the graveyard Discord picture: ' + NO_PICTURE_YET.join(', ') + ')');
+if (NO_PICTURE_YET.length) console.log('themes ok (still on the logo Discord picture: ' + NO_PICTURE_YET.join(', ') + ')');
 else console.log('themes ok');

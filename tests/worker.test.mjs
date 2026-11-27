@@ -218,6 +218,24 @@ const ok = (name) => console.log('ok  ' + name);
   assert(!b.state.players.d1.paused && b.state.players.d1, 'Beaters: no clan checks');
   ok('AccSaber and Beaters games are untouched');
 }
+// The sign-up post's How to join names the clan the game checks: AccSaber's in AccSaber games, BeatLeader's in map games
+{
+  clock = Date.UTC(2026, 11, 16, 20);
+  const howTo = (g) => (g.pitch(false).fields || []).find((f) => /How to join/.test(f.name));
+  const g = await setup({});
+  g.state.order.slice().forEach((pid) => E.removePlayer(g.state, pid));
+  let f = howTo(g);
+  assert(f && /GenX Clan on AccSaber/.test(f.value) && /ask the host/.test(f.value), 'AccSaber game: AccSaber clan and the ask-the-host option');
+  g.state.settings.accsaber = false;
+  f = howTo(g);
+  assert(f && /GENX as one of your clans on BeatLeader/.test(f.value) && /ask the host/.test(f.value), 'map game: BeatLeader clan and the ask-the-host option');
+  const b = await setup({});
+  b.clan = () => ({ id: 'beaters', name: 'Beaters' });
+  b.state.settings.accsaber = false; b.state.order.slice().forEach((pid) => E.removePlayer(b.state, pid));
+  f = howTo(b);
+  assert(f && !/clan/i.test(f.value.replace(/Beaters/g, '')), 'Beaters: no clan requirement');
+  ok('sign-up post names the clan check for each kind of game');
+}
 // The host gives a missed weekly bonus roll; players can't, and it's once per AccSaber week
 {
   clock = Date.UTC(2026, 11, 16, 20);

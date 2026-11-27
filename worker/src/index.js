@@ -682,7 +682,9 @@ export class Game extends DurableObject {
       fields.push({ name: (t.family === 'taco' ? '🌮' : '🎟️') + ` Signed up (${n})`, value: names || 'Nobody yet. Be the first!', inline: false });
     } else {
       const r = this.routeSplit().routes.map((x) => x.name.replace(/ route$/i, '')).join(' or ');
-      const need = this.accClanWant() ? ` You need to be in the ${this.clan().accClanName} on AccSaber, with this Discord linked on BeatLeader. Rather not link it? The join screen lets you ask the host instead.` : '';
+      const rule = this.joinRule(), ask = ' Rather not link it? The join screen lets you ask the host instead.';
+      const need = rule === 'acc' ? ` You need to be in the ${this.clan().accClanName} on AccSaber, with this Discord linked on BeatLeader.` + ask
+        : rule === 'bl' ? ` You need ${this.clan().blClanName} as one of your clans on BeatLeader, with this Discord linked there.` + ask : '';
       fields.push({ name: '📝 How to join', value: `Open the game, sign in with Discord, paste your BeatLeader profile and pick the ${r} route.` + need, inline: false });
     }
     const card = this.card('Join ' + s.title, {

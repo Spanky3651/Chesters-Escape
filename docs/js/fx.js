@@ -389,16 +389,18 @@
 
   // ---- easter eggs: a few lines for the hero, and props that react to taps ---------------------
   var LINES = {
-    chester: ['Caw! I am not lost. I am exploring.', 'Have you tried Slower Song?', 'Do not tell the gravekeeper I am out here.', 'One more map, then bed. Probably.', 'I saw a 4 once. It was beautiful.',
+    chester: ['Caw! I am not lost. I am exploring.', 'Have you tried Slower Song?', 'One more map, then bed. Probably.', 'I saw a 4 once. It was beautiful.',
       'I only collect shiny things. And SS ranks.', 'My wings are basically sabers. Basically.', 'Left, right, duck the wall. I practice every night.', 'Is that a bomb or a black note? Asking for a friend.',
-      'Feathers do not sweat. They glisten.', 'Caw caw. That means GG.', 'I tried Expert+. Expert+ tried me back.', 'The ghosts here have great accuracy. All that free time.',
-      'Please do not roll a 1. Please do not roll a 1.', 'Nobody tells you how hard sabers are with wings.', 'I am 87% crow and 13% vibes.', 'If the gravekeeper asks, I was never here.',
+      'Feathers do not sweat. They glisten.', 'Caw caw. That means GG.', 'I tried Expert+. Expert+ tried me back.', 
+      'Please do not roll a 1. Please do not roll a 1.', 'Nobody tells you how hard sabers are with wings.', 'I am 87% crow and 13% vibes.',
       'Stream maps are just fast flapping.', 'I would dodge that wall but I am very small.', 'You call it a miss. I call it a feather check.'],
     taco: ['Extra cheese, please!', 'I am not a snack. I am a contestant.', 'Has anyone seen my hat?', 'Hot sauce gives me +2 speed.', 'Crunchy shell, soft heart.',
       'I put the TAC in tactical.', 'Lettuce be friends.', 'Never fold under pressure. Unless you are a taco.', 'My shell cracked on that last stream map.',
       'I would full combo this, but my toppings keep falling.', 'Guac is extra. So is my energy.', 'Taco Tuesday is every day if you believe.', 'Salsa dancing counts as cardio, right?',
       'Nacho average contestant.', 'Who rolled a 4? Me. I did.', 'If I lose, I am the snack.', 'Spicy maps only. Mild is for spectators.', 'I am 90% shell and 10% swing.',
       'Hold the onions. Hold the walls too.', 'Shredded lettuce, shredded accuracy.'],
+    // Only for the haunted cemetery: the other Chester themes have no gravekeeper or ghosts.
+    chesterGrave: ['Do not tell the gravekeeper I am out here.', 'The ghosts here have great accuracy. All that free time.', 'If the gravekeeper asks, I was never here.'],
     grave: ['Boo!', 'Shh, I am resting.', 'Five more minutes...'],
     tree: ['*bats scatter*', 'Creak...'],
     turkey: ['GOBBLE!', 'Not today, chef.', 'Gobble gobble?'],
@@ -411,7 +413,7 @@
   function eggContext(s, meId, theme, now) {
     var out = [], taco = theme.hero === 'taco', goal = theme.goal || 'exit', me = meId && s.players[meId], d = new Date(now || Date.now()), h = d.getHours();
     if (s.status === 'signup') out.push('The game has not started and you are already poking me?');
-    if (me && me.finished) out.push('You escaped and came back to poke me? Respect.');
+    if (me && me.finished) out.push('You made it out and came back to poke me? Respect.');
     else if (me && me.tasks && me.tasks.length) out.push('You have a map waiting. Go play it, I will guard your spot.');
     else if (me && me.route && s.status === 'running') { var left = E.remaining(s, me); if (left > 0) out.push(left + ' spaces to the ' + goal + '. You got this.'); }
     if (s.status === 'running') {
@@ -427,6 +429,7 @@
   var LEGEND = ['Legendary line: you are my favorite player.', 'Legendary line: the next roll is a 4. Trust me.', 'Legendary line: I have seen an SS on every map. In my dreams.'];
   function eggLine(kind, theme, n) {
     var list = LINES[kind === 'hero' ? (theme.hero === 'taco' ? 'taco' : 'chester') : kind] || LINES.grave;
+    if (kind === 'hero' && theme.hero !== 'taco' && (theme.look || theme.id) === 'cemetery') list = list.concat(LINES.chesterGrave);
     return list[n % list.length];
   }
 

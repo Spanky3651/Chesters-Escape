@@ -53,11 +53,13 @@
   }
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   function ordinal(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+  // The game's name: a designer board's own name wins over the theme title (C.gameTitle).
+  function gameName() { var s = st(); return (s && s.title) || C.gameTitle(s.themeId, s.board) || theme().title; }
   function spaceName(sp) {
     if (!sp) return 'the start';
     var k = sp.kind && theme().kinds[sp.kind];
     if (k) return k.title.replace(/!+$/, '');
-    if (sp.type === 'map') return '!bsr ' + sp.bsr.join(' or ');
+    if (sp.type === 'map') return E.isAcc(st()) ? 'a turn-over space' : '!bsr ' + sp.bsr.join(' or ');
     if (sp.type === 'card') return 'a card drop';
     if (sp.type === 'blank') return 'a turn-over space';
     return sp.type;
@@ -75,7 +77,7 @@
   // ---- board ------------------------------------------------------------------
   function renderBoard(force) {
     var s = st(), t = theme();
-    var key = s.themeId + '|' + s.board.id + '|' + (s.board.background ? s.board.background.length : 0) + '|' + Object.keys(s.board.spaces).length;
+    var key = s.themeId + '|' + s.board.id + '|' + (s.board.background ? s.board.background.length : 0) + '|' + Object.keys(s.board.spaces).length + '|' + (E.isAcc(s) ? 'acc' : 'maps');
     if (force || key !== builtKey) {
       $('boardWrap').innerHTML = R.board(s.board, t, { focusable: true, acc: E.isAcc(s), title: s.title });
       svgEl = $('boardWrap').querySelector('svg');
@@ -89,7 +91,7 @@
   }
   // Song covers on the map tiles, under the !bsr text. Skipped when the board art shows the spaces.
   function addCovers() {
-    var s = st(), svg = svgEl; if (!svg || (s.board.background && s.board.artSpaces)) return;
+    var s = st(), svg = svgEl; if (!svg || (s.board.background && s.board.artSpaces) || E.isAcc(s)) return;   // AccSaber map spaces have no song
     var keys = [];
     Object.keys(s.board.spaces).forEach(function (id) { var sp = s.board.spaces[id]; if (sp.type === 'map' && sp.bsr && sp.bsr[0]) keys.push(sp.bsr[0]); });
     S.maps(keys).then(function (found) {
@@ -669,7 +671,7 @@
       case 'claim': return { html: 'Asked the host to approve a run' + (e.url ? (isBLReplay(e.url) ? replayChip(e.url, e.id) : ' (<a href="' + esc(e.url) + '" target="_blank" rel="noopener">replay</a>)') : '') };
       case 'claim-rejected': return { html: 'The host could not confirm that run', cls: 'bad' };
       case 'lost-turn': return { html: 'Sat out this turn', cls: 'bad' };
-      case 'escaped': return { html: '<b>Escaped!</b> ' + ordinal(e.place) + ' place', cls: 'good' };
+      case 'escaped': return { html: '<b>' + (t.hero === 'taco' ? 'Made it!' : 'Escaped!') + '</b> ' + ordinal(e.place) + ' place', cls: 'good' };
       case 'route': return { html: 'Took the ' + esc(s.board.routeInfo[e.route].name.toLowerCase()) };
       case 'join': return { html: 'Joined the game' };
       case 'shield': return { html: 'Protected from the next setback', cls: 'good' };
@@ -913,7 +915,7 @@
     if (!p.route) html = ava + '<span class="mb-txt"><b>Pick your route</b><span>Longer or riskier</span></span><button type="button" class="btn small" id="mGo">Choose</button>';
     else if (s.status === 'finished') { var fr = (s.final || []).filter(function (r) { return r.pid === p.id; })[0]; html = ava + '<span class="mb-txt"><b>Game over</b><span>' + (fr ? 'You finished ' + ordinal(fr.place) : 'Final standings are in') + '</span></span><button type="button" class="btn small" id="mFinale">Standings</button>'; }
     else if (s.status === 'signup') html = ava + '<span class="mb-txt"><b>' + (s.startsAt ? 'Starts in <span data-countdown="' + s.startsAt + '">' + fmtLeft(s.startsAt - Date.now()) + '</span>' : 'Starting soon') + '</b><span>You\'re signed up</span></span>';
-    else if (p.finished) html = ava + '<span class="mb-txt"><b>Escaped!</b><span>' + ordinal(p.finished.place) + ' place on day ' + p.finished.day + '</span></span>';
+    else if (p.finished) html = ava + '<span class="mb-txt"><b>' + (theme().hero === 'taco' ? 'Made it!' : 'Escaped!') + '</b><span>' + ordinal(p.finished.place) + ' place on day ' + p.finished.day + '</span></span>';
     else if (p.tasks.length) {
       var claimed = p.claims.length >= p.tasks.length;
       html = ava + '<span class="mb-txt"><b>Play !bsr ' + esc(p.tasks[0].bsr[0]) + '</b><span>' + (claimed ? 'Waiting for the host' : (p.tasks.length > 1 ? p.tasks.length + ' maps to clear' : 'Then check BeatLeader')) + '</span></span>' +
@@ -1616,7 +1618,7 @@
     track('share-' + ev.t);
     modal('Share this moment', '<p class="lede">A picture of it for your clan Discord.</p><div id="shBox"><p class="why">Drawing the picture</p></div>', function (body) {
       shareSpec(ev).then(X.shareCard).then(function (blob) {
-        var url = URL.createObjectURL(blob), name = theme().title.replace(/[^A-Za-z0-9]+/g, '-') + '-' + ev.t + '-day-' + ev.day + '.png';
+        var url = URL.createObjectURL(blob), name = gameName().replace(/[^A-Za-z0-9]+/g, '-') + '-' + ev.t + '-day-' + ev.day + '.png';
         var file = window.File ? new File([blob], name, { type: 'image/png' }) : null;
         var canShare = !!(file && navigator.canShare && navigator.canShare({ files: [file] }));
         var canCopy = !!(navigator.clipboard && window.ClipboardItem);
@@ -1624,7 +1626,7 @@
           '<div class="row" style="margin-top:12px">' + (canShare ? '<button type="button" class="btn" id="shShare">Share</button>' : '') + (canCopy ? '<button type="button" class="btn' + (canShare ? ' ghost' : '') + '" id="shCopy">Copy picture</button>' : '') +
           '<a class="btn ghost" href="' + url + '" download="' + esc(name) + '">Download</a></div><p class="why">Copy it, then paste it straight into a Discord message.</p>';
         var sc = body.querySelector('#shCopy'); if (sc) sc.onclick = function () { navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]).then(function () { track('share-copied'); toast('Copied. Paste it into Discord.', 'good'); }, function () { toast('Your browser would not copy the picture. Use Download instead.', 'bad'); }); };
-        var ss = body.querySelector('#shShare'); if (ss) ss.onclick = function () { navigator.share({ files: [file], title: theme().title }).then(function () { track('share-sent'); }, function () {}); };
+        var ss = body.querySelector('#shShare'); if (ss) ss.onclick = function () { navigator.share({ files: [file], title: gameName() }).then(function () { track('share-sent'); }, function () {}); };
       }, function (e) { body.querySelector('#shBox').innerHTML = '<p class="err">' + esc(e && e.message ? e.message : 'Could not draw the picture.') + '</p>'; });
     });
   }
@@ -2085,7 +2087,7 @@
               if (existing) return store.act('playAs', { pid: existing });
               return store.act('join', { name: pl.name, avatar: pl.avatar, blId: pl.id });
             });
-          go2.then(function () { track('join'); closeModal(); toast('Welcome to the escape.', 'good'); }, function (e) {
+          go2.then(function () { track('join'); closeModal(); toast('You\'re in. Good luck!', 'good'); }, function (e) {
             go.disabled = false; go.textContent = linkOnly ? 'Link profile' : 'Join the game';
             var er = body.querySelector('#joinErr'); er.hidden = false; er.textContent = e.message;
             body.querySelector('#joinAsk').hidden = !(e.code === 'no-link' && store.mode === 'live' && !linkOnly);
@@ -2127,10 +2129,10 @@
     var s = st(), keys = E.allMapKeys(s.board, s.cards), set = C.mapSets[s.board.mapSet], label = b.textContent;
     b.disabled = true; b.textContent = 'Building playlist';
     var file = set && set.playlist ? fetch(set.playlist).then(function (r) { if (!r.ok) throw new Error('Playlist file missing'); return r.json(); }) : Promise.reject();
-    file.catch(function () { return crowCover().then(function (img) { return S.playlist(theme().title, keys, img); }); }).then(function (pl) {
+    file.catch(function () { return crowCover().then(function (img) { return S.playlist(gameName(), keys, img); }); }).then(function (pl) {
       track(tag);
       var blob = new Blob([JSON.stringify(pl, null, 2)], { type: 'application/json' });
-      var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = theme().title.replace(/[^A-Za-z0-9]+/g, '-').replace(/-+$/, '') + '.bplist'; a.click();
+      var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = gameName().replace(/[^A-Za-z0-9]+/g, '-').replace(/-+$/, '') + '.bplist'; a.click();
       b.disabled = false; b.textContent = label;
       if (errEl && pl.songs.length < keys.length) { errEl.hidden = false; errEl.textContent = (keys.length - pl.songs.length) + " maps couldn't be loaded from BeatSaver and were left out."; }
     }, function (e) { b.disabled = false; b.textContent = label; fail(e); });
@@ -2146,7 +2148,7 @@
     S.maps(keys).then(function (found) {
       var rows = keys.map(function (k) { var m = found[k]; return m && m.hash ? [m.hash, '', 'Standard'] : null; }).filter(Boolean);
       if (!rows.length) return;
-      var link = studioPlaylistLink(theme().title, rows);
+      var link = studioPlaylistLink(gameName(), rows);
       st0.href = file ? link.replace('#p=', '#pl=' + encodeURIComponent(file) + '&p=') : link; st0.removeAttribute('aria-disabled');
     });
   }
