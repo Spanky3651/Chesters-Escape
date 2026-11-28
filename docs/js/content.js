@@ -825,7 +825,7 @@
       case 'map': return acc ? BLANK_MSG : sp.bsr.length > 1 ? 'Play one of these maps' : 'Play this map';
       case 'task': return acc ? BLANK_MSG : 'Play this map to continue';
       case 'card': return 'Draw a card';
-      case 'move': return sp.n > 0 ? 'Move ahead ' + sp.n + ' spaces' : 'Back up ' + (-sp.n) + ' spaces';
+      case 'move': return sp.n > 0 ? 'Move ahead ' + sp.n + (sp.n === 1 ? ' space' : ' spaces') : 'Back up ' + (-sp.n) + (sp.n === -1 ? ' space' : ' spaces');
       case 'skip': return sp.turns > 1 ? 'Lose ' + sp.turns + ' turns' : 'Lose a turn';
       case 'start': return 'Return to start';
       case 'warp': return 'Carried to another space';

@@ -79,6 +79,10 @@
     s.order.forEach(function (pid) {
       var p = s.players[pid]; if (!p.bot || p.finished || !p.route) return;
       p.tasks.slice().forEach(function (t) { if (Math.random() < 0.85) E.completeTask(s, pid, t.id, { by: 'beatleader', demo: true, diff: ['Hard', 'Expert', 'ExpertPlus'][Math.floor(Math.random() * 3)], acc: 0.88 + Math.random() * 0.08 }); });
+      // AccSaber games: most bots finish a daily mission each day, so they move like players do.
+      if (E.isAcc(s) && E.canRoll(s, pid).code === 'mission' && Math.random() < 0.85) {
+        var a = p.acc || (p.acc = {}); if (a.d !== s.day) { a.d = s.day; a.base = a.cur || 0; a.cur = a.base; } a.cur++;
+      }
       var guard = 0;
       while (E.canRoll(s, pid).ok && guard++ < 4) {
         E.roll(s, pid, { rng: rng });
@@ -182,7 +186,15 @@
           self.me = id;
           return Promise.resolve(done({ pid: id }));
         }
-        case 'playAs': self.me = a.pid; return Promise.resolve(done({}));
+        case 'playAs': {   // demo: play as MSploit, adding him first when this game doesn't have him yet
+          if (!s.players[a.pid]) {
+            var dp = DEMO_PLAYERS.filter(function (x) { return x.id === a.pid; })[0];
+            if (!dp) return Promise.reject(new Error('No such player.'));
+            if (!E.signupsOpen(s) && s.status !== 'running') return Promise.reject(new Error('Sign-ups are closed.'));
+            E.addPlayer(s, { id: dp.id, name: dp.name, avatar: dp.avatar, blId: dp.blId });
+          }
+          self.me = a.pid; return Promise.resolve(done({}));
+        }
         case 'clearSignins': self.signinsCleared = true; return Promise.resolve(done({}));
         case 'react': if (!s.players[me]) return Promise.reject(new Error('Join the game to react.')); return Promise.resolve(done(E.react(s, me, a.id, a.emoji)));
         case 'route': return Promise.resolve(done(E.chooseRoute(s, me, a.route)));

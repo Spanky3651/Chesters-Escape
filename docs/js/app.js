@@ -51,10 +51,23 @@
     var t = $('toast'); t.textContent = msg; t.className = 'toast show' + (kind ? ' ' + kind : '');
     clearTimeout(toastT); toastT = setTimeout(function () { t.className = 'toast'; }, 3800);
   }
-  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  // skipAnim: the player tapped the board during their roll, so the rest of the roll plays out at once.
+  var skipAnim = false;
+  function wait(ms) { return skipAnim ? Promise.resolve() : new Promise(function (r) { setTimeout(r, ms); }); }
+  document.addEventListener('pointerdown', function (e) {
+    var z = e.target.closest && e.target.closest('.board-zone.busy, #rollStage');
+    if (z && animating && !skipAnim && !(e.target.closest('#cardOverlay'))) { skipAnim = true; var zz = document.querySelector('.board-zone'); if (zz) zz.classList.add('skipping'); }
+  });
   function ordinal(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
   // The game's name: a designer board's own name wins over the theme title (C.gameTitle).
   function gameName() { var s = st(); return (s && s.title) || C.gameTitle(s.themeId, s.board) || theme().title; }
+  // Finishing words: Chester games are an escape; Taco games are a trip, so players "make it" instead.
+  function fw() {
+    var taco = theme().hero === 'taco';
+    return taco ? { join: 'Join the game', starts: 'The game starts in', verb: 'finish', Did: 'Made it', did: 'made it', Col: 'Finishes', doing: 'making it' }
+      : { join: 'Join the escape', starts: 'The escape starts in', verb: 'escape', Did: 'Escaped', did: 'escaped', Col: 'Escapes', doing: 'escaping' };
+  }
+  function spacesLeft(n) { return n + (n === 1 ? ' space' : ' spaces'); }
   function spaceName(sp) {
     if (!sp) return 'the start';
     var k = sp.kind && theme().kinds[sp.kind];
@@ -374,7 +387,7 @@
   }
   function countdownHtml(ts, label) {
     if (!ts) return '<div class="countdown"><span class="cd-label">' + esc(label || 'The game starts soon') + '</span><span class="cd-date">The host will set the start time.</span></div>';
-    return '<div class="countdown"><span class="cd-label">' + esc(label || 'The escape starts in') + '</span>' +
+    return '<div class="countdown"><span class="cd-label">' + esc(label || fw().starts) + '</span>' +
       '<div class="cd-time" data-countdown="' + ts + '" role="timer" aria-label="Starts ' + esc(startWhen(ts)) + '">' + cdSegments(ts - Date.now()) + '</div>' +
       '<span class="cd-date">' + esc(startWhen(ts)) + '</span></div>';
   }
@@ -424,13 +437,13 @@
         return;
       }
       if (!E.signupsOpen(s)) {
-        el.innerHTML = '<h2>Join the escape</h2><p class="lede">You can join as soon as the game starts. Watch your clan Discord for the start.</p>';
+        el.innerHTML = '<h2>' + fw().join + '</h2><p class="lede">You can join as soon as the game starts. Watch your clan Discord for the start.</p>';
       } else if (store.mode === 'live' && !store.user) {
-        el.innerHTML = '<h2>Join the escape</h2><p class="lede">Sign in with Discord so the game knows which token is yours. You only do this once.</p><a class="btn" href="' + esc(store.loginUrl()) + '">Sign in with Discord</a>';
+        el.innerHTML = '<h2>' + fw().join + '</h2><p class="lede">Sign in with Discord so the game knows which token is yours. You only do this once.</p><a class="btn" href="' + esc(store.loginUrl()) + '">Sign in with Discord</a>';
       } else {
         el.innerHTML = store.mode === 'live' && store.asked ? '<h2>Waiting for the host</h2><p class="lede">You asked to join without linking Discord on BeatLeader. Once the host checks it\'s you, your token goes on the board.</p><button type="button" class="btn ghost" id="joinBtn">Join with BeatLeader instead</button>' +
           (store.user ? '<p class="why">Signed in as ' + esc(store.user.name) + '. <button type="button" class="btn link" id="logoutBtn">Sign out</button></p>' : '') :
-          '<h2>Join the escape</h2><p class="lede">Link your BeatLeader profile. ' + (E.isAcc(s) ? 'The game uses it to find your AccSaber missions.' : 'The game checks it to see when you have played your map.') + '</p><button type="button" class="btn" id="joinBtn">Join the game</button>' +
+          '<h2>' + fw().join + '</h2><p class="lede">Link your BeatLeader profile. ' + (E.isAcc(s) ? 'The game uses it to find your AccSaber missions.' : 'The game checks it to see when you have played your map.') + '</p><button type="button" class="btn" id="joinBtn">Join the game</button>' +
           (store.mode === 'live' && store.user ? '<p class="why">Signed in as ' + esc(store.user.name) + '. <button type="button" class="btn link" id="logoutBtn">Sign out</button></p>' : '');
       }
       return;
@@ -442,8 +455,10 @@
     if (p.shield) stats.push('<span class="stat good">Protected from the next setback</span>');
     if (p.extraRoll) stats.push('<span class="stat good">Bonus roll ready</span>');
     if (p.skip > 0) stats.push('<span class="stat bad">Loses ' + (p.skip > 1 ? 'the next ' + p.skip + ' turns' : 'the next turn') + '</span>');
-    if (p.finished) stats.push('<span class="stat good">Escaped on day ' + p.finished.day + ', ' + ordinal(p.finished.place) + ' place</span>');
-    var rv = X.rivals(s, p.id);
+    if (p.finished) stats.push('<span class="stat good">' + fw().Did + ' on day ' + p.finished.day + ', ' + ordinal(p.finished.place) + ' place</span>');
+    // Before any token leaves the start, ahead and behind only say which route is shorter, so they wait for the first move.
+    var anyMoved = s.order.some(function (pid) { var q = s.players[pid]; return q.route && (q.pos >= 0 || q.finished); });
+    var rv = anyMoved ? X.rivals(s, p.id) : null;
     if (rv && rv.ahead) stats.push('<span class="stat rival">\uD83D\uDD25 <b>' + esc(s.players[rv.ahead.pid].name) + '</b> is ' + rv.ahead.n + ' ahead</span>');
     if (rv && rv.tied.length) stats.push('<span class="stat rival">\uD83E\uDD1D Neck and neck with <b>' + esc(s.players[rv.tied[0]].name) + '</b>' + (rv.tied.length > 1 ? ' +' + (rv.tied.length - 1) : '') + '</span>');
     if (rv && rv.behind) stats.push('<span class="stat rival">\uD83D\uDC40 <b>' + esc(s.players[rv.behind.pid].name) + '</b> is ' + rv.behind.n + ' behind</span>');
@@ -585,11 +600,11 @@
       var today = s.finishOrder.filter(function (pid) { var q = s.players[pid]; return q && q.finished && q.finished.day === s.day; })[0];
       var close = Object.keys(s.players).filter(function (pid) { var q = s.players[pid]; if (pid === p.id || !q.route || q.finished || q.pos < 0) return false; var l = E.exitIndex(s, q) - q.pos; return l >= 1 && l <= sides; }).map(function (pid) { return s.players[pid].name; });
       if (today) lines.push(['🚪', '<b>' + esc(s.players[today].name) + '</b> got out today, so the gate is closed until tomorrow. Reach it today and you wait one space short.']);
-      else lines.push(['🚪', 'Only one player can escape a day until the podium is full.' + (close.length ? ' <b>' + esc(close.slice(0, 2).join('</b> and <b>')) + '</b>' + (close.length > 2 ? ' and others' : '') + (close.length === 1 ? ' is' : ' are') + ' also within a roll, so rolling early matters.' : '')]);
+      else lines.push(['🚪', 'Only one player can ' + fw().verb + ' a day until the podium is full.' + (close.length ? ' <b>' + esc(close.slice(0, 2).join('</b> and <b>')) + '</b>' + (close.length > 2 ? ' and others' : '') + (close.length === 1 ? ' is' : ' are') + ' also within a roll, so rolling early matters.' : '')]);
     }
     return '<div class="near-exit">' + lines.map(function (l) { return '<p><span aria-hidden="true">' + l[0] + '</span><span>' + l[1] + '</span></p>'; }).join('') + '</div>';
   }
-  function rollTitle(c) { return { task: 'Play your map', rolled: 'Rolled for today', skip: 'Turn lost', 'not-running': 'Waiting', finished: 'Escaped', mission: 'Do a daily mission', paused: 'Paused' }[c.code] || 'Not yet'; }
+  function rollTitle(c) { return { task: 'Play your map', rolled: 'Rolled for today', skip: 'Turn lost', 'not-running': 'Waiting', finished: fw().Did, mission: 'Do a daily mission', paused: 'Paused' }[c.code] || 'Not yet'; }
   // A lost turn waiting after today's roll pushes the next roll past tomorrow.
   function nextRollDay(s, p) { return s.day + (p.skip || 0) + 1; }
   function lostAhead(s, p) {
@@ -676,7 +691,8 @@
       case 'weekly': return { html: e.host ? 'The host added this week\'s <b>bonus roll</b>' : 'Finished an AccSaber weekly mission. <b>Bonus roll</b> earned', cls: 'good' };
       case 'land': {
         // Only Safe gets a line: every other space logs what it does, and Safe does nothing, so without this the roll looks like it went nowhere.
-        if (sp && sp.type === 'blank') { var kB = sp.kind && t.kinds[sp.kind]; return { html: (kB ? '<b>' + esc(kB.title) + '</b> ' : '') + esc(C.spaceEffectText(sp)), icon: kB ? kB.icon : '\u2714\uFE0F' }; }
+        // A Turn over space just says so here: the board's own message (it can be long) shows in the Your turn panel.
+        if (sp && sp.type === 'blank') { var kB = sp.kind && t.kinds[sp.kind]; return { html: kB ? '<b>' + esc(kB.title) + '</b>' : 'Landed on <b>Turn over</b>', icon: kB ? kB.icon : '\u2714\uFE0F' }; }
         if (!sp || sp.type !== 'safe') return null;
         var kSafe = sp.kind && t.kinds[sp.kind];
         return { html: '<b>' + esc(kSafe ? kSafe.title : 'Safe!') + '</b> Catch your breath' + (E.isAcc(s) ? '' : ', no map this turn'), cls: 'good', icon: kSafe && kSafe.icon };
@@ -703,7 +719,7 @@
       case 'shield': return { html: 'Protected from the next setback', cls: 'good' };
       case 'shield-used': return { html: 'Protection used up. The setback missed', cls: 'good' };
       case 'again': return { html: 'Gets another roll today', cls: 'good' };
-      case 'overshoot': return { html: (e.held ? 'Stopped at the gate. ' : '') + 'Needs exactly ' + e.need + ' to escape' };
+      case 'overshoot': return { html: (e.held ? 'Stopped at the gate. ' : '') + 'Needs exactly ' + e.need + ' to ' + fw().verb };
       case 'gate-closed': return { html: 'Reached the ' + esc(t.goal) + ', but someone already escaped today. Waits at the gate' + (s.settings.exactFinish ? ' and needs exactly a 1 to walk out.' : ' and walks out on the next roll.'), cls: 'bad' };
       case 'host-move': return { html: 'The host moved this token' };
       case 'host-reset': return { html: 'The host reset this token' };
@@ -774,10 +790,13 @@
     var d = $('replayDock'); if (!d || d.hidden) return;
     bigReplay(false); d.hidden = true; d.innerHTML = ''; dockEv = null; renderFeed();
   }
+  // On phones the thread is part of the page (no box scrolling inside the page): it shows the newest 25 and grows with Show more.
+  var feedLimit = 25;
   function renderFeed() {
-    var s = st(), list = $('feed'), html = '', lastDay = null, shown = 0;
+    var s = st(), list = $('feed'), html = '', lastDay = null, shown = 0, cap = isPhone() ? feedLimit : 120, more = false;
     var evs = s.events.slice().reverse();
-    for (var i = 0; i < evs.length && shown < 120; i++) {
+    for (var i = 0; i < evs.length; i++) {
+      if (shown >= cap) { more = true; break; }
       var e = evs[i];
       if (e.t === 'day') { if (feedMode === 'all') html += '<li class="dayline">Day ' + e.day + ' begins</li>'; continue; }
       if (e.t === 'begin') { html += '<li class="dayline">🏁 The game starts. Day 1 begins</li>'; continue; }
@@ -792,10 +811,12 @@
         '<span class="' + (x.cls || '') + '">' + x.html + '</span> <span class="when">' + (e.pre ? 'sign-up' : 'day ' + e.day) + '</span>' + rxh + '</span></li>';
       shown++;
     }
+    if (more && isPhone()) html += '<li class="feed-more"><button type="button" class="btn small ghost" id="feedMore">Show more</button></li>';
     list.innerHTML = html || '<li class="empty" style="display:block">' + (feedMode === 'me' ? 'Your moves show up here.' : 'Nothing has happened yet.') + '</li>';
     Array.prototype.forEach.call(document.querySelectorAll('.seg [data-feed]'), function (b) { b.setAttribute('aria-selected', b.dataset.feed === feedMode ? 'true' : 'false'); });
   }
 
+  document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('#feedMore')) { feedLimit += 25; renderFeed(); } });
   // Reactions under a thread item, plus react and share buttons.
   var RX_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="12" r="8"/><path d="M8 14.5c1.6 1.8 4.4 1.8 6 0"/><path d="M8.5 9.5h.01M13.5 9.5h.01"/><path d="M20 3v4M18 5h4"/></svg>';
   var SHARE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>';
@@ -917,10 +938,10 @@
   }
   function statusLine(p) {
     var s = st();
-    if (p.finished) return 'Escaped on day ' + p.finished.day;
+    if (p.finished) return fw().Did + ' on day ' + p.finished.day;
     if (!p.route) return s.status === 'signup' ? 'Signed up, still picking a route' : 'Hasn\'t picked a route, so no rolls yet';
     if (s.status === 'signup') return 'Signed up, waiting for the start';
-    if (s.status === 'finished') return E.remaining(s, p) + ' spaces to go at the end';
+    if (s.status === 'finished') return spacesLeft(E.remaining(s, p)) + ' to go at the end';
     if (p.tasks.length) return 'Playing ' + p.tasks.map(function (t) { var m = songFor(t.bsr[0]); return m ? m.name : '!bsr ' + t.bsr[0]; }).join(', ');
     if (p.skippedDay === s.day) return 'Sitting out today';
     var c = E.canRoll(s, p.id), togo = p.pos >= 0 ? ', ' + E.remaining(s, p) + ' to go' : '';
@@ -951,7 +972,7 @@
       // Only the saved weekly bonus is left: don't make the main button spend it.
       if (c.ok && c.bonus) html = p.rolledDay === s.day ? ava + '<span class="mb-txt"><b>Rolled for today</b><span>Weekly bonus roll saved</span></span><button type="button" class="btn small ghost" id="mGo">Details</button>'
         : ava + '<span class="mb-txt"><b>Do a daily mission</b><span>Or use your weekly bonus</span></span><button type="button" class="btn small" id="mAcc">Check missions</button>';
-      else if (c.ok) html = ava + '<span class="mb-txt"><b>Ready to roll</b><span>' + E.remaining(s, p) + ' spaces to go</span></span><button type="button" class="btn small" id="mRoll">Roll the d4</button>';
+      else if (c.ok) html = ava + '<span class="mb-txt"><b>Ready to roll</b><span>' + spacesLeft(E.remaining(s, p)) + ' to go</span></span><button type="button" class="btn small" id="mRoll">Roll the d4</button>';
       else if (c.code === 'mission') html = ava + '<span class="mb-txt"><b>Do a daily mission</b><span>Then check here</span></span><button type="button" class="btn small" id="mAcc">Check missions</button>';
       else if (c.code === 'paused' && p.paused === 'bl') html = ava + '<span class="mb-txt"><b>Paused</b><span>Add the clan back on BeatLeader</span></span><button type="button" class="btn small" id="mBl">Check again</button>';
       else if (c.code === 'paused') html = ava + '<span class="mb-txt"><b>Paused</b><span>Rejoin the clan on AccSaber</span></span><button type="button" class="btn small" id="mAcc">Check again</button>';
@@ -1107,8 +1128,8 @@
       });
     }).catch(fail).then(function () {
       camHome();
-      $('rollStage').hidden = true; document.querySelector('.board-zone').classList.remove('busy');
-      animating = false; renderAll();
+      $('rollStage').hidden = true; document.querySelector('.board-zone').classList.remove('busy', 'skipping');
+      skipAnim = false; animating = false; renderAll();
       var t = document.querySelector('.task'); if (t && !isPhone()) t.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   }
@@ -1319,7 +1340,8 @@
     setTimeout(function () {
       (evs.length ? revealScores(evs) : Promise.resolve()).then(function () {
         animating = false; renderAll();
-        toast(cleared.length > 1 ? 'Maps cleared. You can roll again.' : 'Map cleared! You can roll again.', 'good');
+        var nx = E.canRoll(st(), store.me), then = nx.ok ? 'You can roll again.' : nx.code === 'skip' ? 'You sit out your next turn.' : nx.code === 'task' ? 'One more map to go.' : 'Next roll tomorrow.';
+        toast((cleared.length > 1 ? 'Maps cleared. ' : 'Map cleared! ') + then, 'good');
       });
     }, 700);
   }
@@ -1445,7 +1467,8 @@
   function badgeNotice(p, list) {
     var k = 'cg.badges.' + st().id + '.' + p.id, had = null;
     try { had = JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) {}
-    var ids = list.map(function (b) { return b.id; });
+    // The seen list only grows: a badge that drops off and comes back later isn't announced again.
+    var ids = (had || []).slice(); list.forEach(function (b) { if (ids.indexOf(b.id) < 0) ids.push(b.id); });
     try { localStorage.setItem(k, JSON.stringify(ids)); } catch (e) {}
     if (!had) return;
     var fresh = list.filter(function (b) { return had.indexOf(b.id) < 0; });
@@ -1512,7 +1535,7 @@
     var luck = !o.rolls ? 'No rolls yet' : o.avgRoll >= 2.8 ? 'Lucky' : o.avgRoll <= 2.2 ? 'Unlucky' : 'Right on average';
     var tile = function (v, k, sub) { return '<div class="pc-tile"><b>' + v + '</b><span>' + k + '</span>' + (sub ? '<i>' + sub + '</i>' : '') + '</div>'; };
     var song = o.best && o.best.key ? songFor(o.best.key) : null, list = X.badgesFor(s)[pid] || [];
-    var where = p.finished ? 'Escaped on day ' + p.finished.day : !p.route ? 'No route yet' : rank ? rank.left + ' spaces to go' : '';
+    var where = p.finished ? fw().Did + ' on day ' + p.finished.day : !p.route ? 'No route yet' : rank ? spacesLeft(rank.left) + ' to go' : '';
     track('player-card');
     modal(p.name,
       '<div class="pc-head" style="--c:' + R.playerColor(s, pid) + '">' + avatarHtml(p, 'pc-ava') + '<div><div class="pc-place">' + (rank && p.route ? ordinal(rank.place) + ' place' : 'Signed up') + '</div>' +
@@ -1545,7 +1568,7 @@
     var ava = function (t, cls) { return t.avatar ? '<img class="' + cls + '" src="' + esc(R.pic(t.avatar)) + '" alt="" onerror="this.outerHTML=\'<span class=&quot;' + cls + '&quot;>' + esc(R.initials(t.name)) + '</span>\'">' : '<span class="' + cls + '">' + esc(R.initials(t.name)) + '</span>'; };
     var when = function (ts) { return ts ? new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : ''; };
     var rm = function (g) { return store.isHost ? '<button type="button" class="btn small link hf-rm" data-hallrm="' + esc(g.id) + '">Remove</button>' : ''; };
-    var did = function (t) { return t.escaped ? 'Escaped day ' + t.day : t.left + ' to go'; };
+    var did = function (t) { return t.escaped ? fw().Did + ' day ' + t.day : t.left + ' to go'; };
     // The newest game in the spotlight: its top 3 in laurels, the winner in the middle, confetti behind.
     var spot = function (g) {
       var seed = 7, rnd = function () { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }, bits = '';
@@ -1566,7 +1589,7 @@
       return '<div class="hf-spot"><svg class="hf-conf" width="100%" height="100%" aria-hidden="true">' + bits + '</svg>' +
         '<div class="hf-kick">' + esc(g.title) + ' · ' + esc(when(g.endedAt)) + rm(g) + '</div>' +
         '<div class="hf-trio">' + order.map(function (i) { return card(top[i], i); }).join('') + '</div>' +
-        '<div class="hf-stats"><span><b>' + g.days + '</b>day' + (g.days === 1 ? '' : 's') + '</span><span><b>' + g.players + '</b>player' + (g.players === 1 ? '' : 's') + '</span><span><b>' + out + '</b>escaped</span></div></div>';
+        '<div class="hf-stats"><span><b>' + g.days + '</b>day' + (g.days === 1 ? '' : 's') + '</span><span><b>' + g.players + '</b>player' + (g.players === 1 ? '' : 's') + '</span><span><b>' + out + '</b>' + fw().did + '</span></div></div>';
     };
     // Older games keep the small card until they get their own look.
     var older = function (g) {
@@ -1575,7 +1598,7 @@
     };
     var html = !hall.length ? '<p class="lede">No game has finished yet. The first winner goes up here.</p>' :
       spot(hall[0]) + (hall.length > 1 ? '<h3 class="hw-h">Earlier games</h3><div class="hf-games">' + hall.slice(1).map(older).join('') + '</div>' : '') +
-      '<h3 class="hw-h">All time</h3><table class="hf-table"><thead><tr><th>Player</th><th>Wins</th><th>Podiums</th><th>Escapes</th><th>Games</th></tr></thead><tbody>' +
+      '<h3 class="hw-h">All time</h3><table class="hf-table"><thead><tr><th>Player</th><th>Wins</th><th>Podiums</th><th>' + fw().Col + '</th><th>Games</th></tr></thead><tbody>' +
       totals.map(function (t, i) { return '<tr class="' + (i < 3 ? 'hf-t' + (i + 1) : '') + (t.pid === store.me ? ' me' : '') + '"><td><span class="hf-who"><span class="hf-rank' + (i < 3 ? ' g' + (i + 1) : '') + '">' + (i + 1) + '</span>' + ava(t, 'hf-tava') + '<span>' + esc(t.name) + '</span></span></td><td>' + t.wins + '</td><td>' + t.podiums + '</td><td>' + t.escapes + '</td><td>' + t.games + '</td></tr>'; }).join('') + '</tbody></table>';
     modal('🏆 Hall of fame', html, hallFall, { cls: 'hall', focusClose: true });
   }
@@ -1620,7 +1643,7 @@
     if (ev.t === 'weekly') { o.kicker = 'AccSaber'; o.headline = 'Weekly mission done'; o.sub = 'Bonus roll earned'; return Promise.resolve(o); }
     if (ev.t === 'lifeline-back') { o.kicker = 'AccSaber'; o.headline = 'Both dailies done'; o.sub = 'A lifeline back'; return Promise.resolve(o); }
     if (ev.t === 'escaped') { o.kicker = 'The ' + t.goal; o.headline = t.words.escaped; o.sub = ordinal(ev.place) + ' place on day ' + ev.day; }
-    else if (ev.t === 'pass') { o.kicker = 'Overtake'; o.headline = 'Passed ' + (ev.over || []).map(function (q) { return s.players[q] ? s.players[q].name : ''; }).filter(Boolean).join(' & '); var at = posAt(s, ev); o.sub = (at != null ? E.routeOf(s, p).length - 1 - at : E.remaining(s, p)) + ' spaces to go'; }
+    else if (ev.t === 'pass') { o.kicker = 'Overtake'; o.headline = 'Passed ' + (ev.over || []).map(function (q) { return s.players[q] ? s.players[q].name : ''; }).filter(Boolean).join(' & '); var at = posAt(s, ev); o.sub = spacesLeft(at != null ? E.routeOf(s, p).length - 1 - at : E.remaining(s, p)) + ' to go'; }
     else if (ev.t === 'start') { o.kicker = 'Ouch'; o.headline = 'Back to the start'; o.sub = kind ? kind.title : ''; }
     else if (ev.t === 'warp') { var fwd = sp && sp.kind === 'swim'; o.kicker = fwd ? 'Lucky break' : 'Swept away'; o.headline = fwd ? 'Carried ahead' : 'Carried away'; o.sub = 'Now at ' + spaceName(s.board.spaces[ev.to]); }
     else if (ev.t === 'move') { o.kicker = ev.n > 0 ? 'Boost' : 'Setback'; o.headline = ev.n > 0 ? 'Jumped ahead ' + ev.n : 'Pushed back ' + (-ev.n); o.sub = kind ? kind.title : ''; }
@@ -1664,7 +1687,7 @@
     var zone = document.querySelector('.board-zone'), box = $('launch'), n = $('launchN'), sub = $('launchSub'), b = st().board;
     var A = b.routes.longer || [], B = b.routes.riskier || [], ids = [], seen = {};
     for (var i = 0; i < Math.max(A.length, B.length); i++) [A[i], B[i]].forEach(function (id) { if (id && !seen[id]) { seen[id] = 1; ids.push(id); } });
-    zone.classList.add('prelaunch'); box.hidden = false; sub.textContent = 'The escape starts in';
+    zone.classList.add('prelaunch'); box.hidden = false; sub.textContent = fw().starts;
     FX.lightUp(svgEl, ids, Math.max(800, at - Date.now() - 700));
     track('launch');
     var lastN = null, iv = setInterval(function () {
@@ -1900,7 +1923,7 @@
     var s = st(), t = theme(), fin = s.final || E.ranking(s);
     track('finale');
     try { localStorage.setItem('cg.finale.' + s.id, '1'); } catch (e) {}
-    var line = function (r) { return r.escaped ? 'Escaped day ' + r.day : r.left + ' to go'; };
+    var line = function (r) { return r.escaped ? fw().Did + ' day ' + r.day : r.left + ' to go'; };
     var podium = [fin[1], fin[0], fin[2]].map(function (r, i) {
       if (!r) return '<div class="pod empty"></div>';
       var p = s.players[r.pid], rank = [2, 1, 3][i];
@@ -1912,7 +1935,7 @@
     var winner = fin[0] && s.players[fin[0].pid];
     modal('Game over', '<div class="finale"><p class="lede">' + (winner ? esc(winner.name) + (fin[0].escaped ? ' reached the ' + esc(t.goal) + ' first.' : ' got closest to the ' + esc(t.goal) + '.') : 'The final standings are in.') + '</p>' +
       '<div class="podium">' + podium + '</div>' + (rest ? '<ol class="finale-rest">' + rest + '</ol>' : '') +
-      (mine ? '<p class="finale-me">You finished <b>' + ordinal(mine.place) + '</b>' + (mine.escaped ? ', escaping on day ' + mine.day : ', ' + mine.left + ' spaces out') + '.</p>' : '') +
+      (mine ? '<p class="finale-me">You finished <b>' + ordinal(mine.place) + '</b>' + (mine.escaped ? ', ' + fw().doing + ' on day ' + mine.day : ', ' + spacesLeft(mine.left) + ' out') + '.</p>' : '') +
       '<div class="row"><button type="button" class="btn" data-finale-close>Back to the board</button><button type="button" class="btn ghost" data-hall>\uD83C\uDFC6 Hall of fame</button></div></div>',
       function (body) {
         body.querySelector('[data-finale-close]').onclick = closeModal;
@@ -1969,7 +1992,7 @@
       }
       if (e.t === 'pass' && (e.over || []).indexOf(store.me) >= 0) { mine.push('⚡ <b>' + who(e) + '</b> passed you'); return; }
       if (e.t === 'card') cards++;
-      if (e.t === 'escaped') others.push('🎉 <b>' + who(e) + '</b> escaped, ' + ordinal(e.place) + ' place');
+      if (e.t === 'escaped') others.push('🎉 <b>' + who(e) + '</b> ' + fw().did + ', ' + ordinal(e.place) + ' place');
       else if (e.t === 'start') others.push('↩️ <b>' + who(e) + '</b> got sent back to the start');
       else if (e.t === 'move' && e.n <= -3) others.push('⬅️ <b>' + who(e) + '</b> got pushed back ' + (-e.n));
       else if (e.t === 'move' && e.n >= 4) others.push('➡️ <b>' + who(e) + '</b> jumped ahead ' + e.n);
@@ -2053,11 +2076,11 @@
     var tips = '<ul class="hw-tips">' +
       (acc ? tip('✅', 'No maps to play here. Finish one AccSaber daily mission after the reset and your roll for the day unlocks. The first weekly mission each week adds one bonus roll, saved until you use it.') +
         tip('🛟', 'Dailies too hard today? Everyone starts with ' + E.LIFELINES + ' lifelines. Use one to take that day\'s roll without a mission. Finish both dailies in one day to earn one back, up to ' + E.LIFELINES + '. Still one roll a day: a lifeline never adds an extra roll.') :
-      tip('🎵', 'Every roll ends with a map. Stop on a space without one and you get a bonus map.' + (breaks.length ? ' ' + breaks.join(' and ') + (breaks.length > 1 ? ' spaces are the only breaks.' : ' is the only break.') : ''))) +
+      tip('🎵', 'Every roll ends with a map. Stop on a space without one and you get a bonus map, unless a card took away turns: losing them is the setback.' + (breaks.length ? ' ' + breaks.join(' and ') + (breaks.length > 1 ? ' spaces are the only breaks.' : ' is the only break.') : ''))) +
       tip('🔗', acc ? 'Moved by a card or event? Whatever you land on that way (back to start, lose a turn, move spaces, cards) is skipped.' : 'Moved by a card or event? Play the space if it\'s a map. Anything else you land on that way (back to start, lose a turn, move spaces, cards) is skipped.') +
       tip('🏁', 'First to the ' + esc(t.goal) + ' wins. Everyone else plays on for their place.') +
       (s.settings.exactFinish ? tip('🎯', 'You need the exact roll to reach the ' + esc(t.goal) + '. Roll higher and you stay where you are. A card or event that would take you there stops you at the gate instead.') : '') +
-      (s.settings.oneFinishPerDay !== false ? tip('🚪', 'The podium escapes one a day: if someone got out today, you wait at the gate' + (s.settings.exactFinish ? ' and need exactly a 1 to walk out' : ' until your next roll') + '. Once the top 3 are out, anyone can escape any day.') : '') +
+      (s.settings.oneFinishPerDay !== false ? tip('🚪', 'The podium ' + (fw().verb === 'escape' ? 'escapes' : 'finishes') + ' one a day: if someone got out today, you wait at the gate' + (s.settings.exactFinish ? ' and need exactly a 1 to walk out' : ' until your next roll') + '. Once the top 3 are out, anyone can ' + fw().verb + ' any day.') : '') +
       (s.endsAt && s.status !== 'finished' ? tip('⏳', 'The game ends <b>' + esc(startWhen(s.endsAt)) + '</b>. Not out by then? You\'re placed by how close you got, fewest spaces left first. Players tied on spaces share a place.') : '') + '</ul>';
     var extras = '<ul class="hw-tips">' +
       tip('<span class="hw-rx">' + RX_ICON + '</span>', 'Tap the smiley in the game thread to react to other players. Press and hold a reaction to see who sent it.') +
@@ -2074,8 +2097,9 @@
       '<h3 class="hw-h">Good to know</h3>' + tips +
       '<h3 class="hw-h">Around the board</h3>' + extras +
       (acc ? '' : '<div class="hw-help"><b>Played it but it didn\'t count?</b> Use "I played it" and the host can approve it.</div>') +
-      '<label class="check sound-opt"><input type="checkbox" id="soundChk"' + (muted ? '' : ' checked') + '> <span>Sound effects</span></label>',
-      null, { cls: 'how', focusClose: true });
+      '<label class="check sound-opt"><input type="checkbox" id="soundChk"' + (muted ? '' : ' checked') + '> <span>Sound effects</span></label>' +
+      '<div class="row hw-done"><button type="button" class="btn" id="howDone">Got it</button></div>',   // it runs about three phone screens, so a way out at the bottom too
+      function (body) { var d = body.querySelector('#howDone'); if (d) d.addEventListener('click', closeModal); }, { cls: 'how', focusClose: true });
   }
   function cap(w) { w = String(w || ''); return w.charAt(0).toUpperCase() + w.slice(1); }
   // A small window onto the board around one space, so the legend shows the real thing.
@@ -3303,7 +3327,12 @@
       var egg = e.target.closest('.board-svg .egg'); if (egg && !animating) { doEgg(egg); return; }
       var bdg = e.target.closest('[data-badges]'); if (bdg) { e.preventDefault(); openBadges(bdg.getAttribute('data-badges')); return; }
       if (e.target.closest('#rollBtn') || e.target.closest('#mRoll')) { doRoll(); return; }
-      if (e.target.closest('#lifeBtn')) { doRoll(true); return; }
+      if (e.target.closest('#lifeBtn')) {
+        // A lifeline is worth as much as a route pick, so it asks first (it sits right under Open AccSaber).
+        var lp = me(), lleft = lp ? E.lifeLeft(lp) : 0;
+        if (confirm('Use 1 of your ' + lleft + ' lifeline' + (lleft === 1 ? '' : 's') + ' to roll today without a daily mission?' + (lleft === 1 ? ' It\'s your last one.' : ''))) doRoll(true);
+        return;
+      }
       if (e.target.closest('#finaleBtn') || e.target.closest('#mFinale')) { openFinale(); return; }
       if (e.target.closest('#remBtn')) { $('remPop').hidden ? openRem() : closeRem(); return; }
       if (!e.target.closest('#remPop')) closeRem();

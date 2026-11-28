@@ -426,6 +426,9 @@ body[data-theme="thanksgiving"] .route-card.risk b { color: #ff9a6a; }
 .seg button { background: none; border: 0; padding: 6px 12px; color: var(--muted); cursor: pointer; font-size: 14px; }
 .seg button[aria-selected="true"] { background: var(--raise-2); color: var(--text); }
 .feed { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow: auto; display: flex; flex-direction: column; gap: 2px; }
+/* phones: the thread is part of the page instead of a box that scrolls inside it (Show more adds older moments) */
+@media (max-width: 760px) { .feed { max-height: none; overflow: visible; } }
+.feed .feed-more { display: flex; justify-content: center; padding: 8px 0; }
 .feed li { display: grid; grid-template-columns: 26px minmax(0,1fr); gap: 8px; padding: 7px 4px; border-bottom: 1px solid var(--line); font-size: 14.5px; }
 .feed li:last-child { border-bottom: 0; }
 .feed .ic { font-size: 17px; line-height: 1.3; text-align: center; }
@@ -454,7 +457,8 @@ body[data-theme="thanksgiving"] .cback { background: repeating-linear-gradient(9
 .cfront .cart { flex: 1; display: grid; place-items: center; font-size: 96px; line-height: 1; background: radial-gradient(circle at 50% 55%, rgba(0,0,0,.08), transparent 62%); }
 .cfront .ctitle { font: 700 34px/1 var(--display); text-align: center; padding: 0 14px; }
 .cfront .ctext { font-size: 15px; line-height: 1.4; text-align: center; padding: 8px 18px 0; color: #4a463c; }
-.cfront .cfx { margin: 14px 14px 16px; padding: 10px; border-radius: 10px; background: #1d1b16; color: #fff; font-weight: 700; text-align: center; font-size: 16px; }
+/* the card's effect reads as a label (a rule above it, card-colored text), so the Continue button below is the only thing that looks tappable */
+.cfront .cfx { margin: 12px 16px 16px; padding: 10px 4px 0; border-top: 2px solid color-mix(in srgb, var(--cc, #1d1b16) 55%, transparent); color: color-mix(in srgb, var(--cc, #1d1b16) 70%, #1d1b16); font-weight: 800; text-align: center; font-size: 16px; }
 .card-overlay .btn { opacity: 0; transition: opacity .3s .7s; }
 .card-overlay.ready .btn { opacity: 1; }
 
@@ -593,6 +597,9 @@ a.kofi-support:hover { transform: translateY(-2px); border-color: #ff2740; box-s
 @media (max-width: 1100px) { .board-zone { max-width: 860px; } }
 @media (max-width: 640px) { .board-zone { min-width: 0; } }
 .board-zone.busy .zoom-btn { visibility: hidden; }
+/* while your roll plays out, a tap on the board skips to the end */
+.board-zone.busy::after { content: 'Tap to skip'; position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); padding: 5px 12px; border-radius: 999px; background: rgba(0,0,0,.62); color: #fff; font: 700 13px var(--ui); pointer-events: none; z-index: 5; }
+.board-zone.skipping::after { content: none; }
 .zoom-btn { display: none; position: absolute; left: 10px; bottom: 10px; z-index: 5; align-items: center; gap: 6px; min-height: 40px; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25); background: rgba(0,0,0,.72); color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
 .board-wrap.zoomed { overflow: auto; aspect-ratio: 1; -webkit-overflow-scrolling: touch; }
 .board-wrap.zoomed svg { width: 220%; height: auto; }
@@ -864,11 +871,13 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .clan-pop .cp-h { margin: 6px 10px 6px; font-size: 12.5px; letter-spacing: .6px; text-transform: uppercase; color: var(--faint); font-weight: 700; }
 .clan-opt { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 10px; border: 0; border-radius: 10px; background: none; color: var(--text); font: 700 16px/1 var(--ui); cursor: pointer; text-align: left; }
 .clan-opt:hover { background: var(--raise-2); }
-.clan-opt span { flex: 1; }
+.clan-opt > span:not(.clan-ic) { flex: 1; }   /* the name grows; a letter badge (no server icon) keeps its circle */
 .clan-opt .clan-ic { width: 34px; height: 34px; font-size: 13px; }
 .clan-opt.on { cursor: default; }
 .clan-opt.on .tick { color: var(--accent); }
 @media (max-width: 640px) { .clan-cur { padding: 3px 6px 3px 3px; gap: 4px; } .clan-cur .nm { display: none; } }
+.hw-done { justify-content: center; margin-top: 16px; }
+.hw-done .btn { min-width: 160px; }
 .sound-opt { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
 .topnav .clan-switch { margin-left: 6px; }
 @media (max-width: 640px) { .topnav .clan-switch { margin-left: 0; } }

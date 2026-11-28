@@ -178,6 +178,8 @@
 .rx-chip.bump { animation: badgePop .5s ease-out; }
 .rx-add, .fd-share { display: inline-grid; place-items: center; width: 30px; height: 28px; border-radius: 999px; border: 1px dashed var(--line-2); background: none; color: var(--muted); cursor: pointer; padding: 0; }
 .rx-add svg, .fd-share svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* touch screens: bigger targets for reacting and sharing */
+@media (pointer: coarse) { .rx-add, .fd-share { width: 40px; height: 36px; } .rx-chip { height: 36px; } }
 .rx-add:hover, .fd-share:hover, .rx-add:focus-visible, .fd-share:focus-visible { color: var(--text); border-color: var(--accent); border-style: solid; }
 @media (hover: hover) and (pointer: fine) { .feed li .fd-acts { opacity: 0; transition: opacity .15s; } .feed li:hover .fd-acts, .feed li:focus-within .fd-acts { opacity: 1; } }
 .rx-pop { position: fixed; z-index: 40; display: grid; grid-template-columns: repeat(7, 60px); gap: 2px; padding: 6px; border-radius: 18px; background: var(--raise); border: 1px solid var(--line-2); box-shadow: 0 14px 40px rgba(0,0,0,.7); animation: rxIn .18s ease-out; }

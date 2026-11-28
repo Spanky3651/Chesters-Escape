@@ -112,7 +112,7 @@ assert.strictEqual(cardsSeen.size, 20);
   console.log('next cutoff from 2026-10-18 13:00 ET ->', new Date(nc).toISOString(), '(expect 2026-10-19T04:59Z)');
   assert.strictEqual(new Date(nc).toISOString(), '2026-10-19T04:59:00.000Z');
 }
-// every roll ends with a map, except on Safe, on escaping, or with a bonus roll waiting
+// every roll ends with a map, except on Safe, on escaping, with a bonus roll waiting, or after a lose-a-turn card
 {
   let rolls = 0, bonus = 0, safe = 0, why = {};
   for (let g = 0; g < 300; g++) {
@@ -128,7 +128,9 @@ assert.strictEqual(cardsSeen.size, 20);
           E.roll(s, id, { rng });
           rolls++;
           const sp = p.pos >= 0 ? s.board.spaces[E.routeOf(s, p)[p.pos]] : null;
-          if (!p.finished && !p.extraRoll && !(sp && sp.type === 'safe')) assert(p.tasks.length > 0, 'roll ended without a map on ' + (sp ? sp.type : 'start'));
+          const lostByCard = s.events.slice(before).some((e) => e.t === 'skip' && e.card && e.pid === id);
+          if (!p.finished && !p.extraRoll && !(sp && sp.type === 'safe')) assert(p.tasks.length > 0 || lostByCard, 'roll ended without a map on ' + (sp ? sp.type : 'start'));
+          if (lostByCard && !p.extraRoll) assert(!s.events.slice(before).some((e) => e.t === 'task' && e.bonus), 'a lose-a-turn card gives no bonus map');
           if (sp && sp.type === 'safe' && !p.tasks.length) safe++;
           const b = s.events.slice(before).find((e) => e.t === 'task' && e.bonus);
           if (b) { bonus++; const k = sp ? sp.type : 'start'; why[k] = (why[k] || 0) + 1; }

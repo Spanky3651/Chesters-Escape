@@ -856,7 +856,7 @@ export class Game extends DurableObject {
         const list = (a) => (a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]);
         const shown = near.slice(0, 5), who = list(shown.map((x) => `**${name(x.pid)}** (${x.left} away)`)) + (near.length > 5 ? ` and ${near.length - 5} more` : '');
         const next = this.meta.nextCutoff ? ` The next day starts <t:${sec(this.meta.nextCutoff)}:t>.` : '';
-        let text = `🏁 **Race to the ${goal}!** ${who} can ${near.length === 2 ? 'both' : 'all'} get out with one roll, but only one player can escape a day. The first one out takes the spot, so ${E.isAcc(s) ? 'finish a daily mission and roll early' : 'roll early'}.${next}`;
+        let text = `🏁 **Race to the ${goal}!** ${who} can ${near.length === 2 ? 'both' : 'all'} get out with one roll, but only one player can ${t.family === 'taco' ? 'finish' : 'escape'} a day. The first one out takes the spot, so ${E.isAcc(s) ? 'finish a daily mission and roll early' : 'roll early'}.${next}`;
         if (s.settings.exactFinish) text += '\n🎯 Exact rolls only: ' + shown.map((x) => `${name(x.pid)} needs a **${x.left}**`).join(', ') + '.';
         if (!(await postNow('race', text))) return;
         near.forEach((x) => { if (!f.raced.includes(x.pid)) f.raced.push(x.pid); });

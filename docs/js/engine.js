@@ -386,10 +386,13 @@
 
   // Every roll ends with a map to play. If the turn stops on a space without one
   // (a card, an event, lose a turn, back to start), the player gets a bonus map.
-  // Exceptions: a Safe or Blank space, escaping, or a bonus roll still to take today.
+  // Exceptions: a Safe or Blank space, escaping, a bonus roll still to take today, or a lose-a-turn card
+  // drawn this turn: losing the turns is the setback, so no map on top of it (Nov 28 2026). A lose-a-turn
+  // space still comes with a map.
   function mustPlay(s, p, ctx) {
     if (isAcc(s)) return;   // AccSaber mode has no maps
     if (p.finished || p.tasks.length || p.extraRoll) return;
+    if (ctx && ctx.firstEvent != null && s.events.some(function (e) { return e.id >= ctx.firstEvent && e.pid === p.id && e.t === 'skip' && e.card; })) return;
     var sp = spaceAt(s, p);
     if (sp && (sp.type === 'safe' || sp.type === 'blank' || sp.type === 'exit')) return;
     var keys = pickBonus(s, ctx && ctx.rng, p);
