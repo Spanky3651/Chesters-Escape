@@ -192,12 +192,12 @@
 
   // ---- badges: earned from the game thread, no rule changes ----------------------------------
   var BADGES = [
-    { id: 'first', icon: '🥇', name: 'First Out', desc: 'First player to escape' },
-    { id: 'risk', icon: '🎲', name: 'Risk Taker', desc: 'Escaped on the riskier route' },
+    { id: 'first', icon: '🥇', name: 'First Out', desc: 'First player to reach the finish' },
+    { id: 'risk', icon: '🎲', name: 'Risk Taker', desc: 'Reached the finish on the riskier route' },
     { id: 'golden', icon: '✨', name: 'Golden Run', desc: 'Cleared a map at 95% or better' },
     { id: 'streak', icon: '🔥', name: 'On Fire', desc: 'Cleared a map 3 days in a row' },
     { id: 'comeback', icon: '📈', name: 'Comeback', desc: 'Climbed from last place into the top half' },
-    { id: 'phoenix', icon: '🔁', name: 'Back From the Start', desc: 'Sent back to the start and still escaped' },
+    { id: 'phoenix', icon: '🔁', name: 'Back From the Start', desc: 'Sent back to the start and still reached the finish' },
     { id: 'shield', icon: '🛡️', name: 'Untouchable', desc: 'A setback bounced off your protection' },
     { id: 'fours', icon: '🎯', name: 'Hot Hand', desc: 'Rolled a 4 three times in a row' },
     { id: 'current', icon: '🌊', name: 'Rode the Current', desc: 'Got carried ahead by the board' },

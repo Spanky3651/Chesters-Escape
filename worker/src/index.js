@@ -805,7 +805,7 @@ export class Game extends DurableObject {
       if (e.t === 'escaped') {
         const p = s.players[e.pid], medal = ['🥇 ', '🥈 ', '🥉 '][e.place - 1] || '', left = 3 - e.place;
         const tail = e.place > 3 ? '' : left > 0 ? ` ${left === 1 ? '1 podium spot' : left + ' podium spots'} left.` : ' The podium is full.';
-        ok = await postNow('escape', `🏁 ${why}**${name(e.pid)}** made it to the ${goal}! ${medal}**${ordinal(e.place)} place** on day ${e.day}` + (p && p.route ? `, by the ${this.routeName(p.route)}.` : '.') + tail);
+        ok = await postNow('escape', `🏁 ${why}**${name(e.pid)}** made it to the ${goal}! ${medal}**${ordinal(e.place)} place** on day ${e.day}` + (p && p.route ? `, by the ${this.routeName(p.route).toLowerCase()}.` : '.') + tail);
       } else if (e.t === 'gate-closed') {
         const first = s.finishOrder.find((pid) => s.players[pid] && s.players[pid].finished && s.players[pid].finished.day === e.day);
         const when = this.meta.nextCutoff ? `<t:${sec(this.meta.nextCutoff)}:R>` : 'tomorrow';
@@ -1391,6 +1391,10 @@ export class Game extends DurableObject {
     } catch (e) {
       return { error: e.message || 'That did not work.', code: e.code };
     }
+    // A host change that logged no event (the rules, the theme, a removed player, a cleared route) still has to reach
+    // open pages: they only pick the game up again when its seq moves. A new game keeps counting up from the old one.
+    if (snap && this.state === s && s.seq === snap.pre) s.seq++;
+    else if (snap && this.state !== s && !(this.state.seq > s.seq)) this.state.seq = (s.seq || 0) + 1;
     await this.discordFeed();
     if (wasRunning && this.state.status === 'finished' && action !== 'endNow') { this.recordHall(); await this.announceEnd(); }
     if (snap) await this.pushUndo(snap, user);
@@ -1631,7 +1635,7 @@ export class Game extends DurableObject {
     }
     if (op === 'test') {
       const ep = String(body && body.endpoint || '');
-      const r = await this.pushTo((this.meta.push || []).filter((x) => x.uid === user.id && (!ep || x.endpoint === ep)), { title: 'Notifications are on', body: user.isHost ? 'This device will hear when someone signs up, is waiting to get in or has a run to approve.' : 'This device will remind you when your roll or ' + (E.isAcc(this.state) ? 'daily mission' : 'map') + ' is waiting.', tag: 'test' });
+      const r = await this.pushTo((this.meta.push || []).filter((x) => x.uid === user.id && (!ep || x.endpoint === ep)), { title: 'Notifications are on', body: user.isHost ? (E.isAcc(this.state) ? 'This device will hear when someone signs up, asks to join or is waiting to get in.' : 'This device will hear when someone signs up, is waiting to get in or has a run to approve.') : 'This device will remind you when your roll or ' + (E.isAcc(this.state) ? 'daily mission' : 'map') + ' is waiting.', tag: 'test' });
       await this.save();
       if (r.sent) return { ok: true, sent: r.sent };
       return { error: r.failed ? 'The push did not go through. Turn notifications off and on again on this device.' : 'Turn on notifications on this device first.' };
@@ -1646,9 +1650,9 @@ export class Game extends DurableObject {
     this.meta.hashes = this.meta.hashes || {};
     if (this.meta.hashes[key]) return this.meta.hashes[key];
     if (!this.take(1)) return '';
-    const r = await fetch((this.env.BS_API || 'https://api.beatsaver.com') + '/maps/id/' + key, { headers: { 'user-agent': 'ChestersEscape' } });
-    if (!r.ok) return '';
-    const j = await r.json();
+    const r = await fetch((this.env.BS_API || 'https://api.beatsaver.com') + '/maps/id/' + key, { headers: { 'user-agent': 'ChestersEscape' } }).catch(() => null);
+    if (!r || !r.ok) return '';
+    const j = await r.json().catch(() => ({}));
     const h = String(((j.versions || [])[0] || {}).hash || '').toUpperCase();
     if (h) this.meta.hashes[key] = h;
     return h;
@@ -1833,9 +1837,11 @@ export class Game extends DurableObject {
     for (const k of keys) hashes[String(k).toLowerCase()] = await this.bs(String(k).toLowerCase());
     if (Object.values(hashes).some((h) => !h) && this.budget != null && this.later) { this.cutShort = true; return []; }
     if (!this.take(1)) { this.cutShort = true; return []; }
-    const r = await fetch((this.env.BL_API || BL_API) + '/player/' + encodeURIComponent(p.blId) + '/scores?sortBy=date&order=desc&count=50', { headers: { 'user-agent': 'ChestersEscape' } });
+    const r = await fetch((this.env.BL_API || BL_API) + '/player/' + encodeURIComponent(p.blId) + '/scores?sortBy=date&order=desc&count=50', { headers: { 'user-agent': 'ChestersEscape' } }).catch(() => null);
+    // BeatLeader down: a player who pressed Check BeatLeader hears so (the 15-minute sweep just tries again later).
+    if (!r || r.status === 429 || r.status >= 500) { if (this.budget == null) throw coded("BeatLeader didn't answer. Try again in a minute.", 'bl-down'); return []; }
     if (!r.ok) return [];
-    const j = await r.json();
+    const j = await r.json().catch(() => ({}));
     const scores = (j.data || []).map((x) => {
       const lb = x.leaderboard || {}, d = lb.difficulty || {};
       return { id: x.id, hash: String((lb.song || {}).hash || '').toUpperCase(), time: parseInt(x.timeset, 10) || x.timepost || 0, diff: d.difficultyName || '', acc: x.accuracy || 0, mods: x.modifiers || '' };
@@ -1852,8 +1858,8 @@ export class Game extends DurableObject {
     if (sp.routes.length) fields.push({ name: '🛤️ Routes', value: sp.routes.map((r) => r.n + ' ' + r.name.replace(/ route$/i, '')).join(', '), inline: true });
     if (s.endsAt) fields.push({ name: '🏁 Ends', value: `<t:${sec(s.endsAt)}:D>`, inline: true });
     const weekly = ' One roll a day, plus a saved bonus roll for your first weekly mission each AccSaber week.';
-    const reset = E.isAcc(s) ? weekly + (this.meta.nextCutoff ? ` The daily roll resets with AccSaber's missions at <t:${sec(this.meta.nextCutoff)}:t> every night.` : '')
-      : this.meta.nextCutoff ? ` One roll a day, and the roll resets at <t:${sec(this.meta.nextCutoff)}:t> every night.` : ' One roll a day.';
+    const reset = E.isAcc(s) ? weekly + (this.meta.nextCutoff ? ` The daily roll resets with AccSaber's missions at <t:${sec(this.meta.nextCutoff)}:t> each day.` : '')
+      : this.meta.nextCutoff ? ` One roll a day, and the roll resets at <t:${sec(this.meta.nextCutoff)}:t> each day.` : ' One roll a day.';
     await this.sendOrKeep(`🎲 **${md(s.title)} has started!** Day 1 is open: ` + (E.isAcc(s) ? `finish an AccSaber daily mission and roll your d4. Dailies too hard? Use one of your ${E.LIFELINES} lifelines, and finish both dailies in a day to earn one back.` : 'roll your d4 and play the map you land on.'), true,
       this.card('Play ' + s.title, { description: (n ? `${plural(n, 'player')} ${n === 1 ? 'is' : 'are'} off.` : 'Sign up and roll your first d4.') + reset, fields }), 'start');
   }

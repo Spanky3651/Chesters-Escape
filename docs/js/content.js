@@ -813,9 +813,11 @@
       default: return 'Nothing happens';
     }
   }
-  function cardEffectText(card) {
-    if (!card.effects || !card.effects.length) return 'Nothing happens';
-    return card.effects.map(function (fx, i) { var t = effectText(fx); return i ? t.charAt(0).toLowerCase() + t.slice(1) : t; }).join(', then ');
+  // acc: an AccSaber game, where a card's bonus map is skipped, so the line leaves it out.
+  function cardEffectText(card, acc) {
+    var fxs = (card.effects || []).filter(function (fx) { return !(acc && fx.type === 'task'); });
+    if (!fxs.length) return 'Nothing happens';
+    return fxs.map(function (fx, i) { var t = effectText(fx); return i ? t.charAt(0).toLowerCase() + t.slice(1) : t; }).join(', then ');
   }
   // What a Blank space tells the player when the host hasn't written its own message.
   var BLANK_MSG = 'Turn complete. Roll again tomorrow.';
@@ -831,7 +833,7 @@
       case 'warp': return 'Carried to another space';
       case 'safe': return 'Catch your breath';
       case 'blank': return sp.msg || BLANK_MSG;
-      case 'exit': return 'Escape!';
+      case 'exit': return 'The finish. First one here wins.';
       default: return '';
     }
   }

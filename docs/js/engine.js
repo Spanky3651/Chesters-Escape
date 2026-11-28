@@ -340,7 +340,9 @@
     if (p.skippedDay === s.day) return { ok: false, code: 'skip', reason: 'You lose this turn.' };
     if (p.paused) return { ok: false, code: 'paused', reason: p.paused === 'bl' ? 'You left the clan on BeatLeader, so your rolls are paused. Add it back on beatleader.com, then check again.' : 'You left the clan on AccSaber, so your rolls are paused. Rejoin it, then check again.' };
     if (isAcc(s)) {
-      if ((p.rolledDay === s.day && p.extraRoll) || (p.rolledDay !== s.day && accDaily(s, p))) return { ok: true };
+      // A bonus roll (a Roll again card, or a made-up day) is good today even after a weekly bonus roll or
+      // before the day's mission: extraRoll is cleared at the day's turn, so it is always today's.
+      if (p.extraRoll || (p.rolledDay !== s.day && accDaily(s, p))) return { ok: true };
       // Only the saved weekly bonus allows a roll right now: ok, but marked, so reminders and the
       // status line don't call the player "ready to roll" when they can only spend the bonus.
       if (p.accBonus > 0) return { ok: true, bonus: true };
@@ -359,13 +361,13 @@
     var p = s.players[pid];
     var sides = s.settings.dieSides || 4;
     var n = opts.forced || (rngInt(opts.rng, sides) + 1);
-    var bonus = !life && p.rolledDay === s.day && p.extraRoll;
+    var bonus = !life && p.extraRoll && (p.rolledDay === s.day || (isAcc(s) && !accDaily(s, p)));
     // AccSaber mode: the day's roll needs today's mission; without it, a saved weekly bonus roll is
     // used, unless the player chose to spend a lifeline on the day's roll instead.
     var weekly = !life && !bonus && isAcc(s) && !(p.rolledDay !== s.day && accDaily(s, p)) && p.accBonus > 0;
     if (bonus) p.extraRoll = false;
     if (life) p.lifelines = lifeLeft(p) - 1;
-    if (weekly) p.accBonus--; else p.rolledDay = s.day;
+    if (weekly) p.accBonus--; else if (!bonus) p.rolledDay = s.day;   // a bonus roll before the day's own roll leaves that one waiting
     p.rolls++;
     var before = leftMap(s);
     var start = emit(s, p, { t: 'roll', n: n, from: p.pos, bonus: bonus || weekly, weekly: weekly || undefined, lifeline: life || undefined });

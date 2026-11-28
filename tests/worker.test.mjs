@@ -649,4 +649,69 @@ const logs = (w) => JSON.stringify(Object.values(w.games).map((g) => [g.meta.sig
   assert.strictEqual(await shotOn('snowy', GENX, false, null), false, 'a Snowy map game on the built-in board does not show LumberJack\'s board');
   ok('post details: plurals, pitch rules, weekly bonus, leader line, Expert+, the shot on its own board');
 }
+// Host changes that log no event still reach open pages (they reload the game only when its seq moves), and a new game
+// counts up from the old one. Found in the full review (Nov 28 2026): a rules or theme change, a removed player or a
+// cleared route stayed invisible to everyone with the page open until something else happened.
+{
+  clock = Date.UTC(2026, 11, 10, 12);
+  const g = await setup({ startsAt: Date.UTC(2026, 11, 12, 4) });
+  const H = { id: 'h', name: 'Host', isHost: true };
+  const fresh = async (action, args) => {
+    const seq = g.state.seq;
+    const r = await g.act(H, action, args);
+    assert(!r.error, action + ': ' + r.error);
+    const view = await g.getState(U('2'), seq);
+    assert(view.state, action + ' reaches a page that has the game at seq ' + seq);
+  };
+  await fresh('settings', { patch: { exactFinish: true } });
+  await fresh('theme', { theme: 'cemetery' });
+  await fresh('clearRoute', { pid: 'd1' });
+  await fresh('removePlayer', { pid: 'd1' });
+  const old = g.state.seq;
+  g.state.status = 'finished';
+  await g.act(H, 'newGame', { signup: true });
+  assert(g.state.seq > old, 'a new game counts up from the old one');
+  const u = await g.act(H, 'undo', {});
+  assert(!u.error, 'undo still works after the seq moves: ' + u.error);
+  ok('host changes with no event still reach open pages');
+}
+// Posts and pushes found reading every post in the full review: the escape post's route reads in lower case,
+// and the host's test notification in an AccSaber game doesn't promise runs to approve.
+{
+  const store = new Map();
+  const ctx = { storage: { get: async (k) => store.get(k), put: async (k, v) => store.set(k, v), getAlarm: async () => null, setAlarm: async () => {}, delete: async (k) => store.delete(k) }, blockConcurrencyWhile: (f) => f() };
+  const g = new Game(ctx, { GAME_PAGE: 'https://beatsabergames.com/', VAPID_PUBLIC_KEY: 'x', VAPID_PRIVATE_KEY: 'y' });
+  await new Promise((r) => setTimeout(r, 5));
+  const posts = [], pushes = [];
+  g.clan = () => ({ id: 'genx', name: 'GenX', webhook: 'W' }); g.useClan = () => {}; g.announcing = () => true;
+  g.discordPost = async (content) => { posts.push(content); return { ok: true, status: 200 }; };
+  g.pushTo = async (subs, msg) => { pushes.push(msg.body); return { sent: 1, failed: 0 }; };
+  clock = Date.UTC(2026, 11, 14, 12);
+  g.state = E.createGame({ board: C.boardFor(), cards: C.cardsFor('snowy'), themeId: 'snowy', settings: { accsaber: true, timeZone: 'UTC', cutoffHour: 4, cutoffMinute: 0 } });
+  g.meta = { access: { mode: 'open', allowed: [], pending: [] }, push: [{ uid: 'h', endpoint: 'e' }] };
+  E.addPlayer(g.state, { id: 'd1', name: 'P1', blId: 'bl1' }); E.chooseRoute(g.state, 'd1', 'longer');
+  await g.discordFeed();
+  const p = g.state.players.d1; E.setPosition(g.state, 'd1', E.exitIndex(g.state, p) - 1); p.acc = { d: g.state.day, base: 0, cur: 1 };
+  E.roll(g.state, 'd1', { forced: 1 });
+  await g.discordFeed();
+  assert(posts.some((x) => /by the longer route\./.test(x)), 'escape post route in lower case: ' + posts.join(' / '));
+  await g.pushOp({ id: 'h', name: 'H', isHost: true }, 'test', {});
+  assert(pushes.length && !/run to approve/.test(pushes[0]), 'AccSaber host test push: ' + pushes[0]);
+  ok('escape post route wording, host test push in AccSaber games');
+}
+// BeatLeader down when a player presses Check BeatLeader: a plain message instead of a network error
+{
+  const g = mk(); await new Promise((r) => setTimeout(r, 20));
+  clock = Date.UTC(2026, 11, 16, 12);
+  g.state = E.createGame({ board: C.boardFor(), cards: C.cardsFor('cemetery'), themeId: 'cemetery' });
+  g.meta = { access: { mode: 'open', allowed: [], pending: [] }, hashes: { abc: 'A'.repeat(40) } };
+  E.addPlayer(g.state, { id: 'd1', discordId: '1', name: 'P1', blId: 'bl1' }); E.chooseRoute(g.state, 'd1', 'longer');
+  g.state.players.d1.tasks.push({ id: 't1', bsr: ['abc'], since: clock, day: 1 });
+  const was = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('network down'); };
+  const r = await g.act(U('1'), 'verify', {});
+  globalThis.fetch = was;
+  assert(r.error && /BeatLeader didn't answer/.test(r.error), 'verify with BeatLeader down: ' + JSON.stringify(r.error));
+  ok('BeatLeader down on Check BeatLeader says so');
+}
 console.log('worker timing tests passed');

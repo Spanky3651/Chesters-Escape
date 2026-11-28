@@ -499,7 +499,7 @@
     var p = me(), el = $('turnPanel'), s = st(), t = theme();
     if (s.status === 'finished') {
       var mine = p && (s.final || []).filter(function (r) { return r.pid === p.id; })[0];
-      el.innerHTML = '<h2>Game over</h2><p class="lede">' + (mine ? (mine.escaped ? 'You escaped on day ' + mine.day + ' and finished ' + ordinal(mine.place) + '.' : 'You finished ' + ordinal(mine.place) + ', ' + mine.left + ' spaces from the ' + esc(t.goal) + '.') : 'The final standings are in.') + '</p>' +
+      el.innerHTML = '<h2>Game over</h2><p class="lede">' + (mine ? (mine.escaped ? 'You ' + fw().did + ' on day ' + mine.day + ' and finished ' + ordinal(mine.place) + '.' : 'You finished ' + ordinal(mine.place) + ', ' + spacesLeft(mine.left) + ' from the ' + esc(t.goal) + '.') : 'The final standings are in.') + '</p>' +
         '<button type="button" class="btn" id="finaleBtn">See the final standings</button>';
       return;
     }
@@ -524,9 +524,10 @@
     var can = E.canRoll(s, p.id);
     if (!p.finished) {
       html += '<div class="roll-box"><div id="dieSlot"></div><div class="roll-copy">';
-      var wkRoll = E.isAcc(s) && can.ok && !(p.extraRoll && p.rolledDay === s.day) && !(p.rolledDay !== s.day && E.accDaily(s, p));
+      var bonusNow = p.extraRoll && (p.rolledDay === s.day || (E.isAcc(s) && !E.accDaily(s, p)));   // the next roll is a bonus roll
+      var wkRoll = E.isAcc(s) && can.ok && !p.extraRoll && !(p.rolledDay !== s.day && E.accDaily(s, p));
       var wkRolled = wkRoll && p.rolledDay === s.day;   // already rolled today: only the saved bonus is left
-      if (can.ok) html += '<b>' + (wkRoll ? 'Weekly bonus roll' : p.extraRoll && p.rolledDay === s.day ? 'Bonus roll' : 'Ready to roll') + '</b><p>' +
+      if (can.ok) html += '<b>' + (wkRoll ? 'Weekly bonus roll' : bonusNow ? 'Bonus roll' : 'Ready to roll') + '</b><p>' +
         (wkRolled ? 'You rolled today. Your weekly bonus roll is saved until you use it, so roll it now or keep it for another day.' : wkRoll ? 'No daily mission yet today. Roll your saved weekly bonus now, or finish a daily mission and keep it.' : 'Roll the d4 and move that many spaces.') +
         (E.isAcc(s) && p.accBonus > (wkRoll ? 1 : 0) ? ' You also have ' + (p.accBonus - (wkRoll ? 1 : 0) > 1 ? (p.accBonus - (wkRoll ? 1 : 0)) + ' weekly bonus rolls' : 'a weekly bonus roll') + ' saved.' : '') + '</p><button type="button" class="btn" id="rollBtn">' + (wkRoll ? 'Roll the weekly bonus' : 'Roll the d4') + '</button>' +
         (wkRoll && !wkRolled ? '<div class="acc-row"><button type="button" class="btn ghost" id="accCheck">Check my missions</button><a class="btn ghost acc-open" href="https://accsaber.com/" target="_blank" rel="noopener">' + ACC_MARK + 'Open AccSaber</a></div>' + lifelineHtml(s, p, true) : '');
@@ -595,7 +596,7 @@
     if (p.pos < 0 || left < 1 || left > sides) return '';
     var lines = [];
     if (s.settings.exactFinish) lines.push(['🎯', 'The ' + esc(t.goal) + ' is <b>' + left + '</b> away. You need exactly a <b>' + left + '</b> to get out. Roll higher and you stay where you are.']);
-    else lines.push(['🏁', 'The ' + esc(t.goal) + ' is <b>' + left + '</b> away. Any roll of ' + left + (left < sides ? ' or more' : '') + ' gets you out.']);
+    else lines.push(['🏁', 'The ' + esc(t.goal) + ' is <b>' + left + '</b> away. ' + (left === 1 ? 'Any roll' : 'Any roll of ' + left + (left < sides ? ' or more' : '')) + ' gets you out.']);
     if (s.settings.oneFinishPerDay !== false && s.finishOrder.length < 3) {
       var today = s.finishOrder.filter(function (pid) { var q = s.players[pid]; return q && q.finished && q.finished.day === s.day; })[0];
       var close = Object.keys(s.players).filter(function (pid) { var q = s.players[pid]; if (pid === p.id || !q.route || q.finished || q.pos < 0) return false; var l = E.exitIndex(s, q) - q.pos; return l >= 1 && l <= sides; }).map(function (pid) { return s.players[pid].name; });
@@ -685,7 +686,11 @@
     switch (e.t) {
       case 'roll': return { html: (e.lifeline ? 'Used a lifeline and rolled a ' : e.weekly ? 'Weekly bonus roll: ' : e.bonus ? 'Bonus roll: ' : 'Rolled a ') + '<b>' + e.n + '</b>' };
       case 'lifeline-back': return { html: 'Finished both AccSaber dailies today. <b>Lifeline</b> earned back', cls: 'good' };
-      case 'mission': return { html: 'Finished an AccSaber daily mission. Today\'s roll is unlocked', cls: 'good' };
+      case 'mission': {
+        // Only say the roll unlocked when it did: not after a lifeline roll that day, on a lost turn or while paused.
+        var used = s.events.some(function (x) { return x.pid === e.pid && x.day === e.day && x.id < e.id && ((x.t === 'roll' && !x.weekly && !x.bonus) || x.t === 'lost-turn'); });
+        return { html: 'Finished an AccSaber daily mission' + (used ? '' : '. Today\'s roll is unlocked'), cls: 'good' };
+      }
       case 'paused': return { html: 'Left the clan on ' + (e.on === 'bl' ? 'BeatLeader' : 'AccSaber') + '. Rolls are paused until they rejoin', cls: 'bad' };
       case 'unpaused': return { html: 'Back in the clan on ' + (e.on === 'bl' ? 'BeatLeader' : 'AccSaber') + '. Rolls are on again', cls: 'good' };
       case 'weekly': return { html: e.host ? 'The host added this week\'s <b>bonus roll</b>' : 'Finished an AccSaber weekly mission. <b>Bonus roll</b> earned', cls: 'good' };
@@ -698,11 +703,11 @@
         return { html: '<b>' + esc(kSafe ? kSafe.title : 'Safe!') + '</b> Catch your breath' + (E.isAcc(s) ? '' : ', no map this turn'), cls: 'good', icon: kSafe && kSafe.icon };
       }
       case 'task': return { html: 'Play <b>!bsr ' + esc(e.bsr.join(' or ')) + '</b>' + (e.bonus ? ' (bonus map)' : sp && sp.kind ? ' (' + esc(t.kinds[sp.kind].title) + ')' : card ? ' (' + esc(card.title) + ')' : '') };
-      case 'card': return { html: 'Drew <b>' + esc(card ? card.title : 'a card') + '</b>: ' + esc(card ? C.cardEffectText(card) : ''), cls: card && card.cls === 'trick' ? 'bad' : card && card.cls === 'treasure' ? 'good' : '' };
+      case 'card': return { html: 'Drew <b>' + esc(card ? card.title : 'a card') + '</b>: ' + esc(card ? C.cardEffectText(card, E.isAcc(s)) : ''), cls: card && card.cls === 'trick' ? 'bad' : card && card.cls === 'treasure' ? 'good' : '' };
       case 'move': return { html: (e.n > 0 ? 'Moved ahead ' + e.n : 'Pushed back ' + (-e.n)) + (sp && sp.kind ? ': ' + esc(t.kinds[sp.kind].title) : ''), cls: e.n > 0 ? 'good' : 'bad' };
       case 'skip': return { html: (sp && sp.kind ? esc(t.kinds[sp.kind].title) + ' ' : '') + (e.turns > 1 ? 'Loses ' + e.turns + ' turns' : 'Loses a turn'), cls: 'bad' };
       case 'start': return { html: esc(sp && sp.kind ? t.kinds[sp.kind].title : '') + ' Back to the start', cls: 'bad' };
-      case 'warp': return { html: esc(sp && sp.kind ? t.kinds[sp.kind].title : 'Carried away') + ' Now at ' + esc(spaceName(s.board.spaces[e.to])), cls: sp && sp.kind === 'swim' ? 'good' : 'bad' };
+      case 'warp': return { html: esc(sp && sp.kind ? t.kinds[sp.kind].title : 'Carried away!') + ' Now at ' + esc(spaceName(s.board.spaces[e.to])), cls: sp && sp.kind === 'swim' ? 'good' : 'bad' };
       case 'cleared': {
         var pr = e.proof || {}, how = pr.by === 'beatleader' ? 'on BeatLeader' : pr.by === 'host' ? 'by the host' : '';
         var detail = pr.diff ? ' (' + esc(pr.diff.replace('ExpertPlus', 'Expert+')) + (pr.acc ? ', ' + (pr.acc * 100).toFixed(2) + '%' : '') + (pr.firstAcc != null ? ', improved' : '') + ')' : '';
@@ -720,7 +725,7 @@
       case 'shield-used': return { html: 'Protection used up. The setback missed', cls: 'good' };
       case 'again': return { html: 'Gets another roll today', cls: 'good' };
       case 'overshoot': return { html: (e.held ? 'Stopped at the gate. ' : '') + 'Needs exactly ' + e.need + ' to ' + fw().verb };
-      case 'gate-closed': return { html: 'Reached the ' + esc(t.goal) + ', but someone already escaped today. Waits at the gate' + (s.settings.exactFinish ? ' and needs exactly a 1 to walk out.' : ' and walks out on the next roll.'), cls: 'bad' };
+      case 'gate-closed': return { html: 'Reached the ' + esc(t.goal) + ', but someone already ' + fw().did + ' today. Waits at the gate' + (s.settings.exactFinish ? ' and needs exactly a 1 to walk out.' : ' and walks out on the next roll.'), cls: 'bad' };
       case 'host-move': return { html: 'The host moved this token' };
       case 'host-reset': return { html: 'The host reset this token' };
       case 'rest': {
@@ -880,7 +885,7 @@
     });
     rxSeen = now;
     if (!news.length) return;
-    var n = news[news.length - 1], what = n.ev.t === 'cleared' ? 'your clear' : n.ev.t === 'escaped' ? 'your escape' : 'your move';
+    var n = news[news.length - 1], what = n.ev.t === 'cleared' ? 'your clear' : n.ev.t === 'escaped' ? (theme().hero === 'taco' ? 'your finish' : 'your escape') : /^(mission|weekly|lifeline-back)$/.test(n.ev.t) ? 'your mission' : 'your move';
     toast(news.length > 1 ? news.length + ' new reactions on your moments' : n.who + ' reacted ' + X.rxLabel(n.em, theme()) + ' to ' + what, 'good');
   }
 
@@ -1183,10 +1188,10 @@
   // ---- cards -------------------------------------------------------------------------
   function cardFront(card) {
     // A picture card (a theme's own deck) is the art itself, words and move included.
-    if (card.full) return '<img class="cfull" src="' + esc(card.full) + '" alt="' + esc(card.text + ' ' + C.cardEffectText(card)) + '" draggable="false">';
+    if (card.full) return '<img class="cfull" src="' + esc(card.full) + '" alt="' + esc(card.text + ' ' + C.cardEffectText(card, E.isAcc(st()))) + '" draggable="false">';
     var t = theme(), cc = { treasure: 'var(--treasure)', trick: 'var(--trick)', task: 'var(--task)', fate: 'var(--fate)' }[card.cls];
     return '<div class="ctype">' + esc(t.card[card.cls] || 'Card') + '</div><div class="cart' + (R.isImg(card.art) ? ' pic' : '') + '" aria-hidden="true">' + R.cardArt(card.art) + '</div>' +
-      '<div class="ctitle">' + esc(card.title) + '</div><div class="ctext">' + esc(card.text) + '</div><div class="cfx">' + esc(C.cardEffectText(card)) + '</div>';
+      '<div class="ctitle">' + esc(card.title) + '</div><div class="ctext">' + esc(card.text) + '</div><div class="cfx">' + esc(C.cardEffectText(card, E.isAcc(st()))) + '</div>';
   }
   // The card flies out of your token, flips, then shimmers (good), cracks (bad) or glows.
   function showCard(card, fromPid) {
@@ -1315,7 +1320,7 @@
     store.act('verify').then(function (r) {
       renderAll();
       if (r && r.paused) toast('BeatLeader still doesn\'t show you in the clan. Add it back on beatleader.com, then check again.', '');
-      else { sfx.good(); toast('You\'re back in the clan. Roll the d4!', 'good'); }
+      else { sfx.good(); var bp = me(); toast('You\'re back in the clan.' + (bp && E.canRoll(st(), bp.id).ok ? ' Roll the d4!' : ''), 'good'); }
     }).catch(function (e) { renderAll(); fail(e); });
   }
   // AccSaber mode: look for a newly finished mission (the server reads AccSaber's leaderboard).
@@ -1581,8 +1586,9 @@
       };
       var crown = '<svg class="hf-crown" viewBox="0 0 30 21" aria-hidden="true"><path d="M2 19 L1 5 L8.5 11 L15 1 L21.5 11 L29 5 L28 19 Z" fill="#f2c046" stroke="#a9781a" stroke-width="1.2" stroke-linejoin="round"/><circle cx="15" cy="13" r="2" fill="#e8792a"/></svg>';
       var card = function (t, i) {
-        return '<div class="hf-tc hf-c' + (i + 1) + '" style="--m:' + MC[i] + '"><div class="hf-lw">' + laurel(i ? MC[i] : '#8cc152') + (i ? '' : crown) + ava(t, 'hf-sa') + '</div>' +
-          '<span class="hf-pl">' + ORD[i] + '</span><b>' + esc(t.name) + '</b><span class="hf-dy">' + esc(did(t)) + '</span></div>';
+        var pl = Math.min(2, Math.max(0, (t.place || i + 1) - 1));   // tied players share a place
+        return '<div class="hf-tc hf-c' + (i + 1) + '" style="--m:' + MC[pl] + '"><div class="hf-lw">' + laurel(i ? MC[pl] : '#8cc152') + (i ? '' : crown) + ava(t, 'hf-sa') + '</div>' +
+          '<span class="hf-pl">' + ORD[pl] + '</span><b>' + esc(t.name) + '</b><span class="hf-dy">' + esc(did(t)) + '</span></div>';
       };
       var top = g.top || [], order = [1, 0, 2].filter(function (i) { return top[i]; });
       var out = (g.all || []).filter(function (r) { return r.escaped; }).length;
@@ -1594,7 +1600,7 @@
     // Older games keep the small card until they get their own look.
     var older = function (g) {
       return '<div class="hf-game"><div class="hf-gh"><b>' + esc(g.title) + '</b><span>' + esc(when(g.endedAt)) + ' · ' + g.days + ' day' + (g.days === 1 ? '' : 's') + ' · ' + g.players + ' player' + (g.players === 1 ? '' : 's') + rm(g) + '</span></div>' +
-        '<ol class="hf-pod">' + g.top.map(function (t, i) { return '<li class="p' + (i + 1) + '"><span class="hf-m">' + medal[i] + '</span>' + ava(t, 'hf-ava') + '<b>' + esc(t.name) + '</b><span>' + esc(did(t)) + '</span></li>'; }).join('') + '</ol></div>';
+        '<ol class="hf-pod">' + g.top.map(function (t, i) { var pl = Math.min(2, Math.max(0, (t.place || i + 1) - 1)); return '<li class="p' + (pl + 1) + '"><span class="hf-m">' + medal[pl] + '</span>' + ava(t, 'hf-ava') + '<b>' + esc(t.name) + '</b><span>' + esc(did(t)) + '</span></li>'; }).join('') + '</ol></div>';
     };
     var html = !hall.length ? '<p class="lede">No game has finished yet. The first winner goes up here.</p>' :
       spot(hall[0]) + (hall.length > 1 ? '<h3 class="hw-h">Earlier games</h3><div class="hf-games">' + hall.slice(1).map(older).join('') + '</div>' : '') +
@@ -1647,7 +1653,7 @@
     else if (ev.t === 'start') { o.kicker = 'Ouch'; o.headline = 'Back to the start'; o.sub = kind ? kind.title : ''; }
     else if (ev.t === 'warp') { var fwd = sp && sp.kind === 'swim'; o.kicker = fwd ? 'Lucky break' : 'Swept away'; o.headline = fwd ? 'Carried ahead' : 'Carried away'; o.sub = 'Now at ' + spaceName(s.board.spaces[ev.to]); }
     else if (ev.t === 'move') { o.kicker = ev.n > 0 ? 'Boost' : 'Setback'; o.headline = ev.n > 0 ? 'Jumped ahead ' + ev.n : 'Pushed back ' + (-ev.n); o.sub = kind ? kind.title : ''; }
-    else if (ev.t === 'card') { var cd = E.cardById(s, ev.card); var ck = t.card[cd && cd.cls] || 'Card'; o.kicker = /card$/i.test(ck) ? ck : ck + ' card'; o.headline = cd ? cd.title : 'A card'; o.sub = cd ? C.cardEffectText(cd) : ''; if (cd && R.isImg(cd.art) && /^https:|^img\//.test(cd.art)) o.cover = cd.art; }
+    else if (ev.t === 'card') { var cd = E.cardById(s, ev.card); var ck = t.card[cd && cd.cls] || 'Card'; o.kicker = /card$/i.test(ck) ? ck : ck + ' card'; o.headline = cd ? cd.title : 'A card'; o.sub = cd ? C.cardEffectText(cd, E.isAcc(s)) : ''; if (cd && R.isImg(cd.art) && /^https:|^img\//.test(cd.art)) o.cover = cd.art; }
     return Promise.resolve(o);
   }
   // Where a player stood right after an old moment (from the moves logged up to it), so a share
@@ -2041,7 +2047,7 @@
     var loop = acc ? '<ol class="hw-loop">' +
       step(HOW_CHECK, 'Do a mission', 'One AccSaber daily mission a day.') +
       step(R.dieIcon(), 'Roll the d4', 'Your roll unlocks. Move that many spaces.') +
-      step('<svg viewBox="0 0 40 40"><path d="M20 5l4.6 9.4 10.4 1.5-7.5 7.3 1.8 10.3L20 28.6l-9.3 4.9 1.8-10.3L5 15.9l10.4-1.5z" fill="#ffd34d"/></svg>', 'Weekly bonus', 'A weekly mission adds a bonus roll.') +
+      step('<svg viewBox="0 0 40 40"><path d="M20 5l4.6 9.4 10.4 1.5-7.5 7.3 1.8 10.3L20 28.6l-9.3 4.9 1.8-10.3L5 15.9l10.4-1.5z" fill="#ffd34d"/></svg>', 'Weekly bonus', 'Your first weekly each week saves a bonus roll.') +
       step(HOW_AGAIN, 'Roll again', 'Missions reset at ' + esc(cutoffLabel(s)) + '.') + '</ol>' : '<ol class="hw-loop">' +
       step(R.dieIcon(), 'Roll the d4', 'Once a day. Move that many spaces.') +
       step(HOW_MAP, 'Play the map', 'Any difficulty, any modifiers.') +
@@ -2163,7 +2169,7 @@
 
   function openPlaylist() {
     var s = st(), keys = E.allMapKeys(s.board, s.cards);
-    modal('Get the maps', '<p class="lede">Every map on this board' + (s.board.bonusMaps && s.board.bonusMaps.length ? ' plus the bonus maps from cards' : '') + ', ' + keys.length + ' in all, as a playlist for the game.</p>' +
+    modal('Get the maps', '<p class="lede">Every map on this board' + (s.board.bonusMaps && s.board.bonusMaps.length ? ' plus the bonus maps' : '') + ', ' + keys.length + ' in all, as a playlist for the game.</p>' +
       '<p class="why">Save it to your Beat Saber Playlists folder, or open it with a playlist mod. In game you can also type the key into Better Song Search.</p>' +
       '<div class="row"><button type="button" class="btn" id="plGo">Download playlist</button>' +
       STUDIO_BTN() + '</div>' +
@@ -2892,7 +2898,7 @@
     if (over) T.game += newGameSection(s);
     if (!over) T.game += endSection(s);
     T.game += '<section class="hsec"><h3>Rules' + (over ? ' <span class="why">for the next game</span>' : '') + '</h3>' +
-      '<label class="check"><input type="checkbox" data-set="exactFinish"' + (s.settings.exactFinish ? ' checked' : '') + '> <span>Exact roll needed to escape</span></label>' +
+      '<label class="check"><input type="checkbox" data-set="exactFinish"' + (s.settings.exactFinish ? ' checked' : '') + '> <span>Exact roll needed to ' + fw().verb + '</span></label>' +
       '<label class="check"><input type="checkbox" data-set="oneFinishPerDay"' + (s.settings.oneFinishPerDay !== false ? ' checked' : '') + '> <span>Podium escapes one per day (after the top 3, anyone can escape)</span></label>' +
       (E.isAcc(s) ? '' : '<label class="check"><input type="checkbox" data-set="oneRollPerDay"' + (s.settings.oneRollPerDay ? ' checked' : '') + '> <span>One roll per day</span></label>') +   // AccSaber mode sets the rolls itself
       (theme().family === 'taco' && !E.isAcc(s) ? '' : '<label class="check"><input type="checkbox" data-set="accsaber"' + (E.isAcc(s) ? ' checked' : '') + (running ? ' disabled' : '') + '> <span>' + (running ? '<b>Locked while the game runs.</b> ' : '') + 'AccSaber mode: no maps. One AccSaber daily mission unlocks the day\'s roll, the first weekly mission each week adds a bonus roll, and the day turns over at AccSaber\'s reset (' + esc(new Date(E.nextCutoff({ timeZone: 'UTC', cutoffHour: 4, cutoffMinute: 0 })).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) + ' your time)</span></label>') + '</section>';
@@ -2984,7 +2990,7 @@
     var count = { all: s.order.length };
     s.order.forEach(function (pid) { hostPlayerGroups(s, s.players[pid]).forEach(function (k) { count[k] = (count[k] || 0) + 1; }); });
     var acc = E.isAcc(s);
-    var chips = [['all', 'All'], ['map', 'On a map'], ['paused', 'Paused'], ['riskier', 'Riskier'], ['longer', 'Longer'], ['escaped', 'Escaped'], ['noroute', 'No route']]
+    var chips = [['all', 'All'], ['map', 'On a map'], ['paused', 'Paused'], ['riskier', 'Riskier'], ['longer', 'Longer'], ['escaped', fw().Did], ['noroute', 'No route']]
       .filter(function (c) { return c[0] === 'all' || (c[0] === 'map' && !acc) || count[c[0]]; });
     if (!chips.some(function (c) { return c[0] === playerFilter; })) playerFilter = 'all';
     return '<div class="hp-chips" role="group" aria-label="Show players">' + chips.map(function (c) {
@@ -2994,7 +3000,7 @@
   function hostPlayerCard(s, pid) {
     var p = s.players[pid], r = p.route ? E.routeOf(s, p) : [], sp = p.route && p.pos >= 0 ? s.board.spaces[r[p.pos]] : null, open = hostOpen === pid;
     var here = hpSpaceLabel(s, sp, r), tags = [];
-    var where = p.finished ? '🎉 Escaped, ' + ordinal(p.finished.place) : !p.route ? '🧭 Hasn\'t picked a route' : here.icon + ' ' + (sp ? 'Space ' + (p.pos + 1) + ' of ' + r.length + ' · ' : '') + here.text;
+    var where = p.finished ? '🎉 ' + fw().Did + ', ' + ordinal(p.finished.place) : !p.route ? '🧭 Hasn\'t picked a route' : here.icon + ' ' + (sp ? 'Space ' + (p.pos + 1) + ' of ' + r.length + ' · ' : '') + here.text;
     p.tasks.forEach(function (t) { tags.push('<span class="hp-tag map">🎵 ' + hpSong(t.bsr[0]) + (t.bonus ? ' · bonus' : t.card ? ' · card' : '') + '</span>'); });
     if (p.claims.length) tags.push('<span class="hp-tag map">📨 Run sent to you</span>');
     if (p.route && !p.finished && !p.tasks.length) {
@@ -3555,7 +3561,7 @@
     // The secret board: a grid of red and blue note blocks, each a question mark.
     var blocks = '';
     for (var i = 0; i < 24; i++) blocks += '<span class="bt-note ' + ((i + Math.floor(i / 6)) % 2 ? 'b' : 'r') + '" style="--tilt:' + ((i * 37) % 11 - 5) + 'deg">?</span>';
-    var steps = h.acc ? [[HOW_CHECK, 'Do a daily mission', 'One AccSaber daily mission unlocks your roll.'], [R.dieIcon(), 'Roll the d4', 'Move that many spaces.'], ['<svg viewBox="0 0 40 40"><path d="M20 5l4.6 9.4 10.4 1.5-7.5 7.3 1.8 10.3L20 28.6l-9.3 4.9 1.8-10.3L5 15.9l10.4-1.5z" fill="#ffd34d"/></svg>', 'Weekly bonus', 'A weekly mission adds a bonus roll.'], [BT_FLAG, 'Race to the finish', 'Cards and shortcuts along the way. First three take the podium.']]
+    var steps = h.acc ? [[HOW_CHECK, 'Do a daily mission', 'One AccSaber daily mission unlocks your roll.'], [R.dieIcon(), 'Roll the d4', 'Move that many spaces.'], ['<svg viewBox="0 0 40 40"><path d="M20 5l4.6 9.4 10.4 1.5-7.5 7.3 1.8 10.3L20 28.6l-9.3 4.9 1.8-10.3L5 15.9l10.4-1.5z" fill="#ffd34d"/></svg>', 'Weekly bonus', 'Your first weekly each week saves a bonus roll.'], [BT_FLAG, 'Race to the finish', 'Cards and shortcuts along the way. First three take the podium.']]
       : [[R.dieIcon(), 'Roll the d4', 'Once a day. Move that many spaces.'], [HOW_MAP, 'Play the map', 'Any difficulty, any modifiers.'], [HOW_CHECK, 'Get cleared', 'BeatLeader is checked for you.'], [BT_FLAG, 'Race to the finish', 'Cards and shortcuts along the way. First three take the podium.']];
     var when = until ? new Date(until).toLocaleString([], { weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
     var html = '<section class="bt-board panel"><div class="bt-grid" aria-hidden="true">' + blocks + '</div>' +

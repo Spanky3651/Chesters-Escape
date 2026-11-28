@@ -226,8 +226,9 @@ body[data-theme="thanksgiving"] .brand h1 { color: #f39a4a; }
 body[data-theme="christmas"] .demo-bar, body[data-theme="snowy"] .demo-bar { background: #0b1220; border-color: #23395a; color: #c9dcf2; }
 body[data-theme="thanksgiving"] .demo-bar { background: #160c04; border-color: #4a2c12; color: #f0d6b0; }
 .demo-bar p { margin: 0; max-width: 80ch; }
-.demo-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.playas { display: flex; align-items: center; gap: 8px; }
+.demo-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
+.playas { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.playas select { min-width: 0; max-width: 100%; }
 select, input[type="text"], input[type="url"], input[type="number"] { background: var(--raise); border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 10px; min-height: 38px; }
 input::placeholder { color: var(--faint); }
 

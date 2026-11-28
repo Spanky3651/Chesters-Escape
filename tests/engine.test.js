@@ -484,6 +484,45 @@ assert.strictEqual(cardsSeen.size, 20);
   assert(E.UNDOABLE.includes('giveWeekly'));
   console.log('host weekly bonus ok');
 }
+// AccSaber: a Roll again card on a weekly bonus roll gives the extra roll right away, with no daily mission needed
+{
+  const settings = { accsaber: true, timeZone: 'UTC', cutoffHour: 4, cutoffMinute: 0 };
+  const s = E.createGame({ board: C.boardFor(), cards: C.cardsFor('cemetery'), themeId: 'cemetery', settings, rng: seeded(22) });
+  s.status = 'running';
+  E.addPlayer(s, { id: 'a', name: 'a', blId: '1' }); E.chooseRoute(s, 'a', 'longer');
+  const p = s.players.a, again = s.cards.find((c) => c.effects.length === 1 && c.effects[0].type === 'again');
+  assert(again, 'the deck has a Roll again card');
+  p.accBonus = 1;
+  E.roll(s, 'a', { forced: 1 });
+  assert.strictEqual(p.accBonus, 0, 'the weekly bonus roll was used');
+  E.hostCard(s, 'a', again.id);
+  assert(E.canRoll(s, 'a').ok, 'Roll again works after a weekly bonus roll');
+  const r = E.roll(s, 'a', { forced: 1 });
+  assert(r.events[0].bonus && !r.events[0].weekly, 'it is the bonus roll');
+  assert.strictEqual(E.canRoll(s, 'a').code, 'mission', 'the day\'s roll still waits on a daily mission');
+  p.acc = { d: s.day, base: 0, cur: 1 };
+  assert(E.canRoll(s, 'a').ok && !E.canRoll(s, 'a').bonus, 'a daily mission unlocks the day\'s roll as usual');
+  E.roll(s, 'a', { forced: 1 });
+  assert.strictEqual(E.canRoll(s, 'a').code, 'rolled');
+  // with the daily done first, the day's roll goes first and the card's roll is still there after it
+  E.advanceDay(s); p.acc = { d: s.day, base: 0, cur: 1 }; p.accBonus = 0;
+  E.roll(s, 'a', { forced: 1 }); E.hostCard(s, 'a', again.id);
+  assert(E.canRoll(s, 'a').ok); E.roll(s, 'a', { forced: 1 });
+  assert.strictEqual(E.canRoll(s, 'a').code, 'rolled', 'two rolls that day, no more');
+  console.log('roll again after a weekly bonus roll ok');
+}
+// Shared words every game shows (full review, Nov 28 2026): no escape wording where Taco games see it, and
+// AccSaber cards don't promise the bonus map they never hand out
+{
+  const fs = require('fs'), path = require('path'), read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+  assert(!/escap/i.test(C.spaceEffectText({ type: 'exit' })), 'the exit space popover names no escape: ' + C.spaceEffectText({ type: 'exit' }));
+  const both = C.cardsFor('cemetery').find((c) => c.effects.some((f) => f.type === 'task') && c.effects.some((f) => f.type !== 'task'));
+  assert(both && /bonus map/.test(C.cardEffectText(both)) && !/map/.test(C.cardEffectText(both, true)), 'AccSaber card line: ' + C.cardEffectText(both, true));
+  for (const m of read('docs/js/fx.js').matchAll(/desc: '([^']*)'/g)) assert(!/escap/i.test(m[1]), 'badge text is shared by every game: ' + m[1]);
+  const app = read('docs/js/app.js');
+  for (const bad of ['You escaped on day', 'someone already escaped today', "' spaces from the '"]) assert(!app.includes(bad), 'app.js still has "' + bad + '"');
+  console.log('shared wording ok');
+}
 console.log('all engine tests passed');
 require('./themes.test.js');
 require('./playbook.test.js');
