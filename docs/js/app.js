@@ -191,15 +191,16 @@
     var fallback = '<span class="' + cls + '" aria-hidden="true"' + (c.icon ? ' hidden' : '') + '>' + esc(letters) + '</span>';
     return (c.icon ? '<img class="' + cls + '" src="' + esc(c.icon) + '" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false">' : '') + fallback;
   }
-  var clanSwitchDone = false;
+  var clanSwitchDone = false, clanNext = null;
   // One button in the header showing the current server; it opens a small menu of your servers.
   function renderClanSwitch(src) {
     var el = $('clanSwitch'), list = (src && src.clans) || [];
     if (!el || clanSwitchDone || list.length < 2) return;
     clanSwitchDone = true;
     var cur = list.filter(function (c) { return c.id === src.clan; })[0] || list[0];
+    clanNext = list[(list.indexOf(cur) + 1) % list.length];   // a long press jumps here
     el.hidden = false;
-    el.innerHTML = '<button type="button" class="nav-btn clan-cur" id="clanBtn" aria-haspopup="menu" aria-expanded="false" title="Switch game">' + clanIcon(cur, 'clan-ic') +
+    el.innerHTML = '<button type="button" class="nav-btn clan-cur" id="clanBtn" aria-haspopup="menu" aria-expanded="false" title="Switch game (press and hold, or right-click, to jump to ' + esc(clanNext.name) + ')">' + clanIcon(cur, 'clan-ic') +
       '<span class="nm">' + esc(cur.name) + '</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>';
     $('clanPop').innerHTML = '<p class="cp-h">Switch game</p>' + list.map(function (c) {
       var on = c.id === cur.id;
@@ -221,6 +222,31 @@
     if (!e.target.closest('#clanPop')) closeClan();
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeClan(); });
+  // Press and hold the switcher (or right-click it on a computer) to jump straight to the next game, in the
+  // switcher's order, without opening the menu. The click that ends the hold is swallowed so the menu stays shut.
+  (function () {
+    var timer = null, start = null, swallow = false, gone = false;
+    function jump() {
+      if (gone || !clanNext || (store && store.clan === clanNext.id)) return;
+      gone = swallow = true; closeClan();
+      if (navigator.vibrate) try { navigator.vibrate(15); } catch (x) {}
+      toast('Switching to ' + clanNext.name + '…', '');
+      track('clan-hold-' + clanNext.id);
+      window.CGStore.switchClan(clanNext.id);
+    }
+    var cancel = function () { clearTimeout(timer); timer = null; start = null; };
+    document.addEventListener('pointerdown', function (e) {
+      swallow = false;
+      if (!(e.target.closest && e.target.closest('#clanBtn'))) return;
+      start = { x: e.clientX, y: e.clientY }; clearTimeout(timer);
+      timer = setTimeout(jump, 550);
+    });
+    document.addEventListener('pointerup', cancel);
+    document.addEventListener('pointercancel', cancel);
+    document.addEventListener('pointermove', function (e) { if (start && Math.abs(e.clientX - start.x) + Math.abs(e.clientY - start.y) > 12) cancel(); });
+    window.addEventListener('click', function (e) { if (swallow && e.target.closest && e.target.closest('#clanBtn')) { swallow = false; e.preventDefault(); e.stopPropagation(); } }, true);
+    document.addEventListener('contextmenu', function (e) { if (e.target.closest && e.target.closest('#clanBtn')) { e.preventDefault(); cancel(); jump(); } });
+  })();
   document.addEventListener('click', function (e) {
     var d = e.target.closest && e.target.closest('#chatBtn, .turn-dc'); if (!d) return;
     track(d.id === 'chatBtn' ? 'discord-chat' : 'discord-turn');

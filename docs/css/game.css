@@ -854,6 +854,9 @@ body.neutral .brand h1, body.neutral .gate-card h2 { letter-spacing: 0; }
 .clan-cur { gap: 8px; padding: 4px 10px 4px 4px; border: 1px solid var(--line-2); border-radius: 999px; color: var(--text); font-weight: 700; }
 .clan-cur:hover, .clan-cur[aria-expanded="true"] { border-color: var(--accent); }
 .clan-cur .clan-ic { width: 28px; height: 28px; filter: none !important; opacity: 1 !important; }
+/* press and hold jumps to the next game, so no text selection or picture menu on a long press */
+.clan-cur { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+.clan-cur img { -webkit-user-drag: none; pointer-events: none; }
 .clan-cur .chev, .clan-opt .tick { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 .clan-cur .chev { color: var(--muted); transition: transform .2s; }
 .clan-cur[aria-expanded="true"] .chev { transform: rotate(180deg); }
