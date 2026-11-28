@@ -585,4 +585,68 @@ const logs = (w) => JSON.stringify(Object.values(w.games).map((g) => [g.meta.sig
   assert.deepStrictEqual(problems, [], 'Post wording (see the playbook):\n  ' + problems.join('\n  '));
   ok('Discord posts and reminders in every theme and mode use their own words and pictures');
 }
+// Post details found reading every post as a player (Nov 28 2026): plurals, the rules in the pitch (weekly bonus,
+// exact roll, one finish a day), the leader line, Expert+ in the end post and the big picture only on its own board.
+{
+  const DAY = 86400000;
+  const GENX = { id: 'genx', name: 'GenX', accClan: 'genx-clan', accClanName: 'GenX Clan', blClan: '85', blClanName: 'GENX', webhook: 'W' };
+  const BEATERS = { id: 'beaters', name: 'Beaters', webhook: 'W' };
+  const make = async (tid, clan, acc, designer, settings = {}) => {
+    const store = new Map();
+    const ctx = { storage: { get: async (k) => store.get(k), put: async (k, v) => store.set(k, v), getAlarm: async () => null, setAlarm: async () => {}, delete: async (k) => store.delete(k) }, blockConcurrencyWhile: (f) => f() };
+    const g = new Game(ctx, { GAME_PAGE: 'https://beatsabergames.com/', ACC_API: 'https://api.accsaber.com' });
+    await new Promise((r) => setTimeout(r, 5));
+    g.clan = () => clan; g.useClan = () => {}; g.notifyHosts = async () => {}; g.announcing = () => true;
+    g.posts = []; g.discordPost = async (content, link, card, kind) => { g.posts.push({ kind, content, card: card || null }); return { ok: true, status: 200 }; };
+    g.songInfo = async (k) => ({ n: 'Song ' + k, a: 'Artist', m: 'Mapper', h: '' });
+    clock = Date.UTC(2026, 11, 7, 12);
+    const board = C.boardFor(C.themes[tid].mapSet);
+    if (designer) { board.custom = true; board.title = designer; }
+    g.state = E.createGame({ board, cards: C.cardsFor(tid), themeId: tid, title: C.gameTitle(tid, board), status: 'signup', startsAt: clock + 2 * DAY, endsAt: clock + 20 * DAY,
+      settings: Object.assign(acc ? { accsaber: true, timeZone: 'UTC', cutoffHour: 4, cutoffMinute: 0 } : {}, settings) });
+    g.meta = { access: { mode: 'open', allowed: [], pending: [] }, push: [] };
+    ['1', '2', '3'].forEach((id) => { E.addPlayer(g.state, { id: 'd' + id, discordId: id, name: 'P' + id, blId: 'bl' + id }); E.chooseRoute(g.state, 'd' + id, 'longer'); });
+    return g;
+  };
+  const all = (g) => JSON.stringify(g.posts);
+  // "1 maps"
+  let g = await make('taco-christmas', BEATERS, false, null);
+  g.mapCount = () => 1;
+  const one = JSON.stringify([g.signupsPost(), g.pitch(false)]);
+  assert(!/\b1 maps\b/.test(one) && /\b1 map\b/.test(one), 'one map reads "1 map": ' + one.match(/.{0,30}\b1 maps?\b.{0,20}/));
+  // the pitch states the exact roll and one finish a day only when they're on, in the family's own words
+  g = await make('taco-christmas', BEATERS, false, null, { exactFinish: true });
+  let d = g.pitch(false).description;
+  assert(/exact roll/.test(d) && /only one player can finish a day/.test(d) && !/escape/i.test(d), 'Taco pitch: exact roll, one finish a day, no escape words: ' + d);
+  g = await make('cemetery', GENX, false, null, { exactFinish: false, oneFinishPerDay: false });
+  d = g.pitch(false).description;
+  assert(!/exact roll|a day until/.test(d), 'pitch leaves out rules that are off: ' + d);
+  // AccSaber: the weekly bonus is the first weekly each AccSaber week, saved, in the pitch and the start post
+  g = await make('snowy', GENX, true, "Chester's Snowy AccScape");
+  d = g.pitch(false).description;
+  assert(/first weekly mission each AccSaber week saves a bonus roll/.test(d) && !/a weekly mission adds/.test(d), 'AccSaber pitch weekly rule: ' + d);
+  clock = g.state.startsAt; E.startGame(g.state, clock); g.meta.nextCutoff = E.nextCutoff(g.state.settings, clock);
+  await g.announceStart();
+  const st = g.posts.find((p) => p.kind === 'start');
+  assert(st && /first weekly mission each AccSaber week/.test(st.card.description), 'AccSaber start post names the weekly bonus: ' + (st && st.card.description));
+  // the leader line: the distance belongs to the new leader and the gap counts spaces
+  g = await make('snowy', GENX, false, null);
+  clock = g.state.startsAt; E.startGame(g.state, clock); g.meta.nextCutoff = E.nextCutoff(g.state.settings, clock);
+  await g.discordFeed();
+  E.setPosition(g.state, 'd1', 5); await g.discordFeed();
+  E.setPosition(g.state, 'd3', 12); await g.discordFeed();
+  const lead = (all(g).match(/👑[^"]*/) || [''])[0];
+  assert(/passes \*\*P1\*\* for the lead on day 1, 2\d spaces from the cabin! P1 is 7 spaces behind\./.test(lead), 'leader line: ' + lead);
+  // the end post's best score says Expert+, like the other posts
+  g.state.events.push({ id: ++g.state.seq, pid: 'd1', day: g.state.day, at: clock, t: 'cleared', bsr: ['abc'], proof: { acc: 0.97, diff: 'ExpertPlus' } });
+  E.endGame(g.state, clock); await g.announceEnd();
+  assert(/Expert\+/.test(all(g)) && !/ExpertPlus/.test(all(g)), 'end post says Expert+: ' + (all(g).match(/Highest accuracy[^}]*/) || [''])[0]);
+  // the big picture (shot) only on the board it shows: Taco's on the built-in board, Snowy's on LumberJack's designer board
+  const shotOn = async (tid, clan, acc, designer) => !!(await make(tid, clan, acc, designer)).pitch(false).image;
+  assert.strictEqual(await shotOn('taco-christmas', BEATERS, false, null), true, 'Taco\'s Christmas on its board shows the shot');
+  assert.strictEqual(await shotOn('taco-christmas', BEATERS, false, 'Some other board'), false, 'Taco\'s shot not on a designer board');
+  assert.strictEqual(await shotOn('snowy', GENX, true, "Chester's Snowy AccScape"), true, 'Snowy AccScape shows LumberJack\'s board');
+  assert.strictEqual(await shotOn('snowy', GENX, false, null), false, 'a Snowy map game on the built-in board does not show LumberJack\'s board');
+  ok('post details: plurals, pitch rules, weekly bonus, leader line, Expert+, the shot on its own board');
+}
 console.log('worker timing tests passed');

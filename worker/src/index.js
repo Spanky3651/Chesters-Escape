@@ -669,7 +669,7 @@ export class Game extends DurableObject {
     if (s.startsAt) fields.push({ name: '🎲 Starts', value: `<t:${sec(s.startsAt)}:F>` + (list ? '' : ` (<t:${sec(s.startsAt)}:R>)`), inline: true });
     if (span) fields.push({ name: '⏳ Runs', value: span + `, ends <t:${sec(s.endsAt)}:D>`, inline: true });
     if (E.isAcc(s)) fields.push({ name: '✅ Missions', value: `One AccSaber daily mission a day, plus ${E.LIFELINES} lifelines for hard days`, inline: true });
-    else fields.push({ name: '🎵 Maps', value: (maps ? maps + ' maps, ' : '') + 'about one a day', inline: true });
+    else fields.push({ name: '🎵 Maps', value: (maps ? plural(maps, 'map') + ', ' : '') + 'about one a day', inline: true });
     if (list) {
       // Everyone who's in, in sign-up order. Discord caps a field at 1024 characters.
       let names = '';
@@ -688,18 +688,22 @@ export class Game extends DurableObject {
       fields.push({ name: '📝 How to join', value: `Open the game, sign in with Discord, paste your BeatLeader profile and pick the ${r} route.` + need, inline: false });
     }
     const card = this.card('Join ' + s.title, {
-      description: (t.tagline ? t.tagline + ' ' : '') + (E.isAcc(s) ? `Finish an AccSaber daily mission to unlock your d4 roll each day, and a weekly mission adds a bonus roll. Dailies too hard? Everyone gets ${E.LIFELINES} lifelines to roll without one.` : 'Roll a d4 once a day and play the map you land on.') + ' Cards, shortcuts and setbacks along the way. First three to the ' + (t.goal || 'exit') + ' take the podium.',
+      description: (t.tagline ? t.tagline + ' ' : '') + (E.isAcc(s) ? `Finish an AccSaber daily mission to unlock your d4 roll each day. Your first weekly mission each AccSaber week saves a bonus roll you can use any time. Dailies too hard? Everyone gets ${E.LIFELINES} lifelines to roll without one.` : 'Roll a d4 once a day and play the map you land on.') + ' Cards, shortcuts and setbacks along the way. First three to the ' + (t.goal || 'exit') + ' take the podium' + (s.settings.oneFinishPerDay !== false ? `, and only one player can ${t.family === 'taco' ? 'finish' : 'escape'} a day until it fills.` : '.') + (s.settings.exactFinish ? ' You need the exact roll to get out.' : ''),
       fields
     });
-    if (t.shot) card.image = { url: (this.env.GAME_PAGE || '').replace(/\/?$/, '/') + t.shot };
+    if (this.shotFits()) card.image = { url: (this.env.GAME_PAGE || '').replace(/\/?$/, '/') + t.shot };
     return card;
   }
+  // A theme's shot is a picture of one board. With a map set it's the built-in board with those songs; without one
+  // it's the designer board the theme was made for (Snowy's is LumberJack's AccScape board). Either way it only goes
+  // on a game played on that kind of board, so a Snowy map game on the built-in board doesn't show her board.
+  shotFits() { const t = this.theme(), custom = !!(this.state.board && this.state.board.custom); return !!t.shot && (t.mapSet ? !custom : custom); }
   icon() { return { thanksgiving: '🦃', halloween: '🎃', christmas: '🎄', snowy: '❄️', newyear: '🎉', valentine: '💘', spring: '🐣', summer: '☀️' }[this.theme().look] || '📅'; }
   // Sign-ups open.
   signupsPost() {
     const s = this.state, maps = this.mapCount(), span = this.span();
     // AccSaber games play missions, not maps (the board can still carry maps from the board it was made from).
-    const what = E.isAcc(s) ? (span ? span + ' of AccSaber missions. ' : '') : maps ? maps + ' maps' + (span ? ' over ' + span : '') + '. ' : '';
+    const what = E.isAcc(s) ? (span ? span + ' of AccSaber missions. ' : '') : maps ? plural(maps, 'map') + (span ? ' over ' + span : '') + '. ' : '';
     return { text: `📣 **Sign-ups are open for ${md(s.title)}!** ${what}Sign up any time before the first roll.`, card: this.pitch(false) };
   }
   // The post a day before the start: what the game is, when it runs and everyone who's in so far.
@@ -840,7 +844,7 @@ export class Game extends DurableObject {
       const r = E.ranking(s)[0];
       f.leadDay = s.day;
       const was = E.ranking(s).find((x) => x.pid === f.leader), gap = r && was && !was.escaped ? was.left - r.left : 0;
-      if (!queue('leader', s.day, `👑 **${name(lead)}** passes **${name(f.leader)}** for the lead on day ${s.day}!` + (r ? ` ${plural(r.left, 'space')} from the ${goal}` + (gap > 0 ? `, ${name(f.leader)} is ${gap} behind.` : '.') : ''))) { f.leadDay = null; return; }
+      if (!queue('leader', s.day, `👑 **${name(lead)}** passes **${name(f.leader)}** for the lead on day ${s.day}` + (r ? `, ${plural(r.left, 'space')} from the ${goal}` : '') + '!' + (r && gap > 0 ? ` ${name(f.leader)} is ${plural(gap, 'space')} behind.` : ''))) { f.leadDay = null; return; }
     }
     if (lead) f.leader = lead;
     // A race for the exit: two or more players within one roll while the podium still lets one out a day.
@@ -1847,7 +1851,9 @@ export class Game extends DurableObject {
     const s = this.state, n = s.order.length, sp = this.routeSplit(), fields = [{ name: '👥 Players', value: String(n), inline: true }];
     if (sp.routes.length) fields.push({ name: '🛤️ Routes', value: sp.routes.map((r) => r.n + ' ' + r.name.replace(/ route$/i, '')).join(', '), inline: true });
     if (s.endsAt) fields.push({ name: '🏁 Ends', value: `<t:${sec(s.endsAt)}:D>`, inline: true });
-    const reset = this.meta.nextCutoff ? (E.isAcc(s) ? ` One roll a day, and it resets with AccSaber's missions at <t:${sec(this.meta.nextCutoff)}:t> every night.` : ` One roll a day, and the roll resets at <t:${sec(this.meta.nextCutoff)}:t> every night.`) : ' One roll a day.';
+    const weekly = ' One roll a day, plus a saved bonus roll for your first weekly mission each AccSaber week.';
+    const reset = E.isAcc(s) ? weekly + (this.meta.nextCutoff ? ` The daily roll resets with AccSaber's missions at <t:${sec(this.meta.nextCutoff)}:t> every night.` : '')
+      : this.meta.nextCutoff ? ` One roll a day, and the roll resets at <t:${sec(this.meta.nextCutoff)}:t> every night.` : ' One roll a day.';
     await this.sendOrKeep(`🎲 **${md(s.title)} has started!** Day 1 is open: ` + (E.isAcc(s) ? `finish an AccSaber daily mission and roll your d4. Dailies too hard? Use one of your ${E.LIFELINES} lifelines, and finish both dailies in a day to earn one back.` : 'roll your d4 and play the map you land on.'), true,
       this.card('Play ' + s.title, { description: (n ? `${plural(n, 'player')} ${n === 1 ? 'is' : 'are'} off.` : 'Sign up and roll your first d4.') + reset, fields }), 'start');
   }
@@ -1887,7 +1893,7 @@ export class Game extends DurableObject {
     fields.push({ name: '📊 By the numbers', value: `${plural(s.final.length, 'player')} · ${done} · ${out} made it to the ${goal}`, inline: false });
     if (tot.best && s.players[tot.best.pid]) {
       const song = tot.best.key ? await this.songName(tot.best.key) : '';
-      fields.push({ name: '✨ Highest accuracy', value: `**${md(s.players[tot.best.pid].name)}**, ${song ? md(song) : 'a map'}` + (tot.best.diff ? ` (${tot.best.diff})` : '') + ` at ${(tot.best.acc * 100).toFixed(2)}%`, inline: false });
+      fields.push({ name: '✨ Highest accuracy', value: `**${md(s.players[tot.best.pid].name)}**, ${song ? md(song) : 'a map'}` + (tot.best.diff ? ` (${diffName(tot.best.diff)})` : '') + ` at ${(tot.best.acc * 100).toFixed(2)}%`, inline: false });
     }
     await this.sendOrKeep(`🏁 **${md(s.title)} is over!** Congrats to everyone who played.`, true, this.card('Final results', { fields }), 'end');
   }
