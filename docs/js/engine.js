@@ -201,8 +201,15 @@
     delete s.players[pid];
     s.order = s.order.filter(function (x) { return x !== pid; });
     s.finishOrder = s.finishOrder.filter(function (x) { return x !== pid; });
+    renumberFinish(s);
     // Before the game starts, someone who leaves takes their sign-up moments out of the thread too.
     if (s.status === 'signup') dropOrphans(s);
+  }
+  // A finisher taken off the podium mid-game (removed, reset or moved back): everyone who finished after
+  // them moves up a place, so no place repeats. Once the game is over the final standings are kept as they were.
+  function renumberFinish(s) {
+    if (s.status === 'finished') return;
+    s.finishOrder.forEach(function (x, i) { var q = s.players[x]; if (q && q.finished) q.finished.place = i + 1; });
   }
   function dropOrphans(s) {
     var gone = {};
@@ -520,6 +527,8 @@
   }
 
   function mapOnly(card) { return !!(card && card.effects && card.effects.length && card.effects.every(function (fx) { return fx.type === 'task'; })); }
+  // AccSaber boards have no maps, so a card that only jumps you to the next map is set aside too.
+  function jumpsToMap(card) { return !!(card && card.effects && card.effects.some(function (fx) { return fx.type === 'toNext' && (fx.kind || 'map') === 'map'; })); }
   function cardById(s, id) { for (var i = 0; i < s.cards.length; i++) if (s.cards[i].id === id) return s.cards[i]; return null; }
 
   function drawCard(s, p, ctx, forcedId) {
@@ -530,7 +539,7 @@
       for (var tries = 0; tries <= s.cards.length && !id; tries++) {
         if (!s.deck.length) { s.deck = shuffle(s.discard.splice(0), ctx && ctx.rng); emit(s, null, { t: 'reshuffle' }); }
         id = s.deck.shift();
-        if (id && isAcc(s) && mapOnly(cardById(s, id))) { s.discard.push(id); id = null; }
+        if (id && isAcc(s) && (mapOnly(cardById(s, id)) || jumpsToMap(cardById(s, id)))) { s.discard.push(id); id = null; }
       }
       if (!id) return null;
     } else {
@@ -809,7 +818,7 @@
     var p = need(s, pid);
     var last = exitIndex(s, p), from = p.pos;
     p.pos = Math.max(-1, Math.min(last, pos));
-    if (p.finished && p.pos < last) { p.finished = null; s.finishOrder = s.finishOrder.filter(function (x) { return x !== pid; }); }
+    if (p.finished && p.pos < last) { p.finished = null; s.finishOrder = s.finishOrder.filter(function (x) { return x !== pid; }); renumberFinish(s); }
     emit(s, p, { t: 'host-move', from: from, to: p.pos });
     if (opts && opts.apply) { var ctx = { steps: [], depth: 0 }; land(s, p, 'roll', ctx); }
     return p;
@@ -821,6 +830,7 @@
     var p = need(s, pid), from = p.pos;
     p.pos = -1; p.tasks = []; p.claims = []; p.skip = 0; p.skippedDay = 0; p.rolledDay = 0; p.extraRoll = false; p.shield = false; p.finished = null;
     s.finishOrder = s.finishOrder.filter(function (x) { return x !== pid; });
+    renumberFinish(s);
     emit(s, p, { t: 'host-reset', from: from });
   }
 
@@ -939,7 +949,8 @@
     var who = function (pid) { return s.players[pid] || {}; };
     return {
       id: s.id, title: s.title, themeId: s.themeId, startedAt: s.startedAt || null, endedAt: s.endedAt || now(), days: s.day, players: fin.length,
-      top: fin.slice(0, 3).map(function (r) { return { pid: r.pid, name: who(r.pid).name || 'Player', avatar: who(r.pid).avatar || '', place: r.place, escaped: !!r.escaped, day: r.day || null, left: r.left || 0 }; }),
+      // The podium is everyone placed 3rd or better, so a tie for 3rd keeps every tied player.
+      top: fin.filter(function (r, i) { return i < 3 || r.place <= 3; }).map(function (r) { return { pid: r.pid, name: who(r.pid).name || 'Player', avatar: who(r.pid).avatar || '', place: r.place, escaped: !!r.escaped, day: r.day || null, left: r.left || 0 }; }),
       all: fin.map(function (r) { return { pid: r.pid, name: who(r.pid).name || 'Player', avatar: who(r.pid).avatar || '', place: r.place, escaped: !!r.escaped }; })
     };
   }

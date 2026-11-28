@@ -523,6 +523,47 @@ assert.strictEqual(cardsSeen.size, 20);
   for (const bad of ['You escaped on day', 'someone already escaped today', "' spaces from the '"]) assert(!app.includes(bad), 'app.js still has "' + bad + '"');
   console.log('shared wording ok');
 }
+// Full review decisions (Nov 28 2026): a finisher removed mid-game moves everyone after them up a place,
+// AccSaber games set aside the jump-to-the-next-map card, and a tie for 3rd keeps every tied player on the podium
+{
+  const s = newGame('cemetery', seeded(31)); s.status = 'running';
+  ['a', 'b', 'c', 'd'].forEach((id) => { E.addPlayer(s, { id, name: id }); E.chooseRoute(s, id, 'longer'); });
+  ['a', 'b', 'c'].forEach((id) => { E.setPosition(s, id, E.exitIndex(s, s.players[id]), { apply: true }); E.advanceDay(s); });
+  assert.deepStrictEqual(['a', 'b', 'c'].map((id) => s.players[id].finished && s.players[id].finished.place), [1, 2, 3], 'three finishers in order');
+  E.removePlayer(s, 'a');
+  assert.deepStrictEqual(['b', 'c'].map((id) => s.players[id].finished.place), [1, 2], 'everyone after the removed finisher moves up');
+  assert.deepStrictEqual(E.ranking(s).map((r) => r.place), [1, 2, 3], 'no place repeats after a removal');
+  E.resetPlayer(s, 'b');
+  assert.strictEqual(s.players.c.finished.place, 1, 'a reset finisher moves the rest up too');
+  s.status = 'finished'; const kept = s.players.c.finished.place; E.removePlayer(s, 'd');
+  assert.strictEqual(s.players.c.finished.place, kept, 'final standings stay as they were once the game is over');
+}
+{
+  const settings = { accsaber: true, timeZone: 'UTC', cutoffHour: 4, cutoffMinute: 0 };
+  const s = E.createGame({ board: C.boardFor(), cards: C.cardsFor('cemetery'), themeId: 'cemetery', settings, rng: seeded(32) });
+  s.status = 'running'; E.addPlayer(s, { id: 'a', name: 'a', blId: '1' }); E.chooseRoute(s, 'a', 'longer');
+  const jump = s.cards.find((c) => c.effects.some((f) => f.type === 'toNext' && (f.kind || 'map') === 'map'));
+  assert(jump, 'the deck has a jump-to-the-next-map card');
+  const route = E.routeOf(s, s.players.a), at = route.findIndex((id) => s.board.spaces[id].type === 'card');
+  const calm = s.cards.find((c) => c.effects.length === 1 && c.effects[0].type === 'again');
+  assert(at >= 0 && calm, 'a card space and a Roll again card');
+  s.deck = [jump.id, calm.id]; s.discard = [];
+  E.setPosition(s, 'a', at, { apply: true });
+  const drawn = s.events.filter((e) => e.t === 'card').map((e) => e.card);
+  assert.deepStrictEqual(drawn, [calm.id], 'AccSaber games set the jump-to-map card aside and draw the next one');
+  assert(s.discard.includes(jump.id), 'it goes to the discard pile');
+}
+{
+  const s = newGame('cemetery', seeded(33));
+  ['a', 'b', 'c', 'd', 'e'].forEach((id) => E.addPlayer(s, { id, name: id }));
+  s.status = 'finished';
+  s.final = [1, 2, 3, 3, 4].map((place, i) => ({ pid: 'abcde'[i], place, escaped: true, left: 0, day: 5 }));
+  const h = E.hallEntry(s);
+  assert.deepStrictEqual(h.top.map((t) => t.pid), ['a', 'b', 'c', 'd'], 'a tie for 3rd keeps both tied players');
+  s.final = [1, 2, 3, 4].map((place, i) => ({ pid: 'abcd'[i], place, escaped: true, left: 0, day: 5 }));
+  assert.strictEqual(E.hallEntry(s).top.length, 3, 'no tie: the usual top 3');
+  console.log('removal renumber, AccSaber jump card and podium ties ok');
+}
 console.log('all engine tests passed');
 require('./themes.test.js');
 require('./playbook.test.js');

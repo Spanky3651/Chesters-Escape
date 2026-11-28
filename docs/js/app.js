@@ -1595,6 +1595,7 @@
       return '<div class="hf-spot"><svg class="hf-conf" width="100%" height="100%" aria-hidden="true">' + bits + '</svg>' +
         '<div class="hf-kick">' + esc(g.title) + ' · ' + esc(when(g.endedAt)) + rm(g) + '</div>' +
         '<div class="hf-trio">' + order.map(function (i) { return card(top[i], i); }).join('') + '</div>' +
+      (top.length > 3 ? '<div class="hf-also">Also on the podium: ' + top.slice(3).map(function (t) { return '<b>' + esc(t.name) + '</b> (' + ordinal(t.place) + ')'; }).join(', ') + '</div>' : '') +
         '<div class="hf-stats"><span><b>' + g.days + '</b>day' + (g.days === 1 ? '' : 's') + '</span><span><b>' + g.players + '</b>player' + (g.players === 1 ? '' : 's') + '</span><span><b>' + out + '</b>' + fw().did + '</span></div></div>';
     };
     // Older games keep the small card until they get their own look.
